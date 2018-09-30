@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# rescore-minimize-wer --
+#	minimize posteror expected WER in an nbest-list
+#
+# $Header: /home/spot71/srilm/devel/utils/src/RCS/rescore-minimize-wer,v 1.2 1997/04/17 21:45:07 stolcke Exp $
+#
+
+if [ $# -lt 1 ]; then
+	echo "usage: $0: score-dir [lmw [wtw [max-nbest]]]" >&2
+	exit 1
+fi
+
+scoredir="$1"
+lmweight="${2-8.0}"
+wtweight="${3-0.0}"
+maxnbest="${4-10}"
+
+find $scoredir -type f \( -name \*.score -o \
+			-name \*.score.Z -o \
+			-name \*.score.gz \) \
+		-print | sort | \
+while read file
+do
+	case $file in
+	*.Z)	cat=zcat 
+		sentid=`basename $file .score.Z`
+		;;
+	*.gz)	cat="gunzip -c"
+		sentid=`basename $file .score.gz`
+		;;
+	*)	cat=cat
+		sentid=`basename $file .score`
+		;;
+	esac
+	echo "$sentid \c"
+	$cat $file | \
+	sed -e 's,-pau-,,g' -e 's,\[[^]]*\],,g' | \
+	nbest-lattice -wer -debug 1 -rescore - \
+		-rescore-lmw $lmweight -rescore-wtw $wtweight \
+		-max-rescore $maxnbest
+done
+

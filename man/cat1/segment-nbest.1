@@ -1,0 +1,198 @@
+
+
+
+segment-nbest(1)                                 segment-nbest(1)
+
+
+NNAAMMEE
+       segment-nbest  - rescore and segment N-best lists using N-
+       gram language models
+
+SSYYNNOOPPSSIISS
+       sseeggmmeenntt--nnbbeesstt [--hheellpp] option ...  nbest-file-list ...
+
+DDEESSCCRRIIPPTTIIOONN
+       sseeggmmeenntt--nnbbeesstt processes a  series  of  consecutive  N-best
+       lists  from  a speech recognizer and applies a hidden seg-
+       ment N-gram language model to them.  The language model is
+       a standard backoff N-gram model in ARPA format (as created
+       by nnggrraamm--ccoouunntt(1)) modeling segmentation using the  bound-
+       ary  tags  <s>  and </s>.  The program reads in all N-best
+       lists and outputs the hypotheses  that  have  the  highest
+       aggregate   score  (both  acoustic  and  language  model).
+       Hypothesized segment boundaries are marked by <s> tags.
+
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --oorrddeerr _n
+              Set the maximal N-gram order to be used, by default
+              3.   NOTE:  The order of the model is not set auto-
+              matically when a model file is read,  so  the  same
+              file can be used at various orders.
+
+       --ddeebbuugg _l_e_v_e_l
+              Set  the  debugging output level (0 means no debug-
+              ging  output).   Debugging  messages  are  sent  to
+              stderr.
+
+       --llmm _f_i_l_e
+              Read the N-gram model from _f_i_l_e.
+
+       --ttoolloowweerr
+              Map  all  vocabulary  to lowercase.  Useful if case
+              conventions for N-best  lists  and  language  model
+              differ.
+
+       --mmiixx--llmm _f_i_l_e
+              Read a second, standard N-gram model for interpola-
+              tion purposes.
+
+       --llaammbbddaa _w_e_i_g_h_t
+              Set the weight of the main model when interpolating
+              with --mmiixx--llmm.  Default value is 0.5.
+
+       --bbaayyeess _l_e_n_g_t_h
+              Interpolate  the  second  and  the main model using
+
+
+
+SRILM              $Date: 1998/07/10 08:27:54 $                 1
+
+
+
+
+
+segment-nbest(1)                                 segment-nbest(1)
+
+
+              posterior probabilities for  local  N-gram-contexts
+              of  length  _l_e_n_g_t_h.  The --llaammbbddaa value is used as a
+              prior mixture weight in this case.
+
+       --bbaayyeess--ssccaallee _s_c_a_l_e
+              Set the exponential scale  factor  on  the  context
+              likelihood in conjunction with the --bbaayyeess function.
+              Default value is 1.0.
+
+       --nnbbeesstt--ffiilleess _l_i_s_t
+              Specifies a list of N-best files.   The  file  _l_i_s_t
+              should  contain  a list of filenames, one per line,
+              each corresponding to an N-best file in one of  the
+              formats  supported  by  nnggrraamm(1).  The N-best files
+              should correspond to consecutive  speech  waveforms
+              in the order listed.
+
+       --ffbb--rreessccoorree
+              Perform Forward-backward rescoring.  This generates
+              new N-best lists as output whose LM scores  reflect
+              the  posterior probability of each hypothesis.  The
+              default is to perform Viterbi rescoring and  output
+              only the best combined hypothesis.
+
+       --mmaaxx--nnbbeesstt _n
+              Limits  the  number of hypotheses read from each N-
+              best list to the first _n.
+
+       --mmaaxx--rreessccoorree _m
+              Only choose among the top _m hypotheses of each list
+              (after  reordering hypotheses, see below).  This is
+              an effective way to limit the quadratic computation
+              of the Viterbi or forward/backward dynamic program-
+              ming.
+
+       --nnoo--rreeoorrddeerr
+              Do not reorder the hypotheses before  limiting  the
+              computation  to the top _m.  By default the hypothe-
+              ses will first be sorted according to the  acoustic
+              and  language  model  scores recorded in the N-best
+              lists.
+
+       --rreessccoorree--llmmww _w_e_i_g_h_t
+              Specifies the language model weight to  be  use  in
+              combining  acoustic  and  language  model scores to
+              select the best hypotheses.
+
+       --rreessccoorree--wwttww _w_e_i_g_h_t
+              Specifies the word transition weight to be used  in
+              selecting the best hypotheses.
+
+       --nnooiissee _n_o_i_s_e_-_t_a_g
+              Designate _n_o_i_s_e_-_t_a_g as a vocabulary item that is to
+              be ignored by the LM.  (This is typically  used  to
+
+
+
+SRILM              $Date: 1998/07/10 08:27:54 $                 2
+
+
+
+
+
+segment-nbest(1)                                 segment-nbest(1)
+
+
+              identify a noise marker.)
+
+       --ddeecciipphheerr--llmm _m_o_d_e_l_-_f_i_l_e
+              Designates  the  N-gram  backoff model (typically a
+              bigram) that was used by  the  Decipher(TM)  recog-
+              nizer  in computing composite scores.  Used to com-
+              pute acoustic scores from the composite  scores  if
+              the N-best lists are in "NBestList1.0" format.
+
+       --ddeecciipphheerr--llmmww _w_e_i_g_h_t
+              Specifies  the  language  model  weight used by the
+              recognizer.  Used to compute acoustic  scores  from
+              the composite scores.
+
+       --ddeecciipphheerr--wwttww _w_e_i_g_h_t
+              Specifies  the  word  transition weight used by the
+              recognizer.  Used to compute acoustic  scores  from
+              the composite scores.
+
+       --ssttaagg _s_t_r_i_n_g
+              Use  _s_t_r_i_n_g  to mark segment boundaries in the out-
+              put.   Default  is  the  start-of-sentence   symbol
+              defined in the language model (<s>).
+
+       --bbiiaass _b
+              Make  a  segment boundary a priori more likely by a
+              factor of _b.
+
+       _s_e_g_m_e_n_t_-_n_b_e_s_t will also process any command line arguments
+       following  the  options  as lists of N-best lists, as with
+       the --nnbbeesstt--ffiilleess option.   Each  _n_b_e_s_t_-_f_i_l_e_-_l_i_s_t  will  be
+       processed  in  turn, with individual output delimited by a
+       line of the form
+            <nbestfile _n_b_e_s_t_-_f_i_l_e_-_l_i_s_t>
+
+SSEEEE AALLSSOO
+       ngram-count(1), ngram(1), segment(1).
+       A. Stolcke, ``Modeling Linguistic Segment and Turn  Bound-
+       aries  for N-best Rescoring of Spontaneous Speech,'' Proc.
+       Eurospeech, 1997.
+
+BBUUGGSS
+       Only N-grams models up to trigram  order  are  used  accu-
+       rately.
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 1997 SRI International
+
+
+
+
+
+
+
+
+
+SRILM              $Date: 1998/07/10 08:27:54 $                 3
+
+

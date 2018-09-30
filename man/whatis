@@ -1,0 +1,14 @@
+File (3)		-  Wrapper for stdio streams
+LM (3)			- Generic language model
+Prob (3)		- Probabilities for SRILM
+Vocab (3)		- Vocabulary indexing for SRILM
+XXX (1)			- XXX
+XXX (3)			- XXX
+disambig (1)		- disambiguate text tokens using an N-gram model
+hidden-ngram (1)	- tag hidden events between words
+nbest-lattice (1)	- rescore N-best lists and lattices
+ngram (1)		- apply N-gram language models
+ngram-count (1)		- count N-grams and estimate language models
+ngram-merge (1)		- merge ngram counts
+segment (1)		- segment text using N-gram language model
+segment-nbest (1)	- rescore and segment N-best lists using N-gram language models

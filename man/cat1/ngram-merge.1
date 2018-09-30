@@ -1,0 +1,66 @@
+
+
+
+ngram-merge(1)                                     ngram-merge(1)
+
+
+NNAAMMEE
+       ngram-merge - merge N-gram counts
+
+SSYYNNOOPPSSIISS
+       nnggrraamm--mmeerrggee [--hheellpp] [--wwrriittee _o_u_t_f_i_l_e] _i_n_f_i_l_e_1 _i_n_f_i_l_e_2 ...
+
+DDEESSCCRRIIPPTTIIOONN
+       nnggrraamm--mmeerrggee  reads  two  or  more lexicographically sorted
+       ngram count files (as produced by nnggrraamm--ccoouunntt  --ssoorrtt)  and
+       outputs  the  merged,  sorted  counts.  The output is thus
+       suitable for subsequeunt merging steps.
+
+       The input format consists of one ngram count per line,
+            _w_o_r_d_1 _w_o_r_d_2 _._._. _w_o_r_d_n _c_o_u_n_t
+
+       The lines must be sorted lexicographically on  the  words,
+       leftmost first.  The input may contain ngrams of different
+       lengths.
+
+       Each filename argument can be a plain ascii count file, or
+       a  compressed file (name ending in .Z or .gz), or ``-'' to
+       indicate stdin/stdout.
+
+       nnggrraamm--mmeerrggee is recommended in cases where the full  counts
+       would far exceed available real memory.  Although an arbi-
+       trary number of input count files is accepted, it is  best
+       to  use  program  as  follows.  First, partition the input
+       text into the largest chunks so that nnggrraamm--ccoouunntt  can  run
+       in  real  memory.   Then merge the resulting sorted counts
+       using nnggrraamm--mmeerrggee pairwise, and continue  doing  so  in  a
+       binary  tree  pattern until a single count file containing
+       all ngrams remains.
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option and usage summary.
+
+       --wwrriittee _o_u_t_f_i_l_e
+              Write merged counts to _o_u_t_f_i_l_e, instead of standard
+              output.
+
+SSEEEE AALLSSOO
+       ngram-count(1), ngram(1).
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>
+       Copyright 1995 SRI International
+
+
+
+
+
+
+
+
+
+
+
+SRILM              $Date: 1999/07/31 18:35:00 $                 1
+
+

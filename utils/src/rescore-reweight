@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# rescore-reweight
+#	reweight nbest-list scores and select top hyps
+#
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.8 1999/01/14 05:42:00 stolcke Exp $
+#
+
+multiwords=0
+
+while [ $# -gt 0 ]
+do
+    case "$1" in
+    -multiwords)
+	    multiwords=1
+	    ;;
+    -*)	echo "$0: unknown option $1" >&2
+	    exit 2 ;;
+    *)	    break
+	    ;;
+    esac
+
+    shift
+done
+
+if [ $# -lt 1 ]; then
+	echo "usage: $0 [-multiwords] score-dir [lmw [wtw [max-nbest]]]" >&2
+	echo "    or $0 [-multiwords] file-list [lmw [wtw [max-nbest]]]" >&2
+	exit 1
+fi
+
+scoredir="$1"
+lmweight="${2-8.0}"
+wtweight="${3-0.0}"
+maxnbest="${4-100000}"
+
+if [ -d $scoredir ]; then
+    find $scoredir -type f \( -name \*.score -o \
+			    -name \*.score.Z -o \
+			    -name \*.score.gz \) \
+		    -print | sort
+else
+    cat $scoredir
+fi | \
+while read file
+do
+	case $file in
+	*.Z)	cat=zcat 
+		sentid=`basename $file .score.Z`
+		;;
+	*.gz)	cat="gunzip -c"
+		sentid=`basename $file .score.gz`
+		;;
+	*)	cat=cat
+		sentid=`basename $file .score`
+		;;
+	esac
+	$cat $file | \
+	gawk '
+BEGIN {
+	hypnum = 0;
+}
+NF >= 3 {
+	hypnum ++;
+	if (hypnum > maxnbest) exit 0;
+
+	totalscore = $1 + lmweight * $2 + wtweight * $3;
+
+	if (!winner || totalscore > maxscore) {
+		maxscore = totalscore;
+		winner = $0;
+		winrank = hypnum;
+		besthyp = "";
+		for (i = 4; i <= NF; i++) besthyp = besthyp " " $i;
+	}
+}
+END {
+	# resolve multiwords if requested
+	if (multiwords) {
+		gsub("_", " ", besthyp);
+	}
+	print sentid besthyp;
+	printf "%s: best hyp is %d\n", sentid, winrank > "/dev/stderr";
+}
+' sentid="$sentid" lmweight="$lmweight" wtweight="$wtweight" maxnbest="$maxnbest" multiwords=$multiwords
+done
+

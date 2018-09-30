@@ -1,0 +1,264 @@
+
+
+
+ngram-count(1)                                     ngram-count(1)
+
+
+NNAAMMEE
+       ngram-count - count N-grams and estimate language models
+
+SSYYNNOOPPSSIISS
+       nnggrraamm--ccoouunntt [--hheellpp] _o_p_t_i_o_n ...
+
+DDEESSCCRRIIPPTTIIOONN
+       nnggrraamm--ccoouunntt  generates  and manipulates N-gram counts, and
+       estimates N-gram language models from them.   The  program
+       first builds an internal N-gram count set, either by read-
+       ing counts from a file, or by scanning text  input.   Fol-
+       lowing  that, the resulting counts can be output back to a
+       file or used for building an N-gram language model in ARPA
+       format.  Each of these actions is triggered by correspond-
+       ing options, as described below.
+
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --oorrddeerr _n
+              Set the maximal order (length) of N-grams to count.
+              This also determines the order of the estimated LM,
+              if any.  The default order is 3.
+
+       --vvooccaabb _f_i_l_e
+              Read a vocabulary from file.  Subsequently, out-of-
+              vocabulary   words  in  both  counts  or  text  are
+              replaced with  the  unknown-word  token.   If  this
+              option is not specified all words found are implic-
+              itly added to the vocabulary.
+
+       --wwrriittee--vvooccaabb _f_i_l_e
+              Write the vocabulary built in the counting  process
+              to _f_i_l_e.
+
+       --ttaaggggeedd
+              Interpret   text   and  N-grams  as  consisting  of
+              word/tag pairs.
+
+       --ttoolloowweerr
+              Map all vocabulary to lowercase.
+
+       --mmeemmuussee
+              Print memory usage statistics.
+
+   CCoouunnttiinngg OOppttiioonnss
+       --tteexxtt _t_e_x_t_f_i_l_e
+              Generate N-gram counts from  text  file.   _t_e_x_t_f_i_l_e
+              should   contain   one   sentence  unit  per  line.
+              Begin/end sentence tokens are added if not  already
+
+
+
+SRILM              $Date: 1999/07/17 11:08:26 $                 1
+
+
+
+
+
+ngram-count(1)                                     ngram-count(1)
+
+
+              present.  Empty lines are ignored.
+
+       --rreeaadd _c_o_u_n_t_s_f_i_l_e
+              Read N-gram counts from a file.  Each line contains
+              an N-gram of words, followed by an  integer  count,
+              all  separated  by whitespace.  Repeated counts for
+              the same N-gram  are  added.   Thus  several  count
+              files can be merged by using ccaatt(1) and feeding the
+              result to  nnggrraamm--ccoouunntt  --rreeaadd  --  (but  see  nnggrraamm--
+              mmeerrggee(1)  for  merging counts that exceed available
+              memory).  Counts collected by --tteexxtt and  --rreeaadd  are
+              additive as well.
+
+       --wwrriittee _f_i_l_e
+              Write total counts to _f_i_l_e.
+
+       --wwrriittee--oorrddeerr _n
+              Order  of counts to write.  The default is 0, which
+              stands for N-grams of all lengths.
+
+       --wwrriittee_n _f_i_l_e
+              where _n is 1, 2, 3, 4, 5, or 6.  Writes only counts
+              of the indicated order to _f_i_l_e.  This is convenient
+              to generate counts of different  orders  separately
+              in a single pass.
+
+       --ssoorrtt  Output  counts  in lexicographic order, as required
+              for nnggrraamm--mmeerrggee.
+
+       --rreeccoommppuuttee
+              Regenerate lower-order counts by summing the  high-
+              est-order counts for each N-gram prefix.
+
+   LLMM OOppttiioonnss
+       --llmm _l_m_f_i_l_e
+              Estimate  an  ARPA  backoff  N-gram  model from the
+              total counts, and write it to _l_m_f_i_l_e.
+
+       --ffllooaatt--ccoouunnttss
+              Enable manipulation  of  fractional  counts.   Only
+              certain  discounting  methods  support  non-integer
+              counts.
+
+       --sskkiipp  Estimate a ``skip'' N-gram model, which predicts  a
+              word  by  an interpolation of the immediate context
+              and the context one word prior.  This also triggers
+              N-gram  counts  to  be  generated that are one word
+              longer than the  indicated  order.   The  following
+              four  options  control  the EM estimation algorithm
+              used for skip-N-grams.
+
+       --iinniitt--llmm _l_m_f_i_l_e
+              Load an LM to  initialize  the  parameters  of  the
+              skip-N-gram.
+
+
+
+SRILM              $Date: 1999/07/17 11:08:26 $                 2
+
+
+
+
+
+ngram-count(1)                                     ngram-count(1)
+
+
+       --sskkiipp--iinniitt _v_a_l_u_e
+              The initial skip probability for all words.
+
+       --eemm--iitteerrss _n
+              The maximum number of EM iterations.
+
+       --eemm--ddeellttaa _d
+              The  convergence  criterion for EM: if the relative
+              change in log  likelihood  falls  below  the  given
+              value, iteration stops.
+
+       --uunnkk   Build  an  ``open  vocabulary''  LM, i.e., one that
+              contains the unknown-word token as a regular  word.
+              The default is to remove the unknown word.
+
+       --ttrruusstt--ttoottaallss
+              Force  the  lower-order  counts to be used as total
+              counts in estimating N-gram probabilities.  Usually
+              these  totals  are recomputed from the higher-order
+              counts.
+
+       --pprruunnee _t_h_r_e_s_h_o_l_d
+              Prune N-gram probabilities if their removal  causes
+              (training  set) perplexity of the model to increase
+              by less than _t_h_r_e_s_h_o_l_d relative.
+
+       --mmiinnpprruunnee _n
+              Only prune N-grams  of  length  at  least  _n.   The
+              default  (and  minimum  allowed  value) is 2, i.e.,
+              only unigrams are excluded from pruning.
+
+       --ddeebbuugg _l_e_v_e_l
+              Set debugging output from estimated  LM  at  _l_e_v_e_l.
+              Level 0 means no debugging.  Debugging messages are
+              written to stderr.
+
+       --ggtt_nmmiinn _c_o_u_n_t
+              where _n is 1, 2, 3, 4, 5, or 6.   Set  the  minimal
+              count  of  N-grams of order _n that will be included
+              in the LM.  All N-grams with frequency  lower  than
+              that  will  effectively  be discounted to 0.  NOTE:
+              This option affects not only the default  Good-Tur-
+              ing  discounting  but  the  alternative discounting
+              methods described below as well.
+
+       --ggtt_nmmaaxx _c_o_u_n_t
+              where _n is 1, 2, 3, 4, 5, or 6.   Set  the  maximal
+              count  of  N-grams  of  order _n that are discounted
+              under Good-Turing.  All N-grams more frequent  than
+              that  will  receive  maximum  likelihood estimates.
+              Discounting can be effectively disabled by  setting
+              this to 0 or 1.
+
+
+
+
+
+SRILM              $Date: 1999/07/17 11:08:26 $                 3
+
+
+
+
+
+ngram-count(1)                                     ngram-count(1)
+
+
+       --ggtt_n _g_t_f_i_l_e
+              where  _n  is 1, 2, 3, 4, 5, or 6.  Save or retrieve
+              Good-Turing  parameters  (cutoffs  and  discounting
+              factors)  in/from  _g_t_f_i_l_e.   This  is  useful as GT
+              parameters should always be determined from  unlim-
+              ited vocabulary counts, whereas the eventual LM may
+              use a limited vocabulary.  The parameter files  may
+              also be hand-edited.  If an --llmm option is specified
+              the GT parameters are read from  _g_t_f_i_l_e,  otherwise
+              they are computed from the current counts and saved
+              in _g_t_f_i_l_e.
+
+       --ccddiissccoouunntt_n _d_i_s_c_o_u_n_t
+              where _n is 1, 2, 3, 4, 5, or 6.  Use Ney's absolute
+              discounting  for N-grams of order _n, using _d_i_s_c_o_u_n_t
+              as the constant to subtract.
+
+       --wwbbddiissccoouunntt_n
+              where _n is 1, 2, 3, 4, 5, or  6.   Use  Witten-Bell
+              discounting  for  N-grams of order _n.  (This is the
+              estimator where the first occurrence of  each  word
+              is  taken to be a sample for the ``unseen'' event.)
+
+       --nnddiissccoouunntt_n
+              where _n is 1, 2, 3, 4, 5, or 6.  Use Ristad's natu-
+              ral discounting law for N-grams of order _n.
+
+SSEEEE AALLSSOO
+       ngram-merge(1), ngram(1).
+       S. M. Katz, ``Estimation of Probabilities from Sparse Data
+       for the Language Model Component of a Speech Recognizer,''
+       IEEE Trans. ASSP 35(3), 400-401, 1987.
+       H. Ney and U. Essen, ``On Smoothing Techniques for Bigram-
+       based Natural Language Modelling,'' Proc. ICASSP, 825-828,
+       1991.
+       I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem:
+       Estimating the Probabilities of Novel Events  in  Adaptive
+       Text  Compression,'' IEEE Trans. Information Theory 37(4),
+       1085-1094, 1991.
+       E.  S.  Ristad,  ``A  Natural  Law  of  Succession,''  CS-
+       TR-495-95, Comp. Sci. Dept., Princeton Univ., 1995.
+
+BBUUGGSS
+       Several  of  the LM types supported by nnggrraamm(1) don't have
+       explicit support in nnggrraamm--ccoouunntt.  Instead, they are  built
+       by separately manipulating ngram counts, followed by stan-
+       dard ngram model estimation.
+       LM support for tagged words is incomplete.
+       Only Witten-Bell smoothing currently  supports  fractional
+       counts.
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 1995-1999 SRI International
+
+
+
+SRILM              $Date: 1999/07/17 11:08:26 $                 4
+
+

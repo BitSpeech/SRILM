@@ -1,0 +1,132 @@
+
+
+
+nbest-mix(1)                                         nbest-mix(1)
+
+
+NNAAMMEE
+       nbest-mix - interpolate N-best posterior probabilities
+
+SSYYNNOOPPSSIISS
+       nnbbeesstt--mmiixx  [--hheellpp]  option  ...   _w_e_i_g_h_t_1  _n_b_e_s_t_1  _w_e_i_g_h_t_2
+       _n_b_e_s_t_2 ...
+
+DDEESSCCRRIIPPTTIIOONN
+       nnbbeesstt--mmiixx reads a number of N-best lists (which must  con-
+       tain identical hypotheses), computes the hypothesis poste-
+       rior probabilities for each, and computes a new  posterior
+       distribution  that is a weighted mixture of the input dis-
+       tributions.  The hypothesis with the highest combined pos-
+       terior probability is printed.
+
+       The  command  line  arguments  form an alternating list of
+       weight values and N-best file names.
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --ddeebbuugg _l_e_v_e_l
+              Controls the  amount  of  output  (the  higher  the
+              _l_e_v_e_l, the more).
+
+       --wwrriittee--nnbbeesstt _f_i_l_e
+              Outputs the N-best list corresponding to the inter-
+              polated posterior distribution  to  a  file.   This
+              suppresses the printing of the best hyp.
+
+       --mmaaxx--nnbbeesstt _n
+              Limits  the  number of hypotheses read from each N-
+              best list to the first _n.
+
+       --rreessccoorree--llmmww _l_m_w
+              Sets the language model weight  used  in  combining
+              the  language model log probabilities with acoustic
+              log probabilities (only relevant if separate scores
+              are given in the N-best input).
+
+       --rreessccoorree--wwttww _w_t_w
+              Sets  the word transition weight used to weight the
+              number of words relative to the acoustic log proba-
+              bilities  (only  relevant  if  separate  scores are
+              given in the N-best input).
+
+       --ppoosstteerriioorr--ssccaallee _s_c_a_l_e
+              Divide the total weighted log score by  _s_c_a_l_e  when
+              computing normalized posterior probabilities.  This
+              controls the peakedness of the posterior  distribu-
+              tion.  The default value is whatever was chosen for
+              _l_m_w, so that language model scores  are  scaled  to
+              have  weight  1,  and  acoustic  scores have weight
+              1/_l_m_w.
+
+
+
+SRILM              $Date: 1998/12/24 09:48:25 $                 1
+
+
+
+
+
+nbest-mix(1)                                         nbest-mix(1)
+
+
+SSEEEE AALLSSOO
+       nbest-lattice(1).
+
+BBUUGGSS
+       Probably.
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 1998 SRI International
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SRILM              $Date: 1998/12/24 09:48:25 $                 2
+
+

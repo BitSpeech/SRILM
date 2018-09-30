@@ -1,0 +1,162 @@
+#!/usr/local/bin/gawk -f
+#
+# $Header: /home/speech/stolcke/project/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.3 1996/07/13 01:34:05 stolcke Exp $
+#
+
+function getargs() {
+	delete args;
+	j = 1;
+	for (i = 2; i <= NF; i ++) {
+	    if ($i ~ /^"/) {
+		args[j] = substr($i, 2);
+		for (i++; i <= NF; i++) {
+		    if ($i ~ /"$/) {
+			args[j] = args[j] " " substr($i, 1, length($i)-1);
+			break;
+		    } else {
+			args[j] = args[j] " " $i;
+		    }
+		}
+	    } else {
+		args[j] = $i;
+	    }
+	    j++;
+	}
+	$1 = "";
+	return j - 1;
+}
+function finishitem() {
+	if (initem) {
+		print "</DD>";
+		initem = 0;
+	}
+}
+function finishlist() {
+	finishitem();
+	if (inlist) {
+		print "</DL>";
+		inlist = 0;
+	}
+}
+function printline() {
+	if (text ~ /\\c/) {
+		sub("\\\\c", "", text);
+		oldtext = oldtext text;
+	} else {
+		if (inlabel) {
+			print "<DT>" oldtext text;
+			print "<DD>";
+			inlabel = 0;
+			initem = 1;
+			oldtext = "";
+		} else {
+			print oldtext text;
+			oldtext = "";
+		}
+	}
+}
+# comments
+$1 == "\.\\\"" {
+	$1 = "";
+	print "<!" $0 ">";
+	next;
+}
+# title
+$1 == "\.TH" {
+	getargs()
+	name = args[1];
+	print "<HTML>";
+	print "<HEADER>";
+	print "<TITLE>" name "</TITLE>";
+	print "<BODY>"
+	print "<H1>" name "</H1>";
+	next;
+}
+# section header
+$1 == "\.SH" {
+	finishlist();
+	getargs();
+	print "<H2>" args[1] "</H2>";
+	next;
+}
+$1 == "\.SS" {
+	finishlist();
+	getargs();
+	print "<H3>" args[1] "</H3>";
+	next;
+}
+$1 == "\.PP"  || $1 == "\".LP" {
+	finishlist();
+	print "<P>";
+	next;
+}
+$1 == "\.br" {
+	print "<BR>";
+	next;
+}
+# labeled list item
+$1 == "\.TP" {
+	if (!inlist) {
+		print "<DL>";
+		inlist = 1;
+	}
+	inlabel = 1;
+	next;
+}
+$1 == "\.B" {
+	if (getargs() > 0) {
+		text = "<B>" args[1] "</B>";
+	} else {
+		text = "<B>";
+		newfont="B";
+	}
+	printline();
+	next;
+}
+$1 == "\.I" {
+	if (getargs() > 0) {
+		text = "<I>" args[1] "</I>";
+	} else {
+		text = "<I>";
+		newfont="I";
+	}
+	printline();
+	next;
+}
+$1 == "\.P" {
+	text = "</" newfont ">";
+	printline();
+	next;
+}
+$1 == "\.BR" {
+	getargs();
+	text = "<B>" args[1] "</B>" args[2];
+	printline();
+	next;
+}
+$1 == "\.BI" {
+	getargs();
+	text = "<B>" args[1] "</B><I>" args[2] "</I>";
+	printline();
+	next;
+}
+$1 == "\.IR" {
+	getargs();
+	text = "<I>" args[1] "</I>" args[2];
+	printline();
+	next;
+}
+$1 ~ /^\.[A-Za-z]/ {
+	print "unknown macro " $1 > "/dev/stderr";
+	next;
+}
+{
+	text = $0;
+	printline();
+	next;
+}
+END {
+	print "</BODY>";
+	print "</HTML>";
+}
+

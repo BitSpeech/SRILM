@@ -1,0 +1,240 @@
+.\" $Id: nbest-lattice.1,v 1.10 1998/07/10 08:22:51 stolcke Exp $
+.TH nbest-lattice 1 "$Date: 1998/07/10 08:22:51 $" SRILM
+.SH NAME
+nbest-lattice \- rescore N-best lists and lattices
+.SH SYNOPSIS
+.B nbest-lattice
+[\c
+.BR \-help ]
+option
+\&...
+.SH DESCRIPTION
+.B nbest-lattice
+rescores N-best lists or optimizes word-level recognition scores
+(as opposed to sentence-level scores).
+There are two rescoring modes.
+In
+.I "N-best word error minimization"
+mode, the program computes the posterior expected word error for each
+hypothesis relative to all hypotheses in the N-best list, choosing the one
+with the lowest value.
+.PP
+In
+.I  "lattice word error minimization"
+mode, the program constructs a word lattice from all the N-best hypotheses
+and extracts the path with the lowest expected word error.
+This is similar to N-best word error minimization but allows 
+hypotheses not contained in the N-best list.
+A variant of this mode uses a word ``mesh'' instead of a word lattice,
+in which all hypotheses are aligned into a grid of word positions,
+and one is allowed to chose a word from each grid position, thus allowing an
+even greater number of potential hypotheses.
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+.SH OPTIONS
+.TP
+.B \-help
+Print option summary.
+.TP
+.BI \-debug " level"
+Controls the amount of output (the higher the
+.IR level ,
+the more).
+The nature of the output depends on the rescoring mode.
+.TP
+.B \-wer
+Chooses N-best word error minimization mode.
+The default is lattice word error minimization.
+.TP
+.B \-lattice\-wer
+Chooses lattice word error minimization mode (the default).
+.TP
+.BI \-rescore " file"
+Reads the N-best list from
+.IR file .
+The N-best list can be in either of three formats.
+An N-best list in Decipher(TM) format consists of the header
+.br
+	NBestList1.0
+.br
+followed by one or more lines of the form
+.br
+	(\fIscore\fP) \fIw1 w2 w3\fP ...
+.br
+where
+.I score
+is a composite acoustic/language model score
+from the recognizer, on the bytelog scale.
+This format is output by the Decipher recognizer, as well as
+by the
+.BR ngram (1)
+option
+.BR \-nbest .
+.br
+If the header is of the form
+.br
+	NBestList2.0
+.br
+the hypotheses are expected to be in the format
+.br
+	(\fIscore\fP) \fIw1\fP ( st: \fIst1\fP et: \fIet1\fP g: \fIg1\fP a: \fIa1\fP ) \fIw2\fP ...
+.br
+where words are followed by start and end times, language model and 
+acoustic scores (bytelog-scaled), respectively.
+.br
+An alternative N-best list format lists hypotheses as
+.br
+	\fIascore\fP \fIlscore\fP \fInwords\fP \fIw1 w2 w3\fP ...
+.br
+where the first three columns contain the
+acoustic model log probability, the language model log probability,
+and the number of words in the hypothesis string, respectively.
+(This format must not be preceded by an ``NBestList'' header.)
+The alternative format is output by the
+.BR ngram (1)
+option
+.BR \-rescore .
+.TP
+.BI \-nbest " file"
+A synonym for 
+.BR \-rescore .
+.TP
+.BI \-write-nbest " file"
+Outputs the N-best list to a file, after sorting and processing 
+(for validation purposes).
+.TP
+.BI \-nbest-files " file-list"
+Rescores multiple N-nbest lists whose filenames are read from
+.IR file-list .
+.TP
+.BI \-max-nbest " n"
+Limits the number of hypotheses read from each N-best list to the first
+.IR n .
+.TP
+.BI \-max-rescore " m"
+Only choose among the top
+.I m
+hypotheses when optimizing word error.
+This is convenient to limit computation for long N-best lists.
+The cutoff is made after reading all hypotheses (subject to
+.BR \-max-nbest )
+and reordering them according to the posterior probabilities.
+.br
+The time taken in N-nbest error minimization is proportional to 
+.I m
+times
+.IR n ,
+where
+.I n
+is the length of the N-best list (or the value given to
+.BR \-max-nbest ).
+.TP
+.BI \-posterior-prune " threshold"
+Don't process N-best hypotheses whose cumulative posterior probability
+is below
+.IR threshold .
+This is another strategy to speed up the algorithm.
+.TP
+.BI \-rescore-lmw " lmw"
+Sets the language model weight used in combining the language model log
+probabilities with acoustic log probabilities
+(only relevant if separate scores are given in the N-best input).
+.TP
+.BI \-rescore-wtw " wtw"
+Sets the word transition weight used to weight the number of words relative to
+the acoustic log probabilities
+(only relevant if separate scores are given in the N-best input).
+.TP
+.BI \-posterior-scale " scale"
+Divide the total weighted log score by 
+.I scale
+when computing normalized posterior probabilities.
+This controls the peakedness of the posterior distribution. 
+The default value is whatever was chosen for 
+.IR lmw ,
+so that language model scores are scaled to have weight 1,
+and acoustic scores have weight 1/\fIlmw\fP.
+.TP
+.B \-prime-lattice
+Start building the lattice with the best hypothesis obtained from
+N-best error minimization.  This produces slightly better alignments
+and sometimes lower error rates.  The default is to start with the
+top-scoring hypothesis.
+.TP
+.B \-use-mesh
+Use a word mesh instead of a word lattice.
+.TP
+.BI \-vocab " file"
+Read the N-best list vocabulary from 
+.IR file .
+This option is mostly redundant since words found in the N-best input
+are implicitly added to the vocabulary.
+.TP
+.B \-tolower
+Map vocabulary to lowercase, eliminating case distinctions.
+.TP
+.BI \-noise " noise-tag"
+Designate
+.I noise-tag
+as a vocabulary item that is to be ignored in aligning hypotheses with
+each other (the same as the -pau- word).
+This is typically used to identify a noise marker.
+.PP
+The following options only affect word correct maximization mode.
+.TP
+.BI \-read " file"
+Reads an initial lattice from
+.IR file ,
+to be merged with additional paths constructed from the 
+N-best hypotheses.
+.TP
+.BI \-write " file"
+Writes the resulting N-best lattice to
+.IR file .
+.TP
+.B \-no-merge
+Build a lattice from the N-nbest hypotheses without merging edges
+(string/lattice alignment).  This creates a lattice with one disjoint path
+per hypothesis, and is useful mainly for debugging purposes.
+.TP
+.B \-no-reorder
+Process N-best hypotheses in the order in which they appear.
+By default, hypotheses are first sorted by their aggregate scores.
+.TP
+.BI \-lattice-errors " references"
+Compute the lattice error (minimum word error) of the lattice read with
+.B \-read
+or built with 
+.BR \-nbest .
+Error is computed relative to all the hypotheses contained in a separate
+N-best list given by
+.IR references .
+.TP
+.BI \-nbest-errors " references"
+Compute the N-best error (minimum word error) of the N-best list read with
+.BR \-nbest .
+Error is computed relative to all the hypotheses contained in a separate
+N-best list given by
+.IR references .
+Pause and noise tokens (as specified with
+.BR \-noise )
+in the N-best list are ignored.
+.TP
+.B \-dump-posteriors
+Output posterior probabilities instead of word hypotheses.
+In N-nbest mode, only the posterior probability for each hypothesis is output.
+In lattice mode, the hyp posterior is followed by word posterior probabilities
+for each (non-pause, non-noise) token in the hypothesis.
+.SH "SEE ALSO"
+ngram(1).
+.br
+A. Stolcke, Y. Konig, and M. Weintraub,
+``Explicit Word Error Minimization in N-best List Rescoring,''
+Proc. Eurospeech, 163\-166, 1997.
+.SH BUGS
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1996-1998 SRI International

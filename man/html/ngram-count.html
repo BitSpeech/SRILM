@@ -1,0 +1,275 @@
+<! $Id: ngram-count.1,v 1.10 1999/07/17 11:08:26 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>ngram-count</TITLE>
+<BODY>
+<H1>ngram-count</H1>
+<H2>NAME</H2>
+ngram-count - count N-grams and estimate language models
+<H2>SYNOPSIS</H2>
+<B>ngram-count</B>
+[<B>-help</B>]
+<I>option</I>
+...
+<H2>DESCRIPTION</H2>
+<B>ngram-count</B>
+generates and manipulates N-gram counts, and estimates N-gram language
+models from them.
+The program first builds an internal N-gram count set, either
+by reading counts from a file, or by scanning text input.
+Following that, the resulting counts can be output back to a file
+or used for building an N-gram language model in ARPA format.
+Each of these actions is triggered by corresponding options, as
+described below.
+<P>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+<H2>OPTIONS</H2>
+<DL>
+<DT><B>-help</B>
+<DD>
+Print option summary.
+<DT><B>-order</B><I> n</I>
+<DD>
+Set the maximal order (length) of N-grams to count.
+This also determines the order of the estimated LM, if any.
+The default order is 3.
+<DT><B>-vocab</B><I> file</I>
+<DD>
+Read a vocabulary from file.
+Subsequently, out-of-vocabulary words in both counts or text are
+replaced with the unknown-word token.
+If this option is not specified all words found are implicitly added
+to the vocabulary.
+<DT><B>-write-vocab</B><I> file</I>
+<DD>
+Write the vocabulary built in the counting process to
+<I>file</I>.
+<DT><B>-tagged</B>
+<DD>
+Interpret text and N-grams as consisting of word/tag pairs.
+<DT><B>-tolower</B>
+<DD>
+Map all vocabulary to lowercase.
+<DT><B>-memuse</B>
+<DD>
+Print memory usage statistics.
+</DD>
+</DL>
+<H3>Counting</H3>
+<DL>
+<DT><B>-text</B><I> textfile</I>
+<DD>
+Generate N-gram counts from text file.
+<I>textfile</I>
+should contain one sentence unit per line.
+Begin/end sentence tokens are added if not already present.
+Empty lines are ignored.
+<DT><B>-read</B><I> countsfile</I>
+<DD>
+Read N-gram counts from a file.
+Each line contains an N-gram of 
+words, followed by an integer count, all separated by whitespace.
+Repeated counts for the same N-gram are added.
+Thus several count files can be merged by using 
+<B>cat</B>(1)
+and feeding the result to 
+<B>ngram-count -read -</B>
+(but see
+<B>ngram-merge</B>(1)
+for merging counts that exceed available memory).
+Counts collected by 
+<B>-text</B>
+and 
+<B>-read</B>
+are additive as well.
+<DT><B>-write</B><I> file</I>
+<DD>
+Write total counts to
+<I>file</I>.
+<DT><B>-write-order</B><I> n</I>
+<DD>
+Order of counts to write.
+The default is 0, which stands for N-grams of all lengths.
+<DT><B>-write</B><I>n file</I>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Writes only counts of the indicated order to
+<I>file</I>.
+This is convenient to generate counts of different orders 
+separately in a single pass.
+<DT><B>-sort</B>
+<DD>
+Output counts in lexicographic order, as required for
+<B>ngram-merge</B>.
+<DT><B>-recompute</B>
+<DD>
+Regenerate lower-order counts by summing the highest-order counts for 
+each N-gram prefix.
+</DD>
+</DL>
+<H3>LM</H3>
+<DL>
+<DT><B>-lm</B><I> lmfile</I>
+<DD>
+Estimate an ARPA backoff N-gram model from the total counts, and write it
+to
+<I>lmfile</I>.
+<DT><B>-float-counts</B>
+<DD>
+Enable manipulation of fractional counts.
+Only certain discounting methods support non-integer counts.
+<DT><B>-skip</B>
+<DD>
+Estimate a ``skip'' N-gram model, which predicts a word by
+an interpolation of the immediate context and the context one word prior.
+This also triggers N-gram counts to be generated that are one word longer 
+than the indicated order.
+The following four options control the EM estimation algorithm used for
+skip-N-grams.
+<DT><B>-init-lm</B><I> lmfile</I>
+<DD>
+Load an LM to initialize the parameters of the skip-N-gram.
+<DT><B>-skip-init</B><I> value</I>
+<DD>
+The initial skip probability for all words.
+<DT><B>-em-iters</B><I> n</I>
+<DD>
+The maximum number of EM iterations.
+<DT><B>-em-delta</B><I> d</I>
+<DD>
+The convergence criterion for EM: if the relative change in log likelihood
+falls below the given value, iteration stops.
+<DT><B>-unk</B>
+<DD>
+Build an ``open vocabulary'' LM, i.e., one that contains the unknown-word
+token as a regular word.
+The default is to remove the unknown word.
+<DT><B>-trust-totals</B>
+<DD>
+Force the lower-order counts to be used as total counts in estimating
+N-gram probabilities.
+Usually these totals are recomputed from the higher-order counts.
+<DT><B>-prune</B><I> threshold</I>
+<DD>
+Prune N-gram probabilities if their removal causes (training set)
+perplexity of the model to increase by less than
+<I>threshold</I>
+relative.
+<DT><B>-minprune</B><I> n</I>
+<DD>
+Only prune N-grams of length at least
+<I>n</I>.
+The default (and minimum allowed value) is 2, i.e., only unigrams are excluded
+from pruning.
+<DT><B>-debug</B><I> level</I>
+<DD>
+Set debugging output from estimated LM at
+<I>level</I>.
+Level 0 means no debugging.
+Debugging messages are written to stderr.
+<DT><B>-gt<I>n</I>min</B><I> count</I>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Set the minimal count of N-grams of order
+<I>n</I>
+that will be included in the LM.
+All N-grams with frequency lower than that will effectively be discounted to 0.
+NOTE: This option affects not only the default Good-Turing discounting
+but the alternative discounting methods described below as well.
+<DT><B>-gt<I>n</I>max</B><I> count</I>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Set the maximal count of N-grams of order
+<I>n</I>
+that are discounted under Good-Turing.
+All N-grams more frequent than that will receive
+maximum likelihood estimates.
+Discounting can be effectively disabled by setting this to 0 or 1.
+<DT><B>-gt<I>n</I></B><I> gtfile</I>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Save or retrieve Good-Turing parameters
+(cutoffs and discounting factors) in/from
+<I>gtfile</I>.
+This is useful as GT parameters should always be determined from
+unlimited vocabulary counts, whereas the eventual LM may use a
+limited vocabulary.
+The parameter files may also be hand-edited.
+If an
+<B>-lm</B>
+option is specified the GT parameters are read from
+<I>gtfile</I>,
+otherwise they are computed from the current counts and saved in
+<I>gtfile</I>.
+<DT><B>-cdiscount<I>n</I></B><I> discount</I>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Use Ney's absolute discounting for N-grams of 
+order
+<I>n</I>,
+using
+<I>discount</I>
+as the constant to subtract.
+<DT><B>-wbdiscount<I>n</I></B>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Use Witten-Bell discounting for N-grams of order
+<I>n</I>.
+(This is the estimator where the first occurrence of each word is
+taken to be a sample for the ``unseen'' event.)
+<DT><B>-ndiscount<I>n</I></B>
+<DD>
+where
+<I>n</I>
+is 1, 2, 3, 4, 5, or 6.
+Use Ristad's natural discounting law for N-grams of order
+<I>n</I>.
+</DD>
+</DL>
+<H2>SEE ALSO</H2>
+<A HREF="ngram-merge.html">ngram-merge(1)</A>, <A HREF="ngram.html">ngram(1)</A>.
+<BR>
+S. M. Katz, ``Estimation of Probabilities from Sparse Data for the
+Language Model Component of a Speech Recognizer,'' IEEE Trans. ASSP 35(3),
+400-401, 1987.
+<BR>
+H. Ney and U. Essen, ``On Smoothing Techniques for Bigram-based Natural
+Language Modelling,'' Proc. ICASSP, 825-828, 1991.
+<BR>
+I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
+Probabilities of Novel Events in Adaptive Text Compression,''
+IEEE Trans. Information Theory 37(4), 1085-1094, 1991.
+<BR>
+E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
+Comp. Sci. Dept., Princeton Univ., 1995.
+<H2>BUGS</H2>
+Several of the LM types supported by 
+<B>ngram</B>(1)
+don't have explicit support in
+<B>ngram-count</B>.
+Instead, they are built by separately manipulating ngram counts, 
+followed by standard ngram model estimation.
+<BR>
+LM support for tagged words is incomplete.
+<BR>
+Only Witten-Bell smoothing currently supports fractional counts.
+<H2>AUTHOR</H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<BR>
+Copyright 1995-1999 SRI International
+</BODY>
+</HTML>

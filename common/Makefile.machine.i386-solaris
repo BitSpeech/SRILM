@@ -1,0 +1,133 @@
+#
+#    File:   Makefile.machine.i386-solaris
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Fri Mar  3 15:30:10 PST 1995
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for Intel running SunOS 5.x (a.k.a. Solaris 2.x).
+#
+#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: Makefile.machine.i386-solaris,v 1.4 1999/02/20 07:19:53 stolcke Exp $
+#
+#    $Log: Makefile.machine.i386-solaris,v $
+#    Revision 1.4  1999/02/20 07:19:53  stolcke
+#    added -ldl
+#
+#    Revision 1.3  1998/07/30 02:37:40  stolcke
+#    updated for SunPro 4.2 compiler
+#    standardized on USE_CC and _CC suffix
+#
+#    Revision 1.2  1998/04/18 17:51:25  stolcke
+#    use gcc 2.8.1
+#
+#    Revision 1.1  1996/11/05 22:57:15  stolcke
+#    Initial revision
+#
+#    Revision 1.9  1996/08/15 14:10:57  stolcke
+#    removed -V2.6.3, code should now work with latest gcc
+#
+#    Revision 1.8  1996/07/23 19:46:11  stolcke
+#    removed audio includes and lib
+#
+#    Revision 1.7  1996/07/18 12:23:57  stolcke
+#    specify gcc version
+#
+#    Revision 1.6  1996/06/13 18:03:07  stolcke
+#    /bin/csh lossage workaround removed
+#
+#    Revision 1.5  1996/06/10 06:03:58  stolcke
+#    added support for Sun CC
+#
+#    Revision 1.4  1995/06/19 02:08:21  stolcke
+#    added C++ support
+#
+#    Revision 1.3  1995/06/15 05:55:48  stolcke
+#    added conditional for acc compilation
+#
+# Revision 1.2  1995/04/10  20:54:32  stolcke
+# define RLD_FLAGS
+#
+# Revision 1.1  1995/03/03  23:30:26  stolcke
+# Initial revision
+#
+#
+
+ifeq ($(USE_CC), )
+   # Use the GNU C compiler.
+   CC = gcc -V2.8.1 -mcpu=pentiumpro
+   CXX = g++ -V2.8.1 -mcpu=pentiumpro
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS = -g -O2
+   DEBUG_FLAGS = -g -DDEBUG
+   PROFILE_FLAGS = -g -pg -O2
+else
+   # Use the Sun C compiler
+   ACCPREFIX=/opt/SUNWspro/SC4.2/bin/
+   CC = $(ACCPREFIX)cc -Xa
+   CXX = $(ACCPREFIX)CC -ptr$(OBJDIR) -ptv
+
+   ARCHIVE = $(CXX) $(CXXFLAGS) -xar -o
+   DEMANGLE_FILTER = 2>&1 | $(ACCPREFIX)c++filt
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS = -fast -xO2	# -xO4 crashes compiler ...
+   DEBUG_FLAGS = -g -DDEBUG
+   PROFILE_FLAGS = -pg -g -O
+
+   # keep binaries separate from the default
+   OPTIMIZE_OPTION = _CC
+endif
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -s
+
+   # Shared compilation flags.
+   CFLAGS = -DSVR4 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+
+   # Other useful compilation flags.
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES = 
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS =
+
+   # Other useful libraries.
+   ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+
+   # run-time linker path flag
+   RLD_FLAG = -R
+
+   # several tools are in nonstandard place
+   AR = /usr/ccs/bin/ar
+   LD = /usr/ccs/bin/ld
+
+   # No ranlib -- this is SVR4
+   RANLIB = :
+
+   # Generate dependencies from source files.
+ifneq ($(CC), $(subst gcc,,$(CC)))
+   GEN_DEP = $(CC) $(CFLAGS) -MM
+else
+   GEN_DEP = $(CC) $(CFLAGS) -M
+endif
+
+ifneq ($(CXX), $(subst g++,,$(CXX)))
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -MM
+else
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -M
+endif
+
+   # Run lint.
+   LINT = lint
+   LINT_FLAGS = -DDEBUG $(CFLAGS)
+

@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# rescore-nbest-pass3 --
+#	pass 3 of rescore-nbest
+#
+# $Header: /export/d/stolcke/project/srilm/src/scripts/RCS/rescore-nbest,v 1.1 1995/08/10 05:53:49 stolcke Exp stolcke $
+#
+
+if [ $# -lt 1  ]; then
+	echo "usage: $0: scoredir" >&2
+	exit 1
+fi
+
+scoredir="$1"
+
+#
+# STRATEGY:
+#	Concatenate hyps for all nbest list, record number of hyps for
+#		each file in the output stream
+#	Strip hyp ids, !SENT_START, !SENT_END 
+#	Feed to ngram -ppl (using lm-options)
+#	Parse ngram output into lm scores and deposit into target files
+#
+
+escape="***FILE:"
+
+gawk '
+BEGIN {
+	currentfile = "";
+	scoredir = "";
+	scorefile = "";
+	numhyps = 0;
+	M_LN10 = 2.30258509299404568402;		# from <math.h>
+}
+$1 == escape {
+	if (currentfile) {
+		close(scorefile);
+	}
+	currentfile = $2;
+	scorefile = scoredir "/" currentfile;
+	numhyps = $3;
+	printf "processing %d hyps for %s\n", numhyps, currentfile;
+	hypno = 0;
+	next;
+}
+/logprob=/ {
+	logprob = $4;
+
+	hypno ++;
+
+	# rescale LM scores to natural logs
+	printf "%g\n", logprob * M_LN10 > scorefile;
+
+	next;
+}
+END {
+	if (currentfile) {
+		close(scorefile);
+	}
+}
+' scoredir=$scoredir escape="$escape"
+

@@ -1,0 +1,137 @@
+#!/bin/sh
+#
+# make-big-lm --
+#	Create a large ngram language model
+#
+# This script automates various techniques for building large ngram models.
+# It is useful for building LMs that would exceed available real memory
+# if built in one pass by ngram-count.
+# The techiques employed are
+#	- Assume counts are already produced
+#	  (typically using make-batch-counts/merge-batch-counts)
+#	- Compute Good Turing discounts without loading all counts
+#	  into memory.
+#	- ngram-counts loads only those counts exceeding cutoff values.
+#
+# $Header: /home/spot71/srilm/devel/utils/src/RCS/make-big-lm,v 1.3 1997/01/05 08:32:04 stolcke Exp $
+#
+
+scriptdir=`dirname $0`
+
+name=biglm
+order=3
+gt1min=1
+gt2min=1
+gt3min=2
+gt4min=2
+gt5min=2
+gt6min=2
+gt1max=7
+gt2max=7
+gt3max=7
+gt4max=7
+gt5max=7
+gt6max=7
+
+trust_totals=0
+dummytag=_DUMMY_
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+    -name)	name=$2; shift ;;
+    -order)	order=$2 ; shift ;;
+    -gt1min)	gt1min=$2; shift ;;
+    -gt2min)	gt2min=$2; shift ;;
+    -gt3min)	gt3min=$2; shift ;;
+    -gt4min)	gt4min=$2; shift ;;
+    -gt5min)	gt5min=$2; shift ;;
+    -gt6min)	gt6min=$2; shift ;;
+    -gt1max)	gt1max=$2; shift ;;
+    -gt2max)	gt2max=$2; shift ;;
+    -gt3max)	gt3max=$2; shift ;;
+    -gt4max)	gt4max=$2; shift ;;
+    -gt5max)	gt5max=$2; shift ;;
+    -gt6max)	gt6max=$2; shift ;;
+    -read)	counts="$counts $2" ; shift ;;
+    -trust-totals) trust_totals=1 ;;
+    *)		options="$options $1" ;;
+    esac
+    shift
+done
+
+if [ $trust_totals -eq 0 ]; then
+	options="$options -dummy $dummytag"
+else
+	options="$options -trust-totals"
+fi
+
+set -e
+
+#
+# compute counts-of-counts
+#
+if [ -f $name.gt1counts ]; then
+echo "using existing gtcounts" >&2 
+else
+for file in $counts
+do
+    case $file in
+    *.Z)	uncompress < $file ;;
+    *.gz)	gunzip < $file ;;
+    *)		cat $file ;;
+    esac
+done | $scriptdir/get-gt-counts out=$name max=20
+fi
+
+#
+# compute discount factors
+#
+gtflags=
+for n in 1 2 3 4 5 6
+do
+    if [ $n -le $order -f $name.gt${n}counts ]; then
+	gtflags="$gtflags -gt${n} $name.gt${n}"
+	eval $scriptdir/make-gt-discounts \
+			min=\$gt${n}min max=\$gt${n}max \
+			$name.gt${n}counts > $name.gt${n}
+    fi
+done
+
+#
+# filter counts and build lm
+#
+for file in $counts
+do
+    case $file in
+    *.Z)	uncompress < $file ;;
+    *.gz)	gunzip < $file ;;
+    *)		cat $file ;;
+    esac
+done | \
+gawk '
+NF > order + 1 {
+	next;
+}
+{
+  min = (NF == 2 ? gt1min :
+	 NF == 3 ? gt2min :
+	 NF == 4 ? gt3min :
+	 NF == 5 ? gt4min :
+	 NF == 6 ? gt5min :
+		   gt6min);
+
+   if ($NF < min) {
+	if (!trust_totals) $(NF - 1) = dummytag;
+	else next;
+   }
+   print;
+}
+' gt1min=$gt1min gt2min=$gt2min gt3min=$gt3min \
+  gt4min=$gt4min gt5min=$gt5min gt6min=$gt6min \
+  order=$order \
+  trust_totals=$trust_totals dummytag=$dummytag | \
+(set -x;  \
+ngram-count -read - -order $order \
+	$gtflags \
+	$options)
+

@@ -1,0 +1,102 @@
+#!/bin/sh
+#
+# Run JAStar and restart it whenever it runs out of memory
+#
+# $Header: /export/di/ws97/tools/srilm-0.97beta/htk/src/RCS/JAStar-restart,v 1.2 1997/08/09 20:31:28 stolcke Exp $
+#
+
+#
+# Parse arguments
+#
+otherargs=
+scriptfile=
+mlffile=
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-debug) debug=1
+		shift ;;
+	-S) scriptfile="$2"
+		shift; shift ;;
+	-i) mlffile="$2"
+		shift; shift ;;
+	*)  otherargs="$otherargs $1"
+		shift ;;
+	esac
+done
+
+if [ -z "$scriptfile " ]; then
+	echo "$0 can only work with scriptfiles" >&2
+	exit 2
+fi
+
+# filename suffix for restarts
+suffix=
+restart=1
+status=2
+
+tmpscript=/tmp/jastar.script$$
+if [ " $debug" ]; then
+	stdout=/tmp/jastar.debug
+else
+	stdout=/tmp/jastar.out$$
+	trap 'rm -f $tmpscript $stdout; exit $status' 0 1 2 15
+fi
+
+set -e
+
+while [ "$restart" ]; do
+	if [ -n "$mlffile" ]; then
+		mlfoption="-i $mlffile$suffix"
+	fi
+
+	if [ -n "$debug" -a -z "$suffix" ]; then
+		:
+	else
+		JAStar -S $scriptfile $mlfoption $otherargs 2>&1 | \
+		tee $stdout
+
+		# append new mlf output to previous one
+		if [ -n "$mlfoption" -a -n "$suffix" -a -f $mlffile$suffix ]
+		then
+			tail +2 $mlffile$suffix >> $mlffile && \
+			rm $mlffile$suffix
+		fi
+	fi
+
+	# extract error number from JAStar output
+	error=`tail $stdout | grep "JAStar: ERROR" | sed -e 's,.*\[,,' -e 's,].*,,' `
+	# find the last lattice processed
+	lastlattice=`tail $stdout | gawk '/^File : / { print $3 }' `
+	if [ -z "$lastlattice" ]; then
+		break;
+	fi
+
+	case "$error" in
+	+2)
+		# make new script file
+		gawk '$1 == "'$lastlattice'" { save = 1 } save { print }' \
+			$scriptfile > $tmpscript.new && \
+		mv $tmpscript.new $tmpscript
+
+		scriptfile=$tmpscript
+		suffix=.restart
+		;;
+	+999)
+		# make new script file, leaving out the last lattice
+		gawk '$1 == "'$lastlattice'" { save=1; next } save { print }' \
+			$scriptfile > $tmpscript.new && \
+		mv $tmpscript.new $tmpscript
+
+		scriptfile=$tmpscript
+		suffix=.restart
+		;;
+	+*)
+		restart=
+		status=1
+		;;
+	*)	restart=
+		status=0
+		;;
+	esac
+done
+

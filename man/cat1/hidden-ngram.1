@@ -1,0 +1,198 @@
+
+
+
+hidden-ngram(1)                                   hidden-ngram(1)
+
+
+NNAAMMEE
+       hidden-ngram - tag hidden events between words
+
+SSYYNNOOPPSSIISS
+       hhiiddddeenn--nnggrraamm [--hheellpp] _o_p_t_i_o_n ...
+
+DDEESSCCRRIIPPTTIIOONN
+       hhiiddddeenn--nnggrraamm  tags  a  stream  of  word tokens with hidden
+       events occurring between words.  For  example,  an  unseg-
+       mented  text  could be tagged for sentence boundaries (the
+       hidden events in this case being `boundary' and `no-bound-
+       ary').   The  most  likely  hidden tag sequence consistent
+       with the given word sequence is found according to  an  N-
+       gram language model over both words and hidden tags.
+
+       hhiiddddeenn--nnggrraamm is a generalization of sseeggmmeenntt(1).
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --tteexxtt _f_i_l_e
+              Specifies the file containing the word sequences to
+              be tagged (one sentence per line).
+
+       --eessccaappee _s_t_r_i_n_g
+              Set an ``escape  string.''   Input  lines  starting
+              with  _s_t_r_i_n_g are not processed and passed unchanged
+              to stdout instead.  This allows associated informa-
+              tion to be passed to scoring scripts etc.
+
+       --tteexxtt--mmaapp _f_i_l_e
+              Read  the  input words from a map file contain both
+              the words and additional likelihoods of events fol-
+              lowing  each  word.   Each  line contains one input
+              word, plus optional  hidden-event/likelihood  pairs
+              in the format
+                   w    e1 [p1] e2 [p2] ...
+              If  a  p  value  is  omitted  a  likelihood of 1 is
+              assumed.  All  events  not  explicitly  listed  are
+              given likelihood 0, and are hence excluded for that
+              word.A In particular, the label **nnooeevveenntt**  must  be
+              listed  to  allow absence of a hidden event.  Input
+              word strings are assembled from multiple  lines  of
+              --tteexxtt--mmaapp  input  until  either  an end-of-sentence
+              token </s>  is  found,  or  an  escaped  line  (see
+              --eessccaappee) is encountered.
+
+       --llooggmmaapp
+              Interpret  numeric  values in the --tteexxtt--mmaapp file as
+              log probabilities, rather than probabilities.
+
+       --llmm _f_i_l_e
+              Specifies the word/tag language model as a standard
+              ARPA N-gram backoff model file.
+
+
+
+                   $Date: 1999/07/15 02:32:19 $                 1
+
+
+
+
+
+hidden-ngram(1)                                   hidden-ngram(1)
+
+
+       --oorrddeerr _n
+              Set the effective N-gram order used by the language
+              model to _n.  Default is 3 (use a trigram model).
+
+       --llmmww _W Scales the language model probabilities by a factor
+              _W.  Default language model weight is 1.
+
+       --mmaappww _W
+              Scales  the  likelihood map probability by a factor
+              _W.  Default map weight is 1.
+
+       --ttoolloowweerr
+              Map vocabulary to lowercase, removing case distinc-
+              tions.
+
+       --hhiiddddeenn--vvooccaabb _f_i_l_e
+              Read the list of hidden tags from _f_i_l_e.  Note: This
+              is a subset of the vocabulary contained in the lan-
+              guage model.
+
+       --ffoorrccee--eevveenntt
+              Forces  a non-default event after every word.  This
+              is useful for language models  that  represent  the
+              default  event  explicitly  with a tag, rather than
+              implicitly by the absence of a  tag  between  words
+              (which is the default).
+
+       --kkeeeepp--uunnkk
+              Do  not map unknown input words to the <unk> token.
+              Instead, output the input word unchanged.
+
+       --ffbb    Perform  forward-backward  decoding  of  the  input
+              token  sequence.   Outputs  the  tags that have the
+              highest posterior probability, for  each  position.
+              The  default  is to use Viterbi decoding, i.e., the
+              output is the tag sequence with the  highest  joint
+              posterior probability.
+
+       --ccoonnttiinnuuoouuss
+              Process  all  words in the input as one sequence of
+              words, irrespective of line breaks.  Normally  each
+              line  is processed separately as a sentence.  Input
+              tokens are output one-per-line, followed  by  event
+              tokens.
+
+       --ppoosstteerriioorrss
+              Output  the  table  of  posterior probabilities for
+              each tag position.  If --ffbb is  also  specified  the
+              posterior probabilities will be computed using for-
+              ward-backward probabilities; otherwise an  approxi-
+              mation  will be used that is based on the probabil-
+              ity of the most likely path containing a given  tag
+              at given position.
+
+
+
+
+                   $Date: 1999/07/15 02:32:19 $                 2
+
+
+
+
+
+hidden-ngram(1)                                   hidden-ngram(1)
+
+
+       --ttoottaallss
+              Output  the total string probability for each input
+              sentence.  If --ffbb is also specified this  probabil-
+              ity  is  obtained  by summing over all hidden event
+              sequences; otherwise it is calculated (i.e., under-
+              estimated)  using  the  most  probably hidden event
+              sequence.
+
+       --wwrriittee--ccoouunnttss _f_i_l_e
+              Write the posterior  weighted  counts  of  n-grams,
+              including  those  with hidden tags, summed over the
+              entire input data, to _f_i_l_e.  The  posterior  proba-
+              bilities  should normally be computed with the for-
+              ward-backward algorithm (instead  of  Viterbi),  so
+              the  --ffbb option is usually also specified.  Only n-
+              grams whose contexts occur in  the  language  model
+              are output.
+
+       --uunnkk--pprroobb _L
+              Specifies that unknown words and other words having
+              zero probability in the language model be  assigned
+              a  log  probability  of _L.  This is -100 by default
+              but might be set to 0, e.g., to  compute  perplexi-
+              ties exlcuding unknown words.
+
+       --ddeebbuugg Sets debugging output level.
+
+       Each  filename  argument  can  be an ASCII file, or a com-
+       pressed file  (name  ending  in  .Z  or  .gz),   or  ``-''
+       to indicate stdin/stdout.
+
+BBUUGGSS
+       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
+       i.e., unknown input words  are  always  mapped  to  <unk>.
+       Also,   --ccoonnttiinnuuoouuss  doesn't  preserve  the  positions  of
+       escaped input lines relative to the input.
+
+SSEEEE AALLSSOO
+       ngram-count(1), disambig(1), segment(1).
+       A. Stolcke  et  al.,  ``Automatic  Detection  of  Sentence
+       Boundaries  and Disfluencies based on Recognized Words, ''
+       Proc. ICSLP, 2247-2250, Sydney.
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 1998, 1999 SRI International
+
+
+
+
+
+
+
+
+
+
+
+                   $Date: 1999/07/15 02:32:19 $                 3
+
+

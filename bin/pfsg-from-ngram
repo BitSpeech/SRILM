@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# pfsg-from-ngram --
+#	Convert a bigram or trigram into a Decipher PFSG
+#
+# This is a wrapper that takes care of
+# - eliminating low probability transitions that the recognizer would never use
+# - renormalizing the LM
+# - converting to PFSG
+# - adding pauses between words
+#
+# $Header: /home/spot71/srilm/devel/utils/src/RCS/pfsg-from-ngram,v 1.2 1997/05/04 06:51:52 stolcke Exp $
+#
+
+remove-lowprob-ngrams "$@" | \
+ngram -lm - -renorm -write-lm - | \
+remove-lowprob-ngrams | \
+ngram -lm - -renorm -write-lm - | \
+make-ngram-pfsg | \
+add-pauses-to-pfsg
+

@@ -1,0 +1,175 @@
+.\" $Id: hidden-ngram.1,v 1.8 1999/07/15 02:32:19 stolcke Exp $
+.TH hidden-ngram 1 "$Date: 1999/07/15 02:32:19 $"
+.SH NAME
+hidden-ngram \- tag hidden events between words
+.SH SYNOPSIS
+.B hidden-ngram 
+[\c
+.BR \-help ]
+.I option
+\&...
+.SH DESCRIPTION
+.B hidden-ngram
+tags a stream of word tokens with hidden events occurring between words.
+For example, an unsegmented text could be tagged for sentence boundaries
+(the hidden events in this case being `boundary' and `no-boundary').
+The most likely hidden tag sequence consistent with the given word
+sequence is found according to an N-gram language model over both
+words and hidden tags.
+.PP
+.B hidden-ngram 
+is a generalization of 
+.BR segment (1).
+.SH OPTIONS
+.TP
+.B \-help
+Print option summary.
+.TP
+.BI \-text " file"
+Specifies the file containing the word sequences to be tagged
+(one sentence per line).
+.TP
+.BI \-escape " string"
+Set an ``escape string.''
+Input lines starting with
+.I string
+are not processed and passed unchanged to stdout instead.
+This allows associated information to be passed to scoring scripts etc.
+.TP
+.BI \-text\-map " file"
+Read the input words from a map file contain both the words and
+additional likelihoods of events following each word.
+Each line contains one input word, plus optional hidden-event/likelihood
+pairs in the format
+.br
+	w	e1 [p1] e2 [p2] ...
+.br
+If a p value is omitted a likelihood of 1 is assumed.
+All events not explicitly listed are given likelihood 0, and are
+hence excluded for that word.A
+In particular, the label 
+.B *noevent*
+must be listed to allow absence of a hidden event.
+Input word strings are assembled from multiple lines of
+.B \-text\-map
+input until either an end-of-sentence token </s> is found, or an escaped 
+line (see 
+.BR \-escape )
+is encountered.
+.TP
+.B \-logmap
+Interpret numeric values in the
+.B \-text\-map
+file as log probabilities, rather
+than probabilities.
+.TP
+.BI \-lm " file"
+Specifies the word/tag language model as a standard ARPA N-gram backoff model
+file.
+.TP
+.BI \-order " n"
+Set the effective N-gram order used by the language model to
+.IR n .
+Default is 3 (use a trigram model).
+.TP
+.BI \-lmw " W"
+Scales the language model probabilities by a factor 
+.IR W .
+Default language model weight is 1.
+.TP
+.BI \-mapw " W"
+Scales the likelihood map probability by a factor
+.IR W .
+Default map weight is 1.
+.TP
+.B \-tolower
+Map vocabulary to lowercase, removing case distinctions.
+.TP
+.BI \-hidden-vocab " file"
+Read the list of hidden tags from
+.IR file .
+Note: This is a subset of the vocabulary contained in the language model.
+.TP
+.B \-force-event
+Forces a non-default event after every word.
+This is useful for language models that represent the default event
+explicitly with a tag, rather than implicitly by the absence of a tag
+between words (which is the default).
+.TP
+.B \-keep-unk
+Do not map unknown input words to the <unk> token.
+Instead, output the input word unchanged.
+.TP
+.B \-fb
+Perform forward-backward decoding of the input token sequence.
+Outputs the tags that have the highest posterior probability,
+for each position.
+The default is to use Viterbi decoding, i.e., the output is the
+tag sequence with the highest joint posterior probability.
+.TP
+.B \-continuous
+Process all words in the input as one sequence of words, irrespective of
+line breaks.
+Normally each line is processed separately as a sentence.
+Input tokens are output one-per-line, followed by event tokens.
+.TP
+.B \-posteriors
+Output the table of posterior probabilities for each 
+tag position.
+If
+.B \-fb
+is also specified the posterior probabilities will be computed using
+forward-backward probabilities; otherwise an approximation will be used
+that is based on the probability of the most likely path containing 
+a given tag at given position.
+.TP
+.B \-totals
+Output the total string probability for each input sentence.
+If
+.B \-fb
+is also specified this probability is obtained by summing over all
+hidden event sequences; otherwise it is calculated (i.e., underestimated)
+using the most probably hidden event sequence.
+.TP
+.BI \-write-counts " file"
+Write the posterior weighted counts of n-grams, including those
+with hidden tags, summed over the entire input data, to
+.IR file .
+The posterior probabilities should normally be computed with the
+forward-backward algorithm (instead of Viterbi), so the
+.B \-fb 
+option is usually also specified.
+Only n-grams whose contexts occur in the language model are output.
+.TP
+.BI \-unk-prob " L"
+Specifies that unknown words and other words having zero probability in
+the language model be assigned a log probability of 
+.IR L .
+This is -100 by default but might be set to 0, e.g., to compute 
+perplexities exlcuding unknown words.
+.TP
+.B \-debug
+Sets debugging output level.
+.PP
+Each filename argument can be an ASCII file, or a compressed
+file  (name  ending  in  .Z  or  .gz),  or ``-'' to indicate
+stdin/stdout.
+.SH BUGS
+The
+.B \-continuous
+option effectively disables
+.BR \-keep-unk ,
+i.e., unknown input words are always mapped to <unk>.
+Also, 
+.B \-continuous
+doesn't preserve the positions of escaped input lines relative to
+the input.
+.SH "SEE ALSO"
+ngram-count(1), disambig(1), segment(1).
+.br
+A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
+Disfluencies based on Recognized Words, '' Proc. ICSLP, 2247-2250, Sydney.
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1998, 1999 SRI International

@@ -1,0 +1,6 @@
+SRILM
+-debug 1
+-order 3
+-tolower
+-vocab-map ../tables/ws97.vocab.map
+-lm /export/di/ws97/lms/baseline/train-all.3bo.gz

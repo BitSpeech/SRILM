@@ -1,0 +1,72 @@
+.\" $Id: nbest-mix.1,v 1.1 1998/12/24 09:48:25 stolcke Exp $
+.TH nbest-mix 1 "$Date: 1998/12/24 09:48:25 $" SRILM
+.SH NAME
+nbest-mix \- interpolate N-best posterior probabilities
+.SH SYNOPSIS
+.B nbest-mix
+[\c
+.BR \-help ]
+option
+\&...
+.I weight1
+.I nbest1
+.I weight2
+.I nbest2 
+\&...
+.SH DESCRIPTION
+.B nbest-mix
+reads a number of N-best lists (which must contain identical
+hypotheses), computes the hypothesis posterior probabilities for each,
+and computes a new posterior distribution that is a
+weighted mixture of the input distributions.
+The hypothesis with the highest combined posterior probability is
+printed.
+.PP
+The command line arguments form an alternating list of 
+weight values and N-best file names.
+.SH OPTIONS
+.TP
+.B \-help
+Print option summary.
+.TP
+.BI \-debug " level"
+Controls the amount of output (the higher the
+.IR level ,
+the more).
+.TP
+.BI \-write-nbest " file"
+Outputs the N-best list corresponding to the interpolated 
+posterior distribution to a file.
+This suppresses the printing of the best hyp.
+.TP
+.BI \-max-nbest " n"
+Limits the number of hypotheses read from each N-best list to the first
+.IR n .
+.TP
+.BI \-rescore-lmw " lmw"
+Sets the language model weight used in combining the language model log
+probabilities with acoustic log probabilities
+(only relevant if separate scores are given in the N-best input).
+.TP
+.BI \-rescore-wtw " wtw"
+Sets the word transition weight used to weight the number of words relative to
+the acoustic log probabilities
+(only relevant if separate scores are given in the N-best input).
+.TP
+.BI \-posterior-scale " scale"
+Divide the total weighted log score by 
+.I scale
+when computing normalized posterior probabilities.
+This controls the peakedness of the posterior distribution. 
+The default value is whatever was chosen for 
+.IR lmw ,
+so that language model scores are scaled to have weight 1,
+and acoustic scores have weight 1/\fIlmw\fP.
+.SH "SEE ALSO"
+nbest-lattice(1).
+.SH BUGS
+Probably.
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1998 SRI International

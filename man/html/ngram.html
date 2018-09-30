@@ -1,0 +1,427 @@
+<! $Id: ngram.1,v 1.19 1999/05/13 07:40:47 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>ngram</TITLE>
+<BODY>
+<H1>ngram</H1>
+<H2>NAME</H2>
+ngram - apply N-gram language models
+<H2>SYNOPSIS</H2>
+<B>ngram</B>
+[<B>-help</B>]
+option
+...
+<H2>DESCRIPTION</H2>
+<B>ngram</B>
+performs various operations with N-gram-based language models,
+including sentence scoring, perplexity computation, sentences generation,
+and various types of model interpolation.
+The N-gram language models are read from files in ARPA format.
+<P>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+<H2>OPTIONS</H2>
+<DL>
+<DT><B>-help</B>
+<DD>
+Print option summary.
+<DT><B>-order</B><I> n</I>
+<DD>
+Set the maximal N-gram order to be used, by default 3.
+NOTE: The order of the model is not set automatically when a model
+file is read, so the same file can be used at various orders.
+To use models of order higher than 3 it is always necessary to specify this
+option.
+<DT><B>-debug</B><I> level</I>
+<DD>
+Set the debugging output level (0 means no debugging output).
+Debugging messages are sent to stderr, with the exception of 
+<B>-ppl</B>
+output as explained below.
+<DT><B>-memuse</B>
+<DD>
+Print memory usage statistics for the LM.
+</DD>
+</DL>
+<P>
+The following options determine the type of LM to be used.
+<DL>
+<DT><B>-null</B>
+<DD>
+Use a `null' LM as the main model (one that gives probability 1 to all words).
+This is useful in combination with mixture creation or for debugging.
+<DT><B>-lm</B><I> file</I>
+<DD>
+Read the (main) N-gram model from
+<I>file</I>.
+This option is always required, unless 
+<B>-null</B>
+was chosen.
+<DT><B>-df</B>
+<DD>
+Interpret the LM as containing disfluency events.
+<DT><B>-tagged</B>
+<DD>
+Interpret the LM as containing word/tag N-grams.
+<DT><B>-skip</B>
+<DD>
+Interpret the LM as a ``skip'' N-gram model.
+<DT><B>-hidden-vocab</B><I> file</I>
+<DD>
+Interpret the LM as an N-gram containing hidden events between words.
+The list of hidden event tags is read from
+<I>file</I>.
+<DT><B>-hidden-not</B><I></I>
+<DD>
+Modifies processing of hidden event N-grams for the case that 
+the event tags are embedded in the word stream, as opposed to inferred 
+through dynamic programming.
+<DT><B>-decipher</B>
+<DD>
+Use the N-gram model exactly as the Decipher(TM) recognizer would,
+i.e., choosing the backoff path if it has a higher probability than
+the bigram transition, and rounding log probabilities to bytelog
+precision.
+<DT><B>-hmm</B>
+<DD>
+Use an HMM of N-grams language model.
+The 
+<B>-lm</B>
+option specifies a file that describes a probabilistic graph, with each
+line corresponding to a node or state.
+A line has the format:
+<BR>
+	<I>statename</I> <I>ngram-file</I> <I>s1</I> <I>p1</I> <I>s2</I> <I>p2</I> ...
+<BR>
+where 
+<I>statename</I>
+is a string identifying the state,
+<I>ngram-file</I>
+names a file containing a backoff N-gram model,
+<I>s1</I>,
+... are names of follow-states, and 
+<I>p1</I>,
+... are the associated transition probabilities.
+A filename of ``-'' can be used to indicate the N-gram model data
+is included in the HMM file, after the current line.
+(Further HMM states may be specified after the N-gram data.)
+<BR>
+The names
+<B>INITIAL</B>
+and
+<B>FINAL</B>
+denote the start and end states, respectively, and have no associated
+N-gram model (<I>ngram-file</I>
+must be specified as ``.'' for these).
+The 
+<B>-order</B>
+option specifies the maximal N-gram length in the component models.
+<BR>
+The semantics of an HMM of N-grams is as follows: as each state is visited,
+words are emitted from the associated N-gram model.
+The first state (corresponding to the start-of-sentence) is
+<B>INITIAL</B>.
+A state is left with the probability of the end-of-sentence token
+in the respective model, and the next state is chosen according to
+the state transition probabilities.
+Each state has to emit at least one word.
+The actual end-of-sentence is emitted if and only if the
+<B>FINAL</B>
+state is reached.
+Each word probability is conditioned on all preceding words, regardless 
+of whether they were emitted in the same or a previous state.
+<DT><B>-vocab</B><I> file</I>
+<DD>
+Initialize the vocabulary for the LM from
+<I>file</I>.
+This is especially useful if the LM itself does not specify a complete
+vocabulary, e.g., as with
+<B>-null</B>.
+<DT><B>-unk</B>
+<DD>
+Indicates that the LM contains the unknown word, i.e., is an open-class LM.
+<DT><B>-tolower</B>
+<DD>
+Map all vocabulary to lowercase.
+Useful if case conventions for text/counts and language model differ.
+<DT><B>-mix-lm</B><I> file</I>
+<DD>
+Read a second, standard N-gram model for interpolation purposes.
+<DT><B>-lambda</B><I> weight</I>
+<DD>
+Set the weight of the main model when interpolating with
+<B>-mix-lm</B>.
+Default value is 0.5.
+<DT><B>-mix-lm2</B><I> file</I>
+<DD>
+<DT><B>-mix-lm3</B><I> file</I>
+<DD>
+<DT><B>-mix-lm4</B><I> file</I>
+<DD>
+<DT><B>-mix-lm5</B><I> file</I>
+<DD>
+Up to 4 more N-gram models can be specified for interpolation.
+<DT><B>-mix-lambda2</B><I> weight</I>
+<DD>
+<DT><B>-mix-lambda3</B><I> weight</I>
+<DD>
+<DT><B>-mix-lambda4</B><I> weight</I>
+<DD>
+<DT><B>-mix-lambda5</B><I> weight</I>
+<DD>
+These are the weights for the additional mixture components, corresponding
+to
+<B>-mix-lm2</B>
+through
+<B>-mix-lm5</B>.
+The weight for the
+<B>-mix-lm</B>
+model is 1 minus the sum of 
+<B>-lambda</B>
+and 
+<B>-mix-lambda2</B>
+through
+<B>-mix-lambda5</B>.
+<DT><B>-bayes</B><I> length</I>
+<DD>
+Interpolate the second and the main model using posterior probabilities
+for local N-gram-contexts of length
+<I>length</I>.
+The 
+<B>-lambda</B>
+value is used as a prior mixture weight in this case.
+<DT><B>-bayes-scale</B><I> scale</I>
+<DD>
+Set the exponential scale factor on the context likelihood in conjunction
+with the
+<B>-bayes</B>
+function.
+Default value is 1.0.
+<DT><B>-cache</B><I> length</I>
+<DD>
+Interpolate the main LM (or the one resulting from operations above) with
+a unigram cache language model based on a history of
+<I>length</I>
+words.
+<DT><B>-cache-lambda</B><I> weight</I>
+<DD>
+Set interpolation weight for the cache LM.
+Default value is 0.05.
+<DT><B>-dynamic</B><I></I>
+<DD>
+Interpolate the main LM (or the one resulting from operations above) with
+a dynamically changing LM.
+LM changes are indicated by the tag ``&lt;LMstate&gt;'' starting a line in the
+input to
+<B>-ppl</B>,
+followed by a filename containing the new LM.
+<DT><B>-dynamic-lambda</B><I> weight</I>
+<DD>
+Set interpolation weight for the dynamic LM.
+Default value is 0.05.
+</DD>
+</DL>
+<P>
+The following options specify the operations performed on/with the LM
+constructed as per the options above.
+<DL>
+<DT><B>-renorm</B>
+<DD>
+Renormalize the main model by recomputing backoff weights for the given
+probabilities.
+<DT><B>-prune</B><I> threshold</I>
+<DD>
+Prune N-gram probabilities if their removal causes (training set)
+perplexity of the model to increase by less than
+<I>threshold</I>
+relative.
+<DT><B>-prune-lowprobs</B>
+<DD>
+Prune N-gram probabilities that are lower than the corresponding
+backed-off estimates.
+This generates N-gram models that can be correctly
+converted into probabilistic finite-state networks.
+<DT><B>-minprune</B><I> n</I>
+<DD>
+Only prune N-grams of length at least
+<I>n</I>.
+The default (and minimim allowed value) is 2, i.e., only unigrams are excluded
+from pruning.
+This option applies to both
+<B>-prune</B>
+and
+<B>-prune-lowprobs</B>.
+<DT><B>-write-lm</B><I> file</I>
+<DD>
+Write a model back to
+<I>file</I>.
+The output will be a single N-gram backoff model that is equivalent
+to the operations previously performed on the LM(s).
+<DT><B>-write-vocab</B><I> file</I>
+<DD>
+Write the LM's vocabulary to
+<I>file</I>.
+<DT><B>-gen</B><I> number</I>
+<DD>
+Generate
+<I>number</I>
+random sentences from the LM.
+<DT><B>-ppl</B><I> textfile</I>
+<DD>
+Compute sentence scores (log probabilities) and perplexities from
+the sentences in
+<I>textfile</I>,
+which should contain one sentence per line.
+The
+<B>-debug</B>
+option controls the level of detail printed, even though output is
+to stdout (not stderr).
+At level 0, only summary stats for the entire corpus are printed.
+At level 1, stats for individual sentences are printed.
+At level 2, probabilities for each word, plus LM-dependent details about backoff
+used etc., are printed.
+At level 3, the probabilities for all words are summed in each context, and
+the sum is printed.  If this differs significantly from 1, a warning message
+to stderr will be issued.
+<DT><B>-nbest</B><I> file</I>
+<DD>
+Read a Decipher(TM) N-best list and rerank the hypotheses using the 
+specified LM.
+The reordered N-best list is written to stdout.
+An N-best list consists of the header
+<BR>
+	NBestList1.0
+<BR>
+followed by one or more lines of the form
+<BR>
+	(<I>score</I>) <I>w1 w2 w3</I> ...
+<BR>
+where
+<I>score</I>
+is either an acoustic score or a composite acoustic/language model score
+from the recognizer on the bytelog scale.
+If composite scores are given, then
+<B>-decipher-lm</B>
+and the recognizer language model and word transition weights (see below)
+need to be specified so the original acoustic scores can be recovered.
+<DT><B>-max-nbest</B><I> n</I>
+<DD>
+Limits the number of hypotheses read from an N-best list.
+Only the first
+<I>n</I>
+hypotheses are processed.
+<DT><B>-rescore</B><I> file</I>
+<DD>
+Similar to
+<B>-nbest</B>,
+but the input is processed as a stream of N-best hypotheses (without header).
+The output is not in N-best format.
+Instead, for each input line, the hypothesis is rescored and output as
+<BR>
+	<I>ascore</I> <I>lscore</I> <I>nwords</I> <I>w1 w2 w3</I> ...
+<BR>
+where the first three columns contain the
+acoustic model log probability, the language model log probability,
+and the number of words in the hypothesis string, respectively.
+<DT><B>-decipher-lm</B><I> model-file</I>
+<DD>
+Designates the N-gram backoff model (typically a bigram) that was used by the
+Decipher(TM) recognizer in computing composite scores for the hypotheses fed to
+<B>-rescore</B>
+or
+<B>-nbest</B>.
+Used to compute acoustic scores from the composite scores.
+<DT><B>-decipher-order</B><I> N</I>
+<DD>
+Specifies the order of the Decipher N-gram model used (default is 2).
+<DT><B>-decipher-nobackoff</B>
+<DD>
+Indicates that the Decipher N-gram model does not contain backoff nodes,
+i.e., all recognizer LM scores are correct up to rounding. 
+<DT><B>-decipher-lmw</B><I> weight</I>
+<DD>
+Specifies the language model weight used by the recognizer.
+Used to compute acoustic scores from the composite scores.
+<DT><B>-decipher-wtw</B><I> weight</I>
+<DD>
+Specifies the word transition weight used by the recognizer.
+Used to compute acoustic scores from the composite scores.
+<DT><B>-escape</B><I> string</I>
+<DD>
+Set an ``escape string'' for the
+<B>-ppl</B>
+and
+<B>-rescore</B>
+computations.
+Input lines starting with
+<I>string</I>
+are not processed as sentences and passed unchanged to stdout instead.
+This allows associated information to be passed to scoring scripts etc.
+<DT><B>-counts</B><I> countsfile</I>
+<DD>
+Perform a computation similar to 
+<B>-ppl</B>,
+but based only on the N-gram counts found in 
+<I>countsfile</I>.
+Probabilities are computed for the last word of each N-gram, using the
+other words as contexts, and scaling by the associated N-gram count.
+<DT><B>-count-order</B><I> n</I>
+<DD>
+Use only counts of order
+<I>n</I>
+in the
+<B>-counts</B>
+computation.
+The default value is 0, meaning use all counts.
+<DT><B>-skipoovs</B>
+<DD>
+Instruct the LM to skip over contexts that contain out-of-vocabulary
+words, instead of using a backoff strategy in these cases.
+<DT><B>-noise</B><I> noise-tag</I>
+<DD>
+Designate
+<I>noise-tag</I>
+as a vocabulary item that is to be ignored by the LM.
+(This is typically used to identify a noise marker.)
+Note that the LM specified by
+<B>-decipher-lm</B>
+does NOT ignore this
+<I>noise-tag</I>
+since the DECIPHER recognizer treats noise as a regular word.
+<DT><B>-reverse</B>
+<DD>
+Reverse the words in a sentence for LM scoring purposes.
+(This assumes the LM used is a ``right-to-left'' model.)
+Note that the LM specified by
+<B>-decipher-lm</B>
+is always applied to the original, left-to-right word sequence.
+</DD>
+</DL>
+<H2>SEE ALSO</H2>
+<A HREF="ngram-count.html">ngram-count(1)</A>.
+<BR>
+M. Weintraub et al., ``Fast Training and Portability,''
+in Research Note No. 1, Center for Language and Speech Processing,
+Johns Hopkins University, Baltimore, Feb. 1996.
+<BR>
+A. Stolcke,`` Entropy-based Pruning of Backoff Language Models,''
+Proc. DARPA Broadcast News Transcription and Understanding Workshop, 270-274,
+Lansdowne, VA, 1998.
+<BR>
+A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
+Disfluencies based on Recognized Words, '' Proc. ICSLP, 2247-2250, Sydney.
+<H2>BUGS</H2>
+The
+<B>-write-lm</B><I></I>
+function is currently supported only for single N-gram LMs, N-grams obtained
+by simple fixed-weight interpolation, and HMMs of N-grams.
+<BR>
+Sentence generation is slow and takes time proportional to the vocabulary
+size.
+<H2>AUTHOR</H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<BR>
+Copyright 1995-1999 SRI International
+</BODY>
+</HTML>

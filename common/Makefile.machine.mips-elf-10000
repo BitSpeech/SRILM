@@ -1,0 +1,121 @@
+#
+#    File:   Makefile.machine.mips-elf-10000
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Fri Mar  3 15:29:29 PST 1995
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for SGI workstations running IRIX 5.x
+#
+#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: Makefile.machine.mips-elf-10000,v 1.1 1998/04/18 17:51:25 stolcke Exp $
+#
+#    $Log: Makefile.machine.mips-elf-10000,v $
+#    Revision 1.1  1998/04/18 17:51:25  stolcke
+#    Initial revision
+#
+#    Revision 1.3  1995/06/19 02:08:21  stolcke
+#    added C++ support
+#
+#    Revision 1.2  1995/04/10 20:54:32  stolcke
+#    define RLD_FLAGS
+#
+# Revision 1.1  1995/03/08  02:19:51  stolcke
+# Initial revision
+#
+#
+
+
+ifneq ($(USE_SGICXX), )
+   COMPILER_OPTION = _CC
+
+   # mips2: All our machines are R4000 (or higher) based
+   # Use the SGI C compiler
+#@@   CC = cc -mips2
+
+#@@ For 6.2, Titan/R10000
+   CC = cc -n32 -mips3
+
+   # Use the SGI C++ compiler
+   CXX = CC -n32 -mips3 -LANG:bool=OFF
+
+# For Titan
+#@@   CFLAGS = -D__STDC__ -signed -float -Wf,-XNl8192 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CFLAGS = -D__STDC__ -signed $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS = -ptused
+
+   OPTIMIZE_FLAGS = -O2
+   DEBUG_FLAGS = -g3 -DDEBUG
+#@@   PROFILE_FLAGS = -p -g3 -O2
+   PROFILE_FLAGS = -p -g3 -O2
+
+   RM_TEMPLATE_DB = :
+
+else
+   # gcc is the default
+   COMPILER_OPTION = 
+
+   CC = gcc -mips2 -V2.7.2
+
+   # Optional compilation flags.
+   # Somehow we need -O/-O2 even for makeg to link properly with g++
+   # Probably -O[2] would optimize away (inline) some function that
+   #   would be called otherwise.  Still not exactly clear how to get
+   #   things to link without -O[2].
+   OPTIMIZE_FLAGS = -g3 -O2
+   DEBUG_FLAGS = -g -DDEBUG -O
+   PROFILE_FLAGS = -p -g3 -O2
+
+   CXX = g++ -mips2 -V2.7.2
+
+   CFLAGS = -D__STDC__  $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS = -fno-implicit-templates
+
+   RM_TEMPLATE_DB = :
+
+endif
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -s
+
+   # Shared compilation flags.
+#@@   CFLAGS = -D__STDC__ -signed -float -Wf,-XNl8192 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES =
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS =
+
+   # Other useful libraries.
+   # XXX -- libaudio.a should not be required everywhere, but currently,
+   #         the Front-end Library needs it.  ***PSI***  31-Oct-1992 
+   # XXX -- added -lsun and -lbsd for networking hostnames.  GTC 12/7/92
+   # XXX -- -lbsd should not be needed. stolcke 1/18/94
+   ADDITIONAL_LIBRARIES = -lmalloc -laudio -lm
+
+   # run-time linker path flag
+   RLD_FLAG = -rpath
+
+   # SGIs do not use "ranlib".
+   RANLIB = :
+
+   # Generate dependencies from source files.
+ifneq ($(USE_SGICXX), )
+   GEN_DEP = $(CC) $(CFLAGS) -M
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -M
+else
+   GEN_DEP = $(CC) $(CFLAGS) -MM
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -MM
+endif
+
+   # Run lint.
+   LINT = lint
+   LINT_FLAGS = -DDEBUG $(INCLUDES)

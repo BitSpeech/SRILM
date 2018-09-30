@@ -1,0 +1,32 @@
+#!/usr/local/bin/gawk -f
+#
+# filter a backoff model with a count file, so that only ngrams
+# in the countfile are represented in the output
+#
+# usage: bo-subset count-file bo-file
+#
+# $Header: /export/d/stolcke/project/srilm/src/scripts/RCS/bo-subset,v 1.2 1995/08/12 23:54:14 stolcke Exp $
+#
+ARGIND==1 {
+	ngram = $0;
+	sub("[ 	]*[0-9]*$", "", ngram);
+	count[ngram] = 1;
+	next;
+}
+ARGIND==2 && /^$/ {
+	print; next;
+}
+ARGIND==2 && /^\\/ {
+	print; next;
+}
+ARGIND==2 && /^ngram / {
+	print; next;
+}
+ARGIND==2 {
+	ngram = $0;
+	# strip numeric stuff
+	sub("^[-.e0-9]*[ 	]*", "", ngram);
+	sub("[ 	]*[-.e0-9]*$", "", ngram);
+	if (count[ngram]) print;
+	next;
+}

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# rescore-nbest-pass2 --
+#	pass2 of rescore-nbest
+#
+# $Header: /export/d/stolcke/project/srilm/src/scripts/RCS/rescore-nbest,v 1.1 1995/08/10 05:53:49 stolcke Exp stolcke $
+#
+
+if [ $# -lt 1  ]; then
+	echo "usage: $0: lm-options ..." >&2
+	exit 1
+fi
+
+#
+# STRATEGY:
+#	Concatenate hyps for all nbest list, record number of hyps for
+#		each file in the output stream
+#	Strip hyp ids, !SENT_START, !SENT_END 
+#	Feed to ngram -ppl (using lm-options)
+#	Parse ngram output into lm scores and deposit into target files
+#
+
+escape="***FILE:"
+
+ngram -debug 1 -ppl - -escape "$escape " "$@"

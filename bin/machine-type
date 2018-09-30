@@ -1,0 +1,99 @@
+#!/bin/csh -f
+#
+#    File:   machine-type
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Thu Apr 13 17:01:24 1995
+#
+#    Description:
+#      Determine machine type (sparc, mips, etc.) by
+#      running a program common to all UNIX systems,
+#      which will query the machine and return its
+#      identity. (Based on the Corona script of the same name)
+#
+#
+#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: machine-type,v 1.2 1999/02/20 07:15:40 stolcke Exp $
+#
+#    $Log: machine-type,v $
+#    Revision 1.2  1999/02/20 07:15:40  stolcke
+#    added support for linux/i686
+#
+# Revision 1.2  1995/04/22  03:25:34  stolcke
+# use 'uname -m' (hardware name) to determine cpu type
+# (since the same OS may in fact support several cpu types)
+#
+# Revision 1.1  1995/04/22  01:06:00  tmk
+# Initial revision
+#
+#
+
+##    NOTE:  (tmk 950414)
+##	  Usually this script is called in a line like 
+##		> setenv MACHINE_TYPE `$DECIPHER/bin/machine-type`
+##	  So you want to generate a visible warning if this script can't
+##	  figure out the right string to return.  Returning a string
+##	  like "ERROR: Unsupported machine type: "$RESULT will silently
+##	  push the problem further down the line, as now the environment
+##	  variable MACHINE_TYPE is defined as "ERROR:....."  The
+##	  approach I've taken generates the message 
+##	  "MACHINE_TYPE: Undefined variable."
+##	  and leaves the MACHINE_TYPE variable defined as a null string.
+
+
+## Maintain backward compatibility for old versions of decipher, which
+## relied on the mach command.
+
+if ($?DECIPHER) then
+    if ($DECIPHER =~ /home/decipher/frozen/0.[012]*) then
+	mach
+	exit
+    endif
+endif
+
+set RESULT = (`uname -a`)
+
+if ($#RESULT > 0) then
+    if ($RESULT[5] =~ IP*) then	# "IP" is an irix processor
+	if ($RESULT[3] =~ 4.*) then
+	    set MACHINE_TYPE = mips
+	else if ($RESULT[3] =~ 5.*) then
+            set MACHINE_TYPE = mips-elf
+	else
+	    ## Generate an error by doing nothing.  (Used to be the line below:
+)
+	    ## echo "ERROR: Unsupported machine type: "$RESULT  
+	endif
+    else if ($RESULT[5] =~ sun4*) then
+
+#	set MACHINE_TYPE = sparc
+
+	if ($RESULT[3] =~ 4.*) then
+	    set MACHINE_TYPE = sparc
+	else if ($RESULT[3] =~ 5.*) then
+	    set MACHINE_TYPE = sparc-elf
+	else
+	    ## Generate an error by doing nothing.  (Used to be the line below:
+)
+	    ## echo "ERROR: Unsupported machine type: "$RESULT
+	endif
+
+    else if ($RESULT[5] == alpha) then
+	set MACHINE_TYPE = alpha
+    else if (`uname -m` == i686) then
+	set MACHINE_TYPE = i686
+    else
+	## Generate an error by doing nothing.  (Used to be the line below:)
+	## echo "ERROR: Unsupported machine type: "$RESULT
+    endif
+else
+    ## Generate an error by doing nothing.  (Used to be the line below:)
+    ## echo "ERROR: Unsupported machine type: "$RESULT
+endif
+
+## NOTE:  If we couldn't figure out the MACHINE_TYPE by this point, the
+##        following line generates an error, rather than returning a
+##	  string containing the word "ERROR".  This is still not great 
+##	  error handling, but it's slightly better.  
+
+echo $MACHINE_TYPE

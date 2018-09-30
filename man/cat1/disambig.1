@@ -1,0 +1,198 @@
+
+
+
+disambig(1)                                           disambig(1)
+
+
+NNAAMMEE
+       disambig - disambiguate text tokens using an N-gram model
+
+SSYYNNOOPPSSIISS
+       ddiissaammbbiigg [--hheellpp] _o_p_t_i_o_n ...
+
+DDEESSCCRRIIPPTTIIOONN
+       ddiissaammbbiigg  translates  a stream of tokens from a vocabulary
+       V1 to a corresponding stream of tokens from  a  vocabulary
+       V2,  according  to  a  probabilistic,  1-to-many  mapping.
+       Ambiguities in the mapping are resolved by finding the  V2
+       sequence  with the highest posterior probability given the
+       V1 sequence.  This probability is computed  from  pairwise
+       conditional  probabilities P(V1|V2), as well as a language
+       model for sequences over V2.
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --tteexxtt _f_i_l_e
+              Specifies the file containing the V1 sentences.
+
+       --mmaapp _f_i_l_e
+              Specifies the file containing the V1-to-V2  mapping
+              information.   Each  line of _f_i_l_e contains the map-
+              ping for a single word in V1:
+                   w1   w21 [p21] w22 [p22] ...
+              where _w_1 is a word from V1, which has possible map-
+              pings  _w_2_1,  _w_2_2, ... from V2.  Optionally, each of
+              these can be followed by a numeric string  for  the
+              probability  _p_2_1,  which defaults to 1.  The number
+              is used as the conditional  probability  P(_w_1|_w_2_1),
+              but  the  program  does not depend on these numbers
+              being properly normalized.
+
+       --tteexxtt--mmaapp _f_i_l_e
+              Processes a combined text/map file.  The format  of
+              _f_i_l_e  is  the  same as for --mmaapp, except that the _w_1
+              field on each line is interpreted as a  word  _t_o_k_e_n
+              rather  than a word _t_y_p_e.  Hence, the V1 text input
+              consists of all words in column 1 of _f_i_l_e in  order
+              of  appearance.   This  is  convenient if different
+              instances of a word have different mappings.  There
+              is  no  implicit  insertion  of  begin/end sentence
+              tokens in this mode.  Sentence boundaries should be
+              indicated explicitly by lines of the form
+                   </s> </s>
+                   <s>  <s>
+
+       --ssccaallee Interpret  the numbers in the mapping as P(_w_2_1|_w_1).
+              This is done by dividing probabilities by the  uni-
+              gram  probabilities  of  _w_2_1,  obtained from the V2
+              language model.
+
+
+
+
+                   $Date: 1998/12/24 19:58:23 $                 1
+
+
+
+
+
+disambig(1)                                           disambig(1)
+
+
+       --llooggmmaapp
+              Interpret numeric values in map file as log  proba-
+              bilities, not probabilities.
+
+       --llmm _f_i_l_e
+              Specifies  the V2 language model as a standard ARPA
+              N-gram backoff model file.  The default is  not  to
+              use  a language model, i.e., choose V2 tokens based
+              only on the probabilities in the map file.
+
+       --oorrddeerr _n
+              Set the effective N-gram order used by the language
+              model to _n.  Default is 2 (use a bigram model).
+
+       --llmmww _W Scales the language model probabilities by a factor
+              _W.  Default language model weight is 1.
+
+       --mmaappww _W
+              Scales the likelihood map probability by  a  factor
+              _W.   Default  map  weight  is 1.  Note: For Viterbi
+              decoding (the default) it is equivalent to use --llmmww
+              _W or --mmaappww _1_/_W,, but not for forward-backward compu-
+              tation.
+
+       --ttoolloowweerr11
+              Map input vocabulary (V1)  to  lowercase,  removing
+              case distinctions.
+
+       --ttoolloowweerr22
+              Map  output  vocabulary (V2) to lowercase, removing
+              case distinctions.
+
+       --kkeeeepp--uunnkk
+              Do not map unknown input words to the <unk>  token.
+              Instead,  output the input word unchanged.  This is
+              like having an implicit default mapping for unknown
+              words  to  themselves,  except  that  the word will
+              still be treated as <unk> by the language model.
+
+       --nnoo--eeooss
+              Do no assume that each input line contains  a  com-
+              plete   sentence.   This  prevents  end-of-sentence
+              tokens </s> from being appended automatically.
+
+       --ccoonnttiinnuuoouuss
+              Process all words in the input as one  sequence  of
+              words,  irrespective of line breaks.  Normally each
+              line is processed separately  as  a  sentence.   V2
+              tokens  are  output one-per-line.  This option also
+              prevents sentence start/end tokens (<s>  and  </s>)
+              from being added to the input.
+
+       --ffbb    Perform forward-backward decoding of the input (V1)
+              token sequence.  Outputs the V2  tokens  that  have
+
+
+
+                   $Date: 1998/12/24 19:58:23 $                 2
+
+
+
+
+
+disambig(1)                                           disambig(1)
+
+
+              the  highest  posterior probability, for each posi-
+              tion.  The default  is  to  use  Viterbi  decoding,
+              i.e., the output is the V2 sequence with the higher
+              joint posterior probability.
+
+       --ppoosstteerriioorrss
+              Output the table  of  posterior  probabilities  for
+              each  input  (V1)  token  and each V2 token, in the
+              same format as required for the --mmaapp file.  If  --ffbb
+              is  also specified the posterior probabilities will
+              be computed using  forward-backward  probabilities;
+              otherwise  an  approximation  will  be used that is
+              based on the probability of the  most  likely  path
+              containing a given V2 token at given position.
+
+       --wwrriittee--vvooccaabb11 _f_i_l_e
+              Writes  the  input  vocabulary from the map (V1) to
+              _f_i_l_e.
+
+       --wwrriittee--vvooccaabb22 _f_i_l_e
+              Writes the output vocabulary from the map  (V2)  to
+              _f_i_l_e.   The  vocabulary will also include the words
+              specified in the language model.
+
+       --wwrriittee--mmaapp _f_i_l_e
+              Writes the map back to a file for  validation  pur-
+              poses.
+
+       --ddeebbuugg Sets debugging output level.
+
+       Each  filename  argument  can  be an ASCII file, or a com-
+       pressed file  (name  ending  in  .Z  or  .gz),   or  ``-''
+       to indicate stdin/stdout.
+
+BBUUGGSS
+       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
+       i.e., unknown input words are always mapped to <unk>.
+
+SSEEEE AALLSSOO
+       ngram-count(1), hidden-ngram(1).
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 1995-1998 SRI International
+
+
+
+
+
+
+
+
+
+
+
+
+
+                   $Date: 1998/12/24 19:58:23 $                 3
+
+

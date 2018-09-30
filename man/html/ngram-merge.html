@@ -1,0 +1,69 @@
+<! $Id: ngram-merge.1,v 1.2 1999/07/31 18:35:00 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>ngram-merge</TITLE>
+<BODY>
+<H1>ngram-merge</H1>
+<H2>NAME</H2>
+ngram-merge - merge N-gram counts
+<H2>SYNOPSIS</H2>
+<B>ngram-merge</B>
+[<B>-help</B>]
+[<B>-write</B>
+<I>outfile</I>]
+<I>infile1</I>
+<I>infile2</I>
+...
+<H2>DESCRIPTION</H2>
+<B>ngram-merge</B>
+reads two or more lexicographically sorted ngram count files
+(as produced by 
+<B>ngram-count -sort</B>)
+and outputs the merged, sorted counts.
+The output is thus suitable for subsequeunt merging steps.
+<P>
+The input format consists of one ngram count per line,
+<BR>
+<I>
+	word1 word2 ... wordn count
+</I>
+<BR>
+The lines must be sorted lexicographically on the words, leftmost first.
+The input may contain ngrams of different lengths.
+<P>
+Each filename argument can be a plain ascii count file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+<P>
+<B>ngram-merge</B>
+is recommended in cases where the full counts would far exceed 
+available real memory.
+Although an arbitrary number of input count files is accepted,
+it is best to use program as follows.
+First, partition the input text into the largest chunks so that
+<B>ngram-count</B>
+can run in real memory.
+Then merge the resulting sorted counts using
+<B>ngram-merge</B>
+pairwise, and continue doing so in a binary tree pattern until a
+single count file containing all ngrams remains.
+<H2>OPTIONS</H2>
+<DL>
+<DT><B>-help</B>
+<DD>
+Print option and usage summary.
+<DT><B>-write</B><I> outfile</I>
+<DD>
+Write merged counts to
+<I>outfile</I>,
+instead of standard output.
+</DD>
+</DL>
+<H2>SEE ALSO</H2>
+<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="ngram.html">ngram(1)</A>.
+<H2>AUTHOR</H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
+<BR>
+Copyright 1995 SRI International
+</BODY>
+</HTML>

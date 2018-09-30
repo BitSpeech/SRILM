@@ -1,0 +1,261 @@
+.\" $Id: ngram-count.1,v 1.10 1999/07/17 11:08:26 stolcke Exp $
+.TH ngram-count 1 "$Date: 1999/07/17 11:08:26 $" SRILM
+.SH NAME
+ngram-count \- count N-grams and estimate language models
+.SH SYNOPSIS
+.B ngram-count
+[\c
+.BR \-help ]
+.I option 
+\&...
+.SH DESCRIPTION
+.B ngram-count
+generates and manipulates N-gram counts, and estimates N-gram language
+models from them.
+The program first builds an internal N-gram count set, either
+by reading counts from a file, or by scanning text input.
+Following that, the resulting counts can be output back to a file
+or used for building an N-gram language model in ARPA format.
+Each of these actions is triggered by corresponding options, as
+described below.
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+.SH OPTIONS
+.TP
+.B \-help
+Print option summary.
+.TP
+.BI \-order " n"
+Set the maximal order (length) of N-grams to count.
+This also determines the order of the estimated LM, if any.
+The default order is 3.
+.TP
+.BI \-vocab " file"
+Read a vocabulary from file.
+Subsequently, out-of-vocabulary words in both counts or text are
+replaced with the unknown-word token.
+If this option is not specified all words found are implicitly added
+to the vocabulary.
+.TP
+.BI \-write-vocab " file"
+Write the vocabulary built in the counting process to
+.IR file .
+.TP
+.B \-tagged
+Interpret text and N-grams as consisting of word/tag pairs.
+.TP
+.B \-tolower
+Map all vocabulary to lowercase.
+.TP
+.B \-memuse
+Print memory usage statistics.
+.SS Counting Options
+.TP
+.BI \-text " textfile"
+Generate N-gram counts from text file.
+.I textfile
+should contain one sentence unit per line.
+Begin/end sentence tokens are added if not already present.
+Empty lines are ignored.
+.TP
+.BI \-read " countsfile"
+Read N-gram counts from a file.
+Each line contains an N-gram of 
+words, followed by an integer count, all separated by whitespace.
+Repeated counts for the same N-gram are added.
+Thus several count files can be merged by using 
+.BR cat (1)
+and feeding the result to 
+.BR "ngram-count \-read \-" 
+(but see
+.BR ngram-merge (1)
+for merging counts that exceed available memory).
+Counts collected by 
+.B \-text
+and 
+.B \-read
+are additive as well.
+.TP
+.BI \-write " file"
+Write total counts to
+.IR file .
+.TP
+.BI \-write-order " n"
+Order of counts to write.
+The default is 0, which stands for N-grams of all lengths.
+.TP
+.BI -write "n file"
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Writes only counts of the indicated order to
+.IR file .
+This is convenient to generate counts of different orders 
+separately in a single pass.
+.TP
+.B \-sort
+Output counts in lexicographic order, as required for
+.BR ngram-merge .
+.TP
+.B \-recompute
+Regenerate lower-order counts by summing the highest-order counts for 
+each N-gram prefix.
+.SS LM Options
+.TP
+.BI \-lm " lmfile"
+Estimate an ARPA backoff N-gram model from the total counts, and write it
+to
+.IR lmfile .
+.TP
+.B \-float-counts
+Enable manipulation of fractional counts.
+Only certain discounting methods support non-integer counts.
+.TP
+.B \-skip
+Estimate a ``skip'' N-gram model, which predicts a word by
+an interpolation of the immediate context and the context one word prior.
+This also triggers N-gram counts to be generated that are one word longer 
+than the indicated order.
+The following four options control the EM estimation algorithm used for
+skip-N-grams.
+.TP
+.BI \-init-lm " lmfile"
+Load an LM to initialize the parameters of the skip-N-gram.
+.TP
+.BI \-skip-init " value"
+The initial skip probability for all words.
+.TP
+.BI \-em-iters " n"
+The maximum number of EM iterations.
+.TP
+.BI \-em-delta " d"
+The convergence criterion for EM: if the relative change in log likelihood
+falls below the given value, iteration stops.
+.TP
+.B \-unk
+Build an ``open vocabulary'' LM, i.e., one that contains the unknown-word
+token as a regular word.
+The default is to remove the unknown word.
+.TP
+.B \-trust-totals
+Force the lower-order counts to be used as total counts in estimating
+N-gram probabilities.
+Usually these totals are recomputed from the higher-order counts.
+.TP
+.BI \-prune " threshold"
+Prune N-gram probabilities if their removal causes (training set)
+perplexity of the model to increase by less than
+.I threshold
+relative.
+.TP
+.BI \-minprune " n"
+Only prune N-grams of length at least
+.IR n .
+The default (and minimum allowed value) is 2, i.e., only unigrams are excluded
+from pruning.
+.TP
+.BI \-debug " level"
+Set debugging output from estimated LM at
+.IR level .
+Level 0 means no debugging.
+Debugging messages are written to stderr.
+.TP
+.BI \-gt\fIn\fPmin " count"
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Set the minimal count of N-grams of order
+.I n
+that will be included in the LM.
+All N-grams with frequency lower than that will effectively be discounted to 0.
+NOTE: This option affects not only the default Good-Turing discounting
+but the alternative discounting methods described below as well.
+.TP
+.BI \-gt\fIn\fPmax " count"
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Set the maximal count of N-grams of order
+.I n
+that are discounted under Good-Turing.
+All N-grams more frequent than that will receive
+maximum likelihood estimates.
+Discounting can be effectively disabled by setting this to 0 or 1.
+.TP
+.BI \-gt\fIn\fP " gtfile"
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Save or retrieve Good-Turing parameters
+(cutoffs and discounting factors) in/from
+.IR gtfile .
+This is useful as GT parameters should always be determined from
+unlimited vocabulary counts, whereas the eventual LM may use a
+limited vocabulary.
+The parameter files may also be hand-edited.
+If an
+.B \-lm
+option is specified the GT parameters are read from
+.IR gtfile ,
+otherwise they are computed from the current counts and saved in
+.IR gtfile .
+.TP
+.BI \-cdiscount\fIn\fP " discount"
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Use Ney's absolute discounting for N-grams of 
+order
+.IR n ,
+using
+.I discount
+as the constant to subtract.
+.TP
+.B \-wbdiscount\fIn\fP
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Use Witten-Bell discounting for N-grams of order
+.IR n .
+(This is the estimator where the first occurrence of each word is
+taken to be a sample for the ``unseen'' event.)
+.TP
+.B \-ndiscount\fIn\fP
+where
+.I n
+is 1, 2, 3, 4, 5, or 6.
+Use Ristad's natural discounting law for N-grams of order
+.IR n .
+.SH "SEE ALSO"
+ngram-merge(1), ngram(1).
+.br
+S. M. Katz, ``Estimation of Probabilities from Sparse Data for the
+Language Model Component of a Speech Recognizer,'' IEEE Trans. ASSP 35(3),
+400-401, 1987.
+.br
+H. Ney and U. Essen, ``On Smoothing Techniques for Bigram-based Natural
+Language Modelling,'' Proc. ICASSP, 825-828, 1991.
+.br
+I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
+Probabilities of Novel Events in Adaptive Text Compression,''
+IEEE Trans. Information Theory 37(4), 1085-1094, 1991.
+.br
+E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
+Comp. Sci. Dept., Princeton Univ., 1995.
+.SH BUGS
+Several of the LM types supported by 
+.BR ngram (1)
+don't have explicit support in
+.BR ngram-count .
+Instead, they are built by separately manipulating ngram counts, 
+followed by standard ngram model estimation.
+.br
+LM support for tagged words is incomplete.
+.br
+Only Witten-Bell smoothing currently supports fractional counts.
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1995-1999 SRI International

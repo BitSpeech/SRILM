@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# package an srilm release
+#
+dirs="./misc ./dstruct ./lm ./utils"
+
+> /tmp/exclude
+find . \( \
+	-name RCS -o \
+	-type d -name sparc\* -o \
+	-type d -name mips\* -o \
+	-type d -name alpha\* -o \
+	-name \*.dist -o \
+	-name core \
+	\) -print \
+	>> /tmp/exclude
+find ./include -type f -print \
+	>> /tmp/exclude
+find $dirs \( \
+	-type d -name bin -o \
+	-type d -name obj -o \
+	-name "Dependencies*" \
+	\) -print \
+	>> /tmp/exclude
+release=`cat ./RELEASE`
+
+set -x
+tar cfX - /tmp/exclude \
+	. | compress > /tmp/srilm-$release.tar.Z 

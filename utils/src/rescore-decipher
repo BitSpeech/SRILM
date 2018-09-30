@@ -1,0 +1,170 @@
+#!/bin/sh
+#
+# rescore-nbest --
+#	generate scores from Decipher(TM) n-best lists
+#
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.16 1998/11/12 08:50:12 stolcke Exp $
+#
+
+bytelog=0
+nodecipherlm=0
+multiwords=0
+
+while [ $# -gt 0 ]
+do
+    case "$1" in
+    -bytelog)	
+	    bytelog=1
+	    ;;
+    -nodecipherlm)
+	    nodecipherlm=1
+	    ;;
+    -multiwords)
+	    multiwords=1
+	    ;;
+    -*)	echo "$0: unknown option $1" >&2
+	    exit 2 ;;
+    *)	    break
+	    ;;
+    esac
+
+    shift
+done
+
+if [ $# -lt 3  ]; then
+    {
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] nbest-file-list score-dir lm-options ..." >&2
+	echo "where"
+	echo "	-bytelog	produces bytelog scaled scores"
+	echo "	-nodecipherlm	avoids Decipher LM score computation"
+	echo "	-multiwords	expand multiwords into constituent words"
+    } >&2
+    exit 1
+fi
+
+filelist="$1"
+scoredir="$2"
+shift; shift
+
+#
+# STRATEGY:
+#	Concatenate hyps for all nbest list, record number of hyps for
+#		each file in the output stream
+#	Feed to ngram -rescore (using lm-options)
+#	Parse ngram output into lm scores and deposit into target files
+#
+
+escape="***FILE:"
+
+cat $filelist | ( \
+while read filename rest; do
+	case $filename in
+	# preserve LMstate labels in the file list and pass them to ngram
+	"<LMstate>")	echo $filename $rest
+			continue ;;
+	*.Z)		cat=zcat ;;
+	*.gz)		cat="gunzip -c" ;;
+	*)		cat=cat ;;
+	esac
+	$cat $filename | \
+gawk '
+BEGIN {
+	filename = "";
+	numhyps = 0;
+	nbestformat = 0;
+}
+NR == 1 {
+	sentid = filename;
+	sub("^.*/", "", sentid);
+	sub("\\.gz$", "", sentid);
+	sub("\\.Z$", "", sentid);
+	sub("\\.score$", "", sentid);
+	print escape, sentid ".score" ;
+}
+/^NBestList1\.0/ {
+	nbestformat = 1;
+	if (nodecipherlm) {
+	    printf "%s: -nodecipherlm ineffective for NBestList1.0\n", filename > "/dev/stderr" ;
+	}
+	next;
+}
+/^NBestList2\.0/ {
+	nbestformat = 2;
+	next;
+}
+{
+	numhyps ++;
+	if (nbestformat <= 1) {
+	    if (multiwords) {
+		gsub("_", " ", $0);
+	    }
+	    print;
+	} else if (nbestformat == 2) {
+	    if (nodecipherlm) {
+		line = "";
+		ac_score = 0;
+		for (i = 2; i <= NF; i += 11) {
+		    line = line " " $i;
+		    ac_score += $(i + 9);
+		}
+		if (multiwords) {
+		    gsub("_", " ", line);
+		}
+		print "(" ac_score ")" line;
+	    } else {
+		line = $1;
+		for (i = 2; i <= NF; i += 11) {
+			line = line " " $i;
+		}
+		if (multiwords) {
+		    gsub("_", " ", line);
+		}
+		print line;
+	    }
+	}
+}
+END {
+	if (numhyps == 0) {
+		print "WARNING: nbest list " filename " is empty" \
+			> "/dev/stderr" ;
+	}
+}
+' filename=$filename escape="$escape" \
+  nodecipherlm=$nodecipherlm multiwords=$multiwords
+done
+) | \
+ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 -escape "$escape " \
+		"$@" | \
+gawk -v bytelog=$bytelog '
+BEGIN {
+	currentfile = "";
+	scoredir = "";
+	scorefile = "";
+	numhyps = 0;
+	bytelogscale = 2.30258509299404568402 * 10000.5 / 1024.0;
+}
+$1 == escape {
+	if (currentfile) {
+		close(scorefile);
+	}
+	currentfile = $2;
+	scorefile = "gzip > " scoredir "/" currentfile ".gz";
+	printf "processing hyps for %s\n", currentfile \
+		> "/dev/stderr" ;
+	hypno = 0;
+	next;
+}
+{
+	if (bytelog) {
+	    $1 = $1 * bytelogscale;
+	    $2 = $2 * bytelogscale;
+	}
+	print | scorefile;
+}
+END {
+	if (currentfile) {
+		close(scorefile);
+	}
+}
+' scoredir=$scoredir escape="$escape" bytelog=$bytelog
+

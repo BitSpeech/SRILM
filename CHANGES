@@ -1,0 +1,142 @@
+
+Version History
+
+0.90	29 Jun 95	first working code, n-gram models only
+
+0.91	02 Aug 95	snapshot for fosler@icsi, minor bug fixes
+
+0.92	13 Aug 95	added BayesMix, VarNgram LMs
+
+0.93	27 Aug 95	included all LM95 code
+
+0.94	13 Oct 95
+	* new directory structure mirroring DECIPHER layout.
+	* man pages added
+	* added support for Decipher N-best list rescoring
+	* added Null LM
+	* added new utility scripts
+	* bug fixes
+
+0.95	08 Sep 96	as of WS96
+	* added Trellis class, disambig program
+	* added support for pause tokens (-pau-) in sentences
+	  (these are ignored for sentence prob computation)
+	* added -tolower mapping
+	* added word reversal
+	* made Ngram model reading much faster (optimized floating point parsing)
+	* added template class for ngram count tries (to use either integer or
+	  float count value)
+	* added optional noise tag skipping
+	* added SkipNgram model
+	* added Witten-Bell backoff
+	* ported to native Sun and SGI C++ compilers (see doc/c++porting-notes),
+	* suppress log10(0.0) warnings
+
+0.96	05 Jun 97
+	* Honor -gtNmin parameter even when discounting of higher counts
+	  is effectively disabled.  (Allows building maximum likelihood LMs
+	  smoothed only by low-count ngram elimination.)
+	* Ignore pauses and noise in nbest-lattice alignments (also added 
+	  -noise option).
+	* ngram now supports mixtures of up to 6 ngram models.
+	* added HiddenSNgram LM.
+	* warn about multiple uses of '-' file for input or output
+	* zio now handles incomplete reading of compressed file without error
+	* Fixed interaction between deletion and iterations
+	* Fixed handling of OOVs in cache model
+	* Fixed decipher nbest rescoring: we now duplicate even the 
+	  roundoff errors incurred by bytelogs.  Also added -decipher flag
+	  to ngram to allow replication of recognizer LM scores.
+	  Also, takes into account that Decipher (incorrectly) applies WTW
+	  even to pauses.
+	* Enhanced decipher-rescore script to deal with NBestList2.0 format,
+	  with -bytelog and -nodecipherlm options .
+	* Added tools to convert bigram and trigram backoff LMs into 
+	  Decipher PFSG format (pfsg-from-ngram).
+	* Enable DecipherNgram models order higher than bigram
+	  (ngram -decipher-order flag).  Default is still bigram.
+	* Fixed bug that caused float command line arguments to be parsed
+	  incorrectly on SunOS4 systems (missing declaration in system header).
+
+0.97 	30 Aug 97	as of WS97
+	* New programs: segment and segment-nbest (moved here from
+	  development code).
+	* Made low-level NgramLM access functions public
+	  (findProb, findBOW, insertProb, insertBOW).
+	* Fixed nbest-lattice to use normalized posterior word
+	  probabilities in lattice.
+	* NBest, nbest-lattice: added N-best error computation.
+	* WordLattice, nbest-lattice: added lattice error computation.
+	* WordLattice: base all alignments on edit distance costs defined
+	  in WordAlign.h.
+	* contextID() now also returns length of context used.
+	  Added contextID() implementations for NullLM and BayesMix.
+	* Fixed contextID() for Ngram: don't truncate context if BOW = 1.
+	* Fixed SArray, LHash to avoid assignment operator on remove().
+	* Fixed add-ppls, subtract-ppls to handle -ppl -debug 2 output.
+	* Lots of memory management fixes.
+	* SArrayIter and LHashIter now work even while underlying object is
+	  being moved (as when containing data structure is enlarged).
+	* Added HTK Lattice tool interface (htk/ directory).
+	* Made Trellis into a template class.
+	* Allow arbitrary n-gram orders with disambig(1).
+	* Added forward-backward decoding and posterior probability computation
+	  to disambig(1).
+	* Added disambig -lmw and -mapw options.
+	* Added HMMofNGrams model (ngram -hmm option).
+	* VocabMap reader now warns about duplicate entries
+
+0.98	18 April 98
+	* Allow ngram to disable Decipher LM backoff hack, for rescoring
+	  new exact lattices (ngram -decipher-nobackoff).
+	* N-best list vocabulary is now always expanded dynamically
+	  (no more OOVs in N-best lists).
+	* Added wrapper script for nbest-lattice to compute nbest error rate
+	  (nbest-error).
+	* Skip ngrams exceeding model order when reading.
+	* Fixed memory bug in generateSentence().
+	* Changed libmisc to work with Tcl version > 7.
+	* Compute word error correctly for empty nbest list.
+	* Added ngram pruning based on model perplexity change
+	  (ngram-count -prune and ngram -prune).
+	* Old ngram -prune option renamed -varprune.
+	* New lattice word error minimization (nbest-lattice -lattice-wer).
+	* Fixed ngram -gen bug due to omissions in SunOS4 header files.
+	* merge-batch-counts removes merged source files
+	* Added ngram -prune-lowprobs function to do the work of
+	  remove-lowprob-ngrams, but much faster and using less memory.
+	* Added support for new Decipher NBestList2.0 format.
+	* Added word error count and posterior probability fields to NBestHyp
+	  structure.
+	* Added optional factor argument to countSentence() (convenient
+	  to compute fractional sufficient statistics for alternative
+	  training methods).
+	* Don't make special symbols (<s>, </s>, <unk>) member of SubVocab
+	  by default.
+	* Ported to gcc 2.8.1 .
+
+0.99	31 July 1999
+	* Added hidden-ngram (word-boundary tagger).
+	* Removed line length limit for File object.
+	* Added disambig -continuous flag.
+	* Fixed backward computation in disambig (again).
+	* Generalized compute-best-mix to N > 2 models
+	* Added AdaptiveMix LM class
+	* Added nbest-mix utility (interpolation of nbest posteriors)
+	* Added ngram -unk flag to handle open-class LMs
+	* Added disambig and hidden-ngram -text-map option
+	* Script enhancements:
+	  - New script to convert nbest-lattice word graphs to PFSG
+	    (wlat-to-pfsg)
+	  - Added switches include probabilities in wlat-to-dot and pfsg-to-dot
+	    output.
+	  - Conversion to/from AT&T FSM format: fsm-to-pfsg and pfsg-to-fsm
+	* ngram -rescore and associated scripts no longer set a hyp 
+	   probability to zero if it contains OOVs. Instead, the probability
+	   is computed ignoring those words (more useful in practice).
+	   A warning is output as always.
+	* Added ngram-count -float-counts option.
+	* Added build support for Linux/i686 platform.
+
+$Date: 1999/07/31 18:56:17 $
+

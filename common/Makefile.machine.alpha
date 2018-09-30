@@ -1,0 +1,73 @@
+#
+#    File:   Makefile.alpha
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Wed Feb 22 10:55:01 1995
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for the DEC alpha.
+#
+#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: Makefile.machine.alpha,v 1.4 1998/04/18 17:51:25 stolcke Exp $
+#
+#    $Log: Makefile.machine.alpha,v $
+#    Revision 1.4  1998/04/18 17:51:25  stolcke
+#    use gcc 2.8.1
+#
+#    Revision 1.3  1995/08/29 20:26:42  stolcke
+#    reshuffled cflags to avoid conflict with g++
+#
+#    Revision 1.2  1995/06/19 02:08:21  stolcke
+#    added C++ support
+#
+#    Revision 1.1  1995/03/08 02:55:24  stolcke
+#    Initial revision
+#
+#
+   CC = cc
+   CXX = g++ -V2.8.1 -mieee-with-inexact
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS = -g3 -O2
+   DEBUG_FLAGS = -g -DDEBUG
+   PROFILE_FLAGS = -p -g3 -O2
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -s
+
+   # Shared compilation flags.
+   # Note:  "-ieee_with_inexact" is much too slow for our purposes, but 
+   #  "-ieee_with_no_inexact" gives basically the same numerical
+   #  behavior without being too slow.  
+   CFLAGS = -std1 -signed -float -ieee_with_no_inexact -Olimit 750 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   # XXX -- I have not been able to generate non-pageable executables on
+   #         the ALPHAs, using either -n or -nN.  ***PSI***  9-Mar-1994
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+
+   # Other useful compilation options.
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES =
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS =
+
+   # Other useful libraries.
+   ADDITIONAL_LIBRARIES = -lm
+
+   # Do Alphas require ranlib(1) to be run on libraries?
+   RANLIB = echo
+
+   # Generate dependencies from source files.
+   GEN_DEP = $(CC) $(CFLAGS) -M
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -MM
+
+   # Run lint.  Lint flags are useful for the Alpha:
+   LINT = lint
+   LINT_FLAGS = -u -wA -Q -Nn10000 -u -DDEBUG $(INCLUDES)

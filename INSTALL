@@ -1,0 +1,58 @@
+
+Here is a brief guide on how to build the SRI LM tools and associated
+libraries.
+
+1 - Unpack.  This should give a top-level directory with the subdirectories
+    listed in README, as well as a few documentation files and a Makefile.
+
+2 - Set the SRILM variable in the top-level Makefile to point to this
+    top-level directory (an absolute path).
+
+3 - You need a SunOS (Sparc or i386), IRIX 5.x, Alpha OSF, or Linux i686
+    platform to compile out of the box.  For other OS/cpu combinations
+    you will have to modify the bin/machine-type script to detect (and name)
+    the platform type, and create a file common/Makefile.machine.<platform>
+    that defines platform-dependent makefile variables.
+
+4 - You need the following free third-party software:
+
+	- gcc version 2.7.2 or higher
+	  (including the C++ compiler and corresponding libg++ library).
+	- GNU make 
+	- GNU install (ginstall).  if not available, you will have to edit
+	  bin/decipher-install to use some other, preferably BSD-compatible
+	  install command.
+	- John Ousterhout's Tcl toolkit, version 7.3 or 7.4
+	  (this is currently used for some test programs, but is needed for
+	  the build to go through without manual invention).
+
+5 - In the top-level directory, run
+
+	gnumake World
+
+    This will create the directories
+
+	bin/
+	lib/
+	include/
+
+    build everything and install public commands, libraries and headers in
+    these directories.  Binaries are actually installed in subdirectories
+    indicating the platform type.
+
+    Some of the makefiles (*/src/Makefile) contain references to the Tcl
+    library, and -I and -L flags may need to be adjusted if these are
+    installed in non-standard places (other than /usr/local/lib and 
+    /usr/local/include).
+
+6 - The result of the above should be a fair number of .h and .cc files in
+    include/, libraries in lib/$(MACHINE_TYPE), and programs in 
+    bin/$(MACHINE_TYPE).
+
+7 - Be sure to let me know if I left something out.
+
+
+Andreas Stolcke
+stolcke@speech.sri.com
+$Date: 1999/07/31 18:32:01 $
+
