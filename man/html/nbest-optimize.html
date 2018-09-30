@@ -1,4 +1,4 @@
-<! $Id: nbest-optimize.1,v 1.3 2000/06/09 00:25:02 stolcke Exp $>
+<! $Id: nbest-optimize.1,v 1.10 2001/06/26 18:10:20 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-optimize</TITLE>
@@ -25,7 +25,11 @@ The optimized weights are meant to be used with
 <A HREF="nbest-lattice.html">nbest-lattice(1)</A>
 and the
 <B> -use-mesh </B>
-option.
+option,
+or the 
+<B> nbest-rover </B>
+script (see
+<A HREF="nbest-scripts.html">nbest-scripts(1)</A>).
 <B> nbest-optimize </B>
 determines both the best relative weighting of knowledge source scores
 and the optimal 
@@ -43,6 +47,23 @@ Another approximation is that the error function is computed assuming a fixed
 multiple alignment of all N-best hypotheses and the reference string,
 which tends to slightly overestimate the true pairwise error between any 
 single hypothesis and the reference.
+<P>
+An alternative search strategy uses a simplex-based "Amoeba" search on
+the (non-smoothed) word error function (Press et al. 1988).
+The search is restarted multiple times to avoid local minima.
+<P>
+Alternatively,
+<B> nbest-optimize </B>
+can also optimize weights for a standard, 1-best hypothesis rescoring that
+selects entire (sentence) hypotheses
+(<B>-1best</B>
+option).
+In this mode sentence-level error counts may be read from external files,
+or computed on the fly from the reference strings.
+The weights obtained are meant to be used for N-best list rescoring with
+<B> rescore-reweight </B>
+(see 
+<A HREF="nbest-scripts.html">nbest-scripts(1)</A>).
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
@@ -78,6 +99,26 @@ Each line in
 <I> references </I>
 must contain the sentence ID (the last component in the N-best filename
 path, minus any suffixes) followed by zero or more reference words.
+<DT><B> -1best </B>
+<DD>
+Select optimization for standard sentence-level hypothesis selection.
+<DT><B>-errors</B><I> dir</I><B></B>
+<DD>
+In 1-best mode, optimize for error counts that are stored in separate files
+in directory
+<I>dir</I>.<I></I>
+Each N-best list must have a matching error counts file of the same 
+basename in 
+<I>dir</I>.<I></I>
+Each file contains 7 columns of numbers in the format
+<BR>
+	wcr wer nerr nsub ndel nins nw
+<BR>
+Only the 3rd column (number of errors) and the last column (number of
+reference  words) is used by the program.
+<BR>
+If this option is omitted, errors will be computed from the N-best hypotheses
+and the reference transcripts.
 <DT><B>-max-nbest</B><I> n</I><B></B>
 <DD>
 Limits the number of hypotheses read from each N-best list to the first
@@ -116,6 +157,15 @@ Map vocabulary to lowercase, eliminating case distinctions.
 <DD>
 Split multiwords (words joined by '_') into their components when reading
 N-best lists.
+<DT><B> -no-reorder </B>
+<DD>
+Do not reorder the hypotheses for alignment, and start the alignment with
+the reference words.
+The default is to first align hypotheses by order of decreasing scores
+(according to the initial score weighting) and then the reference,
+which is more compatible with how 
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+operates.
 <DT><B>-noise</B><I> noise-tag</I><B></B>
 <DD>
 Designate
@@ -143,6 +193,10 @@ Prefixing a value with an equal sign (`=')
 holds the value constant during optimization.
 (All values should be enclosed in quotes to form a single command-line
 argument.)
+<BR>
+Hypotheses are aligned using the initial weights; thus, it makes sense
+to reoptimize with initial weights from a previous optimization in order
+to obtain alignments closer to the optimimum.
 <DT><B>-alpha</B><I> a</I><B></B>
 <DD>
 Controls the error function smoothness; 
@@ -162,11 +216,28 @@ Ignores the contribution of a sample to the gradient if the derivative
 exceeds
 <I>d</I>.<I></I>
 This helps avoid numerical problems.
+<DT><B>-maxiters</B><I> m</I><B></B>
+<DD>
+Stops optimization after 
+<I> m </I>
+iterations.
+In Amoeba search, this limits the total number of points in the parameter space
+that are evaluated.
 <DT><B>-max-bad-iters</B> n<B></B>
 <DD>
 Stops optimization after 
 <I> n </I>
 iterations during which the actual (non-smoothed) error has not decreased.
+<DT><B>-max-amoeba-restarts</B> r<B></B>
+<DD>
+Perform only up to
+<I> r </I>
+repeated Amoeba searches.
+The default is to search until 
+<I> D </I>
+searches give the same results, where
+<I> D </I>
+is the dimensionality of the problem.
 <DT><B>-epsilon-stepdown</B><I> s</I><B></B>
 <DD>
 <DT><B>-min-epsilon</B><I> m</I><B></B>
@@ -183,13 +254,19 @@ Training stops when the learning rate falls below
 in this manner.
 <DT><B>-converge</B><I> x</I><B></B>
 <DD>
-Stops optimization when the smoothed loss function changes relatively by less 
+Stops optimization when the (smoothed) loss function changes relatively by less 
 than 
 <I> x </I>
 from one iteration to the next.
 <DT><B> -quickprop </B>
 <DD>
 Use the approximate second-order method known as "QuickProp" (Fahlman 1989).
+<DT><B>-init-amoeba-simplex</B><I> 's1 s2 ...'</I><B></B>
+<DD>
+Defines the step size for the initial Amoeba simplex.
+One value for each non-fixed search dimension should be specified,
+plus optionally a value for the posterior scaling parameter
+(which is searched as an added dimension).
 <DT><B>-print-hyps</B><I> file</I><B></B>
 <DD>
 Write the best word hypotheses to 
@@ -210,7 +287,7 @@ the N-best list) plus the number of additional score directories specified.
 </DD>
 </DL>
 <H2> SEE ALSO </H2>
-<A HREF="ngram-lattice.html">ngram-lattice(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
 <BR>
 S. Katagiri, C.H. Lee, &amp; B.-H. Juang, "A Generalized Probabilistic Descent
 Method", in
@@ -222,11 +299,19 @@ Empirical Study", in D. Touretzky, G. Hinton, &amp; T. Sejnowski (eds.),
 <I>Proceedings of the 1988 Connectionist Models Summer School</I>, pp. 38-51,
 Morgan Kaufmann, 1989.
 <BR>
+W. H. Press, B. P. Flannery, S. A. Teukolsky, &amp; W. T. Vetterling,
+<I>Numerical Recipes in C: The Art of Scientific Computing</I>,
+Cambridge University Press, 1988.
+<BR>
 <H2> BUGS </H2>
 Likely.
-<H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+Gradient-based optimization is not supported (yet) in 1-best mode;
+use simplex-search optimization instead.
+<H2> AUTHORS </H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
 <BR>
-Copyright 2000 SRI International
+Dimitra Vergyri &lt;dverg@speech.sri.com&gt;
+<BR>
+Copyright 2000, 2001 SRI International
 </BODY>
 </HTML>

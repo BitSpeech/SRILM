@@ -2,9 +2,9 @@
  * MultiAlign.h --
  *	Multiple Word alignments
  *
- * Copyright (c) 1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998,2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.4 2000/03/18 23:01:07 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.5 2001/06/08 05:56:16 stolcke Exp $
  *
  */
 
@@ -28,7 +28,7 @@ public:
     virtual Boolean write(File &file) = 0;
 
     /*
-     * add word string without forcing alignment
+     * add word string without forcing alignment (optional)
      */
     virtual void addWords(const VocabIndex *words, Prob score)
 	{ alignWords(words, score); };
@@ -39,6 +39,12 @@ public:
      */
     virtual void alignWords(const VocabIndex *words, Prob score,
 						Prob *wordScores = 0) = 0;
+
+    /*
+     * record reference word string (optional)
+     */
+    virtual void alignReference(const VocabIndex *words)
+	{ alignWords(words, 0.0); };
 
     /*
      * compute minimal word errr

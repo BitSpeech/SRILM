@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.11 2000/07/09 17:56:13 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.14 2001/06/21 14:37:45 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -32,17 +32,18 @@ if [ $# -lt 2 ]; then
 	exit 2
 fi
 
-scriptdir=`dirname $0`
-
 sentids=$1
 control=$2
 shift; shift
 
+amw=1
 default_lmw=8
 default_wtw=0
 default_scale=0
 default_max_nbest=0
 default_weight=1
+
+mesh_option=-use-mesh
 
 if [ $# -gt 0 ]; then
     posteriors=$1
@@ -56,8 +57,12 @@ lattice_dir=
 # collect remaining options (mostly to pass them to nbest-lattice)
 while [ $# -gt 0 ]; do
     case "$1" in
+    -amw)	amw=$2;
+		shift; shift ;;
     -write-dir)	lattice_dir=$2;
 		shift; shift ;;
+    -no-mesh)	mesh_option= ;
+		shift ;;
     *)		options="$options $1"
 		shift ;;
     esac
@@ -126,15 +131,15 @@ do
 			    continue
 		    fi
 
-		    if [ -n "$extra_weights" ]; then
-			$scriptdir/combine-acoustic-scores \
-				-v "weights=1 $extra_weights" \
+		    if [ -n "$extra_weights" -o "$amw" != 1 ]; then
+			combine-acoustic-scores \
+				-v "weights=$amw $extra_weights" \
 				-v max_nbest=${max_nbest:-$default_max_nbest} \
 				$dir/$sentid.score.gz $extra_scores
 		    else
 			zcat $dir/$sentid.score.gz
 		    fi | \
-		    $scriptdir/nbest-posteriors lmw=${lmw:-$default_lmw} \
+		    nbest-posteriors lmw=${lmw:-$default_lmw} \
 				    wtw=${wtw:-$default_wtw} \
 				    weight=${weight:-$default_weight} \
 				    max_nbest=${max_nbest:-$default_max_nbest} \
@@ -144,7 +149,7 @@ do
 		    extra_scores=
 		fi
 	done | \
-	nbest-lattice -rescore - -use-mesh \
+	nbest-lattice -rescore - $mesh_option \
 		-rescore-lmw 0 -rescore-wtw 0 \
 		-debug 2 $write_option $options \
 		2>$tmp_post

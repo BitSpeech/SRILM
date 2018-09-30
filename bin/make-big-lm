@@ -13,10 +13,8 @@
 #	  into memory.
 #	- ngram-counts loads only those counts exceeding cutoff values.
 #
-# $Header: /home/spot71/srilm/devel/utils/src/RCS/make-big-lm,v 1.3 1997/01/05 08:32:04 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.4 2000/10/11 01:57:56 stolcke Exp $
 #
-
-scriptdir=`dirname $0`
 
 name=biglm
 order=3
@@ -80,7 +78,7 @@ do
     *.gz)	gunzip < $file ;;
     *)		cat $file ;;
     esac
-done | $scriptdir/get-gt-counts out=$name max=20
+done | get-gt-counts out=$name max=20
 fi
 
 #
@@ -91,7 +89,7 @@ for n in 1 2 3 4 5 6
 do
     if [ $n -le $order -f $name.gt${n}counts ]; then
 	gtflags="$gtflags -gt${n} $name.gt${n}"
-	eval $scriptdir/make-gt-discounts \
+	eval make-gt-discounts \
 			min=\$gt${n}min max=\$gt${n}max \
 			$name.gt${n}counts > $name.gt${n}
     fi

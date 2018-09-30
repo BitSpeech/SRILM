@@ -5,14 +5,23 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testProb.cc,v 1.1 2000/07/13 06:16:45 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testProb.cc,v 1.4 2001/06/28 23:02:32 stolcke Exp $";
 #endif
 
 
 #include <iostream.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "Prob.h"
+
+/*
+ * Simulate the rounding going on from the original LM LogP scores to the
+ * bytelogs in the recognizer:
+ * - PFSGs encode LogP as intlogs
+ * - Nodearray compiler maps intlogs to bytelogs
+ */
+#define RoundToBytelog(x)	BytelogToLogP(IntlogToBytelog(LogPtoIntlog(x)))
 
 int
 main(int argc, char **argv)
@@ -29,6 +38,10 @@ main(int argc, char **argv)
 	LogP lp = ProbToLogP(p);
 
     	cout << "log(p) = " << lp << " " << LogPtoProb(lp) << endl;
+    	cout << "Decipher log(p) = " << RoundToBytelog(lp)
+		<< " " << LogPtoProb(RoundToBytelog(lp))
+		<< " " << LogPtoIntlog(lp)
+		<< " " << IntlogToBytelog(LogPtoIntlog(lp)) << endl;
     } else {
     	Prob p, q;
 

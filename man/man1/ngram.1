@@ -1,5 +1,5 @@
-.\" $Id: ngram.1,v 1.28 2000/06/09 00:35:25 stolcke Exp $
-.TH ngram 1 "$Date: 2000/06/09 00:35:25 $" "SRILM Tools"
+.\" $Id: ngram.1,v 1.29 2000/10/04 01:00:09 stolcke Exp $
+.TH ngram 1 "$Date: 2000/10/04 01:00:09 $" "SRILM Tools"
 .SH NAME
 ngram \- apply N-gram language models
 .SH SYNOPSIS
@@ -331,6 +331,13 @@ Write the LM's vocabulary to
 Generate
 .I number
 random sentences from the LM.
+.TP
+.BI \-seed " value"
+Initialize the random number generator used for sentence generation
+using seed
+.IR value .
+The default is to use a seed that should be close to unique for each
+invocation of the program.
 .TP
 .BI \-ppl " textfile"
 Compute sentence scores (log probabilities) and perplexities from

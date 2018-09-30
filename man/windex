@@ -36,6 +36,8 @@ make-nbest-pfsg pfsg-scripts (1)    - create and manipulate finite-state network
 make-ngram-pfsg pfsg-scripts (1)    - create and manipulate finite-state networks
 make-sub-lm	lm-scripts (1)	- manipulate N-gram language models
 merge-batch-counts		training-scripts (1)	- miscellaneous conveniences for language model training
+merge-nbest	nbest-scripts (1)   - rescore and evaluate N-best lists
+multi-ngram	multi-ngram (1) - build multiword N-gram models
 nbest-error	nbest-scripts (1)   - rescore and evaluate N-best lists
 nbest-format	nbest-format (5)    - File formats for N-best hypotheses lists
 nbest-lattice	nbest-lattice (1)   - rescore N-best lists and lattices
@@ -70,5 +72,6 @@ subtract-ppls	ppl-scripts (1) - manipulate perplexities
 training-scripts		training-scripts (1)	- miscellaneous conveniences for language model training
 uniform-classes training-scripts (1)	- miscellaneous conveniences for language model training
 vp2text 	training-scripts (1)	- miscellaneous conveniences for language model training
+wlat-stats	pfsg-scripts (1)    - create and manipulate finite-state networks
 wlat-to-dot	pfsg-scripts (1)    - create and manipulate finite-state networks
 wlat-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks

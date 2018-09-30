@@ -1,4 +1,4 @@
-<! $Id: ngram.1,v 1.28 2000/06/09 00:35:25 stolcke Exp $>
+<! $Id: ngram.1,v 1.29 2000/10/04 01:00:09 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>ngram</TITLE>
@@ -338,6 +338,13 @@ Write the LM's vocabulary to
 Generate
 <I> number </I>
 random sentences from the LM.
+<DT><B>-seed</B><I> value</I><B></B>
+<DD>
+Initialize the random number generator used for sentence generation
+using seed
+<I>value</I>.<I></I>
+The default is to use a seed that should be close to unique for each
+invocation of the program.
 <DT><B>-ppl</B><I> textfile</I><B></B>
 <DD>
 Compute sentence scores (log probabilities) and perplexities from

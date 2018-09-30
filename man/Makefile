@@ -1,7 +1,7 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.10 2000/05/10 08:26:55 stolcke Exp $
+# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.11 2001/05/21 23:11:37 stolcke Exp $
 #
 
 GROFF = groff -Tascii -mgan
@@ -19,6 +19,7 @@ MAN1PAGES = \
 	segment-nbest \
 	hidden-ngram \
 	anti-ngram \
+	multi-ngram \
 	training-scripts \
 	lm-scripts \
 	ppl-scripts \

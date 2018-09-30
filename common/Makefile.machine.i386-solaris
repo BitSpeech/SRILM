@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.i386-solaris,v 1.7 2000/07/13 06:14:49 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.i386-solaris,v 1.8 2001/03/11 17:33:30 stolcke Exp $
 #
 #    $Log: Makefile.machine.i386-solaris,v $
+#    Revision 1.8  2001/03/11 17:33:30  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.7  2000/07/13 06:14:49  stolcke
 #    ld -z muldefs no longer needed
 #
@@ -111,6 +114,10 @@ endif
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl -R/usr/local/lib
 
    # run-time linker path flag
    RLD_FLAG = -R

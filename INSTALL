@@ -13,6 +13,7 @@ libraries.
     you will have to modify the bin/machine-type script to detect (and name)
     the platform type, and create a file common/Makefile.machine.<platform>
     that defines platform-dependent makefile variables.
+    Some platform-specific notes may be found in doc/README.<platform>.
 
 4 - You need the following free third-party software to build SRILM:
 
@@ -59,5 +60,5 @@ libraries.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2000/06/09 00:10:01 $
+$Date: 2000/10/06 23:46:31 $
 

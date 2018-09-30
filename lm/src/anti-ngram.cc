@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.5 2000/05/04 15:25:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2001 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.7 2001/03/11 17:19:37 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -21,13 +21,18 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v
 #include "NBestSet.h"
 #include "NgramStats.h"
 #include "Ngram.h"
+#include "ClassNgram.h"
 
 static int order = 3;
 static char *vocabFile = 0;
 static char *lmFile = 0;
+static char *classesFile = 0;
 static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
+
+static int tolower = 0;
+static int multiwords = 0;
 
 static char *refFile = 0;
 static char *nbestFiles = 0;
@@ -46,6 +51,9 @@ static Option options[] = {
 
     { OPT_UINT, "order", &order, "max ngram order" },
     { OPT_STRING, "lm", &lmFile, "N-gram model in ARPA LM format" },
+    { OPT_STRING, "classes", &classesFile, "class definitions" },
+    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
@@ -187,13 +195,22 @@ main(int argc, char **argv)
     }
 
     Vocab vocab;
+
+    vocab.toLower = tolower ? true : false;
+
     RefList refs(vocab);
 
-    NBestSet trainSet(vocab, refs, maxNbest, true);
+    NBestSet trainSet(vocab, refs, maxNbest, true, multiwords);
     trainSet.debugme(debug);
 
     NgramCounts<DiscNgramCount> trainStats(vocab, order);
     trainStats.debugme(debug);
+
+    SubVocab *classVocab = 0;
+    if (classesFile != 0) {
+	classVocab = new SubVocab(vocab);
+	assert(classVocab);
+    }
 
     Ngram *ngram = 0;
 
@@ -201,8 +218,22 @@ main(int argc, char **argv)
 	cerr << "reading LM...\n";
 	File file(lmFile, "r");
 
-	ngram = new Ngram(vocab, order);
+	/*
+	 * create class-ngram if -classes were specified, otherwise a regular
+	 * ngram
+	 */
+	Ngram *ngram = (classVocab != 0) ?
+			  new ClassNgram(vocab, *classVocab, order) :
+			  new Ngram(vocab, order);
 	assert(ngram != 0);
+
+	/*
+	 * read class vocabulary if specified
+	 */
+	if (classVocab != 0) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)ngram)->readClasses(file);
+	}
 
 	ngram->debugme(debug);
 	ngram->read(file);

@@ -3,10 +3,8 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.10 2000/06/26 20:48:33 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.13 2001/03/07 23:46:14 stolcke Exp $
 #
-
-basedir=`dirname $0`
 
 if [ $# -lt 3 ]; then
 	echo "usage: $0 [-v] -h1 hyps1 -h2 hyps2 -r refs [-S id-subset] [-M|-multiwords] [sclite-options ...]" >&2
@@ -96,14 +94,15 @@ $1 == "Scores:" {
         next;
 }
 END {
+	werA = (total_wordsA > 0 ? total_errsA/total_wordsA * 100 : 0);
+	werB = (total_wordsB > 0 ? total_errsB/total_wordsB * 100 : 0);
+
 	printf "result 1: %d errors (%.2f%%), %d words, %d sentences\n", \
-		    total_errsA, total_errsA/total_wordsA * 100, \
-		    total_wordsA, total_sentsA;
+		    total_errsA, werA, total_wordsA, total_sentsA;
 	printf "result 2: %d errors (%.2f%%), %d words, %d sentences\n", \
-		    total_errsB, total_errsB/total_wordsB * 100, \
-		    total_wordsB, total_sentsB;
-        printf "less %d, greater %d, equal %d, different %d\n", \
-                 less, greater, equal, less + greater;
+		    total_errsB, werB, total_wordsB, total_sentsB;
+        printf "less %d, greater %d, equal %d, different %d (%.2f%%)\n", \
+                 less, greater, equal, less + greater, werB - werA;
 }
 ' $tmpdir/$pralignA.pra $tmpdir/$pralignB.pra
 

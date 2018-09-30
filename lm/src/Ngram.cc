@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.cc,v 1.68 2000/02/18 05:09:11 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.cc,v 1.69 2001/01/19 01:54:33 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -688,8 +688,13 @@ Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
     return !error;
 }
 
+/*
+ * Generic version of estimate(NgramStats, Discount)
+ *                and estimate(NgramCounts<FloatCount>, Discount)
+ */
+template <class CountType>
 Boolean
-Ngram::estimate(NgramStats &stats, Discount **discounts)
+Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 {
     /*
      * For all ngrams, compute probabilities and apply the discount
@@ -708,8 +713,8 @@ Ngram::estimate(NgramStats &stats, Discount **discounts)
     }
 
     for (unsigned i = 1; i <= order; i++) {
-	NgramCount *contextCount;
-	NgramsIter contextIter(stats, context, i-1);
+	CountType *contextCount;
+	NgramCountsIter<CountType> contextIter(stats, context, i-1);
 	unsigned noneventContexts = 0;
 	unsigned noneventNgrams = 0;
 	unsigned discountedNgrams = 0;
@@ -734,8 +739,8 @@ Ngram::estimate(NgramStats &stats, Discount **discounts)
 	    }
 
 	    VocabIndex word[2];	/* the follow word */
-	    NgramsIter followIter(stats, context, word, 1);
-	    NgramCount *ngramCount;
+	    NgramCountsIter<CountType> followIter(stats, context, word, 1);
+	    CountType *ngramCount;
 
 	    /*
 	     * Total up the counts for the denominator
@@ -744,7 +749,7 @@ Ngram::estimate(NgramStats &stats, Discount **discounts)
 	     * Only if the trustTotal flag is set do we override this
 	     * with the count from the context ngram.
 	     */
-	    NgramCount totalCount = 0;
+	    CountType totalCount = 0;
 	    Count observedVocab = 0;
 	    while (ngramCount = followIter.next()) {
 		if (vocab.isNonEvent(word[0]) ||
@@ -857,6 +862,7 @@ Ngram::estimate(NgramStats &stats, Discount **discounts)
 		 */
 		if (discount == 0.0) {
 		    discountedNgrams ++;
+		    removeProb(word[0], context);
 		} else {
 		    *insertProb(word[0], context) = lprob;
 		} 
@@ -916,200 +922,16 @@ Ngram::estimate(NgramStats &stats, Discount **discounts)
     return true;
 }
 
-/*
- * same as above, but using fractional counts
- */
+Boolean
+Ngram::estimate(NgramStats &stats, Discount **discounts)
+{
+    return estimate2(stats, discounts);
+}
+
 Boolean
 Ngram::estimate(NgramCounts<FloatCount> &stats, Discount **discounts)
 {
-    /*
-     * For all ngrams, compute probabilities and apply the discount
-     * coefficients.
-     */
-    VocabIndex context[order];
-
-    for (unsigned i = 1; i <= order; i++) {
-	FloatCount *contextCount;
-	NgramCountsIter<FloatCount> contextIter(stats, context, i-1);
-	unsigned noneventContexts = 0;
-	unsigned noneventNgrams = 0;
-	unsigned discountedNgrams = 0;
-
-	/*
-	 * This enumerates all contexts, i.e., i-1 grams.
-	 */
-	while (contextCount = contextIter.next()) {
-	    /*
-	     * Skip contexts ending in </s>.  This typically only occurs
-	     * with the doubling of </s> to generate trigrams from
-	     * bigrams ending in </s>.
-	     * If <unk> is not real word, also skip context that contain
-	     * it.
-	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex ||
-	        vocab.isNonEvent(vocab.unkIndex) &&
-				 vocab.contains(context, vocab.unkIndex))
-	    {
-		noneventContexts ++;
-		continue;
-	    }
-
-	    VocabIndex word[2];	/* the follow word */
-	    NgramCountsIter<FloatCount> followIter(stats, context, word, 1);
-	    FloatCount *ngramCount;
-
-	    /*
-	     * Total up the counts for the denominator
-	     * (the lower-order counts may not be consistent with
-	     * the higher-order ones, so we can't just use *contextCount)
-	     * Only if the trustTotal flag is set do we override this
-	     * with the count from the context ngram.
-	     */
-	    FloatCount totalCount = 0;
-	    Count observedVocab = 0;
-	    while (ngramCount = followIter.next()) {
-		if (vocab.isNonEvent(word[0])) {
-		    continue;
-		}
-		totalCount += *ngramCount;
-		observedVocab ++;
-	    }
-	    if (i > 1 && trustTotals) {
-		totalCount = *contextCount;
-	    }
-
-	    if (totalCount == 0) {
-		continue;
-	    }
-
-	    /*
-	     * reverse the context ngram since that's how
-	     * the BO nodes are indexed.
-	     */
-	    Vocab::reverse(context);
-
-	    /*
-	     * Compute the discounted probabilities
-	     * from the counts and store them in the backoff model.
-	     */
-	retry:
-	    followIter.init();
-	    Prob totalProb = 0.0;
-
-	    /*
-	     * check if discounting is disabled for this round
-	     */
-	    Boolean noDiscount =
-			    (discounts == 0) ||
-			    (discounts[i-1] == 0) ||
-			    discounts[i-1]->nodiscount();
-
-	    while (ngramCount = followIter.next()) {
-		LogP lprob;
-		double discount;
-
-		if (vocab.isNonEvent(word[0])) {
-		    /*
-		     * Discard all pseudo-word probabilities,
-		     * except for unigrams.  For unigrams, assign
-		     * probability zero.  This will leave them with
-		     * prob zero in all case, due to the backoff
-		     * algorithm.
-		     * Also discard the <unk> token entirely in closed
-		     * vocab models, its presence would prevent OOV
-		     * detection when the model is read back in.
-		     */
-		    if (i > 1 || word[0] == vocab.unkIndex) {
-			noneventNgrams ++;
-			continue;
-		    }
-
-		    lprob = LogP_Zero;
-		    discount = 1.0;
-		} else {
-		    /*
-		     * Ths discount array passed may contain 0 elements
-		     * to indicate no discounting at this order.
-		     */
-		    if (noDiscount) {
-			discount = 1.0;
-		    } else {
-			discount =
-			    discounts[i-1]->discount(*ngramCount, totalCount,
-								observedVocab);
-		    }
-		    Prob prob = (discount * *ngramCount) / totalCount;
-		    lprob = ProbToLogP(prob);
-		    totalProb += prob;
-		}
-		    
-		/*
-		 * A discount coefficient of zero indicates this ngram
-		 * should be omitted entirely (presumably to save space).
-		 * Unlike in Ngram::estimate(), we actually need to 
-		 * remove the prob entry since it might have been
-		 * created by a previous iteration.
-		 */
-		if (discount == 0.0) {
-		    discountedNgrams ++;
-		    removeProb(word[0], context);
-		} else {
-		    *insertProb(word[0], context) = lprob;
-		} 
-	    }
-
-	    /*
-	     * This is a hack credited to Doug Paul (by Roni Rosenfeld in
-	     * his CMU tools).  It may happen that no probability mass
-	     * is left after totalling all the explicit probs, typically
-	     * because the discount coefficients were out of range and
-	     * forced to 1.0.  To arrive at some non-zero backoff mass
-	     * we try incrementing the denominator in the estimator by 1.
-	     */
-	    if (!noDiscount && totalCount > 0 &&
-		totalProb > 1.0 - Prob_Epsilon)
-	    {
-		totalCount ++;
-
-		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-		    cerr << "warning: no backoff probability mass left for \""
-			 << (vocab.use(), context)
-			 << "\" -- incrementing denominator"
-			 << endl;
-		}
-		goto retry;
-	    }
-
-	    /*
-	     * Undo the reversal above so the iterator can continue correctly
-	     */
-	    Vocab::reverse(context);
-	}
-
-	if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    if (noneventContexts > 0) {
-		dout() << "discarded " << noneventContexts << " "
-		       << i << "-gram contexts containing pseudo-events\n";
-	    }
-	    if (noneventNgrams > 0) {
-		dout() << "discarded " << noneventNgrams << " "
-		       << i << "-gram probs predicting pseudo-events\n";
-	    }
-	    if (discountedNgrams > 0) {
-		dout() << "discarded " << discountedNgrams << " "
-		       << i << "-gram probs discounted to zero\n";
-	    }
-	}
-    }
-
-    /*
-     * With all the probs in place, BOWs are obtained simply by the usual
-     * normalization.
-     */
-    recomputeBOWs();
-    fixupProbs();
-
-    return true;
+    return estimate2(stats, discounts);
 }
 
 /*

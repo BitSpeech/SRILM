@@ -1,4 +1,4 @@
-<! $Id: nbest-lattice.1,v 1.20 2000/06/12 06:29:04 stolcke Exp $>
+<! $Id: nbest-lattice.1,v 1.23 2001/07/11 05:27:50 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-lattice</TITLE>
@@ -59,8 +59,8 @@ Chooses N-best word error minimization mode.
 Chooses lattice word error minimization mode (the default).
 <DT><B> -use-mesh </B>
 <DD>
-Choose the variant of lattice mode that uses word meshes instead of
-simple lattices.
+Choose the variant of lattice mode that uses word meshes
+instead of simple lattices.
 <DT><B>-deletion-bias</B><I> D</I><B></B>
 <DD>
 Causes the probabilities of deletions to be biased by a factor
@@ -184,6 +184,10 @@ Read several noise tags from
 <I>file</I>,<I></I>
 instead of, or in addition to, the single noise tag specified by
 <B>-noise</B>.<B></B>
+<DT><B> -keep-noise </B>
+<DD>
+Do not remove pause or noise tokens from hypotheses. The default
+is to preserve noise tags but still eliminate pauses.
 <DT><B>-nbest-errors</B><I> references</I><B></B>
 <DD>
 Compute the N-best error (minimum word error) of the N-best list read with
@@ -219,6 +223,12 @@ option limits the number of hypotheses per N-best list processed.
 <DD>
 Specifies a reference word string for 
 <B>-dump-errors</B>.<B></B>
+Additionally, in 
+<B> -use-mesh </B>
+mode, the reference words are recorded in the word mesh and can be output
+with 
+<B>-write</B>,<B></B>
+indicating which word in each alignment position is the correct one.
 </DD>
 </DL>
 <P>
@@ -265,11 +275,12 @@ N-best list given by
 </DD>
 </DL>
 <H2> SEE ALSO </H2>
-<A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-sripts.html">nbest-sripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-optimize.html">nbest-optimize(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
 <BR>
 A. Stolcke, Y. Konig, and M. Weintraub,
 ``Explicit Word Error Minimization in N-best List Rescoring,''
 <I>Proc. Eurospeech</I>, 163-166, 1997.
+<BR>
 The ``word meshes'' used here are equivalent to the ``confusion networks''
 described in:
 L. Mangu, E. Brill, and A. Stolcke, ``Finding Consensus Among Words:
@@ -289,6 +300,6 @@ use a separate N-best list.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1996-2000 SRI International
+Copyright 1996-2001 SRI International
 </BODY>
 </HTML>

@@ -1,6 +1,6 @@
 #!/usr/local/bin/gawk -f
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.5 1999/11/22 16:35:29 stolcke Exp $
+# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.6 2000/10/11 01:03:37 stolcke Exp $
 #
 
 function getargs() {
@@ -62,13 +62,16 @@ function printline() {
 	}
 }
 # comments
-$1 == "\.\\\"" {
+$0 ~ /^\.\\\"/ {
 	$1 = "";
 	print "<!" $0 ">";
 	next;
 }
+#
+# Note: check two-letter macros before one-letter ones
+#
 # title
-$1 == "\.TH" {
+$0 ~ /^\.TH/ {
 	getargs()
 	name = args[1];
 	print "<HTML>";
@@ -79,29 +82,29 @@ $1 == "\.TH" {
 	next;
 }
 # section header
-$1 == "\.SH" {
+$0 ~ /^\.SH/ {
 	finishlist();
 	getargs();
 	print "<H2>" allargs "</H2>";
 	next;
 }
-$1 == "\.SS" {
+$0 ~ /^\.SS/ {
 	finishlist();
 	getargs();
 	print "<H3>" allargs "</H3>";
 	next;
 }
-$1 == "\.PP"  || $1 == "\".LP" {
+$0 ~ /^\.PP/  || $0 ~ /^\.LP/ {
 	finishlist();
 	print "<P>";
 	next;
 }
-$1 == "\.br" {
+$0 ~ /^\.br/ {
 	print "<BR>";
 	next;
 }
 # labeled list item
-$1 == "\.TP" {
+$0 ~ /^\.TP/ {
 	if (!inlist) {
 		print "<DL>";
 		inlist = 1;
@@ -109,7 +112,19 @@ $1 == "\.TP" {
 	inlabel = 1;
 	next;
 }
-$1 == "\.B" {
+$0 ~ /^\.BR/ {
+	getargs();
+	text = "<B>" args[1] "</B>" args[2] "<B>" args[3] "</B>";
+	printline();
+	next;
+}
+$0 ~ /^\.BI/ {
+	getargs();
+	text = "<B>" args[1] "</B><I>" args[2] "</I><B>" args[3] "</B>";
+	printline();
+	next;
+}
+$0 ~ /^\.B/ {
 	if (getargs() > 0) {
 		text = "<B>" allargs "</B>";
 	} else {
@@ -119,7 +134,19 @@ $1 == "\.B" {
 	printline();
 	next;
 }
-$1 == "\.I" {
+$0 ~ /^\.IR/ {
+	getargs();
+	text = "<I>" args[1] "</I>" args[2] "<I>" args[3] "</I>";
+	printline();
+	next;
+}
+$0 ~ /^\.IB/ {
+	getargs();
+	text = "<I>" args[1] "</I><B>" args[2] "</B><I>" args[3] "</I>";
+	printline();
+	next;
+}
+$0 ~ /^\.I/ {
 	if (getargs() > 0) {
 		text = "<I>" allargs "</I>";
 	} else {
@@ -129,48 +156,24 @@ $1 == "\.I" {
 	printline();
 	next;
 }
-$1 == "\.P" {
+$0 ~ /^\.P/ {
 	text = "</" newfont ">";
 	printline();
 	next;
 }
-$1 == "\.BR" {
-	getargs();
-	text = "<B>" args[1] "</B>" args[2] "<B>" args[3] "</B>";
-	printline();
-	next;
-}
-$1 == "\.BI" {
-	getargs();
-	text = "<B>" args[1] "</B><I>" args[2] "</I><B>" args[3] "</B>";
-	printline();
-	next;
-}
-$1 == "\.IR" {
-	getargs();
-	text = "<I>" args[1] "</I>" args[2] "<I>" args[3] "</I>";
-	printline();
-	next;
-}
-$1 == "\.IB" {
-	getargs();
-	text = "<I>" args[1] "</I><B>" args[2] "</B><I>" args[3] "</I>";
-	printline();
-	next;
-}
-$1 == "\.RB" {
+$0 ~ /^\.RB/ {
 	getargs();
 	text = args[1] "<B>" args[2] "</B>" args[3];
 	printline();
 	next;
 }
-$1 == "\.RI" {
+$0 ~ /^\.RI/ {
 	getargs();
 	text = args[1] "<I>" args[2] "</I>" args[3];
 	printline();
 	next;
 }
-$1 ~ /^\.[A-Za-z]/ {
+$0 ~ /^\.[A-Za-z]/ {
 	print "unknown macro " $1 > "/dev/stderr";
 	next;
 }

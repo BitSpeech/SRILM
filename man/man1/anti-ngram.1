@@ -1,5 +1,5 @@
-.\" $Id: anti-ngram.1,v 1.3 2000/06/09 00:38:50 stolcke Exp $
-.TH anti-ngram 1 "$Date: 2000/06/09 00:38:50 $" "SRILM Tools"
+.\" $Id: anti-ngram.1,v 1.4 2001/06/06 04:21:33 stolcke Exp $
+.TH anti-ngram 1 "$Date: 2001/06/06 04:21:33 $" "SRILM Tools"
 .SH NAME
 anti-ngram \- count posterior-weighted N-grams in N-best lists
 .SH SYNOPSIS
@@ -52,6 +52,20 @@ Reads an ARPA language model from
 .I file
 and rescores the N-best lists with it prior to counting N-grams.
 .TP
+.BI \-classes " file"
+Interpret the LM as a class-based N-gram and read class definitions
+in 
+.BR classes-format (5)
+from
+.IR file .
+.TP
+.B \-tolower
+Map vocabulary to lowercase, eliminating case distinctions.
+.TP
+.B \-multiwords
+Split multiwords (words joined by '_') into their components when
+reading N-best lists.
+.TP
 .BI \-rescore-lmw " lmw"
 Sets the language model weight used in combining the language model log
 probabilities with acoustic log probabilities
@@ -99,6 +113,7 @@ Level 0 means no debugging.
 Debugging messages are written to stderr.
 .SH "SEE ALSO"
 ngram(1), ngram-merge(1), ngram-count(1), nbest-scripts(1),
+classes-format(5),
 .br
 A. Stolcke et al., "The SRI March 2000 Hub-5 Conversational Speech
 Transcription System",

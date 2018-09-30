@@ -1,5 +1,5 @@
-.\" $Id: nbest-optimize.1,v 1.3 2000/06/09 00:25:02 stolcke Exp $
-.TH nbest-optimize 1 "$Date: 2000/06/09 00:25:02 $" "SRILM Tools"
+.\" $Id: nbest-optimize.1,v 1.10 2001/06/26 18:10:20 stolcke Exp $
+.TH nbest-optimize 1 "$Date: 2001/06/26 18:10:20 $" "SRILM Tools"
 .SH NAME
 nbest-optimize \- optimize score combination for N-best word error minimization
 .SH SYNOPSIS
@@ -22,7 +22,11 @@ The optimized weights are meant to be used with
 .BR nbest-lattice (1)
 and the
 .B \-use-mesh 
-option.
+option,
+or the 
+.B nbest-rover
+script (see
+.BR nbest-scripts (1)).
 .B nbest-optimize
 determines both the best relative weighting of knowledge source scores
 and the optimal 
@@ -40,6 +44,23 @@ Another approximation is that the error function is computed assuming a fixed
 multiple alignment of all N-best hypotheses and the reference string,
 which tends to slightly overestimate the true pairwise error between any 
 single hypothesis and the reference.
+.PP
+An alternative search strategy uses a simplex-based "Amoeba" search on
+the (non-smoothed) word error function (Press et al. 1988).
+The search is restarted multiple times to avoid local minima.
+.PP
+Alternatively,
+.B nbest-optimize
+can also optimize weights for a standard, 1-best hypothesis rescoring that
+selects entire (sentence) hypotheses
+.RB ( \-1best
+option).
+In this mode sentence-level error counts may be read from external files,
+or computed on the fly from the reference strings.
+The weights obtained are meant to be used for N-best list rescoring with
+.B rescore-reweight
+(see 
+.BR nbest-scripts (1)).
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
@@ -74,6 +95,26 @@ Each line in
 .I references
 must contain the sentence ID (the last component in the N-best filename
 path, minus any suffixes) followed by zero or more reference words.
+.TP
+.B \-1best
+Select optimization for standard sentence-level hypothesis selection.
+.TP
+.BI \-errors " dir"
+In 1-best mode, optimize for error counts that are stored in separate files
+in directory
+.IR dir .
+Each N-best list must have a matching error counts file of the same 
+basename in 
+.IR dir .
+Each file contains 7 columns of numbers in the format
+.br
+	wcr wer nerr nsub ndel nins nw
+.br
+Only the 3rd column (number of errors) and the last column (number of
+reference  words) is used by the program.
+.br
+If this option is omitted, errors will be computed from the N-best hypotheses
+and the reference transcripts.
 .TP
 .BI \-max-nbest " n"
 Limits the number of hypotheses read from each N-best list to the first
@@ -113,6 +154,15 @@ Map vocabulary to lowercase, eliminating case distinctions.
 Split multiwords (words joined by '_') into their components when reading
 N-best lists.
 .TP
+.B \-no-reorder
+Do not reorder the hypotheses for alignment, and start the alignment with
+the reference words.
+The default is to first align hypotheses by order of decreasing scores
+(according to the initial score weighting) and then the reference,
+which is more compatible with how 
+.BR nbest-lattice (1)
+operates.
+.TP
 .BI \-noise " noise-tag"
 Designate
 .I noise-tag
@@ -139,6 +189,10 @@ Prefixing a value with an equal sign (`=')
 holds the value constant during optimization.
 (All values should be enclosed in quotes to form a single command-line
 argument.)
+.br
+Hypotheses are aligned using the initial weights; thus, it makes sense
+to reoptimize with initial weights from a previous optimization in order
+to obtain alignments closer to the optimimum.
 .TP
 .BI \-alpha " a"
 Controls the error function smoothness; 
@@ -159,10 +213,27 @@ exceeds
 .IR d .
 This helps avoid numerical problems.
 .TP
+.BI \-maxiters " m"
+Stops optimization after 
+.I m
+iterations.
+In Amoeba search, this limits the total number of points in the parameter space
+that are evaluated.
+.TP
 .BR \-max-bad-iters " n"
 Stops optimization after 
 .I n
 iterations during which the actual (non-smoothed) error has not decreased.
+.TP
+.BR \-max-amoeba-restarts " r"
+Perform only up to
+.I r
+repeated Amoeba searches.
+The default is to search until 
+.I D
+searches give the same results, where
+.I D 
+is the dimensionality of the problem.
 .TP
 .BI \-epsilon-stepdown " s"
 .TP
@@ -179,13 +250,19 @@ Training stops when the learning rate falls below
 in this manner.
 .TP
 .BI \-converge " x"
-Stops optimization when the smoothed loss function changes relatively by less 
+Stops optimization when the (smoothed) loss function changes relatively by less 
 than 
 .I x
 from one iteration to the next.
 .TP
 .B \-quickprop
 Use the approximate second-order method known as "QuickProp" (Fahlman 1989).
+.TP
+.BI \-init-amoeba-simplex " 's1 s2 ...'"
+Defines the step size for the initial Amoeba simplex.
+One value for each non-fixed search dimension should be specified,
+plus optionally a value for the posterior scaling parameter
+(which is searched as an added dimension).
 .TP
 .BI \-print-hyps " file"
 Write the best word hypotheses to 
@@ -204,7 +281,7 @@ data).
 The total number of score dimensions is thus 3 (for the standard scores from
 the N-best list) plus the number of additional score directories specified.
 .SH "SEE ALSO"
-ngram-lattice(1), nbest-scripts(1), nbest-format(5).
+nbest-lattice(1), nbest-scripts(1), nbest-format(5).
 .br
 S. Katagiri, C.H. Lee, & B.-H. Juang, "A Generalized Probabilistic Descent
 Method", in
@@ -216,9 +293,17 @@ Empirical Study", in D. Touretzky, G. Hinton, & T. Sejnowski (eds.),
 \fIProceedings of the 1988 Connectionist Models Summer School\fP, pp. 38-51,
 Morgan Kaufmann, 1989.
 .br
+W. H. Press, B. P. Flannery, S. A. Teukolsky, & W. T. Vetterling,
+\fINumerical Recipes in C: The Art of Scientific Computing\fP,
+Cambridge University Press, 1988.
+.br
 .SH BUGS
 Likely.
-.SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+Gradient-based optimization is not supported (yet) in 1-best mode;
+use simplex-search optimization instead.
+.SH AUTHORS
+Andreas Stolcke <stolcke@speech.sri.com>
 .br
-Copyright 2000 SRI International
+Dimitra Vergyri <dverg@speech.sri.com>
+.br
+Copyright 2000, 2001 SRI International

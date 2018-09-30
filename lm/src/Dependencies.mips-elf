@@ -10,8 +10,21 @@
  /home/srilm/devel/include/Boolean.h Prob.h Vocab.h \
  /home/srilm/devel/include/File.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
- /home/srilm/devel/include/Array.h /home/srilm/devel/include/Trie.h \
- /home/srilm/devel/include/Trie.cc /home/srilm/devel/include/LHash.cc
+ /home/srilm/devel/include/Array.h /home/srilm/devel/include/Map2.h \
+ /home/srilm/devel/include/Map2.cc /home/srilm/devel/include/LHash.cc
+../obj/mips-elf$(OBJ_OPTION)/VocabMultiMap.o: ./VocabMultiMap.cc VocabMultiMap.h \
+ /home/srilm/devel/include/Boolean.h Prob.h Vocab.h \
+ /home/srilm/devel/include/File.h /home/srilm/devel/include/LHash.h \
+ /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/Array.h /home/srilm/devel/include/Map2.h \
+ /home/srilm/devel/include/Map2.cc /home/srilm/devel/include/LHash.cc
+../obj/mips-elf$(OBJ_OPTION)/VocabDistance.o: ./VocabDistance.cc VocabDistance.h Vocab.h \
+ /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/File.h \
+ /home/srilm/devel/include/LHash.h /home/srilm/devel/include/Map.h \
+ /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/Array.h VocabMultiMap.h Prob.h \
+ /home/srilm/devel/include/Map2.h WordAlign.h \
+ /home/srilm/devel/include/Map2.cc /home/srilm/devel/include/LHash.cc
 ../obj/mips-elf$(OBJ_OPTION)/SubVocab.o: ./SubVocab.cc SubVocab.h Vocab.h \
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/File.h \
  /home/srilm/devel/include/LHash.h /home/srilm/devel/include/Map.h \
@@ -118,8 +131,8 @@
  /home/srilm/devel/include/Array.h SubVocab.h TextStats.h \
  /home/srilm/devel/include/Debug.h NgramStats.h LMStats.h \
  /home/srilm/devel/include/Trie.h Discount.h
-../obj/mips-elf$(OBJ_OPTION)/HiddenNgram.o: ./HiddenNgram.cc HiddenNgram.h Ngram.h LM.h \
- /home/srilm/devel/include/Boolean.h Prob.h \
+../obj/mips-elf$(OBJ_OPTION)/HiddenNgram.o: ./HiddenNgram.cc /home/srilm/devel/include/option.h \
+ HiddenNgram.h Ngram.h LM.h /home/srilm/devel/include/Boolean.h Prob.h \
  /home/srilm/devel/include/File.h Vocab.h \
  /home/srilm/devel/include/LHash.h /home/srilm/devel/include/Map.h \
  /home/srilm/devel/include/MemStats.h \
@@ -239,7 +252,8 @@
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/File.h \
  Vocab.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
- /home/srilm/devel/include/Array.h Prob.h WordAlign.h \
+ /home/srilm/devel/include/Array.h Prob.h VocabDistance.h \
+ VocabMultiMap.h /home/srilm/devel/include/Map2.h WordAlign.h \
  /home/srilm/devel/include/Array.cc /home/srilm/devel/include/LHash.cc
 ../obj/mips-elf$(OBJ_OPTION)/simpleTrigram.o: ./simpleTrigram.cc /home/srilm/devel/include/File.h \
  Vocab.h /home/srilm/devel/include/Boolean.h \
@@ -271,6 +285,12 @@
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h
+../obj/mips-elf$(OBJ_OPTION)/testVocabDistance.o: ./testVocabDistance.cc \
+ /home/srilm/devel/include/File.h Vocab.h \
+ /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
+ /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/Array.h VocabMultiMap.h Prob.h \
+ /home/srilm/devel/include/Map2.h VocabDistance.h
 ../obj/mips-elf$(OBJ_OPTION)/hoeffding.o: ./hoeffding.cc
 ../obj/mips-elf$(OBJ_OPTION)/tolower.o: ./tolower.cc
 ../obj/mips-elf$(OBJ_OPTION)/testLattice.o: ./testLattice.cc Vocab.h \
@@ -331,10 +351,10 @@
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h VocabMap.h Prob.h \
- /home/srilm/devel/include/Trie.h NullLM.h LM.h SubVocab.h TextStats.h \
+ /home/srilm/devel/include/Map2.h NullLM.h LM.h SubVocab.h TextStats.h \
  /home/srilm/devel/include/Debug.h Ngram.h NgramStats.h LMStats.h \
- Discount.h Trellis.cc Trellis.h /home/srilm/devel/include/LHash.cc \
- /home/srilm/devel/include/Array.cc
+ /home/srilm/devel/include/Trie.h Discount.h Trellis.cc Trellis.h \
+ /home/srilm/devel/include/LHash.cc /home/srilm/devel/include/Array.cc
 ../obj/mips-elf$(OBJ_OPTION)/anti-ngram.o: ./anti-ngram.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Vocab.h \
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
@@ -342,7 +362,7 @@
  /home/srilm/devel/include/Array.h RefList.h NBestSet.h NBest.h Prob.h \
  LM.h SubVocab.h TextStats.h /home/srilm/devel/include/Debug.h \
  NgramStats.h LMStats.h /home/srilm/devel/include/Trie.h Ngram.h \
- Discount.h
+ Discount.h ClassNgram.h Trellis.h /home/srilm/devel/include/Map2.h
 ../obj/mips-elf$(OBJ_OPTION)/nbest-lattice.o: ./nbest-lattice.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Prob.h \
  /home/srilm/devel/include/Boolean.h Vocab.h \
@@ -350,7 +370,8 @@
  /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h NBest.h LM.h SubVocab.h TextStats.h \
  /home/srilm/devel/include/Debug.h NullLM.h WordLattice.h MultiAlign.h \
- WordMesh.h WordAlign.h
+ WordMesh.h VocabDistance.h VocabMultiMap.h \
+ /home/srilm/devel/include/Map2.h WordAlign.h
 ../obj/mips-elf$(OBJ_OPTION)/nbest-mix.o: ./nbest-mix.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Prob.h \
  /home/srilm/devel/include/Boolean.h Vocab.h \
@@ -366,35 +387,45 @@
  /home/srilm/devel/include/Array.h /home/srilm/devel/include/zio.h \
  NullLM.h LM.h Prob.h SubVocab.h TextStats.h \
  /home/srilm/devel/include/Debug.h RefList.h NBestSet.h NBest.h \
- WordMesh.h MultiAlign.h /home/srilm/devel/include/Array.cc \
+ WordAlign.h WordMesh.h MultiAlign.h VocabDistance.h VocabMultiMap.h \
+ /home/srilm/devel/include/Map2.h /home/srilm/devel/include/Array.cc \
  /home/srilm/devel/include/LHash.cc
 ../obj/mips-elf$(OBJ_OPTION)/segment.o: ./segment.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Vocab.h \
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h VocabMap.h Prob.h \
- /home/srilm/devel/include/Trie.h Ngram.h LM.h SubVocab.h TextStats.h \
- /home/srilm/devel/include/Debug.h NgramStats.h LMStats.h Discount.h \
- Trellis.cc Trellis.h /home/srilm/devel/include/LHash.cc \
- /home/srilm/devel/include/Array.cc
+ /home/srilm/devel/include/Map2.h Ngram.h LM.h SubVocab.h TextStats.h \
+ /home/srilm/devel/include/Debug.h NgramStats.h LMStats.h \
+ /home/srilm/devel/include/Trie.h Discount.h Trellis.cc Trellis.h \
+ /home/srilm/devel/include/LHash.cc /home/srilm/devel/include/Array.cc
 ../obj/mips-elf$(OBJ_OPTION)/segment-nbest.o: ./segment-nbest.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Vocab.h \
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h NBest.h Prob.h LM.h SubVocab.h \
  TextStats.h /home/srilm/devel/include/Debug.h VocabMap.h \
- /home/srilm/devel/include/Trie.h Ngram.h NgramStats.h LMStats.h \
- Discount.h DecipherNgram.h BayesMix.h Trellis.cc Trellis.h \
- /home/srilm/devel/include/LHash.cc /home/srilm/devel/include/Array.cc
+ /home/srilm/devel/include/Map2.h Ngram.h NgramStats.h LMStats.h \
+ /home/srilm/devel/include/Trie.h Discount.h DecipherNgram.h \
+ BayesMix.h Trellis.cc Trellis.h /home/srilm/devel/include/LHash.cc \
+ /home/srilm/devel/include/Array.cc
 ../obj/mips-elf$(OBJ_OPTION)/hidden-ngram.o: ./hidden-ngram.cc /home/srilm/devel/include/option.h \
  /home/srilm/devel/include/File.h Vocab.h \
  /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
  /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
  /home/srilm/devel/include/Array.h VocabMap.h Prob.h \
- /home/srilm/devel/include/Trie.h SubVocab.h NullLM.h LM.h TextStats.h \
+ /home/srilm/devel/include/Map2.h SubVocab.h NullLM.h LM.h TextStats.h \
  /home/srilm/devel/include/Debug.h Ngram.h NgramStats.h LMStats.h \
- Discount.h Trellis.cc Trellis.h /home/srilm/devel/include/LHash.cc \
- /home/srilm/devel/include/Array.cc
+ /home/srilm/devel/include/Trie.h Discount.h Trellis.cc Trellis.h \
+ /home/srilm/devel/include/LHash.cc /home/srilm/devel/include/Array.cc
+../obj/mips-elf$(OBJ_OPTION)/multi-ngram.o: ./multi-ngram.cc /home/srilm/devel/include/option.h \
+ /home/srilm/devel/include/File.h Vocab.h \
+ /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
+ /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/Array.h Ngram.h LM.h Prob.h SubVocab.h \
+ TextStats.h /home/srilm/devel/include/Debug.h NgramStats.h LMStats.h \
+ /home/srilm/devel/include/Trie.h Discount.h \
+ /home/srilm/devel/include/Array.cc /home/srilm/devel/include/LHash.cc
 ../bin/mips-elf$(BIN_OPTION)/testProb: ../obj/mips-elf$(OBJ_OPTION)/testProb.o
 testProb: ../bin/mips-elf$(BIN_OPTION)/testProb
 ../bin/mips-elf$(BIN_OPTION)/testParseFloat: ../obj/mips-elf$(OBJ_OPTION)/testParseFloat.o
@@ -403,6 +434,8 @@ testParseFloat: ../bin/mips-elf$(BIN_OPTION)/testParseFloat
 testVocab: ../bin/mips-elf$(BIN_OPTION)/testVocab
 ../bin/mips-elf$(BIN_OPTION)/testTaggedVocab: ../obj/mips-elf$(OBJ_OPTION)/testTaggedVocab.o
 testTaggedVocab: ../bin/mips-elf$(BIN_OPTION)/testTaggedVocab
+../bin/mips-elf$(BIN_OPTION)/testVocabDistance: ../obj/mips-elf$(OBJ_OPTION)/testVocabDistance.o
+testVocabDistance: ../bin/mips-elf$(BIN_OPTION)/testVocabDistance
 ../bin/mips-elf$(BIN_OPTION)/hoeffding: ../obj/mips-elf$(OBJ_OPTION)/hoeffding.o
 hoeffding: ../bin/mips-elf$(BIN_OPTION)/hoeffding
 ../bin/mips-elf$(BIN_OPTION)/tolower: ../obj/mips-elf$(OBJ_OPTION)/tolower.o
@@ -439,3 +472,5 @@ segment: ../bin/mips-elf$(BIN_OPTION)/segment
 segment-nbest: ../bin/mips-elf$(BIN_OPTION)/segment-nbest
 ../bin/mips-elf$(BIN_OPTION)/hidden-ngram: ../obj/mips-elf$(OBJ_OPTION)/hidden-ngram.o
 hidden-ngram: ../bin/mips-elf$(BIN_OPTION)/hidden-ngram
+../bin/mips-elf$(BIN_OPTION)/multi-ngram: ../obj/mips-elf$(OBJ_OPTION)/multi-ngram.o
+multi-ngram: ../bin/mips-elf$(BIN_OPTION)/multi-ngram

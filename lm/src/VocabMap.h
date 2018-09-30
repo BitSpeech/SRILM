@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995,1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.3 1998/12/27 19:30:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.4 2000/08/05 17:17:57 stolcke Exp $
  *
  */
 
@@ -14,9 +14,7 @@
 #include "Boolean.h"
 #include "Prob.h"
 #include "Vocab.h"
-#include "Trie.h"
-
-typedef Trie<VocabIndex,Prob> VocabMapTrie;
+#include "Map2.h"
 
 class VocabMap
 {
@@ -37,10 +35,10 @@ public:
 
 private:
     /*
-     * The map is implemented by a two-level trie where the root indexes
-     * into vocab1, while the child nodes index into vocab2
+     * The map is implemented by a two-level map where the first index is
+     * from vocab1 and the second from vocab2
      */
-    VocabMapTrie map;
+    Map2<VocabIndex,VocabIndex,Prob> map;
 
     Boolean logmap;			/* treat probabilities as log probs */
 };
@@ -83,8 +81,7 @@ public:
     Boolean next(VocabIndex &w, Prob &prob);
 
 private:
-    VocabMapTrie *mapNode;
-    TrieIter<VocabIndex,Prob> mapIter;
+    Map2Iter2<VocabIndex,VocabIndex,Prob> mapIter;
 };
 
 #endif /* _VocabMap_h_ */

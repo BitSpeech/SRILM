@@ -1,6 +1,6 @@
 /*
  * Map2.h --
- *	Two-dimentional maps
+ *	Two-dimensional maps
  *
  * Map2<Key1T, Key2T, DataT> is a template container class that implements a
  * mapping from pairs of _keys_ (types Key1T, Key2T) to data items or _values_
@@ -54,7 +54,7 @@
  *
  * Copyright (c) 1999, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.h,v 1.4 1999/10/12 07:00:26 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.h,v 1.5 2000/08/05 19:47:08 stolcke Exp $
  *
  */
 

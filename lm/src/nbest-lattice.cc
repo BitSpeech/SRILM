@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.47 2000/06/12 06:00:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.51 2001/06/08 05:57:49 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -23,6 +23,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.c
 #include "WordLattice.h"
 #include "WordMesh.h"
 #include "WordAlign.h"
+#include "VocabMultiMap.h"
 
 #define DEBUG_ERRORS		1
 #define DEBUG_POSTERIORS	2
@@ -59,6 +60,7 @@ static double posteriorLMW = undefinedWeight;
 static double posteriorWTW = undefinedWeight;
 static char *noiseTag = 0;
 static char *noiseVocabFile = 0;
+static int keepNoise = 0;
 static int noMerge = 0;
 static int noReorder = 0;
 static double postPrune = 0.0;
@@ -66,6 +68,7 @@ static int primeLattice = 0;
 static int primeWith1best = 0;
 static int noViterbi = 0;
 static int useMesh = 0;
+static char *dictFile = 0;
 static double deletionBias = 1.0;
 static int dumpPosteriors = 0;
 static char *refString = 0;
@@ -96,6 +99,7 @@ static Option options[] = {
     { OPT_FLOAT, "posterior-amw", &posteriorAMW, "posterior AM weight" },
     { OPT_FLOAT, "posterior-lmw", &posteriorLMW, "posterior LM weight" },
     { OPT_FLOAT, "posterior-wtw", &posteriorWTW, "posterior word transition weight" },
+    { OPT_TRUE, "keep-noise", &keepNoise, "do not eliminate pause and noise tokens" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "no-merge", &noMerge, "don't merge hyps for lattice building" },
@@ -104,6 +108,7 @@ static Option options[] = {
     { OPT_TRUE, "prime-with-1best", &primeWith1best, "initialize word lattice with 1-best hyp" },
     { OPT_TRUE, "no-viterbi", &noViterbi, "minimize lattice WE without Viterbi search" },
     { OPT_TRUE, "use-mesh", &useMesh, "align using word mesh (not lattice)" },
+    { OPT_STRING, "dictionary", &dictFile, "dictionary to use in mesh alignment" },
     { OPT_FLOAT, "deletion-bias", &deletionBias, "bias factor in favor of deletions" },
     { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" },
     { OPT_TRUE, "dump-errors", &dumpErrors, "output word error labels" },
@@ -384,10 +389,28 @@ main (int argc, char *argv[])
 	posteriorWTW = rescoreWTW;
     }
 
+    Vocab dictVocab;
+    VocabMultiMap dictionary(vocab, dictVocab);
+    DictionaryAbsDistance wordDistance(vocab, dictionary);
+
     MultiAlign *lat;
     
     if (useMesh) {
-	lat = new WordMesh(vocab);
+	if (dictFile) {
+	    /* 
+	     * read dictionary to be help in word alignment
+	     */
+	    File file(dictFile, "r");
+
+	    if (!dictionary.read(file)) {
+		cerr << "format error in dictionary file\n";
+		exit(1);
+	    }
+
+	    lat = new WordMesh(vocab, &wordDistance);
+	} else {
+	    lat = new WordMesh(vocab);
+	}
     } else {
 	lat = new WordLattice(vocab);
     }
@@ -442,7 +465,9 @@ main (int argc, char *argv[])
 	 * Remove pauses and noise from nbest hyps since these would
 	 * confuse the inter-hyp alignments.
 	 */
-	nbestList.removeNoise(nullLM);
+	if (!keepNoise) {
+	    nbestList.removeNoise(nullLM);
+	}
 
 	if (nbestErrorFile) {
 	    /*
@@ -461,7 +486,9 @@ main (int argc, char *argv[])
 	     * Remove pauses and noise from nbest hyps since these would
 	     * confuse the inter-hyp alignments.
 	     */
-	    refList.removeNoise(nullLM);
+	    if (!keepNoise) {
+		refList.removeNoise(nullLM);
+	    }
 
 	    for (unsigned h = 0; h < refList.numHyps(); h ++) {
 		unsigned sub, ins, del;
@@ -512,7 +539,9 @@ main (int argc, char *argv[])
 	 * Remove pauses and noise from nbest hyps since these would
 	 * confuse the inter-hyp alignments.
 	 */
-	refList.removeNoise(nullLM);
+	if (!keepNoise) {
+	    refList.removeNoise(nullLM);
+	}
 
 	for (unsigned h = 0; h < refList.numHyps(); h ++) {
 	    unsigned sub, ins, del;
@@ -523,6 +552,13 @@ main (int argc, char *argv[])
 		 << " ins " << ins
 		 << " del " << del << endl;
 	}
+    }
+
+    /*
+     * If reference words are known, record them in alignment
+     */
+    if (refString) {
+	lat->alignReference(reference);
     }
     
     if (writeFile) {
@@ -564,7 +600,9 @@ main (int argc, char *argv[])
 		 * Remove pauses and noise from nbest hyps since these would
 		 * confuse the inter-hyp alignments.
 		 */
-		nbestList.removeNoise(nullLM);
+		if (!keepNoise) {
+		    nbestList.removeNoise(nullLM);
+		}
 
 		if (werRescore) {
 		    wordErrorRescore(nbestList);

@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.mips,v 1.5 1996/07/18 12:25:10 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.mips,v 1.6 2001/03/11 17:32:41 stolcke Exp $
 #
 #    $Log: Makefile.machine.mips,v $
+#    Revision 1.6  2001/03/11 17:32:41  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.5  1996/07/18 12:25:10  stolcke
 #    remove -laudio
 #
@@ -67,6 +70,10 @@
    # XXX -- added -lsun and -lbsd for networking hostnames.  GTC 12/7/92
    # XXX -- -lbsd should not be needed. stolcke 1/18/94
    ADDITIONAL_LIBRARIES = -lmalloc -lsun -lm
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl
 
    # SGIs do not use "ranlib".
    RANLIB = echo

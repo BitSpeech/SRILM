@@ -11,9 +11,15 @@
 #
 #    Copyright (c) 1992, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.common.variables,v 1.15 1996/06/10 05:31:27 stolcke Exp $
+#    RCS ID: $Id: Makefile.common.variables,v 1.17 2001/07/18 21:19:59 stolcke Exp $
 #
 #    $Log: Makefile.common.variables,v $
+#    Revision 1.17  2001/07/18 21:19:59  stolcke
+#    allow extra libdir for library search
+#
+#    Revision 1.16  2000/10/11 02:01:59  stolcke
+#    set gawk path
+#
 #    Revision 1.15  1996/06/10 05:31:27  stolcke
 #    parametrize ar command
 #
@@ -93,6 +99,9 @@ ARCHIVE = $(AR) ruv
 # This is appended to certain commands to demangle C++ symbols
 DEMANGLE_FILTER = 2>&1 | c++filt
 
+# Path to GNU awk; used in editing scripts 
+GAWK = /usr/local/bin/gawk
+
 # Include machine-type dependent variables
 include $(DECIPHER)/common/Makefile.machine.$(MACHINE_TYPE)
 
@@ -108,7 +117,11 @@ DEPENDENCIES = Dependencies.$(MACHINE_TYPE)
 OUTPUT_OPTION = -o $@
 
 # Search in the DECIPHER (TM) library directories for things of the form "-l<LibName>".
-VPATH = $(DECIPHER_LIBDIR)
+ifeq ($(EXTRA_LIBDIR), )
+	VPATH = $(DECIPHER_LIBDIR)
+else
+	VPATH = $(DECIPHER_LIBDIR):$(EXTRA_LIBDIR)
+endif
 
 # Which of the above options is to be used by default?
 OPTION = $(OPTIMIZE_OPTION)

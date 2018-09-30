@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for SRILM
 #
-# $Header: /home/srilm/1.1/RCS/Makefile,v 1.13 1999/08/02 00:47:59 stolcke Exp stolcke $
+# $Header: /home/srilm/devel/RCS/Makefile,v 1.15 2001/05/21 17:20:40 stolcke Exp $
 #
 
 # SRILM = /home/speech/stolcke/project/srilm/devel
@@ -36,7 +36,7 @@ World:	dirs
 dirs:
 	-mkdir include lib bin
 
-init depend all release clean cleaner cleanest \
+init depend all programs release clean cleaner cleanest \
 release-headers release-libraries release-programs:
 	for subdir in $(MODULES); do \
 		(cd $$subdir/src; $(MAKE) $(MAKE_VARS) $@); \

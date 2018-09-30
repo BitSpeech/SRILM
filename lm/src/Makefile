@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.54 2000/07/13 06:16:50 stolcke Exp $
+#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.58 2001/03/11 16:35:52 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -55,6 +55,8 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/XCount.h \
 	$(SRCDIR)/Vocab.h \
 	$(SRCDIR)/VocabMap.h \
+	$(SRCDIR)/VocabMultiMap.h \
+	$(SRCDIR)/VocabDistance.h \
 	$(SRCDIR)/SubVocab.h \
 	$(SRCDIR)/TextStats.h \
 	$(SRCDIR)/LM.h \
@@ -99,6 +101,8 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/XCount.cc \
 	$(SRCDIR)/Vocab.cc \
 	$(SRCDIR)/VocabMap.cc \
+	$(SRCDIR)/VocabMultiMap.cc \
+	$(SRCDIR)/VocabDistance.cc \
 	$(SRCDIR)/SubVocab.cc \
 	$(SRCDIR)/TextStats.cc \
 	$(SRCDIR)/LM.cc \
@@ -142,7 +146,7 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
 LIBRARY = $(OBJDIR)/liboolm$(LIBSUFFIX).a
 
 ADDITIONAL_INCLUDES += \
-	-I/usr/local/include 
+	$(TCL_INCLUDE)
 
 ADDITIONAL_LDFLAGS += \
 	-u matherr
@@ -152,7 +156,7 @@ OTHER_LIBRARIES = \
 	-lmisc
 ADDITIONAL_LIBRARIES += \
 	$(OTHER_LIBRARIES) \
-	-L/usr/local/lib -ltcl \
+	$(TCL_LIBRARY) \
 	-lm
 
 # Example programs.
@@ -162,6 +166,7 @@ TEST_PROGRAM_NAMES = \
 	testParseFloat \
 	testVocab  \
 	testTaggedVocab \
+	testVocabDistance \
 	hoeffding \
 	tolower \
 	testLattice \
@@ -181,7 +186,8 @@ REAL_PROGRAM_NAMES = \
 	nbest-optimize \
 	segment \
 	segment-nbest \
-	hidden-ngram
+	hidden-ngram \
+	multi-ngram
 
 PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \

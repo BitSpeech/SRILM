@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc,v 1.9 2000/06/08 23:59:16 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.sparc,v 1.10 2001/03/11 17:32:41 stolcke Exp $
 #
 #    $Log: Makefile.machine.sparc,v $
+#    Revision 1.10  2001/03/11 17:32:41  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.9  2000/06/08 23:59:16  stolcke
 #    back to gcc 2.8.1
 #
@@ -72,6 +75,10 @@
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl
 
    # Suns require ranlib(1) to be run on libraries.
    RANLIB = ranlib

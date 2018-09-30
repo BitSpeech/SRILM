@@ -3,7 +3,7 @@
 # rescore-reweight
 #	reweight nbest-list scores and select top hyps
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.8 1999/01/14 05:42:00 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.11 2000/11/17 21:16:56 stolcke Exp $
 #
 
 multiwords=0
@@ -24,15 +24,28 @@ do
 done
 
 if [ $# -lt 1 ]; then
-	echo "usage: $0 [-multiwords] score-dir [lmw [wtw [max-nbest]]]" >&2
-	echo "    or $0 [-multiwords] file-list [lmw [wtw [max-nbest]]]" >&2
+	echo "usage: $0 [-multiwords] score-dir [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
+	echo "    or $0 [-multiwords] file-list [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
 	exit 1
 fi
 
 scoredir="$1"
-lmweight="${2-8.0}"
-wtweight="${3-0.0}"
-maxnbest="${4-100000}"
+shift
+
+lmweight="${1-8.0}"
+[ $# -gt 0 ] && shift
+wtweight="${1-0.0}"
+[ $# -gt 0 ] && shift
+
+extra_scoredirs=
+extra_weights=
+while [ $# -gt 1 ]; do
+	extra_scoredirs="$extra_scoredirs $1"
+	extra_weights="$extra_weights $2"
+	shift; shift
+done
+
+maxnbest="${1-100000}"
 
 if [ -d $scoredir ]; then
     find $scoredir -type f \( -name \*.score -o \
@@ -55,7 +68,28 @@ do
 		sentid=`basename $file .score`
 		;;
 	esac
-	$cat $file | \
+
+	if [ -z "$extra_scoredirs" ]; then
+	    $cat $file
+	else
+	    extra_scores=
+	    for dir in $extra_scoredirs
+	    do
+		if [ -f $dir/$sentid.gz ]; then
+			extra_scores="$extra_scores $dir/$sentid.gz"
+		elif [ -f $dir/$sentid ]; then
+			extra_scores="$extra_scores $dir/$sentid"
+		else
+			echo "$dir/$sentid" is missing >&2
+			extra_scores="$extra_scores /dev/null"
+		fi
+	    done
+
+	    combine-acoustic-scores \
+			-v "weights=1 $extra_weights" \
+			-v max_nbest=$maxnbest \
+			$file $extra_scores
+	fi | \
 	gawk '
 BEGIN {
 	hypnum = 0;

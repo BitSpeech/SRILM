@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.18 2000/03/16 05:46:38 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.22 2001/02/28 05:59:54 stolcke Exp $
 #
 
 bytelog=0
@@ -12,6 +12,8 @@ multiwords=0
 norescore=0
 decipher_lmw=8
 decipher_wtw=0
+lm_only=0
+pretty_file=
 
 while [ $# -gt 0 ]
 do
@@ -28,6 +30,12 @@ do
     -norescore)
 	    norescore=1
 	    ;;
+    -lm-only)
+	    lm_only=1
+	    ;;
+    -pretty)
+	    pretty_file="$2"; shift
+	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
     *)	    break
@@ -39,12 +47,14 @@ done
 
 if [ $# -lt 3  ]; then
     {
-	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] nbest-file-list score-dir lm-options ..." >&2
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-pretty map] nbest-file-list score-dir lm-options ..." >&2
 	echo "where"
 	echo "	-bytelog	produces bytelog scaled scores"
 	echo "	-nodecipherlm	avoids Decipher LM score computation"
 	echo "	-multiwords	expand multiwords into constituent words"
 	echo "	-norescore	don't rescore LM, just extract scores"
+	echo "	-lm-only	output no N-best lists, only LM scores"
+	echo "	-pretty map	word mapping file"
     } >&2
     exit 1
 fi
@@ -52,6 +62,10 @@ fi
 filelist="$1"
 scoredir="$2"
 shift; shift
+
+if [ ! -d $scoredir ]; then
+	mkdir $scoredir
+fi
 
 # when not rescoring need to get decipher lmw and wtw from remaining options
 if [ $norescore -gt 0 ]; then
@@ -117,8 +131,31 @@ NR == 1 {
 	sub("\\.wv$", "", sentid);
 	sub("\\.wav$", "", sentid);
 	sub("\\.wav_cep$", "", sentid);
-	print escape, sentid ".score" ;
+
+	# read pretty map file
+	if (pretty_file) {
+	    while ((getline mapline < pretty_file) > 0) {
+		npretty = split(mapline, pretty_list);
+		word = pretty_list[1];
+		pretty_map[word] = "";
+		for (i = 2; i <= npretty; i ++) {
+		    pretty_map[word] = pretty_map[word] " " pretty_list[i];
+		}
+	    }
+	}
+
+	print escape, sentid;
 }
+
+function pretty_up() {
+	for (i = 2; i <= NF; i ++) {
+	    if ($i in pretty_map) {
+		$i = pretty_map[$i];
+	    }
+	    if (multiwords) gsub("_", " ", $i);
+	}
+}
+
 /^NBestList1\.0/ {
 	nbestformat = 1;
 	if (nodecipherlm) {
@@ -133,14 +170,11 @@ NR == 1 {
 {
 	numhyps ++;
 	if (nbestformat == 0) {
-	    if (multiwords) {
-		gsub("_", " ", $0);
-	    }
+	    pretty_up();
 	    print;
 	} else if (nbestformat == 1) {
-	    if (multiwords) {
-		gsub("_", " ", $0);
-	    }
+	    pretty_up();
+
 	    if (norescore) {
 		# convert to SRILM format
 		score = substr($1,2,length($1)-2);
@@ -158,35 +192,47 @@ NR == 1 {
 	    num_pauses = 0;
 
 	    words = "";
+	    prev_end_time = -1;
 	    for (i = 2; i <= NF; i += 11) {
-		words = words " " $i;
+		start_time = $(i + 3);
+		end_time = $(i + 5);
 
-		num_words ++;
-		if ($i == pause) num_pauses ++;
+		# skip tokens that are subsumed by the previous word
+		# (this eliminates phone and state symbols)
+		if (start_time > prev_end_time) {
+		    words = words " " $i;
 
-		ac_score += $(i + 9);
-		lm_score += $(i + 7);
+		    num_words ++;
+		    if ($i == pause) num_pauses ++;
+
+		    ac_score += $(i + 9);
+		    lm_score += $(i + 7);
+
+		    prev_end_time = end_time;
+		}
 	    }
 
-	    if (multiwords) {
-		gsub("_", " ", words);
-	    }
+	    $0 = $1 " " words;
+
+	    pretty_up();
 
 	    if (norescore) {
 		# convert to SRILM nbest format
 		# NOTES:
 		# - subtract Decipher WTW (including for pauses!)
 		# - compute number of words WITHOUT pauses for output
+		$1 = "";
 		print bytelog2log10(ac_score), \
 			bytelog2log10(lm_score/decipher_lmw) - \
 				numwords * decipher_wtw,  \
-			split(words, dummy) - num_pauses, words;
+			split(words, dummy) - num_pauses, $0;
 	    } else if (nodecipherlm) {
 		# output only acoustic score in Decipher format
-		print "(" ac_score ")" words;
+		$1 = "(" ac_score ")";
+		print;
 	    } else {
 		# output combined score in Decipher format
-		print $1, words;
+		print;
 	    }
 	}
 }
@@ -197,7 +243,7 @@ END {
 	}
 }
 ' filename=$filename escape="$escape" \
-  nodecipherlm=$nodecipherlm multiwords=$multiwords \
+  nodecipherlm=$nodecipherlm multiwords=$multiwords pretty_file="$pretty_file" \
   norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw
 done
 ) | \
@@ -220,6 +266,10 @@ $1 == escape {
 		close(scorefile);
 	}
 	currentfile = $2;
+	if (!lm_only) {
+	    # backward compatibility
+	    currentfile = $2 ".score";
+	}
 	scorefile = "gzip > " scoredir "/" currentfile ".gz";
 	printf "processing hyps for %s\n", currentfile \
 		> "/dev/stderr" ;
@@ -227,16 +277,26 @@ $1 == escape {
 	next;
 }
 {
+	if ($2 ~ /NaN/) {
+	    print "WARNING: LM score in nbest list " currentfile " is NaN" \
+							    > "/dev/stderr" ;
+	    $2 = -100000;
+	}
+		
 	if (bytelog) {
 	    $1 = $1 * bytelogscale;
 	    $2 = $2 * bytelogscale;
 	}
-	print | scorefile;
+	if (lm_only) {
+	    print $2 | scorefile;
+	} else  {
+	    print | scorefile;
+	}
 }
 END {
 	if (currentfile) {
 		close(scorefile);
 	}
 }
-' scoredir=$scoredir escape="$escape" bytelog=$bytelog
+' scoredir=$scoredir escape="$escape" bytelog=$bytelog lm_only=$lm_only
 

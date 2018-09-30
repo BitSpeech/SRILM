@@ -1,7 +1,7 @@
-.\" $Id: pfsg-scripts.1,v 1.5 2000/05/26 01:25:10 stolcke Exp $
-.TH pfsg-scripts 1 "$Date: 2000/05/26 01:25:10 $" "SRILM Tools"
+.\" $Id: pfsg-scripts.1,v 1.9 2001/06/19 19:36:10 stolcke Exp $
+.TH pfsg-scripts 1 "$Date: 2001/06/19 19:36:10 $" "SRILM Tools"
 .SH NAME
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
 .SH SYNOPSIS
 .B make-ngram-pfsg
 [\c
@@ -13,6 +13,11 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .B add-pauses-to-pfsg
 .RB [ pauselast=1 ]
 .RB [ wordwrap=0 ]
+.RB [ pause=
+.IR pauseword ]
+.RB [ top_level_name=
+.IR name ]
+.RB [ version=1 ]
 .RI [ pfsg-file ]
 .br
 .B add-classes-to-pfsg
@@ -75,6 +80,9 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .BR show_probs= 0|1\c
 ]
 .RI [ wlat-file ]
+.br
+.B wlat-stats
+.RI [ wlat-file ]
 .SH DESCRIPTION
 These scripts create and manipulate various forms of finite-state networks.
 Note that they take options with the 
@@ -113,7 +121,7 @@ allow an optional pause before each word.
 It also inserts an optional pause following the last word in the sentence.
 A typical usage is 
 .br
-	make-ngram-pfsg \fIclass-ngram\fP | \\
+	make-ngram-pfsg \fIngram\fP | \\
 .br
 	add-pauses-to-pfsg >\fIfinal-pfsg\fP
 .br
@@ -123,6 +131,16 @@ The option
 switches the order of words and pause nodes in the sub-PFSGSs;
 .B wordwrap=0
 disables the insertion of sub-PFSGs altogether.
+.PP
+The options
+.BI pause= pauseword 
+and 
+.BI top_level_name= name
+allow changing the default names of the pause word and the top-level
+grammar, respectively.
+.B version=1
+inserts a version line at the top of the output as required by 
+the Nuance recognition system (see NUANCE COMPATIBILTY below).
 .PP
 .B add-classes-to-pfsg
 extends an input PFSG with expansions for word classes, defined in
@@ -279,7 +297,7 @@ grammar ``test.bo'' with vocabulary ``test.vocab'' and class expansions
 .br
 .PP
 .B wlat-to-pfsg
-converts a word lattice in the format output by 
+converts a word posterior lattice or mesh ("sausage") in the format output by 
 .BR nbest-lattice (1)
 into 
 .BR pfsg-format (5).
@@ -293,6 +311,52 @@ in
 format for subsequent layout, printing, etc.
 .B show_probs=1
 includes node posterior probabilities in the output.
+.PP
+.B wlat-stats
+computes statistics of word posterior lattices, including the number of 
+word hypotheses and the entropy (log base 10) of the sentence hypothesis
+set represented.
+.SH "NUANCE COMPATIBILITY"
+.PP
+The Nuance recognizer (as of version 6.2) understands a variant of the 
+PFSG format; hence the scripts above should be useful in building
+recognition systems for that recognizer.
+.PP
+A suitable PFSG can be generated from a bigram or trigram backoff model
+in ARPA
+.BR ngram-format (5)
+using the following command:
+.br
+	ngram -debug 1 -lm \fILM.bo\fP -prune-lowprobs -write-lm - | \\
+.br
+	make-ngram-pfsg | \\
+.br
+	add-pauses-to-pfsg version=1 pauselast=1 pause=_pau_ top_level_name=.TOP_LEVEL >\fILM.pfsg\fP
+.br
+assuming the pause word in the dictionary is ``_pau_''.
+Certain restrictions on the naming of words (e.g., no hyphens are allowed)
+have to be respected.
+.PP
+The resulting PFSG can then be referenced in a Nuance grammar file, e.g.,
+.br
+	.TOP [NGRAM_PFSG]
+.br
+	NGRAM_PFSG:lm \fILM.pfsg\fP
+.br
+.PP
+In newer Nuance versions the name for a non-emitting node was changed to
+.BR NULNOD .
+The scripts
+.BR make-ngram-pfsg ,
+.BR add-pauses-to-pfsg ,
+and
+.B add-classes-to-pfsg
+must be invoked with the option
+.B "null=NULNOD" 
+to rename null nodes accordingly.
+.PP
+Caveat: Compatibility with Nuance is purely due to historical circumstance and
+not supported.
 .SH "SEE ALSO"
 ngram(1), nbest-lattice(1), ngram-format(5), pfsg-format(5), nbest-format(5),
 classes-format(5), fsm(5), dot(1).
@@ -302,4 +366,4 @@ currently handles only bigram and trigram models.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-1999 SRI International
+Copyright 1995-2001 SRI International

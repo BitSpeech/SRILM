@@ -1,4 +1,4 @@
-<! $Id: anti-ngram.1,v 1.3 2000/06/09 00:38:50 stolcke Exp $>
+<! $Id: anti-ngram.1,v 1.4 2001/06/06 04:21:33 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>anti-ngram</TITLE>
@@ -55,6 +55,20 @@ The default order is 3.
 Reads an ARPA language model from 
 <I> file </I>
 and rescores the N-best lists with it prior to counting N-grams.
+<DT><B>-classes</B><I> file</I><B></B>
+<DD>
+Interpret the LM as a class-based N-gram and read class definitions
+in 
+<A HREF="classes-format.html">classes-format(5)</A>
+from
+<I>file</I>.<I></I>
+<DT><B> -tolower </B>
+<DD>
+Map vocabulary to lowercase, eliminating case distinctions.
+<DT><B> -multiwords </B>
+<DD>
+Split multiwords (words joined by '_') into their components when
+reading N-best lists.
 <DT><B>-rescore-lmw</B><I> lmw</I><B></B>
 <DD>
 Sets the language model weight used in combining the language model log
@@ -105,6 +119,7 @@ Debugging messages are written to stderr.
 </DL>
 <H2> SEE ALSO </H2>
 <A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-merge.html">ngram-merge(1)</A>, <A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>,
+<A HREF="classes-format.html">classes-format(5)</A>,
 <BR>
 A. Stolcke et al., "The SRI March 2000 Hub-5 Conversational Speech
 Transcription System",

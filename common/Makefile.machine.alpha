@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.alpha,v 1.5 2000/06/08 23:58:48 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.alpha,v 1.6 2001/03/11 17:32:41 stolcke Exp $
 #
 #    $Log: Makefile.machine.alpha,v $
+#    Revision 1.6  2001/03/11 17:32:41  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.5  2000/06/08 23:58:48  stolcke
 #    use gcc even for .c file
 #
@@ -63,6 +66,10 @@
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl
 
    # Do Alphas require ranlib(1) to be run on libraries?
    RANLIB = echo

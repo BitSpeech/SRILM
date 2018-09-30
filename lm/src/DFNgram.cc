@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.19 2000/01/13 04:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.20 2000/10/13 05:24:17 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -498,13 +498,12 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = Ngram::sentenceProb(sentence, stats);
     } else {
-	VocabIndex reversed[len + 2 + 1];
-
 	/*
 	 * Contexts are represented most-recent-word-first.
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
+	VocabIndex reversed[len + 2 + 1];
 	len = prepareSentence(sentence, reversed, len);
 
 	/*
@@ -524,14 +523,15 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     if (debug(DEBUG_PRINT_VITERBI)) {
-	DFstate bestStates[len + 2];
+	len = trellis.where();
+	DFstate bestStates[len];
 
-	if (trellis.viterbi(bestStates, len + 2) == 0) {
+	if (trellis.viterbi(bestStates, len) == 0) {
 	    dout() << "Viterbi backtrace failed\n";
 	} else {
 	    dout() << "DF-events:";
 
-	    for (unsigned i = 1; i <= len + 1; i ++) {
+	    for (unsigned i = 1; i < len; i ++) {
 		dout() << " " << DFnames[bestStates[i]];
 	    }
 

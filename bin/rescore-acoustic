@@ -4,7 +4,7 @@
 #       Replace acoustic Nbest scores with a weighted combination of
 #       old and new acoustic scores
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-acoustic,v 1.4 1998/09/03 07:27:18 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-acoustic,v 1.5 2000/10/11 01:57:56 stolcke Exp $
 #
 
 if [ $# -lt 5 ]; then
@@ -27,8 +27,6 @@ do
 done
 new_nbest=${1}
 max_nbest=${2-0}
-
-scriptdir=`dirname $0`
 
 set -e
 
@@ -64,7 +62,7 @@ cat $join1 | \
 while read sentid scorefiles
 do
 	echo $sentid >&2
-	$scriptdir/combine-acoustic-scores -v "weights=$old_acw $new_acw" \
+	combine-acoustic-scores -v "weights=$old_acw $new_acw" \
 		-v max_nbest=$max_nbest $scorefiles | \
 		gzip > $new_nbest/$sentid.score.gz 
 done

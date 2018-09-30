@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.30 2000/06/22 20:39:05 stolcke Exp $
+#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.36 2001/06/19 18:23:48 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -35,61 +35,80 @@ SCRIPTS = \
 	$(EXPORTED_SCRIPTS)
 
 EXPORTED_SCRIPTS = \
-	add-dummy-bows \
-	make-lm-subset \
-	make-sub-lm \
 	change-lm-vocab \
-	add-ppls \
-	subtract-ppls \
-	hits-from-log \
-	ppl-from-log \
 	rescore-decipher \
 	rescore-acoustic \
-	combine-acoustic-scores \
 	rescore-reweight \
 	rescore-minimize-wer \
-	nbest2-to-nbest1 \
-	get-gt-counts \
-	make-gt-discounts \
-	make-abs-discount \
-	vp2text \
-	compute-oov-rate \
-	pfsg-to-dot \
-	wlat-to-pfsg \
-	wlat-to-dot \
-	pfsg-to-fsm \
-	fsm-to-pfsg \
-	classes-to-fsm \
-	make-hiddens-lm \
 	make-batch-counts \
 	merge-batch-counts \
-	continuous-ngram-count \
-	reverse-ngram-counts \
 	make-big-lm \
-	compare-ppls \
-	compute-best-mix \
-	make-diacritic-map \
-	bytelog-to-log10 \
-	log10-to-bytelog \
-	remove-lowprob-ngrams \
-	make-ngram-pfsg \
-	add-pauses-to-pfsg \
-	add-classes-to-pfsg \
-	replace-words-with-classes \
-	uniform-classes \
+	make-multiword-pfsg \
 	pfsg-from-ngram \
 	nbest-error \
-	nbest-posteriors \
 	nbest-rover \
-	make-nbest-pfsg \
-	sentid-to-sclite \
 	compute-sclite \
 	compare-sclite
 
+# gawk scripts that need to be edited before installation
+GAWK_SCRIPTS = \
+	add-classes-to-pfsg \
+	add-dummy-bows \
+	add-pauses-to-pfsg \
+	add-ppls \
+	bytelog-to-log10 \
+	classes-to-fsm \
+	combine-acoustic-scores \
+	compare-ppls \
+	compute-best-mix \
+	compute-oov-rate \
+	continuous-ngram-count \
+	extract-skip-probs \
+	fsm-to-pfsg \
+	get-gt-counts \
+	hits-from-log \
+	log10-to-bytelog \
+	make-abs-discount \
+	make-diacritic-map \
+	make-gt-discounts \
+	make-hiddens-lm \
+	make-lm-subset \
+	make-nbest-pfsg \
+	make-ngram-pfsg \
+	make-sub-lm \
+	merge-nbest \
+	nbest-posteriors \
+	nbest2-to-nbest1 \
+	pfsg-to-dot \
+	pfsg-to-fsm \
+	ppl-from-log \
+	remove-lowprob-ngrams \
+	replace-words-with-classes \
+	reverse-ngram-counts \
+	sentid-to-sclite \
+	sentid-to-ctm \
+	subtract-ppls \
+	uniform-classes \
+	vp2text \
+	wlat-to-dot \
+	wlat-to-pfsg \
+	wlat-stats \
+	wordlat-to-lisp \
+	prettify
+
+EXPORTED_PROGRAMS  = $(GAWK_SCRIPTS:%=$(BINDIR)/%)
+
 all:	
 
-release:	release-scripts
+release:	release-scripts release-programs
 
 # Include common DECIPHER (TM) target definitions.
 include $(DECIPHER)/common/Makefile.common.targets
+
+#
+# Rule to create edited gawk script 
+#
+$(BINDIR)/%: $(SRCDIR)/%.gawk $(BINDIR_STAMP)
+	sed -e '1s,/usr/local/bin/gawk,$(GAWK),' $< >$@.new
+	mv $@.new $@
 

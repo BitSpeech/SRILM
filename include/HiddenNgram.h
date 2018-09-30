@@ -2,9 +2,9 @@
  * HiddenNgram.h --
  *	N-gram model with hidden between-word events
  *
- * Copyright (c) 1999, SRI International.  All Rights Reserved.
+ * Copyright (c) 1999,2000 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.5 1999/10/16 17:01:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.7 2000/10/13 05:14:36 stolcke Exp $
  *
  */
 
@@ -19,12 +19,33 @@
 #include "Array.h"
 
 /* 
- * We use strings over VocabIndex as keys into the trellis.
+ * The DP trellis to evaluate a hidden ngram contains the N-gram context,
+ * as well as a pointer indicating what words, if any, are to be repeated.
+ * repeatFrom > 0 means that the word at context[repeatFrom-1] is to be 
+ * repeated in the current input.  This way we handle disfluenct repeatitions.
  */
 typedef const VocabIndex *VocabContext;
+typedef struct {
+	VocabContext context;
+	unsigned repeatFrom;
+	VocabIndex event;		/* for Viterbi decoding */
+} HiddenNgramState;
+
+ostream &operator<< (ostream &, const HiddenNgramState &state);
 
 /*
- * A N-gram language model that sums of hidden events between the
+ * Properties of hidden event vocabulary items
+ */
+typedef struct {
+    unsigned deleteWords:8;		// words to delete from context
+    unsigned repeatWords:8;		// words to repeat
+    Boolean isObserved:1;		// event is overt
+    Boolean omitFromContext:1;		// do not put event tag in context
+    VocabIndex insertWord;		// tag to insert (typically <s>)
+} HiddenVocabProps;
+
+/*
+ * A N-gram language model that sums over hidden events between the
  * observable words, in the style of Stolcke et al., Automatic Detection of
  * Sentence Boundaries and Disfluencies based on Recognized Words. Proc.
  * Intl. Conf. on Spoken Language Processing, vol. 5, pp.  2247-2250, Sydney,
@@ -46,8 +67,13 @@ public:
     Boolean isNonWord(VocabIndex word);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
+    Boolean read(File &file);
+    void write(File &file);
+
+    const HiddenVocabProps &getProps(VocabIndex word);
+
 protected:
-    Trellis<VocabContext> trellis;	/* for DP on hidden events */
+    Trellis<HiddenNgramState> trellis;	/* for DP on hidden events */
     const VocabIndex *prevContext;	/* context from last DP */
     unsigned prevPos;			/* position from last DP */
     LogP prefixProb(VocabIndex word, const VocabIndex *context,
@@ -59,6 +85,8 @@ protected:
     SubVocab &hiddenVocab;		/* the hidden event vocabulary */
     VocabIndex noEventIndex;		/* the "no-event" event */
     Boolean notHidden;			/* overt event mode */
+    LHash<VocabIndex, HiddenVocabProps> vocabProps;
+					/* properties of vocabulary items */
 };
 
 #endif /* _HiddenNgram_h_ */

@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.mips-elf,v 1.12 2000/06/09 00:00:13 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.mips-elf,v 1.13 2001/03/11 17:33:30 stolcke Exp $
 #
 #    $Log: Makefile.machine.mips-elf,v $
+#    Revision 1.13  2001/03/11 17:33:30  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.12  2000/06/09 00:00:13  stolcke
 #    back to gcc 2.8.1
 #
@@ -95,6 +98,10 @@ endif
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lmalloc -lm
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl -rpath /usr/local/lib
 
    # run-time linker path flag
    RLD_FLAG = -rpath

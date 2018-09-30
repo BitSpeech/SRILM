@@ -3,9 +3,9 @@
  *	Word Meshes (a simple type of word lattice with transitions between
  *	any two adjacent words).
  *
- * Copyright (c) 1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2000 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.7 2000/05/08 06:05:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.10 2001/06/08 05:56:16 stolcke Exp $
  *
  */
 
@@ -13,9 +13,16 @@
 #define _WordMesh_h_
 
 #include "MultiAlign.h"
+#include "VocabDistance.h"
 
 #include "Array.h"
 #include "LHash.h"
+
+typedef unsigned short HypID;	/* index identifying a sentence in the
+				 * alignment (short to save space) */
+
+const HypID refID = (HypID)-1; 	/* pseudo-hyp ID used to identify the reference
+				 * in an N-best alignment */
 
 class WordMeshIter;
 
@@ -24,7 +31,7 @@ class WordMesh: public MultiAlign
     friend WordMeshIter;
 
 public:
-    WordMesh(Vocab &vocab);
+    WordMesh(Vocab &vocab, VocabDistance *distance = 0);
     ~WordMesh();
 
     Boolean read(File &file);
@@ -35,7 +42,11 @@ public:
     void alignWords(const VocabIndex *words, Prob score, Prob *wordScores = 0)
 	{ alignWords(words, score, wordScores, 0); };
     void alignWords(const VocabIndex *words, Prob score,
-				    Prob *wordScores, const int *hypID);
+				    Prob *wordScores, const HypID *hypID);
+
+    void alignReference(const VocabIndex *words)
+	{ HypID id = refID;
+	  alignWords(words, 0.0, 0, &id); };
 
     unsigned wordError(const VocabIndex *words,
 				unsigned &sub, unsigned &ins, unsigned &del);
@@ -51,15 +62,17 @@ public:
 
 private:
     Array< LHash<VocabIndex,Prob>* > aligns;	// alignment columns
-    Array< LHash<VocabIndex,Array<int> >* > hypMap;
+    Array< LHash<VocabIndex,Array<HypID> >* > hypMap;
 					// pointers from word hyps
 					//       to sentence hyps
-    Array<int> allHyps;			// list of all aligned hyp IDs
+    Array<HypID> allHyps;		// list of all aligned hyp IDs
 
     unsigned numAligns;			// number of alignment columns
     Array<unsigned> sortedAligns;	// topoligical order of alignment
 
     Prob totalPosterior;		// accumulated sample scores
+
+    VocabDistance *distance;		// word distance (or null)
 };
 
 /*
@@ -73,12 +86,12 @@ public:
 
     void init()
 	{ myIter.init(); };
-    Array<int> *next(VocabIndex &word)
+    Array<HypID> *next(VocabIndex &word)
 	{ return myIter.next(word); };
 
 private:
     WordMesh &myWordMesh;
-    LHashIter<VocabIndex, Array<int> > myIter;
+    LHashIter<VocabIndex, Array<HypID> > myIter;
 };
 
 #endif /* _WordMesh_h_ */

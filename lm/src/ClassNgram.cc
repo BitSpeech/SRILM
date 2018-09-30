@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.13 2000/01/13 04:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.14 2000/10/02 21:43:54 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -707,7 +707,7 @@ ClassNgram::writeClasses(File &file)
  * The second argument gives the length of expanded ngrams whose
  * conditional probability should be computed using the forward algorithm.
  * This is more expensive but gives better results for ngrams much longer
- * than those in the original model contained.
+ * than those contained in the original model.
  */
 Ngram *
 ClassNgram::expand(unsigned newOrder, unsigned expandExact)
@@ -723,7 +723,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
     VocabIndex context[order + 2];
 
     /*
-     * Turn of the DP for the computation of joint context probabilities
+     * Turn off the DP for the computation of joint context probabilities
      */
     simpleNgram = true;
 
@@ -866,6 +866,29 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
     while (wordString = viter.next(wordIndex)) {
 	if (!classVocab.getWord(wordIndex)) {
 	    newVocab->addWord(wordString);
+	} else {
+	    /* 
+	     * ensure all words in the class expansion are in the new vocab:
+	     * this includes classes that occur in expansions of other classes,
+	     * even though we currently don't support "context-free" rules
+	     */
+	    Map2Iter2<VocabIndex, ClassExpansion, Prob>
+						iter(classDefs, wordIndex);
+	    ClassExpansion expansion;
+
+	    while (iter.next(expansion)) {
+		for (i = 0; expansion[i] != Vocab_None; i ++) {
+		    VocabString className = classVocab.getWord(expansion[i]);
+
+		    if (className) {
+			cerr << "warning: expansion of " << wordString 
+			     << " -> " << (vocab.use(), expansion)
+			     << " refers to another class: " << className
+			     << endl;
+			newVocab->addWord(className);
+		    }
+		}
+	    }
 	}
     }
     newVocab->unkIndex = vocab.unkIndex;

@@ -1,13 +1,16 @@
-.\" $Id: nbest-scripts.1,v 1.11 2000/06/09 00:32:08 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2000/06/09 00:32:08 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.18 2001/06/19 19:34:16 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2001/06/19 19:34:16 $" "SRILM Tools"
 .SH NAME
-nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
+nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
 .B rescore-decipher 
 .RB [ \-bytelog ]
 .RB [ \-nodecipherlm ]
 .RB [ \-multiwords ]
+.RB [ \-pretty
+.IR mapfile ]
 .RB [ \-norescore ]
+.RB [ \-lm-only ]
 .I nbest-file-list
 .I score-dir
 .B \-lm 
@@ -29,6 +32,8 @@ nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nb
 .IR score-dir | file-list
 .RI [ lmw
 .RI [ wtw
+.RI [ "score-dir1 score-weight1"
+\&...]
 .RI [ max-nbest ]]]
 .br
 .B rescore-minimize-wer
@@ -63,6 +68,15 @@ nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nb
 ]
 .I nbest-file
 .br
+.B merge-nbest
+[
+.BI max_nbest= M
+.B multiwords=1
+.B nopauses=1
+]
+.I nbest-file
+\&...
+.br
 .B nbest-error
 .IR score-dir | file-list
 .I refs
@@ -71,16 +85,26 @@ nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nb
 .B sentid-to-sclite
 .I hyps
 .br
+.B sentid-to-ctm
+.I hyps
+.br
 .B compute-sclite
 .B \-r
 .I refs
 .B \-h
 .I hyps
 [\c
+.B \-h
+.I hyps
+\&...]
+[\c
 .B \-S
 .I subset
 .BR \-v ]
 .RB [ \-multiwords | \-M ]
+.RB [ \-g
+.IR glmfile ]
+.RB [ \-H ]
 .RI [ sclite-options ...]
 .br
 .B compare-sclite
@@ -126,6 +150,14 @@ indicates that the recognizer language model is not being provided
 .BR \-multiwords
 specifies that N-best lists contain words joined by underscores, which are
 to be split into their component prior to rescoring.
+.BR \-pretty
+specifies a word mapping file that allows individual words to be globally
+replaced by strings of zero or more other words, e.g., to remove vocabulary
+mismatches between the input N-best lists and the rescoring LM.
+The 
+.I mapfile
+contains one mapping per line, the first field specifying the word to be
+replaced and subsequent fields forming the replacement string.
 .BR \-norescore
 causes N-best lists to be simply reformatted from one of the Decipher formats
 into the SRILM N-best format, separating acoustic and LM scores, without
@@ -137,6 +169,8 @@ options
 and 
 .BR \-decipher-wtw
 are relevant, and others are ignored.
+.BR \-lm-only
+dumps out LM scores only, instead of complete N-best lists.
 .PP
 .B rescore-acoustic
 replaces the acoustic scores in a set of N-best lists by a weighted 
@@ -179,6 +213,16 @@ the word transition weight
 and the maximum number
 .I max-nbest
 of hypotheses to consider (default all).
+Optionally, any number of additional score directories and associated
+weights
+.I "score-dir1 score-weight1 score-dir2 score-weight2"
+\&... can be specified, following the
+.I wtw
+parameter.
+These additional scores are combined with those contained in the
+N-best lists themselves as in
+.B rescore-acoustic 
+(using unit weight for the original acoustic scores).
 .B \-multiwords
 indicates that multi-words are to be split into their components.
 The output format for 1-best hypotheses is
@@ -216,7 +260,7 @@ The format for the latter is
 .br
 	\fIdir1\fP \fIlmw1\fP \fIwtw1\fP \fIw1\fP [\fIn1\fP [\fIs1\fP]]
 .br
-	\fIdir2\fP \fIlmw2\fP \fIwtw2\fP \fIw2\fP [\fIn2\fP \fIs2\fP]]
+	\fIdir2\fP \fIlmw2\fP \fIwtw2\fP \fIw2\fP [\fIn2\fP [\fIs2\fP]]
 .br
 	...
 .br
@@ -279,6 +323,25 @@ limits the number of hypotheses used to the top
 This script is used mostly as a helper in
 .BR nbest-rover .
 .PP
+.B merge-nbest
+merges hypotheses from one or more N-best lists into a single list,
+collapsing hypotheses that occur in more than one input list.
+If all input lists use the same 
+.BR nbest-format (5)
+then the output will also be in that format and contain the information
+from the first list in which a hypothesis was encountered.
+Otherwise, the output will be in SRI Decipher(TM) NBestList1.0 format
+and contain acoustic scores and word strings only.
+The
+.BI max_nbest= M
+option limits input to the first 
+.I M
+hypotheses from each input list.
+.B multiwords=1
+merges hypotheses that are identical after resolving multiwords.
+.B nopauses=1
+merges hypotheses that are identical after removal of pause words.
+.PP
 .B nbest-error
 computes the overall oracle word error rate of a set of N-best lists
 in directory
@@ -300,6 +363,13 @@ the ``trn'' format expected by the NIST
 .BR sclite (1)
 scoring software.
 .PP
+.B sentid-to-ctm
+converts 1-best hypotheses and references in the format used here to NIST
+.BR ctm (5)
+format.
+The script relies on an encoding of conversation IDs, channel, and utterance
+time marks in the sentence IDs and may need adjustment to local conventions.
+.PP
 .B compute-sclite
 is a wrapper around 
 .BR sclite (1).
@@ -307,6 +377,25 @@ is a wrapper around
 and
 .I hyps 
 are the reference and hypothesized transcripts, respectively. 
+The
+.I refs
+file can be either in "sentid" format or in 
+.BR stm (5) 
+format.  In the latter case,
+.I hyps
+will be converted to 
+.BR ctm (5)
+format using the 
+.B sentid-to-ctm
+helper script.
+The
+.I hyps
+file can be either in "sentid" format or in 
+.BR ctm (5)
+format.
+More than one 
+.B \-h 
+option can be given to combine the contents of multiple hypotheses files.
 Optionally, 
 .I subset 
 specifies a sorted list of sentence IDs to score.
@@ -318,6 +407,17 @@ or
 .B \-M
 splits ``multiwords'' joined by underscores into their component words
 prior to scoring.
+.B \-g
+.I glmfile
+enables filtering of references and hypotheses by the NIST
+.B csrfilt.sh
+script, controlled by the filter file 
+.I glmfile 
+(this is only possible with an stm reference file).
+In that case, the
+.B \-H
+option causes hesitations (as defined by the filter)
+to be deleted from the output for scoring purposes.
 .B \-v 
 displays the complete command used to invoke
 .BR sclite .
@@ -334,7 +434,8 @@ The remaining options are as for
 The script ignores hypotheses for sentence that do not appear in both
 hypothesis files, to ensure comparable scoring results.
 .SH "SEE ALSO"
-nbest-format(5), ngram(1), nbest-lattice(1), sclite(1).
+nbest-format(5), ngram(1), nbest-lattice(1), nbest-optimize(1), sclite(1),
+stm(5), ctm(5).
 .br
 J.G. Fiscus, A Post-Processing System to Yield Reduced Word Error Rates:
 Recognizer Output Voting Error Reduction (ROVER),
@@ -355,4 +456,4 @@ to work.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-1999 SRI International
+Copyright 1995-2001 SRI International

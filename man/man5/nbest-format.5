@@ -1,5 +1,5 @@
-.\" $Id: nbest-format.5,v 1.2 2000/03/15 00:11:33 stolcke Exp $
-.TH nbest-format 5 "$Date: 2000/03/15 00:11:33 $" "SRILM File Formats"
+.\" $Id: nbest-format.5,v 1.3 2001/01/19 22:28:57 stolcke Exp $
+.TH nbest-format 5 "$Date: 2001/01/19 22:28:57 $" "SRILM File Formats"
 .SH NAME
 nbest-format \- File formats for N-best hypotheses lists
 .SH DESCRIPTION
@@ -39,7 +39,13 @@ The hypotheses are in the format
 	(\fIscore\fP) \fIw1\fP ( st: \fIst1\fP et: \fIet1\fP g: \fIg1\fP a: \fIa1\fP ) \fIw2\fP ...
 .br
 where words are followed by start and end times, language model and 
-acoustic scores (bytelog-scaled), respectively.
+acoustic scores (bytelog-scaled), respectively.  
+This format may also contain scores and time marks for sub-word units
+(phones and HMM states), in the same format as above, but with the
+.IR w 's
+denoting phone and state names.  Sub-word units will have 
+time marks that are contained in the duration of the preceding word units,
+and may thus be easily identified.
 .PP
 The third format understood by SRILM lists
 hypotheses in the format
@@ -67,4 +73,4 @@ A generalization to an arbitrary number of separate scores would be nice.
 .SH AUTHOR
 Manual page written by Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1999 SRI International
+Copyright 1999-2001 SRI International

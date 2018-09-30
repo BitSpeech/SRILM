@@ -1,5 +1,5 @@
-.\" $Id: nbest-lattice.1,v 1.20 2000/06/12 06:29:04 stolcke Exp $
-.TH nbest-lattice 1 "$Date: 2000/06/12 06:29:04 $" "SRILM Tools"
+.\" $Id: nbest-lattice.1,v 1.23 2001/07/11 05:27:50 stolcke Exp $
+.TH nbest-lattice 1 "$Date: 2001/07/11 05:27:50 $" "SRILM Tools"
 .SH NAME
 nbest-lattice \- rescore N-best lists and lattices
 .SH SYNOPSIS
@@ -55,8 +55,8 @@ Chooses N-best word error minimization mode.
 Chooses lattice word error minimization mode (the default).
 .TP
 .B \-use-mesh
-Choose the variant of lattice mode that uses word meshes instead of
-simple lattices.
+Choose the variant of lattice mode that uses word meshes
+instead of simple lattices.
 .TP
 .BI \-deletion-bias " D"
 Causes the probabilities of deletions to be biased by a factor
@@ -181,6 +181,10 @@ Read several noise tags from
 instead of, or in addition to, the single noise tag specified by
 .BR \-noise .
 .TP
+.B \-keep-noise
+Do not remove pause or noise tokens from hypotheses. The default
+is to preserve noise tags but still eliminate pauses.
+.TP
 .BI \-nbest-errors " references"
 Compute the N-best error (minimum word error) of the N-best list read with
 .BR \-nbest .
@@ -215,6 +219,12 @@ option limits the number of hypotheses per N-best list processed.
 .BI \-reference " w1 w2 ..."
 Specifies a reference word string for 
 .BR \-dump-errors .
+Additionally, in 
+.B -use-mesh
+mode, the reference words are recorded in the word mesh and can be output
+with 
+.BR \-write ,
+indicating which word in each alignment position is the correct one.
 .PP
 The following options only affect lattice mode.
 .TP
@@ -256,11 +266,12 @@ Error is computed relative to all the hypotheses contained in a separate
 N-best list given by
 .IR references .
 .SH "SEE ALSO"
-ngram(1), nbest-sripts(1), nbest-format(5).
+ngram(1), nbest-optimize(1), nbest-scripts(1), nbest-format(5).
 .br
 A. Stolcke, Y. Konig, and M. Weintraub,
 ``Explicit Word Error Minimization in N-best List Rescoring,''
 \fIProc. Eurospeech\fP, 163\-166, 1997.
+.br
 The ``word meshes'' used here are equivalent to the ``confusion networks''
 described in:
 L. Mangu, E. Brill, and A. Stolcke, ``Finding Consensus Among Words:
@@ -280,4 +291,4 @@ use a separate N-best list.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1996-2000 SRI International
+Copyright 1996-2001 SRI International

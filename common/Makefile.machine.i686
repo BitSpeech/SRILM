@@ -9,9 +9,18 @@
 #
 #    Copyright (c) 1999, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.i686,v 1.2 1999/08/01 23:10:37 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.i686,v 1.5 2001/06/30 01:43:35 stolcke Exp $
 #
 #    $Log: Makefile.machine.i686,v $
+#    Revision 1.5  2001/06/30 01:43:35  stolcke
+#    tuned some flags
+#
+#    Revision 1.4  2001/03/11 17:32:41  stolcke
+#    added TCL_ variables
+#
+#    Revision 1.3  2000/10/11 02:01:59  stolcke
+#    set gawk path
+#
 #    Revision 1.2  1999/08/01 23:10:37  stolcke
 #    fixed linebreak
 #
@@ -21,8 +30,8 @@
 #
 
    # Use the GNU C compiler.
-   CC = gcc 
-   CXX = g++ 
+   CC = gcc -mcpu=i686
+   CXX = g++ -mcpu=i686
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O2
@@ -33,8 +42,8 @@
    EXPORT_LDFLAGS = -s
 
    # Shared compilation flags.
-   CFLAGS = -DSVR4 $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
@@ -55,7 +64,11 @@
    # run-time linker path flag
    RLD_FLAG = -R
 
-   # No ranlib -- this is SVR4
+   # Tcl support (standard in Linux)
+   TCL_INCLUDE = 
+   TCL_LIBRARY = -ltcl
+
+   # No ranlib
    RANLIB = :
 
    # Generate dependencies from source files.
@@ -66,4 +79,7 @@
    # Run lint.
    LINT = lint
    LINT_FLAGS = -DDEBUG $(CFLAGS)
+
+   # Location of gawk binary
+   GAWK = /usr/bin/gawk
 

@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.13 1999/02/20 07:26:42 stolcke Exp $
+#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.14 2001/03/11 16:37:41 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -65,8 +65,8 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
 # Example Library.
 LIBRARY = $(OBJDIR)/libmisc.a
 
-ADDITIONAL_INCLUDES += -I/usr/local/include
-ADDITIONAL_LIBRARIES += -L/usr/local/lib -ltcl -lm
+ADDITIONAL_INCLUDES += $(TCL_INCLUDE)
+ADDITIONAL_LIBRARIES += $(TCL_LIBRARY) -lm
 
 # Example programs.
 PROGRAM_NAMES = \

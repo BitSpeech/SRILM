@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.14 2000/05/04 15:23:30 stolcke Exp $
-.TH ngram-count 1 "$Date: 2000/05/04 15:23:30 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.15 2001/03/03 00:40:21 stolcke Exp $
+.TH ngram-count 1 "$Date: 2001/03/03 00:40:21 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -185,7 +185,7 @@ Set the maximal count of N-grams of order
 that are discounted under Good-Turing.
 All N-grams more frequent than that will receive
 maximum likelihood estimates.
-Discounting can be effectively disabled by setting this to 0 or 1.
+Discounting can be effectively disabled by setting this to 0.
 .TP
 .BI \-gt\fIn\fP " gtfile"
 where

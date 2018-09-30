@@ -24,7 +24,7 @@ SSYYNNOOPPSSIISS
        mmaakkee--bbiigg--llmm --nnaammee _n_a_m_e --rreeaadd _c_o_u_n_t_s --ttrruusstt--ttoottaallss --llmm _n_e_w_-
        _m_o_d_e_l [_o_p_t_i_o_n_s...]
        rreeppllaaccee--wwoorrddss--wwiitthh--ccllaasssseess ccllaasssseess==_c_l_a_s_s_e_s [oouuttffiillee==_c_o_u_n_t_s
-       nnoorrmmaalliizzee==0|1 aaddddoonnee==_K] [_t_e_x_t_f_i_l_e...]
+       nnoorrmmaalliizzee==0|1 aaddddoonnee==_Khhaavvee__ccoouunnttss==11 ] [_t_e_x_t_f_i_l_e...]
        uunniiffoorrmm--ccllaasssseess _c_l_a_s_s_e_s >>_n_e_w_-_c_l_a_s_s_e_s
        mmaakkee--ddiiaaccrriittiicc--mmaapp _v_o_c_a_b
        vvpp22tteexxtt [_t_e_x_t_f_i_l_e...]
@@ -61,7 +61,7 @@ DDEESSCCRRIIPPTTIIOONN
 
 
 
-SRILM Tools        $Date: 2000/06/22 20:48:33 $                 1
+SRILM Tools        $Date: 2001/05/25 19:27:19 $                 1
 
 
 
@@ -127,7 +127,7 @@ training-scripts(1)                           training-scripts(1)
 
 
 
-SRILM Tools        $Date: 2000/06/22 20:48:33 $                 2
+SRILM Tools        $Date: 2001/05/25 19:27:19 $                 2
 
 
 
@@ -159,32 +159,49 @@ training-scripts(1)                           training-scripts(1)
        ments.   nnoorrmmaalliizzee==00  or  11  indicates  whether the counts
        should be normalized to probabilities (default is 1).  The
        aaddddoonnee  option  may be used to smooth the expansion proba-
-       bilities by adding _K to each count (default 1).
+       bilities by adding _K  to  each  count  (default  1).   The
+       option  hhaavvee__ccoouunnttss==11 indicates that the input consists of
+       N-gram counts and that replacement should be performed  on
+       them.   Note  this  will  not  merge counts that have been
+       mapped to identical N-grams, since this is done  automati-
+       cally when nnggrraamm--ccoouunntt(1) reads count data.
 
        uunniiffoorrmm--ccllaasssseess takes a file in ccllaasssseess--ffoorrmmaatt(5) and adds
-       uniform  probabilities  to  expansions  that  don't have a
+       uniform probabilities to  expansions  that  don't  have  a
        probability explicitly stated.
 
-       mmaakkee--ddiiaaccrriittiicc--mmaapp constructs a map  file  that  pairs  an
-       ASCII-fied  version  of  the  words  in _v_o_c_a_b with all the
-       occurring non-ASCII word forms.  Such a map file can  then
-       be  used  with  ddiissaammbbiigg(1) and a language model to recon-
-       struct the non-ASCII word form  with  diacritics  from  an
+       mmaakkee--ddiiaaccrriittiicc--mmaapp  constructs  a  map  file that pairs an
+       ASCII-fied version of the words  in  _v_o_c_a_b  with  all  the
+       occurring  non-ASCII word forms.  Such a map file can then
+       be used with ddiissaammbbiigg(1) and a language  model  to  recon-
+       struct  the  non-ASCII  word  form with diacritics from an
        ASCII text.
 
-       vvpp22tteexxtt  is  a  reimplementation of the filter used in the
+       vvpp22tteexxtt is a reimplementation of the filter  used  in  the
        DARPA Hub-3 and Hub-4 CSR evaluations to convert ``verbal-
-       ized  punctuation'' texts to language model training data.
+       ized punctuation'' texts to language model training  data.
 
-       ccoommppuuttee--oooovv--rraattee determines the out-of-vocabulary rate  of
-       a  corpus  from its unigram _c_o_u_n_t_s and a target vocabulary
+       ccoommppuuttee--oooovv--rraattee  determines the out-of-vocabulary rate of
+       a corpus from its unigram _c_o_u_n_t_s and a  target  vocabulary
        list in _v_o_c_a_b.
 
 SSEEEE AALLSSOO
        ngram-count(1), classes-format(5), disambig(1).
 
 BBUUGGSS
-       Some of the tools could be generalized  and/or  made  more
+       Some  of  the  tools could be generalized and/or made more
+
+
+
+SRILM Tools        $Date: 2001/05/25 19:27:19 $                 3
+
+
+
+
+
+training-scripts(1)                           training-scripts(1)
+
+
        robust to misuse.
 
 AAUUTTHHOORR
@@ -193,6 +210,55 @@ AAUUTTHHOORR
 
 
 
-SRILM Tools        $Date: 2000/06/22 20:48:33 $                 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SRILM Tools        $Date: 2001/05/25 19:27:19 $                 4
 
 

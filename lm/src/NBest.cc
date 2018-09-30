@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.38 2000/05/10 00:24:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.40 2001/01/11 17:28:38 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -117,9 +117,9 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	/*
 	 * Parse the first word as a score (in parens)
 	 */
-	double score;
+	int score;
 
-	if (sscanf(wstrings[0], "(%lf)", &score) != 1)
+	if (sscanf(wstrings[0], "(%d)", &score) != 1)
 	{
 	    cerr << "bad Decipher score: " << wstrings[0] << endl;
 	    return false;
@@ -139,19 +139,19 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	    return false;
 	}
 
-	actualNumWords = (actualNumWords - 1)/11;
+	unsigned numTokens = (actualNumWords - 1)/11;
 
-	if (actualNumWords > maxWordsPerLine) {
-	    cerr << "more than " << maxWordsPerLine << " words in hyp\n";
+	if (numTokens > maxWordsPerLine) {
+	    cerr << "more than " << maxWordsPerLine << " tokens in hyp\n";
 	    return false;
 	}
 
 	/*
 	 * Parse the first word as a score (in parens)
 	 */
-	double score;
+	int score;
 
-	if (sscanf(wstrings[0], "(%lf)", &score) != 1)
+	if (sscanf(wstrings[0], "(%d)", &score) != 1)
 	{
 	    cerr << "bad Decipher score: " << wstrings[0] << endl;
 	    return false;
@@ -159,15 +159,31 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 
 	/*
 	 * Parse remaining line into words and scores
+	 *	skip over phone and state backtrace tokens, which can be
+	 *	be identified by noting that their times are contained within
+	 *	the word duration.
 	 */
-	double acScore = 0.0;
-	double lmScore = 0.0;
+	Bytelog acScore = 0;
+	Bytelog lmScore = 0;
 
-	for (unsigned i = 0; i < actualNumWords; i ++) {
-	    justWords[i] = wstrings[1 + 11 * i];
+	float prevEndTime = -1.0;	/* end time of last token */
 
-	    acScore += atof(wstrings[1 + 11 * i + 9]);
-	    lmScore += atof(wstrings[1 + 11 * i + 7]);
+	actualNumWords = 0;
+	for (unsigned i = 0; i < numTokens; i ++) {
+
+	    float startTime = atof(wstrings[1 + 11 * i + 3]);
+	    float endTime = atof(wstrings[1 + 11 * i + 5]);
+
+	    if (startTime > prevEndTime) {
+		justWords[actualNumWords] = wstrings[1 + 11 * i];
+
+		acScore += atol(wstrings[1 + 11 * i + 9]);
+		lmScore += atol(wstrings[1 + 11 * i + 7]);
+
+		actualNumWords ++;
+
+		prevEndTime = endTime;
+	    }
 	}
 	justWords[actualNumWords] = 0;
 
@@ -279,7 +295,7 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
 						LogP acousticOffset)
 {
     if (decipherFormat) {
-	fprintf(file, "(%g)", LogPtoBytelog(totalScore + acousticOffset));
+	fprintf(file, "(%d)", (int)LogPtoBytelog(totalScore + acousticOffset));
     } else {
 	fprintf(file, "%g %g %d", acousticScore + acousticOffset,
 					      languageScore, numWords);

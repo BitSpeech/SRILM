@@ -50,18 +50,18 @@ OOPPTTIIOONNSS
               Reads an ARPA language model from _f_i_l_e and rescores
               the N-best lists with it prior to counting N-grams.
 
-       --rreessccoorree--llmmww _l_m_w
-              Sets  the  language  model weight used in combining
-              the language model log probabilities with  acoustic
-              log probabilities (only relevant if separate scores
-              are given in the N-best input).
+       --ccllaasssseess _f_i_l_e
+              Interpret  the  LM as a class-based N-gram and read
+              class definitions in ccllaasssseess--ffoorrmmaatt(5) from _f_i_l_e.
 
-       --rreessccoorree--wwttww _w_t_w
-              Sets the word transition weight used to weight  the
-
+       --ttoolloowweerr
+              Map vocabulary to lowercase, eliminating case  dis-
+              tinctions.
 
 
-SRILM Tools        $Date: 2000/06/09 00:38:50 $                 1
+
+
+SRILM Tools        $Date: 2001/06/06 04:21:33 $                 1
 
 
 
@@ -70,50 +70,74 @@ SRILM Tools        $Date: 2000/06/09 00:38:50 $                 1
 anti-ngram(1)                                       anti-ngram(1)
 
 
+       --mmuullttiiwwoorrddss
+              Split  multiwords  (words joined by '_') into their
+              components when reading N-best lists.
+
+       --rreessccoorree--llmmww _l_m_w
+              Sets the language model weight  used  in  combining
+              the  language model log probabilities with acoustic
+              log probabilities (only relevant if separate scores
+              are given in the N-best input).
+
+       --rreessccoorree--wwttww _w_t_w
+              Sets  the word transition weight used to weight the
               number of words relative to the acoustic log proba-
-              bilities (only  relevant  if  separate  scores  are
+              bilities  (only  relevant  if  separate  scores are
               given in the N-best input).
 
        --ppoosstteerriioorr--ssccaallee _s_c_a_l_e
-              Divide  the  total weighted log score by _s_c_a_l_e when
+              Divide the total weighted log score by  _s_c_a_l_e  when
               computing normalized posterior probabilities.  This
-              controls  the peakedness of the posterior distribu-
+              controls the peakedness of the posterior  distribu-
               tion.  The default value is whatever was chosen for
-              --rreessccoorree--llmmww,  so  that  language  model scores are
-              scaled to have weight 1, and acoustic  scores  have
+              --rreessccoorree--llmmww, so that  language  model  scores  are
+              scaled  to  have weight 1, and acoustic scores have
               weight 1/_l_m_w.
 
        --aallll--nnggrraammss
-              Causes  even  N-grams  that  occur in the reference
-              string to be counted.  By  default  N-best  N-grams
-              that  also occur in the corresponding reference are
+              Causes even N-grams that  occur  in  the  reference
+              string  to  be  counted.  By default N-best N-grams
+              that also occur in the corresponding reference  are
               excluded.
 
        --rreeaadd--ccoouunnttss _c_o_u_n_t_s_f_i_l_e
               Read N-gram counts from a file.  Each line contains
               an N-gram of words, followed by an integer or frac-
-              tional  count,   all   separated   by   whitespace.
-              Repeated  counts for the same N-gram are added.  N-
-              grams from N-best lists are  added  to  those  read
+              tional   count,   all   separated   by  whitespace.
+              Repeated counts for the same N-gram are added.   N-
+              grams  from  N-best  lists  are added to those read
               with this option.
 
        --wwrriittee--ccoouunnttss _c_o_u_n_t_s_f_i_l_e
-              Writes  total  N-gram  counts  to  _c_o_u_n_t_s_f_i_l_e.  The
+              Writes total  N-gram  counts  to  _c_o_u_n_t_s_f_i_l_e.   The
               default is to write to stdout.
 
-       --ssoorrtt  Output counts in lexicographic order,  as  required
+       --ssoorrtt  Output  counts  in lexicographic order, as required
               for nnggrraamm--mmeerrggee(1).
 
        --ddeebbuugg _l_e_v_e_l
-              Set  debugging  output  level.   Level  0  means no
-              debugging.   Debugging  messages  are  written   to
+              Set debugging  output  level.   Level  0  means  no
+              debugging.    Debugging  messages  are  written  to
               stderr.
 
 SSEEEE AALLSSOO
-       ngram(1),     ngram-merge(1),    ngram-count(1),    nbest-
-       scripts(1),
-       A. Stolcke et al., "The SRI  March  2000  Hub-5  Conversa-
-       tional  Speech  Transcription  System",  _P_r_o_c_. _N_I_S_T _S_p_e_e_c_h
+       ngram(1),    ngram-merge(1),    ngram-count(1),     nbest-
+       scripts(1), classes-format(5),
+
+
+
+SRILM Tools        $Date: 2001/06/06 04:21:33 $                 2
+
+
+
+
+
+anti-ngram(1)                                       anti-ngram(1)
+
+
+       A.  Stolcke  et  al.,  "The SRI March 2000 Hub-5 Conversa-
+       tional Speech Transcription  System",  _P_r_o_c_.  _N_I_S_T  _S_p_e_e_c_h
        _T_r_a_n_s_c_r_i_p_t_i_o_n _W_o_r_k_s_h_o_p, College Park, MD, 2000.
 
 BBUUGGSS
@@ -127,6 +151,48 @@ AAUUTTHHOORR
 
 
 
-SRILM Tools        $Date: 2000/06/09 00:38:50 $                 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SRILM Tools        $Date: 2001/06/06 04:21:33 $                 3
 
 

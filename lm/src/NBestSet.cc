@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.3 2000/05/10 00:24:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.4 2001/04/13 03:54:35 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -30,7 +30,7 @@ INSTANTIATE_LHASH(RefString, NBestSetElement);
 NBestSet::NBestSet(Vocab &vocab, RefList &refs,
 		    unsigned maxNbest, Boolean incremental, Boolean multiwords)
     : vocab(vocab), refs(refs), maxNbest(maxNbest), incremental(incremental),
-      multiwords(multiwords)
+      multiwords(multiwords), warn(true)
 {
 }
 
@@ -128,7 +128,9 @@ NBestSet::readList(RefString id, NBestSetElement &elt)
     VocabIndex *ref = refs.findRef(id);
 
     if (!ref) {
-	cerr << "No reference found for " << id << endl;
+	if (warn) {
+	    cerr << "No reference found for " << id << endl;
+	}
     } else {
 	unsigned subs, inss, dels;
 	elt.nbest->wordError(ref, subs, inss, dels);

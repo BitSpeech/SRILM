@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.29 1999/10/07 08:22:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.30 2001/01/19 01:54:33 stolcke Exp $
  *
  */
 
@@ -107,6 +107,8 @@ protected:
      */
     virtual LogP wordProbBO(VocabIndex word, const VocabIndex *context,
 							unsigned int clen);
+    template <class CountType>
+	Boolean estimate2(NgramCounts<CountType> &stats, Discount **discounts);
     virtual void fixupProbs();
     virtual void distributeProb(Prob mass, VocabIndex *context);
     virtual LogP computeContextProb(const VocabIndex *context);

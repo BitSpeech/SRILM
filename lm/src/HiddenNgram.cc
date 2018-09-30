@@ -4,13 +4,14 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.8 2000/01/13 04:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2000, SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.10 2000/10/13 06:35:08 stolcke Exp $";
 #endif
 
 #include <iostream.h>
 #include <stdlib.h>
 
+#include "option.h"
 #include "HiddenNgram.h"
 #include "Trellis.cc"
 #include "LHash.cc"
@@ -18,9 +19,77 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,
 
 #define DEBUG_PRINT_WORD_PROBS          2	/* from LM.cc */
 #define DEBUG_NGRAM_HITS		2	/* from Ngram.cc */
+#define DEBUG_PRINT_VITERBI		2
 #define DEBUG_TRANSITIONS		4
 
 const VocabString noHiddenEvent = "*noevent*";
+
+/* 
+ * We use structured of type HiddenNgramState
+ * as keys into the trellis.  Define the necessary support functions.
+ */
+
+static inline unsigned
+LHash_hashKey(const HiddenNgramState &key, unsigned maxBits)
+{
+    return (LHash_hashKey(key.context, maxBits) + key.repeatFrom + key.event)
+	   & hashMask(maxBits);
+}
+
+static inline HiddenNgramState
+Map_copyKey(const HiddenNgramState &key)
+{
+    HiddenNgramState copy;
+
+    copy.context = Map_copyKey(key.context);
+    copy.repeatFrom = key.repeatFrom;
+    copy.event = key.event;
+    return copy;
+}
+
+static inline void
+#if __GNUC__ == 2 && __GNUC_MINOR__ <= 7
+Map_freeKey(HiddenNgramState key)
+#else	// gcc 2.7 doesn't match f(&T) with f(T) here
+Map_freeKey(HiddenNgramState &key) // gcc 2.7 has problem matching this
+#endif
+{
+    Map_freeKey(key.context);
+}
+
+static inline Boolean
+#if __GNUC__ == 2 && __GNUC_MINOR__ <= 7
+LHash_equalKey(const HiddenNgramState key1, const HiddenNgramState key2)
+#else	// gcc 2.7 doesn't match f(&T,&T) with f(T,T) here
+LHash_equalKey(const HiddenNgramState &key1, const HiddenNgramState &key2)
+#endif
+{
+    return LHash_equalKey(key1.context, key2.context) &&
+	   key1.repeatFrom == key2.repeatFrom &&
+	   key1.event == key2.event;
+}
+
+static inline Boolean
+Map_noKeyP(const HiddenNgramState &key)
+{
+    return (key.context == 0);
+}
+
+static inline void
+Map_noKey(HiddenNgramState &key)
+{
+    key.context = 0;
+}
+
+/*
+ * output operator
+ */
+ostream &
+operator<< (ostream &stream, const HiddenNgramState &state)
+{
+    stream << "<" << state.context << "," << state.repeatFrom << ">";
+    return stream;
+}
 
 /*
  * LM code 
@@ -42,6 +111,27 @@ HiddenNgram::HiddenNgram(Vocab &vocab, SubVocab &hiddenVocab, unsigned order,
      */
     assert(hiddenVocab.getIndex(noHiddenEvent) == Vocab_None);
     noEventIndex = hiddenVocab.addWord(noHiddenEvent);
+
+    /*
+     * Give default vocabulary props to all hidden events.
+     * This is needed because we later iterate over all vocab props and
+     * need to catch all event tags that way.
+     */
+    VocabIter viter(hiddenVocab);
+    VocabIndex event;
+
+    while (viter.next(event)) {
+	Boolean foundP;
+	HiddenVocabProps *props = vocabProps.insert(event, foundP);
+	if (!foundP) {
+	    props->insertWord = Vocab_None;
+	}
+    }
+
+    /*
+     * The "no-event" event is excluded from the context
+     */
+    vocabProps.insert(noEventIndex)->omitFromContext = true;
 }
 
 HiddenNgram::~HiddenNgram()
@@ -58,13 +148,156 @@ HiddenNgram::contextID(const VocabIndex *context, unsigned &length)
     return LM::contextID(context, length);
 }
 
+/*
+ * Return the vocab properties for a word
+ * (return defaults if none are defined)
+ */
+const HiddenVocabProps &
+HiddenNgram::getProps(VocabIndex word)
+{
+    HiddenVocabProps *props = vocabProps.find(word);
+    if (props) {
+	return *props;
+    } else {
+	static HiddenVocabProps defaultProps =
+				    { 0, 0, false, false, Vocab_None };
+	return defaultProps;
+    }
+}
+
 Boolean
 HiddenNgram::isNonWord(VocabIndex word)
 {
+    if (LM::isNonWord(word)) {
+	return true;
+    } else {
+	HiddenVocabProps *props = vocabProps.find(word);
+
+	if (!props) {
+	    return false;
+	} else {
+	    return !props->isObserved;
+	}
+    }
+}
+
+Boolean
+HiddenNgram::read(File &file)
+{
     /*
-     * hidden events are not words: duh!
+     * First, read the regular N-gram model
      */
-    return LM::isNonWord(word) || hiddenVocab.getWord(word) != 0;
+    if (!Ngram::read(file)) {
+	return false;
+    } else {
+	/*
+	 * Read vocab property specs from the LM file
+	 */
+	char *line;
+
+	while (line = file.getline()) {
+	    VocabString argv[maxWordsPerLine + 1];
+
+	    unsigned argc = Vocab::parseWords(line, argv, maxWordsPerLine + 1);
+	    if (argc > maxWordsPerLine) {
+		file.position() << "too many words in line\n";
+		return false;
+	    }
+
+	    if (argc == 0) {
+		continue;
+	    }
+
+	    /*
+	     * First word on line defines the vocabulary item
+	     */
+	    VocabIndex word = vocab.addWord(argv[0]);
+
+	    static unsigned deleteWords;
+	    static unsigned repeatWords;
+	    static char *insertWord;
+	    static int isObserved;
+	    static int omitFromContext;
+	    static Option options[] = {
+#	    define PROP_DELETE "delete"
+		{ OPT_UINT, PROP_DELETE, &deleteWords, "words to delete" },
+#	    define PROP_REPEAT "repeat"
+		{ OPT_UINT, PROP_REPEAT, &repeatWords, "words to repeat" },
+#	    define PROP_INSERT "insert"
+		{ OPT_STRING, PROP_INSERT, &insertWord, "insert word" },
+#	    define PROP_OBSERVED "observed"
+		{ OPT_TRUE, PROP_OBSERVED, &isObserved, "observed event" },
+#	    define PROP_OMIT "omit"
+		{ OPT_TRUE, PROP_OMIT, &omitFromContext, "omit from context" },
+	    };
+
+	    deleteWords = repeatWords = 0;
+	    insertWord = 0;
+	    isObserved = omitFromContext = 0;
+
+
+	    if (Opt_Parse(argc, (char **)argv, options, Opt_Number(options), 0) != 1) {
+		file.position() << "problems parsing vocabulary properties\n";
+		return false;
+	    }
+
+	    HiddenVocabProps *props = vocabProps.insert(word);
+
+	    props->deleteWords = deleteWords;
+	    props->repeatWords = repeatWords;
+	    props->isObserved = isObserved;
+	    props->omitFromContext = omitFromContext;
+	    if (insertWord) {
+		props->insertWord = vocab.addWord(insertWord);
+		props->isObserved = false;		/* implied */
+	    } else {
+		props->insertWord = Vocab_None;
+	    }
+
+	    /* 
+	     * Unless event is observable, add it to hidden vocabulary
+	     */
+	    if (!isObserved) {
+		hiddenVocab.addWord(word);
+	    }
+	}
+
+	return true;
+    }
+}
+
+void
+HiddenNgram::write(File &file)
+{
+    Ngram::write(file);
+    fprintf(file, "\n");
+
+    LHashIter<VocabIndex, HiddenVocabProps> iter(vocabProps);
+
+    HiddenVocabProps *props;
+    VocabIndex word;
+
+    while (props = iter.next(word)) {
+	fprintf(file, "%s", vocab.getWord(word));
+
+	if (props->deleteWords) {
+	    fprintf(file, " -%s %u", PROP_DELETE, props->deleteWords);
+	}
+	if (props->repeatWords) {
+	    fprintf(file, " -%s %u", PROP_DELETE, props->repeatWords);
+	}
+	if (props->insertWord != Vocab_None) {
+	    fprintf(file, " -%s %s", PROP_INSERT,
+					vocab.getWord(props->insertWord));
+	}
+	if (props->isObserved) {
+	    fprintf(file, " -%s", PROP_OBSERVED);
+	}
+	if (props->omitFromContext) {
+	    fprintf(file, " -%s", PROP_OMIT);
+	}
+	fprintf(file, "\n");
+    }
 }
 
 /*
@@ -156,8 +389,13 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    /*
 	     * Start a DP from scratch
 	     */
+	    HiddenNgramState initialState;
+	    initialState.context = initialContext;
+	    initialState.repeatFrom = 0;
+	    initialState.event = noEventIndex;
+
 	    trellis.clear();
-	    trellis.setProb(initialContext, LogP_One);
+	    trellis.setProb(initialState, LogP_One);
 	    trellis.step();
 
 	    savedContext[0] = initialContext[0];
@@ -188,6 +426,8 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    savedContext[savedLength ++] = currWord;
 	}
 
+	const HiddenVocabProps &currWordProps = getProps(currWord);
+
 	const VocabIndex *currContext = &context[prefix];
 
         /*
@@ -199,12 +439,14 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	/*
 	 * Iterate over all contexts for the previous position in trellis
 	 */
-	TrellisIter<VocabContext> prevIter(trellis, pos - 1);
+	TrellisIter<HiddenNgramState> prevIter(trellis, pos - 1);
 
-	VocabContext prevContext;
+	HiddenNgramState prevState;
 	LogP prevProb;
 
-	while (prevIter.next(prevContext, prevProb)) {
+	while (prevIter.next(prevState, prevProb)) {
+	    VocabContext prevContext = prevState.context;
+
             /*
              * Set up the extended context.  Allow room for adding 
              * the current word and a new hidden event.
@@ -217,67 +459,206 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
             }
             newContext[i + 2] = Vocab_None;
 
+	    unsigned prevContextLength = i;
+
             /*
              * Iterate over all hidden events
              */
-	    VocabIter eventIter(hiddenVocab);
+	    LHashIter<VocabIndex, HiddenVocabProps> eventIter(vocabProps);
             VocabIndex currEvent;
+	    HiddenVocabProps *currEventProps;
 
-            while (eventIter.next(currEvent)) {
+            while (currEventProps = eventIter.next(currEvent)) {
+		/*
+		 * Observable events are dealt with as regular words in 
+		 * the input string
+		 */
+		if (currEventProps->isObserved) {
+		    continue;
+		}
+
+		/* 
+		 * While repeating words all other events are disallowed
+		 */
+		if (prevState.repeatFrom > 0 && currEvent != noEventIndex) {
+		    continue;
+		}
+
                 /*
                  * Prepend current event and word to context
                  */ 
-		VocabIndex *startNewContext;
-		if (currEvent == noEventIndex) {
-		    startNewContext = &newContext[1];
-		} else {
-		    newContext[1] = currEvent;      
-		    startNewContext = newContext;
-		}
-		startNewContext[0] = currWord;
-
-                /*
-                 * Event probability
-                 */
-                LogP eventProb = (currEvent == noEventIndex) ? LogP_One
-				   : Ngram::wordProb(currEvent, prevContext);
+		VocabIndex *startNewContext = &newContext[2];
 
 		/*
-		 * Transition prob out of previous context to current word.
-		 * Put underlying Ngram in "running" state (for debugging etc.)
-		 * only when processing a "no-event" context.
+		 * Add event to context unless it's omissible
 		 */
-		if (prefix == 0 && currEvent == noEventIndex) {
-		    running(wasRunning);
-		}
-		LogP wordProb = Ngram::wordProb(currWord, &startNewContext[1]);
-
-		if (prefix == 0 && currEvent == noEventIndex) {
-		    running(false);
+		if (!(currEventProps->omitFromContext)) {
+		    startNewContext --;
+		    startNewContext[0] = currEvent;
 		}
 
-		if (wordProb != LogP_Zero) {
-		    havePosProb = true;
+		VocabIndex *startWordContext = startNewContext;
+
+                LogP eventProb;
+		LogP wordProb;
+		unsigned repeatFrom;
+		VocabIndex savedContextWord = Vocab_None;
+
+		/*
+		 * Check if we're repeating words, either by virtue of 
+		 * the current event or a pending repeat
+		 */
+		if (prevState.repeatFrom > 0) {
+		    repeatFrom = prevState.repeatFrom;
+		} else if (currEventProps->repeatWords > 0) {
+		    repeatFrom = currEventProps->repeatWords;
+		} else {
+		    repeatFrom = 0;
+		}
+
+		/*
+		 * Manipulate context for current word for special 
+		 * disfluency-type events
+		 */
+		if (repeatFrom > 0) {
+		    /*
+		     * If repeated word doesn't match current word 
+		     * we can skip extending this state.
+		     * Note: we don't allow repeats to apply to <unk>!
+		     */
+		    if (repeatFrom > prevContextLength ||
+			currWord != prevContext[repeatFrom - 1] ||
+			currWord == vocab.unkIndex)
+		    {
+			continue;
+		    }
+
+		    /*
+		     * If we're extending a previous repeat event there is
+		     * no further charge
+		     * Otherwise, use the prob of the repeat event itself.
+		     */
+		    if (prevState.repeatFrom > 0) {
+			eventProb = LogP_One;
+		    } else {
+			eventProb = Ngram::wordProb(currEvent, prevContext);
+		    }
+
+		    /*
+		     * There is never a charge for the repeated word
+		     */
+		    wordProb = LogP_One;
+
+		    repeatFrom --;
+		} else {
+		    if (currEventProps->insertWord != Vocab_None) {
+			/* 
+			 * We cannot leave both the event itself and 
+			 * and inserted tag in the context.  Overwrite the
+			 * former if necessary.
+			 */
+			if (currEventProps->omitFromContext) {
+			    startNewContext --;
+			}
+
+			/*
+			 * Insert designated token
+			 */
+			startNewContext[0] = currEventProps->insertWord;
+		    }
+
+		    /*
+		     * Delete specified number of words from context
+		     */
+		    unsigned i;
+		    for (i = 0; i < currEventProps->deleteWords; i ++) {
+			if (startNewContext[0] == Vocab_None ||
+			    startNewContext[0] == vocab.ssIndex) 
+			{
+			    break;
+			}
+			startNewContext ++;
+		    }
+
+		    /*
+		     * Eliminate deletion events that would go past the 
+		     * start of the sentence
+		     */
+		    if (i < currEventProps->deleteWords) {
+			continue;
+		    }
+
+		    /*
+		     * Add current word to new context unless it's omissible
+		     * Since the position we're storing the new word in may
+		     * actually be part of the old context we need to save the
+		     * old contents at that position so we can restore it later
+		     * (for the next run through this loop).
+		     */
+		    if (!(currWordProps.omitFromContext)) {
+			startNewContext --;
+			savedContextWord = startNewContext[0];
+			startNewContext[0] = currWord;
+		    }
+
+		    /*
+		     * Event probability
+		     */
+		    eventProb = (currEvent == noEventIndex) ? LogP_One
+				      : Ngram::wordProb(currEvent, prevContext);
+
+		    /*
+		     * Transition prob out of previous context to current word.
+		     * Put underlying Ngram in "running" state (for debugging)
+		     * only when processing a "no-event" context.
+		     */
+		    if (prefix == 0 && prevState.event == noEventIndex &&
+			currEvent == noEventIndex)
+		    {
+			running(wasRunning);
+		    }
+		    wordProb = Ngram::wordProb(currWord, startWordContext);
+
+		    if (prefix == 0 && prevState.event == noEventIndex &&
+			currEvent == noEventIndex)
+		    {
+			running(false);
+		    }
+
+		    if (wordProb != LogP_Zero) {
+			havePosProb = true;
+		    }
 		}
 
                 /*
                  * Truncate context to what is actually used by LM,
                  * but keep at least one word so we can recover words later.
+		 * When inside a repeat make sure we retain the words to be
+		 * repeated.
                  */
                 unsigned usedLength;
                 Ngram::contextID(startNewContext, usedLength);
-                if (usedLength == 0) {
+		if (usedLength < repeatFrom) {
+		    assert(repeatFrom < prevContextLength);
+		    usedLength = repeatFrom;
+		} else if (usedLength == 0) {
                     usedLength = 1;
                 }
 
                 VocabIndex truncatedContextWord = startNewContext[usedLength];
                 startNewContext[usedLength] = Vocab_None;
 	   
+		HiddenNgramState newState;
+		newState.context = startNewContext;
+		newState.repeatFrom = repeatFrom;
+		newState.event = currEvent;
+
                 if (debug(DEBUG_TRANSITIONS)) {
                     cerr << "POSITION = " << pos
-                         << " FROM: " << (vocab.use(), prevContext)
-                         << " TO: " << (vocab.use(), startNewContext)
+                         << " FROM: " << (vocab.use(), prevState)
+                         << " TO: " << (vocab.use(), newState)
                          << " WORD = " << vocab.getWord(currWord)
+                         << " EVENT = " << vocab.getWord(currEvent)
                          << " EVENTPROB = " << eventProb
                          << " WORDPROB = " << wordProb
                          << endl;
@@ -289,8 +670,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * the total probability.
 		 */
 		if (prefix > 0) {
-		    trellis.update(prevContext, startNewContext,
-							eventProb + wordProb);
+		    trellis.update(prevState, newState, eventProb + wordProb);
 		} else {
 		    logSum = AddLogP(logSum, prevProb + eventProb + wordProb);
 		}
@@ -298,6 +678,9 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
                 /*
                  * Restore newContext
                  */
+		if (savedContextWord != Vocab_None) {
+		    startNewContext[0] = savedContextWord;
+		}
                 startNewContext[usedLength] = truncatedContextWord;
             }
 	}
@@ -315,9 +698,13 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    emptyContext[0] = noEventIndex;
 	    emptyContext[1] = currWord;
 	    emptyContext[2] = Vocab_None;
+	    HiddenNgramState emptyState;
+	    emptyState.context = emptyContext;
+	    emptyState.repeatFrom = 0;
+	    emptyState.event = noEventIndex;
 
 	    trellis.init(pos);
-	    trellis.setProb(emptyContext, trellis.sumLogP(pos - 1));
+	    trellis.setProb(emptyState, trellis.sumLogP(pos - 1));
 
 	    if (currWord == vocab.unkIndex) {
 		stats.numOOVs ++;
@@ -417,13 +804,12 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (notHidden || debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = Ngram::sentenceProb(sentence, stats);
     } else {
-	VocabIndex reversed[len + 2 + 1];
-
 	/*
 	 * Contexts are represented most-recent-word-first.
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
+	VocabIndex reversed[len + 2 + 1];
 	len = prepareSentence(sentence, reversed, len);
 
 	/*
@@ -440,6 +826,23 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	stats.numSentences ++;
 	stats.prob += totalProb;
 	stats.numWords += len;
+    }
+
+    if (debug(DEBUG_PRINT_VITERBI)) {
+	len = trellis.where() - 1;
+	HiddenNgramState bestStates[len];
+
+	if (trellis.viterbi(bestStates, len) == 0) {
+	    dout() << "Viterbi backtrace failed\n";
+	} else {
+	    dout() << "Hidden events:";
+
+	    for (unsigned i = 1; i < len; i ++) {
+		dout() << " " << vocab.getWord(bestStates[i].event);
+	    }
+
+	    dout() << endl;
+	}
     }
 
     return totalProb;

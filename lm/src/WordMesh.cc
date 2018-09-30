@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.12 2000/05/06 19:34:02 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.16 2001/06/08 05:58:11 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,8 +24,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1
  */
 const VocabString deleteWord = "*DELETE*";
 
-WordMesh::WordMesh(Vocab &vocab)
-    : MultiAlign(vocab), numAligns(0), totalPosterior(0.0)
+WordMesh::WordMesh(Vocab &vocab, VocabDistance *distance)
+    : MultiAlign(vocab), numAligns(0), totalPosterior(0.0), distance(distance)
 {
     deleteIndex = vocab.addWord(deleteWord);
 }
@@ -35,8 +35,8 @@ WordMesh::~WordMesh()
     for (unsigned i = 0; i < numAligns; i ++) {
 	delete aligns[i];
 
-	LHashIter<VocabIndex,Array<int> > myIter(*hypMap[i]);
-	Array<int> *hyps;
+	LHashIter<VocabIndex,Array<HypID> > myIter(*hypMap[i]);
+	Array<HypID> *hyps;
 	VocabIndex word;
 	while (hyps = myIter.next(word)) {
 	    hyps->~Array();
@@ -56,6 +56,7 @@ Boolean
 WordMesh::write(File &file)
 {
     fprintf(file, "numaligns %u\n", numAligns);
+    fprintf(file, "posterior %lg\n", totalPosterior);
 
     for (unsigned i = 0; i < numAligns; i ++) {
 	fprintf(file, "align %u", i);
@@ -64,11 +65,32 @@ WordMesh::write(File &file)
 
 	Prob *prob;
 	VocabIndex word;
+	VocabIndex refWord = Vocab_None;
 
 	while (prob = alignIter.next(word)) {
 	    fprintf(file, " %s %lg", vocab.getWord(word), *prob);
+
+	    /*
+	     * See if this word is the reference one
+	     */
+	    Array<HypID> *hypList = hypMap[sortedAligns[i]]->find(word);
+	    if (hypList) {
+		for (unsigned j = 0; j < hypList->size(); j++) {
+		    if ((*hypList)[j] == refID) {
+			refWord = word;
+			break;
+		    }
+		}
+	    }
 	}
 	fprintf(file, "\n");
+
+	/* 
+	 * Print reference word (if known)
+	 */
+	if (refWord != Vocab_None) {
+	    fprintf(file, "reference %u %s\n", i, vocab.getWord(refWord));
+	}
     }
 
     return true;
@@ -94,11 +116,12 @@ WordMesh::read(File &file)
 		aligns[i] = new LHash<VocabIndex,Prob>;
 		assert(aligns[i] != 0);
 
-		hypMap[i] = new LHash<VocabIndex,Array<int> >;
+		hypMap[i] = new LHash<VocabIndex,Array<HypID> >;
 		assert(hypMap[i] != 0);
 	    }
-	} else if (sscanf(line, "align %u%n", &index, &parsed) == 1)
-	{
+	} else if (sscanf(line, "posterior %lg", &arg2) == 1) {
+	    totalPosterior = arg2;
+	} else if (sscanf(line, "align %u%n", &index, &parsed) == 1) {
 	    assert(index < numAligns);
 	    sortedAligns[index] = index;
 
@@ -110,6 +133,17 @@ WordMesh::read(File &file)
 		
 		cp += parsed;
 	    }
+	} else if (sscanf(line, "reference %u %100s", &index, arg1) == 2) {
+	    assert(index < numAligns);
+	    sortedAligns[index] = index;
+
+	    VocabIndex refWord = vocab.addWord(arg1);
+
+	    /*
+	     * Records word as part of the reference string
+	     */
+	    Array<HypID> *hypList = hypMap[index]->insert(refWord);
+	    (*hypList)[0] = refID;
 	} else {
 	    file.position() << "unknown keyword\n";
 	    return false;
@@ -121,12 +155,12 @@ WordMesh::read(File &file)
 /*
  * Align new words to existing alignment columns, expanding them as required
  * (derived from WordAlign())
- * If hypID != 0, then *hypID will be recored a sentence hyp ID for the 
+ * If hypID != 0, then *hypID will record a sentence hyp ID for the 
  * aligned words.
  */
 void
 WordMesh::alignWords(const VocabIndex *words, Prob score,
-			    Prob *wordScores, const int *hypID)
+			    Prob *wordScores, const HypID *hypID)
 {
     unsigned hypLength = Vocab::length(words);
     unsigned refLength = numAligns;
@@ -167,7 +201,6 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 	    chart[i] = new ChartEntry[maxHypLength + 1];
 	    assert(chart[i] != 0);
 	}
-
     }
 
     /*
@@ -178,7 +211,12 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 
     for (unsigned j = 1; j <= hypLength; j ++) {
 	/* insert error prob = totalPosterior */
-	chart[0][j].cost = chart[0][j-1].cost + totalPosterior;
+	if (distance) {
+	    chart[0][j].cost = chart[0][j-1].cost + totalPosterior *
+					distance->penalty(words[j-1]);
+	} else {
+	    chart[0][j].cost = chart[0][j-1].cost + totalPosterior;
+	}
 	chart[0][j].error = INS_ALIGN;
     }
 
@@ -188,9 +226,24 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
     for (unsigned i = 1; i <= refLength; i ++) {
 
 	/* deletion error prob = totalPosterior - deletion prob */
-	Prob *deleteProb = aligns[sortedAligns[i-1]]->find(deleteIndex);
-	double deletePenalty = 
-			    totalPosterior - (deleteProb ? *deleteProb : 0.0);
+	double deletePenalty;
+	if (distance) {
+	    deletePenalty = 0.0;
+
+	    LHashIter<VocabIndex,Prob> iter(*aligns[sortedAligns[i-1]]);
+	    Prob *prob;
+	    VocabIndex alignWord;
+	    while (prob = iter.next(alignWord)) {
+		if (alignWord != deleteIndex) {
+		} else {
+		    deletePenalty +=
+			*prob * distance->penalty(alignWord);
+		}
+	    }
+	} else {
+	    Prob *deleteProb = aligns[sortedAligns[i-1]]->find(deleteIndex);
+	    deletePenalty = totalPosterior - (deleteProb ? *deleteProb : 0.0);
+	}
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
 	chart[i][0].error = DEL_ALIGN;
@@ -200,7 +253,30 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 	    WordAlignType minError;
 
 	    Prob *wordProb = aligns[sortedAligns[i-1]]->find(words[j-1]);
-	    if (wordProb) {
+
+	    if (distance) {
+		/*
+		 * Compute distance to existing alignment as a weighted 
+		 * combination of distances
+		 */
+		double totalDistance = 0.0;
+
+	    	LHashIter<VocabIndex,Prob> iter(*aligns[sortedAligns[i-1]]);
+		Prob *prob;
+		VocabIndex alignWord;
+		while (prob = iter.next(alignWord)) {
+		    if (alignWord == deleteIndex) {
+			totalDistance +=
+			    *prob * distance->penalty(words[j-1]);
+		    } else {
+			totalDistance +=
+			    *prob * distance->distance(alignWord, words[j-1]);
+		    }
+		}
+
+		minCost = chart[i-1][j-1].cost + totalDistance;
+		minError = SUB_ALIGN;
+	    } else if (wordProb) {
 		minCost = chart[i-1][j-1].cost + totalPosterior - *wordProb;
 		minError = CORR_ALIGN;
 	    } else {
@@ -214,7 +290,12 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		minError = DEL_ALIGN;
 	    }
 
-	    double insCost = chart[i][j-1].cost + totalPosterior;
+	    double insCost = chart[i][j-1].cost;
+	    if (distance) {
+		insCost += totalPosterior * distance->penalty(words[j-1]);
+	    } else {
+		insCost += totalPosterior;
+	    }
 	    if (insCost < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -244,7 +325,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		    /*
 		     * Add hyp ID to the hyp list for this word 
 		     */
-		    Array<int> &hypList = 
+		    Array<HypID> &hypList = 
 			*hypMap[sortedAligns[i-1]]->insert(words[j-1]);
 		    hypList[hypList.size()] = *hypID;
 		}
@@ -263,7 +344,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		    /*
 		     * Add hyp ID to the hyp list for this word 
 		     */
-		    Array<int> &hypList = 
+		    Array<HypID> &hypList = 
 			*hypMap[sortedAligns[i-1]]->insert(deleteIndex);
 		    hypList[hypList.size()] = *hypID;
 		}
@@ -283,7 +364,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		aligns[numAligns] = new LHash<VocabIndex,Prob>;
 		assert(aligns[numAligns] != 0);
 
-		hypMap[numAligns] = new LHash<VocabIndex,Array<int> >;
+		hypMap[numAligns] = new LHash<VocabIndex,Array<HypID> >;
 		assert(hypMap[numAligns] != 0);
 
 		if (totalPosterior != 0.0) {
@@ -296,7 +377,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		 * hypothesis at the newly created position.
 		 */
 		{
-		    Array<int> *hypList = 0;
+		    Array<HypID> *hypList = 0;
 
 		    for (unsigned h = 0; h < allHyps.size(); h ++) {
 			/*
@@ -313,7 +394,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 		    /*
 		     * Add hyp ID to the hyp list for this word 
 		     */
-		    Array<int> &hypList = 
+		    Array<HypID> &hypList = 
 			*hypMap[numAligns]->insert(words[j-1]);
 		    hypList[hypList.size()] = *hypID;
 		}

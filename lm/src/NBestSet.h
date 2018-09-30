@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.3 2000/05/10 00:24:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.4 2001/04/13 03:54:35 stolcke Exp $
  *
  */
 
@@ -43,6 +43,7 @@ public:
     unsigned numElements() { return lists.numEntries(); };
 
     Vocab &vocab;
+    Boolean warn;
 
 private:
     unsigned maxNbest;

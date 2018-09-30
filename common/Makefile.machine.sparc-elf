@@ -9,9 +9,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc-elf,v 1.16 2000/07/13 06:14:01 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.sparc-elf,v 1.17 2001/03/11 17:33:30 stolcke Exp $
 #
 #    $Log: Makefile.machine.sparc-elf,v $
+#    Revision 1.17  2001/03/11 17:33:30  stolcke
+#    added TCL_ variables
+#
 #    Revision 1.16  2000/07/13 06:14:01  stolcke
 #    ld -z muldefs no longer needed
 #
@@ -114,6 +117,10 @@ endif
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+
+   # Tcl support
+   TCL_INCLUDE = -I/usr/local/include
+   TCL_LIBRARY = -L/usr/local/lib -ltcl -R/usr/local/lib
 
    # run-time linker path flag
    RLD_FLAG = -R

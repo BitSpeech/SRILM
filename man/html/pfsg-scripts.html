@@ -1,11 +1,11 @@
-<! $Id: pfsg-scripts.1,v 1.5 2000/05/26 01:25:10 stolcke Exp $>
+<! $Id: pfsg-scripts.1,v 1.9 2001/06/19 19:36:10 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>pfsg-scripts</TITLE>
 <BODY>
 <H1>pfsg-scripts</H1>
 <H2> NAME </H2>
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-stats, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
 <H2> SYNOPSIS </H2>
 <B> make-ngram-pfsg </B>
 [<B>check_bows=</B>0|1<B></B>]
@@ -15,6 +15,11 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 <B> add-pauses-to-pfsg </B>
 [<B>pauselast=1</B>]
 [<B>wordwrap=0</B>]
+[<B>pause=</B>
+<I>pauseword</I>]<I></I>
+[<B>top_level_name=</B>
+<I>name</I>]<I></I>
+[<B>version=1</B>]
 [<I>pfsg-file</I>]
 <BR>
 <B> add-classes-to-pfsg </B>
@@ -66,6 +71,9 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 <B> wlat-to-dot </B>
 [<B>show_probs=</B>0|1<B></B>]
 [<I>wlat-file</I>]
+<BR>
+<B> wlat-stats </B>
+[<I>wlat-file</I>]
 <H2> DESCRIPTION </H2>
 These scripts create and manipulate various forms of finite-state networks.
 Note that they take options with the 
@@ -104,7 +112,7 @@ allow an optional pause before each word.
 It also inserts an optional pause following the last word in the sentence.
 A typical usage is 
 <BR>
-	make-ngram-pfsg <I>class-ngram</I> | \
+	make-ngram-pfsg <I>ngram</I> | \
 <BR>
 	add-pauses-to-pfsg &gt;<I>final-pfsg</I>
 <BR>
@@ -114,6 +122,16 @@ The option
 switches the order of words and pause nodes in the sub-PFSGSs;
 <B> wordwrap=0 </B>
 disables the insertion of sub-PFSGs altogether.
+<P>
+The options
+<B>pause=</B><I>pauseword</I><B></B>
+and 
+<B>top_level_name=</B><I>name</I><B></B>
+allow changing the default names of the pause word and the top-level
+grammar, respectively.
+<B> version=1 </B>
+inserts a version line at the top of the output as required by 
+the Nuance recognition system (see NUANCE COMPATIBILTY below).
 <P>
 <B> add-classes-to-pfsg </B>
 extends an input PFSG with expansions for word classes, defined in
@@ -270,7 +288,7 @@ grammar ``test.bo'' with vocabulary ``test.vocab'' and class expansions
 <BR>
 <P>
 <B> wlat-to-pfsg </B>
-converts a word lattice in the format output by 
+converts a word posterior lattice or mesh ("sausage") in the format output by 
 <A HREF="nbest-lattice.html">nbest-lattice(1)</A>
 into 
 <A HREF="pfsg-format.html">pfsg-format(5)</A>.
@@ -284,6 +302,52 @@ in
 format for subsequent layout, printing, etc.
 <B> show_probs=1 </B>
 includes node posterior probabilities in the output.
+<P>
+<B> wlat-stats </B>
+computes statistics of word posterior lattices, including the number of 
+word hypotheses and the entropy (log base 10) of the sentence hypothesis
+set represented.
+<H2> NUANCE COMPATIBILITY </H2>
+<P>
+The Nuance recognizer (as of version 6.2) understands a variant of the 
+PFSG format; hence the scripts above should be useful in building
+recognition systems for that recognizer.
+<P>
+A suitable PFSG can be generated from a bigram or trigram backoff model
+in ARPA
+<A HREF="ngram-format.html">ngram-format(5)</A>
+using the following command:
+<BR>
+	ngram -debug 1 -lm <I>LM.bo</I> -prune-lowprobs -write-lm - | \
+<BR>
+	make-ngram-pfsg | \
+<BR>
+	add-pauses-to-pfsg version=1 pauselast=1 pause=_pau_ top_level_name=.TOP_LEVEL &gt;<I>LM.pfsg</I>
+<BR>
+assuming the pause word in the dictionary is ``_pau_''.
+Certain restrictions on the naming of words (e.g., no hyphens are allowed)
+have to be respected.
+<P>
+The resulting PFSG can then be referenced in a Nuance grammar file, e.g.,
+<BR>
+	.TOP [NGRAM_PFSG]
+<BR>
+	NGRAM_PFSG:lm <I>LM.pfsg</I>
+<BR>
+<P>
+In newer Nuance versions the name for a non-emitting node was changed to
+<B>NULNOD</B>.<B></B>
+The scripts
+<B>make-ngram-pfsg</B>,<B></B>
+<B>add-pauses-to-pfsg</B>,<B></B>
+and
+<B> add-classes-to-pfsg </B>
+must be invoked with the option
+<B> null=NULNOD" </B>
+to rename null nodes accordingly.
+<P>
+Caveat: Compatibility with Nuance is purely due to historical circumstance and
+not supported.
 <H2> SEE ALSO </H2>
 <A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-lattice.html">nbest-lattice(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>,
 <A HREF="classes-format.html">classes-format(5)</A>, <A HREF="fsm.html">fsm(5)</A>, <A HREF="dot.html">dot(1)</A>.
@@ -293,6 +357,6 @@ currently handles only bigram and trigram models.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-1999 SRI International
+Copyright 1995-2001 SRI International
 </BODY>
 </HTML>

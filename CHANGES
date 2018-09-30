@@ -205,5 +205,89 @@ Version History
 	* make-ngram-pfsg: don't ignore bigram states with zero BOW (bugfix).
 	* nbest-rover: fixed problem with handling of + lines.
 
-$Date: 2000/07/13 21:02:25 $
+1.1	21 May 2001
+
+	Functionality:
+
+	* HiddenNgram class generalized to deal with disfluency-type events
+	  that manipulate the N-gram context.
+	* rescore-reweight script now accepts additional score directories
+	  (and associated score weights) for combination of an arbitrary number
+	  of knowledge sources.
+	* Enhanced rescore-decipher functionality:
+	  - Option -lm-only to produce output containing LM scores only
+	  - Option -pretty to perform word mapping on the fly.
+	  - Warn about and handle LM scores that are NaN.
+	* New class VocabMultiMap, implementing dictionary-style mappings of
+	  words to strings from another vocabulary.
+	* Added support for pronunciation-based word alignments in
+	  WordMesh and nbest-lattice -use-mesh .
+	* Added nbest-lattice -keep-noise option to preserve pauses and noises
+	  in alignments.
+	* Support for multiwords: - make-multiword-pfsg expands PFSGs to use
+	  multiwords (using AT&T FSM tools).
+	  - multi-ngram expands N-gram LM to include multiwords.
+	* Added support for Decipher Intlog scaled log probabilities.
+	* Added ngram -seed option to initialize random sentence generation
+	  (contributed by Eric Fosler).
+	* New add-pauses-to-pfsg pause= and version= options to allow
+	  generation of Nuance-compatible PFSGs (see man page for details).
+	* The NBest class and scripts handle NBestList2.0 format containing
+	  phone and/or state backtraces (by ignoring them).
+	* Added Amoeba search option to nbest-optimize (contributed by
+	  Dimitra Vergyri).
+	* Added standard 1-best optimization mode to nbest-optimize.
+	* wlat-to-pfsg script now also processes confusion networks output by
+	  nbest-lattice -use-mesh .
+
+	Bug fixes:
+
+	* ngram -decipher-nobackoff now applies to the -lm ngram as well if
+	  option -decipher is also specified.
+	* ngram -expand-classes no longer dumps core when handling
+	  "context-free" class expansions (though those aren't supported).
+	* gawk path in scripts is now adjusted prior to installation
+	  (/usr/bin/gawk for Linux, /usr/local/bin/gawk elsewhere).
+	* Fixed numerical problems in nbest-rover/nbest-posteriors.
+	* ngram-counts -float-counts behaved differently from equivalent
+	  integer-count estimation;  both integer and float counts now use
+	  the same estimation code.
+	* Reduced memory requirements of nbest-optimize by about 25%.
+	* Minor changes for gcc-2.95.3.
+
+1.1.1	20 July 2001
+
+	Functionality:
+
+	* WordMesh: new interface to record reference word string in alignment.
+	* nbest-lattice: confusion networks can now record reference words
+	  if specified with -reference, and are preserved by -write/-read.
+	* replace-words-with-classes now has option to process ngram count
+	  files (have_counts=1).
+	* merge-nbest: new utility to merge N-best hyps from multiple lists.
+	* wlat-stats: new utility to compute statistics of word posterior
+	  lattices.
+
+	Bug fixes:
+
+	* GT discounting: fixed anomaly due to different floating point
+	  precision on x86 platforms.
+	* anti-ngram(1): documented options previously omitted.
+	* WordMesh: reading/writing of confusion networks now preserves 
+	  total posterior mass.
+	* Changed the hypothesis alignment order in nbest-optimize to be
+	  more compatible with decoding in nbest-lattice: first align nbest
+	  hyps in order of decreasing (initial) scores, then align reference.
+	  nbest-optimize -no-reorder keeps the old behavior (with references
+	  anchoring the alignment).  All scores and initial lambdas are now
+	  used to compute initial posterior hyp probabilities to guide the
+	  hypothesis alignment; thus, it now makes sense to restart an
+	  optimization with partially optimized weights to revised the
+	  alignments.
+	* nbest-optimize now warns about missing or incomplete score files.
+	* Fixed a memory access error in nbest-optimize -1best.
+	* Fixed weight normalization in nbest-optimize when first element is 0.
+	* Miscellaneous fixes for compile under RH Linux 7.0.
+
+$Date: 2001/07/21 02:16:04 $
 

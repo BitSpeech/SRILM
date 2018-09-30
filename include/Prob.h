@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.16 2000/07/13 06:19:23 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.18 2001/06/28 23:02:32 stolcke Exp $
  *
  */
 
@@ -17,7 +17,11 @@
 #include "Boolean.h"
 
 extern "C" {
-    double atof(const char *);	/* might be missing from math.h or stdlib.h */
+    double atof(const char *)
+#ifdef __THROW
+    __THROW __attribute_pure__
+#endif
+    ;	/* might be missing from math.h or stdlib.h */
 }
 
 /*
@@ -99,23 +103,54 @@ inline LogP2 SubLogP(LogP2 x, LogP2 y)
 }
 
 /*
- * Bytelogs are scaled log probabilities used in the SRI
- * DECIPHER(TM) recognizer.
+ * Bytelogs and Intlogs are scaled log probabilities used in the SRI
+ * DECIPHER(TM) recognizer. 
+ * Note: DECIPHER actually flips the sign on bytelogs, we keep them negative.
  */
 
-inline double ProbToBytelog(Prob prob)
+typedef int Bytelog;
+typedef int Intlog;
+
+inline Bytelog ProbToBytelog(Prob prob)
 {
-    return rint(log(prob) * (10000.5 / 1024.0));
+    return (int)rint(log(prob) * (10000.5 / 1024.0));
 }
 
-inline double LogPtoBytelog(LogP prob)
+inline Intlog ProbToIntlog(Prob prob)
 {
-    return rint(prob * (M_LN10 * 10000.5 / 1024.0));
+    return (int)rint(log(prob) * 10000.5);
 }
 
-inline LogP BytelogToLogP(double bytelog)
+inline Bytelog LogPtoBytelog(LogP prob)
+{
+    return (int)rint(prob * (M_LN10 * 10000.5 / 1024.0));
+}
+
+inline Intlog LogPtoIntlog(LogP prob)
+{
+    return (int)rint(prob * (M_LN10 * 10000.5));
+}
+
+inline LogP BytelogToLogP(Bytelog bytelog)
 {
     return bytelog * (1024.0 / 10000.5 / M_LN10);
+}
+
+const int BytelogShift = 10;
+
+inline  Bytelog IntlogToBytelog(Intlog intlog)
+{
+    int bytelog = ((-intlog) + (1 << (BytelogShift-1))) >> BytelogShift;
+
+    if (bytelog > 255) {
+	bytelog = 255;
+    }
+    return -bytelog;
+}
+
+inline Intlog BytelogToIntlog(Bytelog bytelog)
+{
+    return bytelog << BytelogShift;
 }
 
 #endif /* _Prob_h_ */

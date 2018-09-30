@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.19 1999/10/03 01:52:36 stolcke Exp $
+#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.20 2001/03/11 16:36:48 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -78,10 +78,11 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
 LIBRARY = $(OBJDIR)/libdstruct.a
 
 ADDITIONAL_INCLUDES += \
-	-I/usr/local/include
+	$(TCL_INCLUDE)
 ADDITIONAL_LIBRARIES += \
 	-lmisc \
-	-L/usr/local/lib -ltcl -lm 
+	$(TCL_LIBRARY) \
+	-lm 
 
 # Example programs.
 PROGRAM_NAMES = \

@@ -33,15 +33,21 @@ DDEESSCCRRIIPPTTIIOONN
             (_s_c_o_r_e) _w_1 ( st: _s_t_1 et: _e_t_1 g: _g_1 a: _a_1 ) _w_2 ...
        where words are followed by start and end times,  language
        model  and acoustic scores (bytelog-scaled), respectively.
+       This format may also contain scores  and  time  marks  for
+       sub-word units (phones and HMM states), in the same format
+       as above, but with the _w's denoting phone and state names.
+       Sub-word  units will have time marks that are contained in
+       the duration of the preceding word units, and may thus  be
+       easily identified.
 
-       The third format understood by SRILM lists  hypotheses  in
+       The  third  format understood by SRILM lists hypotheses in
        the format
             _a_s_c_o_r_e _l_s_c_o_r_e _n_w_o_r_d_s _w_1 _w_2 _w_3 ...
-       where  the  first three columns contain the acoustic model
-       log probability, the language model log  probability,  and
-       the  number  of  words  in  the hypothesis string, respec-
-       tively.  All scores are logarithms base 10.  (This  format
-       must  not  be  preceded by an ``NBestList'' header.)  This
+       where the first three columns contain the  acoustic  model
+       log  probability,  the language model log probability, and
+       the number of words  in  the  hypothesis  string,  respec-
+       tively.   All scores are logarithms base 10.  (This format
+       must not be preceded by an  ``NBestList''  header.)   This
        format is output by the nnggrraamm(1) option --rreessccoorree.
 
 SSEEEE AALLSSOO
@@ -50,18 +56,12 @@ SSEEEE AALLSSOO
 
 BBUUGGSS
        All these formats are somewhat ad hoc and could use a more
-       rational design.  The ``NBestList1.0'' format is  particu-
-       larly  cumbersome  because  it conflates acoustic and lan-
-       guage model scores.
-       A generalization to an arbitrary number of separate scores
-       would be nice.
-
-AAUUTTHHOORR
-       Manual     page     written     by     Andreas     Stolcke
+       rational  design.  The ``NBestList1.0'' format is particu-
+       larly  cumbersome  because  it  conflates   acoustic   and
 
 
 
-SRILM File Formats $Date: 2000/03/15 00:11:33 $                 1
+SRILM File Formats $Date: 2001/01/19 22:28:57 $                 1
 
 
 
@@ -70,8 +70,14 @@ SRILM File Formats $Date: 2000/03/15 00:11:33 $                 1
 nbest-format(5)                                   nbest-format(5)
 
 
-       <stolcke@speech.sri.com>.
-       Copyright 1999 SRI International
+       language model scores.
+       A generalization to an arbitrary number of separate scores
+       would be nice.
+
+AAUUTTHHOORR
+       Manual   page   written   by   Andreas   Stolcke    <stol-
+       cke@speech.sri.com>.
+       Copyright 1999-2001 SRI International
 
 
 
@@ -121,12 +127,6 @@ nbest-format(5)                                   nbest-format(5)
 
 
 
-
-
-
-
-
-
-SRILM File Formats $Date: 2000/03/15 00:11:33 $                 2
+SRILM File Formats $Date: 2001/01/19 22:28:57 $                 2
 
 

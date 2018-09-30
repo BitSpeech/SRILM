@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.h,v 1.3 1997/11/03 21:40:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.h,v 1.4 2000/08/07 07:42:15 stolcke Exp $
  *
  */
 
@@ -18,13 +18,14 @@
 class DecipherNgram: public Ngram
 {
 public:
-    DecipherNgram(Vocab &vocab, unsigned int order = 2);
-
-    Boolean backoffHack;	/* take backoff path if higher scoring */
+    DecipherNgram(Vocab &vocab, unsigned int order = 2,
+					    Boolean backoffHack = true);
 
 protected:
     virtual LogP wordProbBO(VocabIndex word, const VocabIndex *context,
 							unsigned int clen);
+
+    Boolean backoffHack;	/* take backoff path if higher scoring */
 };
 
 #endif /* _DecipherNgram_h_ */

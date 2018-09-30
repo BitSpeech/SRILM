@@ -1,6 +1,6 @@
 /*
  * Map2.cc --
- *	Two-dimentional map implementation
+ *	Two-dimensional map implementation
  *
  */
 
@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char Map2_Copyright[] = "Copyright (c) 1999 SRI International.  All Rights Reserved.";
-static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.6 2000/07/13 06:15:16 stolcke Exp $";
+static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.7 2000/08/05 19:47:08 stolcke Exp $";
 #endif
 
 #include <string.h>

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.cc,v 1.6 1997/11/03 21:40:54 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.cc,v 1.8 2000/08/17 20:51:34 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -16,12 +16,18 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.c
 
 #define DEBUG_NGRAM_HITS 2	/* from Ngram.cc */
 
-DecipherNgram::DecipherNgram(Vocab &vocab, unsigned order)
-      : Ngram(vocab, order), backoffHack(true)
+DecipherNgram::DecipherNgram(Vocab &vocab, unsigned order, Boolean backoffHack)
+      : Ngram(vocab, order), backoffHack(backoffHack)
 {
 }
 
-#define RoundToBytelog(x)	BytelogToLogP(LogPtoBytelog(x))
+/*
+ * Simulate the rounding going on from the original LM LogP scores to the
+ * bytelogs in the recognizer:
+ * - PFSGs encode LogP as intlogs
+ * - Nodearray compiler maps intlogs to bytelogs
+ */
+#define RoundToBytelog(x)	BytelogToLogP(IntlogToBytelog(LogPtoIntlog(x)))
 
 /*
  * The backoff algorithm is similar to Ngram:wordProbBO(),
