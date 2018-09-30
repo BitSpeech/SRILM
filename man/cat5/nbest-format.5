@@ -1,7 +1,5 @@
-
-
-
 nbest-format(5)                                   nbest-format(5)
+
 
 
 NNAAMMEE
@@ -22,8 +20,8 @@ DDEESSCCRRIIPPTTIIOONN
        from the recognizer, on the bytelog scale.  (A bytelog  is
        a logarithm to base 1.0001, divided by 1024 and rounded to
        an integer.)  This format  is  output  by  the  SRI  Deci-
-       pher(TM)  recognizer,  as  well  as by the nnggrraamm(1) option
-       --nnbbeesstt.
+       pher(TM)  recognizer,  by  the nnggrraamm --nnbbeesstt, and by nnbbeesstt--
+       llaattttiiccee --wwrriittee--nnbbeesstt --ddeecciipphheerr--nnbbeesstt.
 
        The second Decipher(TM) format  is  an  extension  of  the
        first  format  that  encodes  word-level  scores  and time
@@ -48,7 +46,8 @@ DDEESSCCRRIIPPTTIIOONN
        the number of words  in  the  hypothesis  string,  respec-
        tively.   All scores are logarithms base 10.  (This format
        must not be preceded by an  ``NBestList''  header.)   This
-       format is output by the nnggrraamm(1) option --rreessccoorree.
+       format  is  output by the nnggrraamm --rreessccoorree and by nnbbeesstt--llaatt--
+       ttiiccee --wwrriittee--nnbbeesstt without the --ddeecciipphheerr--nnbbeesstt option.
 
 SSEEEE AALLSSOO
        ngram(1),   nbest-lattice(1),   segment-nbest(1),   nbest-
@@ -56,77 +55,17 @@ SSEEEE AALLSSOO
 
 BBUUGGSS
        All these formats are somewhat ad hoc and could use a more
-       rational  design.  The ``NBestList1.0'' format is particu-
-       larly  cumbersome  because  it  conflates   acoustic   and
-
-
-
-SRILM File Formats $Date: 2001/01/19 22:28:57 $                 1
-
-
-
-
-
-nbest-format(5)                                   nbest-format(5)
-
-
-       language model scores.
+       rational design.  The ``NBestList1.0'' format is  particu-
+       larly  cumbersome  because  it conflates acoustic and lan-
+       guage model scores.
        A generalization to an arbitrary number of separate scores
        would be nice.
 
 AAUUTTHHOORR
-       Manual   page   written   by   Andreas   Stolcke    <stol-
+       Manual    page   written   by   Andreas   Stolcke   <stol-
        cke@speech.sri.com>.
        Copyright 1999-2001 SRI International
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SRILM File Formats $Date: 2001/01/19 22:28:57 $                 2
-
-
+SRILM File Formats $Date: 2001/08/11 20:03:03 $   nbest-format(5)

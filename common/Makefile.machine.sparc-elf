@@ -7,63 +7,9 @@
 #	Machine dependent compilation options and variable definitions
 #	for Sun Sparcstations running SunOS 5.x (a.k.a. Solaris 2.x).
 #
-#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc-elf,v 1.17 2001/03/11 17:33:30 stolcke Exp $
-#
-#    $Log: Makefile.machine.sparc-elf,v $
-#    Revision 1.17  2001/03/11 17:33:30  stolcke
-#    added TCL_ variables
-#
-#    Revision 1.16  2000/07/13 06:14:01  stolcke
-#    ld -z muldefs no longer needed
-#
-#    Revision 1.15  2000/06/08 23:59:55  stolcke
-#    back to gcc 2.8.1
-#
-#    Revision 1.14  1999/10/13 07:07:23  stolcke
-#    use gcc 2.95
-#
-#    Revision 1.13  1999/02/20 07:18:48  stolcke
-#    added -ldl
-#
-#    Revision 1.12  1998/07/30 02:37:40  stolcke
-#    updated for SunPro 4.2 compiler
-#    standardized on USE_CC and _CC suffix
-#
-#    Revision 1.11  1998/06/13 00:41:36  stolcke
-#    allow binaries to run on non-ultrasparc machines
-#
-#    Revision 1.10  1998/04/18 17:51:25  stolcke
-#    use gcc 2.8.1
-#
-#    Revision 1.9  1996/08/15 14:10:57  stolcke
-#    removed -V2.6.3, code should now work with latest gcc
-#
-#    Revision 1.8  1996/07/23 19:46:11  stolcke
-#    removed audio includes and lib
-#
-#    Revision 1.7  1996/07/18 12:23:57  stolcke
-#    specify gcc version
-#
-#    Revision 1.6  1996/06/13 18:03:07  stolcke
-#    /bin/csh lossage workaround removed
-#
-#    Revision 1.5  1996/06/10 06:03:58  stolcke
-#    added support for Sun CC
-#
-#    Revision 1.4  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-#    Revision 1.3  1995/06/15 05:55:48  stolcke
-#    added conditional for acc compilation
-#
-# Revision 1.2  1995/04/10  20:54:32  stolcke
-# define RLD_FLAGS
-#
-# Revision 1.1  1995/03/03  23:30:26  stolcke
-# Initial revision
-#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf,v 1.18 2001/08/03 02:03:38 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
@@ -103,7 +49,7 @@ endif
    CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
 
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =

@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1999 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.20 2000/01/13 04:15:54 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.26 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -39,11 +39,12 @@ static char *textFile = 0;
 static char *textMapFile = 0;
 static char *escape = 0;
 static int keepUnk = 0;
-static int tolower = 0;
+static int toLower = 0;
 static double lmw = 1.0;
 static double mapw = 1.0;
 static int logMap = 0;
 static int fb = 0;
+static int fwOnly = 0;
 static int posteriors = 0;
 static int totals = 0;
 static int continuous = 0;
@@ -64,7 +65,7 @@ static Option options[] = {
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden vocabulary" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_STRING, "text", &textFile, "text file to disambiguate" },
     { OPT_STRING, "text-map", &textMapFile, "text+map file to disambiguate" },
     { OPT_FLOAT, "lmw", &lmw, "language model weight" },
@@ -72,6 +73,7 @@ static Option options[] = {
     { OPT_TRUE, "logmap", &logMap, "map file contains log probabilities" },
     { OPT_STRING, "escape", &escape, "escape prefix to pass data through -text" },
     { OPT_TRUE, "fb", &fb, "use forward-backward algorithm" },
+    { OPT_TRUE, "fw-only", &fwOnly, "use only forward probabilities" },
     { OPT_TRUE, "posteriors", &posteriors, "output posterior event probabilities" },
     { OPT_TRUE, "totals", &totals, "output total string probabilities" },
     { OPT_TRUE, "continuous", &continuous, "read input without line breaks" },
@@ -189,7 +191,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	 * Set up new context to transition to
 	 * (allow enough room for one hidden event per word)
 	 */
-	VocabIndex newContext[2 * maxWordsPerLine + 1];
+	VocabIndex newContext[2 * maxWordsPerLine + 2];
 
 	/*
 	 * Iterate over all contexts for the previous position in trellis
@@ -302,7 +304,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	pos ++;
     }
 
-    if (fb || posteriors || hiddenCounts) {
+    if (fb || fwOnly || posteriors || hiddenCounts) {
 	/*
 	 * Forward-backward algorithm: compute backward scores
 	 */
@@ -453,15 +455,17 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	     * Compute symbol probabilities by summing posterior probs
 	     * of all states corresponding to the same symbol
 	     */
-	    LHash<VocabIndex,LogP> symbolProbs;
+	    LHash<VocabIndex,LogP2> symbolProbs;
 
 	    TrellisIter<VocabContext> iter(trellis, pos);
 	    VocabContext context;
 	    LogP forwProb;
 	    while (iter.next(context, forwProb)) {
-		LogP posterior;
+		LogP2 posterior;
 		
-		if (fb) {
+		if (fwOnly) {
+		    posterior = forwProb;
+		} else if (fb) {
 		    posterior = forwProb + trellis.getBackLogP(context, pos);
 		} else {
 		    LogP backmax;
@@ -470,7 +474,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 		}
 
 		Boolean foundP;
-		LogP *symbolProb = symbolProbs.insert(context[0], foundP);
+		LogP2 *symbolProb = symbolProbs.insert(context[0], foundP);
 		if (!foundP) {
 		    *symbolProb = posterior;
 		} else {
@@ -481,12 +485,12 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	    /*
 	     * Find symbol with highest posterior
 	     */
-	    LogP totalPosterior = LogP_Zero;
-	    LogP maxPosterior = LogP_Zero;
+	    LogP2 totalPosterior = LogP_Zero;
+	    LogP2 maxPosterior = LogP_Zero;
 	    VocabIndex bestSymbol = Vocab_None;
 
-	    LHashIter<VocabIndex,LogP> symbolIter(symbolProbs);
-	    LogP *symbolProb;
+	    LHashIter<VocabIndex,LogP2> symbolIter(symbolProbs);
+	    LogP2 *symbolProb;
 	    VocabIndex symbol;
 	    while (symbolProb = symbolIter.next(symbol)) {
 		if (bestSymbol == Vocab_None || *symbolProb > maxPosterior) {
@@ -516,12 +520,13 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 		VocabIter symbolIter(map.vocab2, true);
 		VocabString symbolName;
 		while (symbolName = symbolIter.next(symbol)) {
-		    LogP *symbolProb = symbolProbs.find(symbol);
-		    assert(symbolProb != 0);
+		    LogP2 *symbolProb = symbolProbs.find(symbol);
+		    if (symbolProb != 0) {
+			LogP2 posterior = *symbolProb - totalPosterior;
 
-		    LogP posterior = *symbolProb - totalPosterior;
-
-		    cout << " " << symbolName << " " << LogPtoProb(posterior);
+			cout << " " << symbolName
+			     << " " << LogPtoProb(posterior);
+		    }
 		}
 		cout << endl;
 	    }
@@ -533,9 +538,11 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 		iter.init();
 
 		while (iter.next(context, forwProb)) {
-		    LogP posterior;
+		    LogP2 posterior;
 		    
-		    if (fb) {
+		    if (fwOnly) {
+			posterior = forwProb;
+		    } else if (fb) {
 			posterior = forwProb +
 					trellis.getBackLogP(context, pos);
 		    } else {
@@ -860,15 +867,9 @@ main(int argc, char **argv)
      */
 
     Vocab vocab;
-    vocab.toLower = tolower? true : false;
+    vocab.toLower = toLower? true : false;
 
     SubVocab hiddenVocab(vocab);
-
-    if (hiddenVocabFile) {
-	File file(hiddenVocabFile, "r");
-
-	hiddenVocab.read(file);
-    }
 
     LM    *hiddenLM = 0;
     NgramCounts<NgramFractCount> *hiddenCounts = 0;
@@ -888,6 +889,14 @@ main(int argc, char **argv)
     }
 
     /*
+     * Make sure noevent token is not used in LM
+     */
+    if (hiddenVocab.getIndex(noHiddenEvent) != Vocab_None) {
+	cerr << "LM must not contain " << noHiddenEvent << endl;
+	exit(1);
+    }
+
+    /*
      * Allocate fractional counts tree
      */
     if (countsFile) {
@@ -897,9 +906,13 @@ main(int argc, char **argv)
     }
 
     /*
-     * Make sure noevent token is not used in LM
+     * Read event vocabulary
      */
-    assert(hiddenVocab.getIndex(noHiddenEvent) == Vocab_None);
+    if (hiddenVocabFile) {
+	File file(hiddenVocabFile, "r");
+
+	hiddenVocab.read(file);
+    }
 
     if (forceEvent) {
 	/*

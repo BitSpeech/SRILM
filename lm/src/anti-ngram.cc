@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.7 2001/03/11 17:19:37 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.8 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -31,7 +31,7 @@ static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
 
-static int tolower = 0;
+static int toLower = 0;
 static int multiwords = 0;
 
 static char *refFile = 0;
@@ -52,7 +52,7 @@ static Option options[] = {
     { OPT_UINT, "order", &order, "max ngram order" },
     { OPT_STRING, "lm", &lmFile, "N-gram model in ARPA LM format" },
     { OPT_STRING, "classes", &classesFile, "class definitions" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
@@ -196,7 +196,7 @@ main(int argc, char **argv)
 
     Vocab vocab;
 
-    vocab.toLower = tolower ? true : false;
+    vocab.toLower = toLower ? true : false;
 
     RefList refs(vocab);
 

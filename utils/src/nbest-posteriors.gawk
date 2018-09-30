@@ -15,7 +15,7 @@
 # (This is useful to combine multiple nbest lists in a weighted fashion).
 # The input should be in SRILM nbest-format.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-posteriors.gawk,v 1.5 2001/06/21 14:32:32 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-posteriors.gawk,v 1.6 2001/10/17 23:03:45 stolcke Exp $
 #
 
 BEGIN {
@@ -26,7 +26,6 @@ BEGIN {
 	lmw = 8.0;
 	wtw = 0.0;
 	postscale = 0;
-	multiwords = 1
 	max_nbest = 0;
 
 	logINF = -320;		# log10 of smallest representable number
@@ -79,9 +78,6 @@ NF >= 3 {
 	num_words[num_hyps] = $3;
 
 	$1 = $2 = $3 = "";
-	if (multiwords) {
-		gsub("_", " ");
-	}
 	hyps[num_hyps] = $0;
 }
 

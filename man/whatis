@@ -25,5 +25,6 @@ pfsg-format (5) 	- File format for Decipher(TM) probabilistic finite-state gramm
 pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-stats, wlat-to-dot, wlat-to-pfsg (1) - create and manipulate finite-state networks
 ppl-scripts, add-ppls, compare-ppls, compute-best-mix, hits-from-log, ppl-from-log, subtract-ppls (1) - manipulate perplexities
 segment (1)		- segment text using N-gram language model
-segment-nbest (1)	- rescore and segment N-best lists using N-gram language models
+segment-nbest (1)	- rescore and segment N-best lists using hidden segment N-gram model
 training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, uniform-classes, vp2text (1) - miscellaneous conveniences for language model training
+wlat-format (5) 	- File format for SRILM word posterior lattices

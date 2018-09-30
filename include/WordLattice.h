@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.12 2000/03/18 23:01:07 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.13 2001/08/03 04:05:29 stolcke Exp $
  *
  */
 
@@ -50,8 +50,10 @@ public:
     unsigned sortNodes(unsigned *sortedNodes);		// topological sort
     unsigned sortAlignedNodes(unsigned *sortedNodes);	// sort with alignments
 
-    void addWords(const VocabIndex *words, Prob score);
-    void alignWords(const VocabIndex *words, Prob score, Prob *wordScores = 0);
+    // hypID parameter is currently ignored
+    void addWords(const VocabIndex *words, Prob score, const HypID *hypID = 0);
+    void alignWords(const VocabIndex *words, Prob score, Prob *wordScores = 0,
+							const HypID *hypID = 0);
 
     unsigned wordError(const VocabIndex *words,
 				unsigned &sub, unsigned &ins, unsigned &del);

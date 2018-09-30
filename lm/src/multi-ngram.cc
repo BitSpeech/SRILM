@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,v 1.3 2000/07/30 03:22:45 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2001 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,v 1.4 2001/09/23 19:29:41 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -32,6 +32,7 @@ static char *lmFile  = 0;
 static char *multiLMfile  = 0;
 static char *writeLM  = "-";
 static char *multiChar = "_";
+static int pruneUnseenNgrams = false;
 
 static Option options[] = {
     { OPT_UINT, "order", &order, "max ngram order" },
@@ -42,6 +43,7 @@ static Option options[] = {
     { OPT_STRING, "multi-lm", &multiLMfile, "multiword ngram LM" },
     { OPT_STRING, "write-lm", &writeLM, "multiword ngram output file" },
     { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
+    { OPT_TRUE, "prune-unseen-ngrams", &pruneUnseenNgrams, "do not add unseen multiword ngrams" }
 };
 
 /*
@@ -163,7 +165,7 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
 	     * Expand the backoff context with all multiwords
 	     */
 	    VocabIndex *expandedContext = &expandedBuffer[maxWordsPerLine];
-	    unsigned exandedContextLength =
+	    unsigned expandedContextLength =
 		    expandMultiwords(context, expandedContext, map, true);
 
 	    /*
@@ -210,6 +212,57 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
 	    }
 	}
     }
+}
+
+/*
+ * Check a multiword ngram for whether its component ngrams are all 
+ * contained in the reference model
+ * (used to limit the set of additional ngrams inserted)
+ */
+Boolean
+haveNgramsFor(VocabIndex word, VocabIndex *context, Ngram &ngramLM,
+					LHash< VocabIndex, VocabIndex * > &map)
+{
+    VocabIndex multiwordNgram[Vocab::length(context) + 2];
+    VocabIndex expandedNgram[2 * maxWordsPerLine + 1];
+
+    /*
+     * Assemble complete reversed N-gram of multiword and context
+     */
+    multiwordNgram[0] = word;
+    Vocab::copy(&multiwordNgram[1], context);
+
+    /*
+     * Expand the reversed ngram with all multiwords
+     */
+    unsigned expandedLength =
+		    expandMultiwords(multiwordNgram, expandedNgram, map, true);
+
+    /*
+     * Check that all maximal N-grams are contained in reference model
+     */
+    Boolean ok = true;
+    unsigned ngramOrder = ngramLM.setorder();
+
+    if (expandedLength < ngramOrder) {
+	if (!ngramLM.findProb(expandedNgram[0], &expandedNgram[1])) {
+	    ok = false;
+	}
+    } else if (expandedLength > 1) {
+	for (VocabIndex *startNgram =
+				&expandedNgram[expandedLength - ngramOrder];
+	     startNgram >= expandedNgram;
+	     startNgram --)
+	{
+	    startNgram[ngramOrder] = Vocab_None;
+	    if (!ngramLM.findProb(startNgram[0], &startNgram[1])) {
+		ok = false;
+		break;
+	    }
+	}
+    }
+
+    return ok;
 }
 
 /* 
@@ -280,7 +333,13 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
 			/*
 			 * don't worry, the prob value will be reset later
 			 */
-			*multiLM.insertProb((*startIndex)[k], context) = *prob;
+			if (!pruneUnseenNgrams ||
+		            haveNgramsFor((*startIndex)[k], context,
+								ngramLM, map))
+			{
+			    *multiLM.insertProb((*startIndex)[k], context) =
+									*prob;
+			}
 		    }
 		}
 	    }
@@ -292,13 +351,10 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
 		for (unsigned j = 0; j < endIndex->size(); j ++) {
 		    context[i - 1] = (*endIndex)[j];
 
+		    Boolean haveNgrams = false;
+
 		    /*
 		     * repeat the procedure above for the new context
-		     */
-		    *multiLM.insertBOW(context) = node->bow;
-			
-		    /*
-		     * copy probs to multi ngram
 		     */
 		    NgramProbsIter piter(*node);
 		    VocabIndex word;
@@ -311,10 +367,23 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
 						startMultiwords.find(word);
 			if (startIndex) {
 			    for (unsigned k = 0; k < startIndex->size(); k ++) {
-				*multiLM.insertProb((*startIndex)[k], context) =
-									*prob;
+				if (!pruneUnseenNgrams ||
+				    haveNgramsFor((*startIndex)[k], context,
+								ngramLM, map))
+				{
+				    *multiLM.insertProb((*startIndex)[k],
+							    context) = *prob;
+				    haveNgrams = true;
+				}
 			    }
 			}
+		    }
+
+		    /*
+		     * Only insert new context if needed
+		     */
+		    if (haveNgrams) {
+			*multiLM.insertBOW(context) = node->bow;
 		    }
 		}
 

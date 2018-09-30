@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.22 2001/02/28 05:59:54 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.23 2001/08/19 17:48:45 stolcke Exp $
 #
 
 bytelog=0
@@ -14,6 +14,7 @@ decipher_lmw=8
 decipher_wtw=0
 lm_only=0
 pretty_file=
+filter_command=
 
 while [ $# -gt 0 ]
 do
@@ -36,6 +37,9 @@ do
     -pretty)
 	    pretty_file="$2"; shift
 	    ;;
+    -filter)
+	    filter_command="$2"; shift
+	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
     *)	    break
@@ -47,7 +51,7 @@ done
 
 if [ $# -lt 3  ]; then
     {
-	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-pretty map] nbest-file-list score-dir lm-options ..." >&2
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-pretty map] [-filter command] nbest-file-list score-dir lm-options ..." >&2
 	echo "where"
 	echo "	-bytelog	produces bytelog scaled scores"
 	echo "	-nodecipherlm	avoids Decipher LM score computation"
@@ -55,6 +59,7 @@ if [ $# -lt 3  ]; then
 	echo "	-norescore	don't rescore LM, just extract scores"
 	echo "	-lm-only	output no N-best lists, only LM scores"
 	echo "	-pretty map	word mapping file"
+	echo "	-filter command	text filter to apply to N-best hyps"
     } >&2
     exit 1
 fi
@@ -247,9 +252,19 @@ END {
   norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw
 done
 ) | \
-if [ $norescore -gt 0 ]; then
+if [ $norescore -gt 0 -a -z "$filter_command" ]; then
+    # no rescoring and no filtering
     cat
+elif [ $norescore -gt 0 ]; then
+    # no resoring, but filter hyps
+    eval "$filter_command"
+elif [ -z "$filter_command" ]; then
+    # standard rescoring without filtering
+    ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
+		-escape "$escape " "$@" 
 else
+    # rescoring with filtering
+    eval "$filter_command" | \
     ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
 		-escape "$escape " "$@" 
 fi | \

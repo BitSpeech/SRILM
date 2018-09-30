@@ -7,42 +7,9 @@
 #	Machine dependent compilation options and variable definitions
 #	for SGI workstations running IRIX 6.x and 64-bit binaries.
 #
-#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.mips-elf,v 1.10 1999/10/13 07:07:04 stolcke Exp stolcke $
-#
-#    $Log: Makefile.machine.mips-elf,v $
-#    Revision 1.10  1999/10/13 07:07:04  stolcke
-#    use gcc 2.95
-#
-#    Revision 1.9  1998/07/30 19:44:04  stolcke
-#    standarddize on USE_CC
-#    added -Olimit option
-#
-#    Revision 1.8  1998/04/18 17:51:25  stolcke
-#    use gcc 2.8.1
-#
-#    Revision 1.7  1996/08/15 14:10:57  stolcke
-#    removed -V2.6.3, code should now work with latest gcc
-#
-#    Revision 1.6  1996/07/18 12:25:10  stolcke
-#    remove -laudio
-#
-#    Revision 1.5  1996/07/18 12:23:57  stolcke
-#    specify gcc version
-#
-#    Revision 1.4  1996/05/31 05:27:32  stolcke
-#    added SGI CC support
-#
-#    Revision 1.3  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-#    Revision 1.2  1995/04/10 20:54:32  stolcke
-#    define RLD_FLAGS
-#
-# Revision 1.1  1995/03/08  02:19:51  stolcke
-# Initial revision
-#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf-64,v 1.1 2001/08/03 02:03:38 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
@@ -72,7 +39,7 @@ endif
    CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
 
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =

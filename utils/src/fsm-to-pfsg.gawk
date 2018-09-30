@@ -9,13 +9,17 @@
 # scale=S		sets transition weight scaling factor to S
 #			(default -1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg,v 1.5 2000/02/11 06:22:47 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.6 2001/11/20 02:03:12 stolcke Exp $
 #
 BEGIN {
 	pfsg_name = "from_fsm";
 	transducer = 0;		# input is transducer
 
-	getline pid < "/dev/pid";
+	if ("pid" in PROCINFO) {
+	    pid = PROCINFO["pid"];
+	} else {
+	    getline pid < "/dev/pid";
+	}
 	tmpfile = "/tmp/fsm.tmp" pid;
 	num_newnodes = 0;
 	initial_node = -1;

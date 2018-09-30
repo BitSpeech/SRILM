@@ -1,5 +1,5 @@
-.\" $Id: nbest-format.5,v 1.3 2001/01/19 22:28:57 stolcke Exp $
-.TH nbest-format 5 "$Date: 2001/01/19 22:28:57 $" "SRILM File Formats"
+.\" $Id: nbest-format.5,v 1.4 2001/08/11 20:03:03 stolcke Exp $
+.TH nbest-format 5 "$Date: 2001/08/11 20:03:03 $" "SRILM File Formats"
 .SH NAME
 nbest-format \- File formats for N-best hypotheses lists
 .SH DESCRIPTION
@@ -22,11 +22,11 @@ is a composite acoustic/language model score
 from the recognizer, on the bytelog scale.
 (A bytelog is a logarithm to base 1.0001, divided by 1024 and 
 rounded to an integer.)
-This format is output by the SRI Decipher(TM) recognizer, as well as
+This format is output by the SRI Decipher(TM) recognizer,
 by the
-.BR ngram (1)
-option
-.BR \-nbest .
+.BR "ngram \-nbest" ,
+and by
+.BR "nbest-lattice \-write-nbest \-decipher-nbest" .
 .PP
 The second Decipher(TM) format is an extension of the first format
 that encodes word-level scores and time alignments.
@@ -58,9 +58,12 @@ and the number of words in the hypothesis string, respectively.
 All scores are logarithms base 10.
 (This format must not be preceded by an ``NBestList'' header.)
 This format is output by the
-.BR ngram (1)
-option
-.BR \-rescore .
+.B "ngram \-rescore"
+and by
+.B nbest-lattice \-write-nbest 
+without the
+.B \-decipher-nbest
+option.
 .SH "SEE ALSO"
 ngram(1), nbest-lattice(1), segment-nbest(1), nbest-scripts(1), pfsg-scripts(1).
 .SH BUGS

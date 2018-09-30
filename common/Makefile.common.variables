@@ -9,63 +9,9 @@
 #       a makefile to use the shared definitions.  (Typically, the
 #	"include" should be the first command in the makefile.)
 #
-#    Copyright (c) 1992, SRI International.  All Rights Reserved.
+#    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.common.variables,v 1.17 2001/07/18 21:19:59 stolcke Exp $
-#
-#    $Log: Makefile.common.variables,v $
-#    Revision 1.17  2001/07/18 21:19:59  stolcke
-#    allow extra libdir for library search
-#
-#    Revision 1.16  2000/10/11 02:01:59  stolcke
-#    set gawk path
-#
-#    Revision 1.15  1996/06/10 05:31:27  stolcke
-#    parametrize ar command
-#
-#    Revision 1.14  1995/09/02 04:19:29  stolcke
-#    locate helper scripts in $DECIPHER/bin
-#
-#    Revision 1.13  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-# Revision 1.12  1995/06/15  05:55:16  stolcke
-# moved OPTION variables to can redefine in Makefile.$(MACHINE_TYPE)
-#
-# Revision 1.11  1995/04/24  19:41:25  stolcke
-# added purify support
-#
-# Revision 1.10  1995/04/22  01:23:05  tmk
-# Updated to use the new machine-type command rather than the older mach.
-#
-# Revision 1.9  1995/03/08  18:37:43  stolcke
-# defined OS_TYPE and OS_VERSION variables
-#
-# Revision 1.8  1995/03/08  02:40:01  stolcke
-# moved machine specific variables to own makefiles
-#
-# Revision 1.7  1994/12/03  23:45:00  decipher
-# Update to use new install script rather than platform dependent cp.
-# Added LINT definitions.
-#
-# Revision 1.6  1994/08/08  23:32:44  decipher
-# Updated to set default variables on the Alpha.
-#
-# Revision 1.5  1993/09/29  02:45:11  monaco
-# Added the flag -DDEBUG to mips and sparc debug versions
-#
-# Revision 1.4  1993/05/19  20:55:07  decipher
-# Centralized the specification of the include directory search list.
-#
-# Revision 1.3  1993/05/12  03:29:57  decipher
-# Added the option for defaulting to using signed chars on SGIs.
-#
-# Revision 1.2  1993/03/26  18:32:18  decipher
-# Added the "ADDITIONAL_LDFLAGS" variable and default linking with "-n".
-#
-# Revision 1.1  1993/01/25  02:38:50  decipher
-# Initial revision
-#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.18 2001/08/03 02:03:38 stolcke Exp $
 #
 
 
@@ -74,7 +20,7 @@
 
 # Determine the current host machine type.
 ifeq ($(MACHINE_TYPE),  )
-  MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
+  MACHINE_TYPE := $(shell $(SRILM)/bin/machine-type)
 endif
 ifeq ($(OS_TYPE),  )
   OS_TYPE := $(shell /bin/uname -s)
@@ -103,24 +49,24 @@ DEMANGLE_FILTER = 2>&1 | c++filt
 GAWK = /usr/local/bin/gawk
 
 # Include machine-type dependent variables
-include $(DECIPHER)/common/Makefile.machine.$(MACHINE_TYPE)
+include $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
 
 # Install script for all machines (based on GNU ginstall utility)
-INSTALL = $(DECIPHER)/bin/decipher-install
+INSTALL = $(SRILM)/bin/decipher-install
 
-# Note:  The current directory must be searched before the main DECIPHER include
+# Note:  The current directory must be searched before the main SRILM include
 #         directory to ensure that local versions of included files will be used.
-INCLUDES = $(ADDITIONAL_INCLUDES) -I. -I$(DECIPHER_INCDIR)
+INCLUDES = $(ADDITIONAL_INCLUDES) -I. -I$(SRILM_INCDIR)
 DEPENDENCIES = Dependencies.$(MACHINE_TYPE)
 
 # Keep the source and object files in separate directories.
 OUTPUT_OPTION = -o $@
 
-# Search in the DECIPHER (TM) library directories for things of the form "-l<LibName>".
+# Search in the SRILM library directories for things of the form "-l<LibName>".
 ifeq ($(EXTRA_LIBDIR), )
-	VPATH = $(DECIPHER_LIBDIR)
+	VPATH = $(SRILM_LIBDIR)
 else
-	VPATH = $(DECIPHER_LIBDIR):$(EXTRA_LIBDIR)
+	VPATH = $(SRILM_LIBDIR):$(EXTRA_LIBDIR)
 endif
 
 # Which of the above options is to be used by default?
@@ -157,15 +103,15 @@ endif
 # Define directories.
 
 
-# DECIPHER (TM) directories.
+# SRILM directories.
 
-DECIPHER_INCDIR = $(DECIPHER)/include
+SRILM_INCDIR = $(SRILM)/include
 
-DECIPHER_LIB = $(DECIPHER)/lib
-DECIPHER_LIBDIR = $(DECIPHER_LIB)/$(MACHINE_TYPE)$(OBJ_OPTION)
+SRILM_LIB = $(SRILM)/lib
+SRILM_LIBDIR = $(SRILM_LIB)/$(MACHINE_TYPE)$(OBJ_OPTION)
 
-DECIPHER_BIN = $(DECIPHER)/bin
-DECIPHER_BINDIR = $(DECIPHER_BIN)/$(MACHINE_TYPE)$(BIN_OPTION)
+SRILM_BIN = $(SRILM)/bin
+SRILM_BINDIR = $(SRILM_BIN)/$(MACHINE_TYPE)$(BIN_OPTION)
 
 # Default directories.
 

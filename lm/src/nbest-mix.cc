@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.3 1999/08/07 22:21:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.4 2001/10/31 06:59:52 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,7 +24,6 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 
 #define DEBUG_ERRORS	1
 
 static unsigned debug = 0;
-static int tolower = 0;
 static char *writeNbestFile = 0;
 static unsigned maxNbest = 0;
 static double rescoreLMW = 8.0;
@@ -105,7 +104,6 @@ main (int argc, char *argv[])
     argc = Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     Vocab vocab;
-    vocab.toLower = tolower ? true : false;
 
     /*
      * Posterior scaling:  if not specified (= 0.0) use LMW for

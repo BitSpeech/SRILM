@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.14 2001/06/21 14:37:45 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.15 2001/08/11 19:49:55 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -96,7 +96,7 @@ fi
 cat $sentids | \
 while read sentid
 do
-	echo "$sentid \c"
+	gawk -v sentid="$sentid" 'BEGIN { printf "%s ", sentid }'
 
 	#
 	# output alignment lattice if requested
@@ -124,7 +124,16 @@ do
 		    extra_weights="$extra_weights $lmw"
 		    continue
 		else
-		    if [ ! -f $dir/$sentid.score.gz ]; then
+		    if [ -f $dir/$sentid ]; then
+			    nbest_file=$dir/$sentid
+			    convert=X
+		    elif [ -f $dir/$sentid.gz ]; then
+			    nbest_file=$dir/$sentid.gz
+			    convert=X
+		    elif [ -f $dir/$sentid.score.gz ]; then
+			    nbest_file=$dir/$sentid.score.gz
+			    convert=
+		    else
 			    echo "$dir/$sentid.score.gz is missing" >&2
 			    extra_weights=
 			    extra_scores=
@@ -132,12 +141,26 @@ do
 		    fi
 
 		    if [ -n "$extra_weights" -o "$amw" != 1 ]; then
-			combine-acoustic-scores \
+			if [ -n "$convert" ]; then
+			    nbest-lattice -no-rescore -keep-noise \
+				-nbest $nbest_file -write-nbest - | \
+			    combine-acoustic-scores \
+				-v "weights=$amw $extra_weights" \
+				-v max_nbest=${max_nbest:-$default_max_nbest} \
+				/dev/stdin $extra_scores
+			else
+			    combine-acoustic-scores \
 				-v "weights=$amw $extra_weights" \
 				-v max_nbest=${max_nbest:-$default_max_nbest} \
 				$dir/$sentid.score.gz $extra_scores
+			fi
 		    else
-			zcat $dir/$sentid.score.gz
+			if [ -n "$convert" ]; then
+			    nbest-lattice -no-rescore -keep-noise \
+					    -nbest $nbest_file -write-nbest - 
+			else
+			    zcat $nbest_file
+			fi
 		    fi | \
 		    nbest-posteriors lmw=${lmw:-$default_lmw} \
 				    wtw=${wtw:-$default_wtw} \

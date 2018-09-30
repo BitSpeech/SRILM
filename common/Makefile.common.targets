@@ -10,97 +10,20 @@
 #       (Typically, the "include" should be the last command in the
 #       makefile.) 
 #
-#    Copyright (c) 1992, SRI International.  All Rights Reserved.
+#    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.common.targets,v 1.21 2000/06/12 22:35:47 stolcke Exp $
-#
-#    $Log: Makefile.common.targets,v $
-#    Revision 1.21  2000/06/12 22:35:47  stolcke
-#    workaround for gnumake failure to track dependencies unless directory exists
-#
-#    Revision 1.20  2000/06/08 23:36:53  stolcke
-#    rewrote release-* targets to avoid unnecessary work when files are uptodate
-#
-#    Revision 1.20  2000/06/08 17:49:36  stolcke
-#    rewrote release-* targets to avoid unnecessary work when files are uptodate
-#
-#    Revision 1.19  1998/11/12 01:48:04  stolcke
-#    pass OPTION_FLAGS to linker
-#
-#    Revision 1.18  1997/12/31 22:58:46  stolcke
-#    pass PROGRAM_NAMES to submake for purify target
-#
-#    Revision 1.17  1997/07/22 16:57:11  stolcke
-#    guard release-headers against empty header list
-#
-#    Revision 1.17  1997/07/21 14:37:06  stolcke
-#    avoid error when RELEASED_HEADERS is empty
-#
-#    Revision 1.16  1997/07/17 16:04:10  stolcke
-#    propagate OPTION to purify run
-#
-#    Revision 1.15  1996/08/16 14:27:21  stolcke
-#    added dekai's cleanup fixes
-#
-#    Revision 1.14  1996/06/21 03:29:59  stolcke
-#    fixed ii_files location
-#
-#    Revision 1.13  1996/06/10 06:13:39  stolcke
-#    remove template db on clean
-#
-#    Revision 1.12  1996/06/09 23:03:46  stolcke
-#    locate helper scripts in $DECIPHER/bin
-#
-#    Revision 1.11  1995/08/15 21:02:33  decipher
-#    Fixed bug in release-scripts: Now checks RELEASED_SCRIPTS
-#    instead of RELEASED_LIBRARIES.
-#
-#    Revision 1.10  1995/06/22 03:07:52  stolcke
-#    fixed typo
-#
-#    Revision 1.9  1995/06/21 02:05:15  stolcke
-#    call GEN_DEP only if source list is non-empty
-#
-#    Revision 1.8  1995/06/19 02:45:16  stolcke
-#    added C++ support
-#
-#    Revision 1.8  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-# Revision 1.7  1995/04/24  19:41:25  stolcke
-# added purify support
-#
-# Revision 1.6  1995/03/08  02:49:28  stolcke
-# create directories on demand
-# reinstall only binaries that changed
-#
-# Revision 1.5  1994/12/08  01:27:38  decipher
-# install target uses DECIPHER_BIN
-#
-# Revision 1.4  1994/12/03  23:42:37  decipher
-# Updated to add new release-* targets and use new install syntax.
-# Also adds Lint targets.
-#
-# Revision 1.3  1993/03/26  18:33:37  decipher
-# Added the "libraries" and "programs" targets.
-#
-# Revision 1.2  1993/01/30  02:14:31  decipher
-# Improved the "make depend" feature.
-#
-# Revision 1.1  1993/01/25  02:39:28  decipher
-# Initial revision
-#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.22 2001/08/03 02:03:38 stolcke Exp $
 #
 
 
 # Create the initial directory structure (assumes "src" exists).
 init:
-	-cd ..; $(DECIPHER)/bin/make-standard-directories
+	-cd ..; $(SRILM)/bin/make-standard-directories
 	$(MAKE) $(OBJDIR_STAMP) $(BINDIR_STAMP)
 
 # Delete all of the files which can be automatically regenerated.
 pristine:
-	-cd ..; $(DECIPHER)/bin/remove-standard-directories
+	-cd ..; $(SRILM)/bin/remove-standard-directories
 
 # Make all, using optimize options.
 optimize:
@@ -133,8 +56,8 @@ programs:	$(ALL_PROGRAMS)
 # XXX -- This is disabled for now, since it frequently causes excess re-compilation.
 # Make sure all objects depend on the makefiles.
 #$(ALL_OBJECTS):	Makefile \
-#                       $(DECIPHER)/common/Makefile.common.variables \
-#                       $(DECIPHER)/common/Makefile.common.targets
+#                       $(SRILM)/common/Makefile.common.variables \
+#                       $(SRILM)/common/Makefile.common.targets
 
 # Cancel the rules which put the compilation results in the source
 #  directory.  (Note:  This avoids problems with source files which
@@ -174,23 +97,23 @@ $(OBJDIR)/%.o:	$(SRCDIR)/%.cc
 # we use the C++ driver to link the whole thing, otherwise the C driver
 $(BINDIR)/%: $(OBJDIR)/%.o $(LIBRARY)
 ifeq ($(filter %.cc,$(ALL_SOURCES)), )
-	$(LINK.c) $(OPTION_FLAGS) -o $@ $< -L$(DECIPHER_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.c) $(OPTION_FLAGS) -o $@ $< -L$(SRILM_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
 else
-	$(LINK.cc) $(OPTION_FLAGS) -o $@ $< -L$(DECIPHER_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.cc) $(OPTION_FLAGS) -o $@ $< -L$(SRILM_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
 endif
 
 # revised release targets and dependencies:
 
 .PHONY : release release-headers release-libraries release-programs release-scripts
 
-RELEASED_HEADERS = $(EXPORTED_HEADERS:$(SRCDIR)/%=$(DECIPHER_INCDIR)/%)
+RELEASED_HEADERS = $(EXPORTED_HEADERS:$(SRCDIR)/%=$(SRILM_INCDIR)/%)
 
 release-headers:	$(RELEASED_HEADERS)
 
-$(DECIPHER_INCDIR)/%: $(SRCDIR)/%
-	-$(INSTALL) 0444 $^ $(DECIPHER_INCDIR)
+$(SRILM_INCDIR)/%: $(SRCDIR)/%
+	-$(INSTALL) 0444 $^ $(SRILM_INCDIR)
 
-RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(DECIPHER_LIBDIR)/%.a)
+RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(SRILM_LIBDIR)/%.a)
 
 # We want to re-install only only those binaries that have changed, and
 # use make to figure out the things that need updating.  However,
@@ -202,22 +125,22 @@ RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(DECIPHER_LIBDIR)/%.a)
 
 release-libraries:	$(RELEASED_LIBRARIES)
 
-$(DECIPHER_LIBDIR)/%.a:	$(OBJDIR)/%.a
-	-$(INSTALL) 0644 $^ $(DECIPHER_LIBDIR)
+$(SRILM_LIBDIR)/%.a:	$(OBJDIR)/%.a
+	-$(INSTALL) 0644 $^ $(SRILM_LIBDIR)
 
-RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(DECIPHER_BINDIR)/%)
+RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(SRILM_BINDIR)/%)
 
 release-programs:	$(RELEASED_PROGRAMS)
 
-$(DECIPHER_BINDIR)/%:	$(BINDIR)/%
-	-$(INSTALL) 0555 $^ $(DECIPHER_BINDIR)
+$(SRILM_BINDIR)/%:	$(BINDIR)/%
+	-$(INSTALL) 0555 $^ $(SRILM_BINDIR)
 
-RELEASED_SCRIPTS = $(EXPORTED_SCRIPTS:%=$(DECIPHER_BIN)/%)
+RELEASED_SCRIPTS = $(EXPORTED_SCRIPTS:%=$(SRILM_BIN)/%)
 
 release-scripts:	$(RELEASED_SCRIPTS)
 
-$(DECIPHER_BIN)/%:	%
-	-$(INSTALL) 0555 $^ $(DECIPHER_BIN)
+$(SRILM_BIN)/%:	%
+	-$(INSTALL) 0555 $^ $(SRILM_BIN)
 
 
 # Dependency tracing target
@@ -229,7 +152,7 @@ endif
 ifneq ($(filter %.cc,$(ALL_SOURCES)), )
 	$(GEN_DEP.cc) $(filter %.cc,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" >> $(DEPENDENCIES)
 endif
-	$(DECIPHER)/bin/generate-program-dependencies $(BASE_BINDIR) $(BASE_OBJDIR) $(ALL_PROGRAM_NAMES) >> $(DEPENDENCIES)
+	$(SRILM)/bin/generate-program-dependencies $(BASE_BINDIR) $(BASE_OBJDIR) $(ALL_PROGRAM_NAMES) >> $(DEPENDENCIES)
 
 # Targets for cleaning up
 clean:		remove-objects

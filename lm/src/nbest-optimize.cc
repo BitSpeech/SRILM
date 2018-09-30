@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-optimize.cc,v 1.27 2001/07/04 16:14:04 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-optimize.cc,v 1.28 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ static int oneBest = 0;				/* optimize 1-best error */
 static int noReorder = 0;
 static unsigned debug = 0;
 static char *vocabFile = 0;
-static int tolower = 0;
+static int toLower = 0;
 static int multiwords = 0;
 static char *noiseTag = 0;
 static char *noiseVocabFile = 0;
@@ -100,7 +100,7 @@ static Option options[] = {
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before aligning and align refs first" },
     { OPT_STRING, "errors", &errorsDir, "directory containing error counts" },
     { OPT_STRING, "vocab", &vocabFile, "set vocabulary" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
@@ -1425,7 +1425,7 @@ main(int argc, char **argv)
 	vocab.read(file);
     }
 
-    vocab.toLower = tolower ? true : false;
+    vocab.toLower = toLower ? true : false;
 
     /*
      * Skip noise tags in scoring

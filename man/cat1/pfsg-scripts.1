@@ -1,7 +1,5 @@
-
-
-
 pfsg-scripts(1)                                   pfsg-scripts(1)
+
 
 
 NNAAMMEE
@@ -58,18 +56,6 @@ DDEESSCCRRIIPPTTIIOONN
        the last word in the sentence.  A typical usage is
             make-ngram-pfsg _n_g_r_a_m | \
             add-pauses-to-pfsg >_f_i_n_a_l_-_p_f_s_g
-
-
-
-SRILM Tools        $Date: 2001/06/19 19:36:10 $                 1
-
-
-
-
-
-pfsg-scripts(1)                                   pfsg-scripts(1)
-
-
        The result is a PFSG suitable for use in a  speech  recog-
        nizer.  The option ppaauusseellaasstt==11 switches the order of words
        and pause nodes in the sub-PFSGSs; wwoorrddwwrraapp==00 disables the
@@ -124,18 +110,6 @@ pfsg-scripts(1)                                   pfsg-scripts(1)
        is  -1  (to  conform  to  the   default   FSM   semiring).
        ffiinnaall__oouuttppuutt==_E  forces  the  final FSA node to have output
        label _S; this also forces creation of a unique  final  FSA
-
-
-
-SRILM Tools        $Date: 2001/06/19 19:36:10 $                 2
-
-
-
-
-
-pfsg-scripts(1)                                   pfsg-scripts(1)
-
-
        node, which is otherwise unnecessary if the final node has
        a null output.
 
@@ -155,11 +129,11 @@ pfsg-scripts(1)                                   pfsg-scripts(1)
        transducer  in  ffssmm(5)  format,  such  that  composing the
        transducer with an FSA encoding  a  class  language  model
        results  in  an FSA for the word language model.  The word
-       vocabulary needs to be  given  in  file  _v_o_c_a_b.   iissyymmbbooll--
-       ffiillee==_i_s_y_m_b_o_l_s  and  oossyymmbboollffiillee==_o_s_y_m_b_o_l_s  allow saving the
-       input and output symbol tables of the transducer for later
-       use.  ssyymmbboolliicc==11 preserves the word strings in the result-
-       ing FSA.
+       vocabulary   needs   to   be   given   in   file    _v_o_c_a_b.
+       iissyymmbboollffiillee==_i_s_y_m_b_o_l_s and oossyymmbboollffiillee==_o_s_y_m_b_o_l_s allow saving
+       the input and output symbol tables of the  transducer  for
+       later  use.   ssyymmbboolliicc==11 preserves the word strings in the
+       resulting FSA.
 
        The following commands show the creation of an FSA  encod-
        ing  the  class N-gram grammar ``test.bo'' with vocabulary
@@ -190,18 +164,6 @@ pfsg-scripts(1)                                   pfsg-scripts(1)
 
 NNUUAANNCCEE CCOOMMPPAATTIIBBIILLIITTYY
        The Nuance recognizer (as of version  6.2)  understands  a
-
-
-
-SRILM Tools        $Date: 2001/06/19 19:36:10 $                 3
-
-
-
-
-
-pfsg-scripts(1)                                   pfsg-scripts(1)
-
-
        variant of the PFSG format; hence the scripts above should
        be useful in building recognition systems for that  recog-
        nizer.
@@ -233,8 +195,8 @@ pfsg-scripts(1)                                   pfsg-scripts(1)
        ical circumstance and not supported.
 
 SSEEEE AALLSSOO
-       ngram(1),   nbest-lattice(1),  ngram-format(5),  pfsg-for-
-       mat(5),   nbest-format(5),   classes-format(5),    fsm(5),
+       ngram(1),    nbest-lattice(1),    ngram-format(5),   pfsg-
+       format(5),  nbest-format(5),  classes-format(5),   fsm(5),
        dot(1).
 
 BBUUGGSS
@@ -247,18 +209,4 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-SRILM Tools        $Date: 2001/06/19 19:36:10 $                 4
-
-
+SRILM Tools        $Date: 2001/06/19 19:36:10 $   pfsg-scripts(1)

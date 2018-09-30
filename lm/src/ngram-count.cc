@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.36 2000/01/13 04:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.37 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -57,7 +57,7 @@ static int recompute = 0;
 static int sort = 0;
 static int keepunk = 0;
 static int tagged = 0;
-static int tolower = 0;
+static int toLower = 0;
 static int trustTotals = 0;
 static double prune = 0.0;
 static unsigned minprune = 2;
@@ -150,7 +150,7 @@ static Option options[] = {
     { OPT_FLOAT, "em-delta", &minEMdelta, "min log likelihood delta for EM" },
     { OPT_STRING, "stop-words", &stopWordFile, "stop-word vocabulary for stop-Ngram LM" },
 
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "trust-totals", &trustTotals, "trust lower-order counts for estimation" },
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
     { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
@@ -181,7 +181,7 @@ main(int argc, char **argv)
     assert(vocab);
 
     vocab->unkIsWord = keepunk ? true : false;
-    vocab->toLower = tolower ? true : false;
+    vocab->toLower = toLower ? true : false;
 
     if (dummyTag) {
 	vocab->addWord(dummyTag);

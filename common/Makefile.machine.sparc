@@ -7,41 +7,9 @@
 #	Machine dependent compilation options and variable definitions
 #	for Sun Sparcstations running SunOS 4.1.3
 #
-#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc,v 1.10 2001/03/11 17:32:41 stolcke Exp $
-#
-#    $Log: Makefile.machine.sparc,v $
-#    Revision 1.10  2001/03/11 17:32:41  stolcke
-#    added TCL_ variables
-#
-#    Revision 1.9  2000/06/08 23:59:16  stolcke
-#    back to gcc 2.8.1
-#
-#    Revision 1.8  1999/10/13 07:07:04  stolcke
-#    use gcc 2.95
-#
-#    Revision 1.7  1998/04/18 17:51:25  stolcke
-#    use gcc 2.8.1
-#
-#    Revision 1.6  1996/07/23 19:46:11  stolcke
-#    removed audio includes and lib
-#
-#    Revision 1.5  1996/06/11 05:37:12  stolcke
-#    no more -n linking
-#
-#    Revision 1.4  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-#    Revision 1.3  1995/03/08 18:38:19  stolcke
-#    generalized check for os version
-#
-# Revision 1.2  1995/03/03  23:33:14  stolcke
-# added support for cross-building under solaris
-#
-# Revision 1.1  1995/03/03  23:21:46  stolcke
-# Initial revision
-#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc,v 1.11 2001/08/03 02:03:38 stolcke Exp $
 #
 
    # Use the GNU C compiler.
@@ -61,7 +29,7 @@
    CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
 
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =

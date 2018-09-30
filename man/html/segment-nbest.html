@@ -1,11 +1,11 @@
-<! $Id: segment-nbest.1,v 1.5 2000/05/07 02:04:15 stolcke Exp $>
+<! $Id: segment-nbest.1,v 1.6 2001/08/30 17:28:52 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>segment-nbest</TITLE>
 <BODY>
 <H1>segment-nbest</H1>
 <H2> NAME </H2>
-segment-nbest - rescore and segment N-best lists using N-gram language models
+segment-nbest - rescore and segment N-best lists using hidden segment N-gram model
 <H2> SYNOPSIS </H2>
 <B> segment-nbest </B>
 [<B>-help</B>]<B></B>
@@ -20,11 +20,11 @@ recognizer
 and applies a hidden segment N-gram language model to them.
 The language model is a standard backoff N-gram model in ARPA
 <A HREF="ngram-format.html">ngram-format(5)</A>
-modeling segmentation using the boundary tags &lt;s&gt; and &lt;/s&gt;.
+modeling sentence segmentation using the boundary tags &lt;s&gt; and &lt;/s&gt;.
 The program reads in all N-best lists and outputs the 
-hypotheses that have the highest aggregate score (both acoustic 
-and language model).
-Hypothesized segment boundaries are marked by &lt;s&gt; tags.
+hypotheses that have the highest aggregate (combined acoustic 
+and language model) score.
+Hypothesized sentence boundaries are marked by &lt;s&gt; tags.
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
@@ -93,6 +93,12 @@ as output whose LM scores reflect the posterior probability of each
 hypothesis.
 The default is to perform Viterbi rescoring and output only the
 best combined hypothesis.
+<DT><B>-write-nbest-dir</B><I> dir</I><B></B>
+<DD>
+Write rescored N-best lists to directory 
+<I> dir </I>
+instead of to stdout.
+The filenames from the input are preserved.
 <DT><B>-max-nbest</B><I> n</I><B></B>
 <DD>
 Limits the number of hypotheses read from each N-best list to the first
@@ -155,6 +161,24 @@ Default is the start-of-sentence symbol defined in the language model (&lt;s&gt;
 <DD>
 Make a segment boundary a priori more likely by a factor of
 <I>b</I>.<I></I>
+If
+<I> b </I>
+is 0, the dynamic program algorithm is restricted to never consider
+hidden sentence boundaries; this is useful when
+<B> segment-nbest </B>
+is used merely for its ability to apply the LM across N-best boundaries.
+<DT><B>-start-tag</B><I> string</I><B></B>
+<DD>
+Insert a tag 
+<I> string </I>
+at the front of every N-best hypothesis read in.
+<DT><B>-end-tag</B><I> string</I><B></B>
+<DD>
+Insert a tag 
+<I> string </I>
+at the end of every N-best hypothesis read in.
+This and the previous option are useful if the LM marks acoustic
+waveform boundaries with a special tag.
 </DD>
 </DL>
 <P>
@@ -176,10 +200,12 @@ with individual output delimited by a line of the form
 A. Stolcke, ``Modeling Linguistic Segment and Turn Boundaries for N-best
 Rescoring of Spontaneous Speech,'' <I>Proc. Eurospeech</I>, 2779-2782, 1997.
 <H2> BUGS </H2>
-Only N-gram models up to trigram order are used accurately.
+N-gram models of arbitrary order can be used, but the context at the 
+beginning of a hypothesis never extends beyond the words from the preceding
+N-best list.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1997 SRI International
+Copyright 1997-2001 SRI International
 </BODY>
 </HTML>

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,v 1.16 2000/07/13 06:17:21 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,v 1.17 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -35,7 +35,7 @@ INSTANTIATE_MAP1(VocabIndex,VocabIndex,LogP);
 #define DEBUG_PRINT_CONTRIBS	3	// in interactive mode
 
 static char *vocabFile = 0;
-static int tolower = 0;
+static int toLower = 0;
 static char *noclassFile = 0;
 static char *countsFile = 0;
 static char *textFile = 0;
@@ -50,7 +50,7 @@ static int saveFreq = 0;
 static Option options[] = {
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_STRING, "noclass-vocab", &noclassFile, "vocabulary not to be classed" },
     { OPT_STRING, "counts", &countsFile, "counts file to read" },
     { OPT_STRING, "text", &textFile, "text file to count" },
@@ -1098,7 +1098,7 @@ main(int argc, char **argv)
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     Vocab vocab;
-    vocab.toLower = tolower ? true : false;
+    vocab.toLower = toLower ? true : false;
 
     SubVocab classVocab(vocab);
     SubVocab noclassVocab(vocab);

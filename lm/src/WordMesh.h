@@ -3,9 +3,9 @@
  *	Word Meshes (a simple type of word lattice with transitions between
  *	any two adjacent words).
  *
- * Copyright (c) 1998-2000 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.10 2001/06/08 05:56:16 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.14 2001/10/31 00:53:40 stolcke Exp $
  *
  */
 
@@ -17,18 +17,13 @@
 
 #include "Array.h"
 #include "LHash.h"
-
-typedef unsigned short HypID;	/* index identifying a sentence in the
-				 * alignment (short to save space) */
-
-const HypID refID = (HypID)-1; 	/* pseudo-hyp ID used to identify the reference
-				 * in an N-best alignment */
+#include "SArray.h"
 
 class WordMeshIter;
 
 class WordMesh: public MultiAlign
 {
-    friend WordMeshIter;
+    friend class WordMeshIter;
 
 public:
     WordMesh(Vocab &vocab, VocabDistance *distance = 0);
@@ -37,16 +32,10 @@ public:
     Boolean read(File &file);
     Boolean write(File &file);
 
-    void addWords(const VocabIndex *words, Prob score)
-	{ alignWords(words, score); };
-    void alignWords(const VocabIndex *words, Prob score, Prob *wordScores = 0)
-	{ alignWords(words, score, wordScores, 0); };
     void alignWords(const VocabIndex *words, Prob score,
-				    Prob *wordScores, const HypID *hypID);
-
-    void alignReference(const VocabIndex *words)
-	{ HypID id = refID;
-	  alignWords(words, 0.0, 0, &id); };
+				Prob *wordScores = 0, const HypID *hypID = 0);
+    void alignWords(const NBestWordInfo *winfo, Prob score,
+				Prob *wordScores = 0, const HypID *hypID = 0);
 
     unsigned wordError(const VocabIndex *words,
 				unsigned &sub, unsigned &ins, unsigned &del);
@@ -62,11 +51,13 @@ public:
 
 private:
     Array< LHash<VocabIndex,Prob>* > aligns;	// alignment columns
+    Array< LHash<VocabIndex,NBestWordInfo>* > wordInfo;
+					// word backtrace info
     Array< LHash<VocabIndex,Array<HypID> >* > hypMap;
 					// pointers from word hyps
 					//       to sentence hyps
-    Array<HypID> allHyps;		// list of all aligned hyp IDs
-
+    SArray<HypID,HypID> allHyps;	// list of all aligned hyp IDs
+					// 	(Note: only keys are used)
     unsigned numAligns;			// number of alignment columns
     Array<unsigned> sortedAligns;	// topoligical order of alignment
 

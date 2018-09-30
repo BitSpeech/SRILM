@@ -5,7 +5,7 @@
 #
 # usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.20 2001/01/22 20:14:29 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.21 2001/11/20 02:03:12 stolcke Exp $
 #
 
 #########################################
@@ -20,8 +20,11 @@ BEGIN {
 	end_tag = "</s>";
 	null = "NULL";
 
-	getline pid < "/dev/pid";
-	close("/dev/pid");
+	if ("pid" in PROCINFO) {
+	    pid = PROCINFO["pid"];
+	} else {
+	    getline pid < "/dev/pid";
+	}
 	tmpfile = "tmp.pfsg.trans." pid;
 	debug = 0;
 }

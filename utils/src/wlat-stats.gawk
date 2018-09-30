@@ -3,7 +3,7 @@
 # wlat-stats --
 #	Compute statistics of word posterior lattices
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-stats.gawk,v 1.1 2001/06/10 22:25:50 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/wlat-stats.gawk,v 1.2 2001/08/02 18:20:17 stolcke Exp $
 #
 BEGIN {
 	name = "";
@@ -11,7 +11,11 @@ BEGIN {
 	entropy = 0;
 	nwords = 0;
 
+	nsub = nins = ndel = 0;
+
 	M_LN10 = 2.30258509299404568402;
+
+	empty_hyp = "*DELETE*";
 }
 
 #
@@ -42,6 +46,10 @@ $1 == "node" {
 #	align 4 okay 0.998848 ok 0.00113834 i 1.06794e-08 a 4.48887e-08 ...
 #
 $1 == "align" {
+	align_pos = $2;
+
+	best_hyp = "";
+	best_posterior = 0;
 	for (i = 3; i <= NF; i += 2) {
 	    word = $i;
 
@@ -53,12 +61,29 @@ $1 == "align" {
 	    if (prob > 0) {
 		    entropy -= prob * log(prob);
 	    }
+
+	    if (prob > best_posterior) {
+		best_posterior = prob;
+		best_hyp = word;
+	    }
 	}
 }
-$1 == "reference" {
-	if ($3 != "*DELETE*") {
+$1 == "reference" && $2 == align_pos {
+	if ($3 != empty_hyp) {
 	    nwords ++;
+
+	    if (best_hyp == empty_hyp) {
+		ndel ++;
+	    } else if (best_hyp != $3) {
+		nsub ++;
+	    }
+	} else {
+	    if (best_hyp != empty_hyp) {
+		nins ++;
+	    }
 	}
+
+	align_pos = -1;
 }
 
 END {
@@ -70,5 +95,12 @@ END {
 		  entropy/M_LN10/nwords " entropy/word";
 	}
 	printf "\n";
+	if (nwords  > 0) {
+	    nerrors = nsub + nins + ndel;
+	    printf name (name != "" ? " " : "") \
+		   nerrors " errors " nerrors*100/nwords " WER " \
+		   nsub*100/nwords " SUB " nins*100/nwords " INS " \
+		   ndel*100/nwords " DEL\n";
+	}
 }
 

@@ -17,14 +17,11 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.14 2001/03/11 16:37:41 stolcke Exp $
+#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.15 2001/08/03 02:03:38 stolcke Exp $
 #
 
-DECIPHER = $(SRILM)
-#MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
-
-# Include common DECIPHER (TM) variable definitions.
-include $(DECIPHER)/common/Makefile.common.variables
+# Include common SRILM variable definitions.
+include $(SRILM)/common/Makefile.common.variables
 
 ifneq ($(CC), $(subst gcc,,$(CC)))
 CC += -Wreturn-type 
@@ -127,5 +124,5 @@ EXPORTED_PROGRAMS  =
 
 release:	release-headers release-libraries release-programs
 
-# Include common DECIPHER (TM) target definitions.
-include $(DECIPHER)/common/Makefile.common.targets
+# Include common SRILM target definitions.
+include $(SRILM)/common/Makefile.common.targets

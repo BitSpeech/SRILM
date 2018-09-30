@@ -1,7 +1,5 @@
-
-
-
 Vocab(3)                                                 Vocab(3)
+
 
 
 NNAAMMEE
@@ -59,17 +57,6 @@ CCLLAASSSS MMEEMMBBEERRSS
               Looks up the index of a word  string  _n_a_m_e,  adding
               the word if not already part of the vocabulary.
 
-
-
-SRILM              $Date: 1996/07/13 01:35:40 $                 1
-
-
-
-
-
-Vocab(3)                                                 Vocab(3)
-
-
        VVooccaabbSSttrriinngg ggeettWWoorrdd((VVooccaabbIInnddeexx _i_n_d_e_x))
               Returns  the  VocabString  for  _i_n_d_e_x,  or 0 if the
               index isn't defined.
@@ -124,18 +111,6 @@ Vocab(3)                                                 Vocab(3)
               language  models,  etc.,  whose vocabularies differ
               only in the case convention (default ffaallssee).
 
-
-
-
-SRILM              $Date: 1996/07/13 01:35:40 $                 2
-
-
-
-
-
-Vocab(3)                                                 Vocab(3)
-
-
        BBoooolleeaann iissNNoonnEEvveenntt((VVooccaabbSSttrriinngg _w_o_r_d))
 
        BBoooolleeaann iissNNoonnEEvveenntt((VVooccaabbIInnddeexx _w_o_r_d))
@@ -163,22 +138,22 @@ Vocab(3)                                                 Vocab(3)
        type VVooccaabbSSttrriinngg ** or VVooccaabbIInnddeexx **.  The last element in a
        string is 0 or VVooccaabb__NNoonnee, respectively.
 
-       uunnssiiggnneedd ggeettWWoorrddss((ccoonnsstt  VVooccaabbIInnddeexx  **_w_i_d_s,,  VVooccaabbSSttrriinngg
-              **_w_o_r_d_s,, uunnssiiggnneedd _m_a_x))
+       uunnssiiggnneedd  ggeettWWoorrddss((ccoonnsstt  VVooccaabbIInnddeexx  **_w_i_d_s,,   VVooccaabbSSttrriinngg
+       **_w_o_r_d_s,, uunnssiiggnneedd _m_a_x))
               Extends ggeettWWoorrdd(()) to strings of word.   The  result
               is  placed  in  _w_o_r_d_s,  which must have room for at
               least _m_a_x words.   Returns  the  actual  number  of
               indices in _w_i_d_s.
 
        uunnssiiggnneedd  aaddddWWoorrddss((ccoonnsstt  VVooccaabbSSttrriinngg  **_w_o_r_d_s,,  VVooccaabbIInnddeexx
-              **_w_i_d_s,, uunnssiiggnneedd _m_a_x))
+       **_w_i_d_s,, uunnssiiggnneedd _m_a_x))
               Extends  aaddddWWoorrdd(())  to  strings  of  indices.   The
               result is placed in _w_i_d_s, which must have room  for
               at least _m_a_x indices.  Returns the actual number of
               words in _w_o_r_d_s.
 
-       uunnssiiggnneedd ggeettIInnddiicceess((ccoonnsstt VVooccaabbSSttrriinngg **_w_o_r_d_s,,  VVooccaabbIInnddeexx
-              **_w_i_d_s,, uunnssiiggnneedd _m_a_x))
+       uunnssiiggnneedd ggeettIInnddiicceess((ccoonnsstt VVooccaabbSSttrriinngg  **_w_o_r_d_s,,  VVooccaabbIInnddeexx
+       **_w_i_d_s,, uunnssiiggnneedd _m_a_x))
               Extends ggeettIInnddeexx(())  to  strings  of  indices.   The
               result  is placed in _w_i_d_s, which must have room for
               at least _m_a_x indices.  Returns the actual number of
@@ -189,21 +164,8 @@ FFUUNNCCTTIIOONNSS
        manipulate strings of vocabulary items, independent  of  a
        particular vocabulary.
 
-
-
-
-
-SRILM              $Date: 1996/07/13 01:35:40 $                 3
-
-
-
-
-
-Vocab(3)                                                 Vocab(3)
-
-
-       uunnssiiggnneedd ppaarrsseeWWoorrddss((cchhaarr **_l_i_n_e,, VVooccaabbSSttrriinngg **_w_o_r_d_s,,
-              uunnssiiggnneedd _m_a_x))
+       uunnssiiggnneedd   ppaarrsseeWWoorrddss((cchhaarr   **_l_i_n_e,,   VVooccaabbSSttrriinngg  **_w_o_r_d_s,,
+       uunnssiiggnneedd _m_a_x))
               Parses  a  character  string  _l_i_n_e into whitespace-
               delimited words.  On return, _w_o_r_d_s contains  point-
               ers  to  null-terminated  substrings of _l_i_n_e (whose
@@ -231,19 +193,19 @@ Vocab(3)                                                 Vocab(3)
        iinntt ccoommppaarree((VVooccaabbIInnddeexx _w_o_r_d_1,, VVooccaabbIInnddeexx _w_o_r_d_2))
 
        iinntt ccoommppaarree((VVooccaabbSSttrriinngg _w_o_r_d_1,, VVooccaabbSSttrriinngg _w_o_r_d_2))
-              Compares  two  vocabulary  items lexicographically.
-              Returns -1, 0, +1 for less than, equal, or  greater
+              Compares two  vocabulary  items  lexicographically.
+              Returns  -1, 0, +1 for less than, equal, or greater
               than, respectively.
 
-       iinntt ccoommppaarree((ccoonnsstt VVooccaabbIInnddeexx **_w_o_r_d_s_1,, ccoonnsstt VVooccaabbIInnddeexx
-              **_w_o_r_d_s_2))
+       iinntt ccoommppaarree((ccoonnsstt  VVooccaabbIInnddeexx  **_w_o_r_d_s_1,,  ccoonnsstt  VVooccaabbIInnddeexx
+       **_w_o_r_d_s_2))
 
-       iinntt ccoommppaarree((ccoonnsstt VVooccaabbIInnddeexx **_w_o_r_d_s_1,, ccoonnsstt VVooccaabbIInnddeexx
-              **_w_o_r_d_s_2))
+       iinntt ccoommppaarree((ccoonnsstt  VVooccaabbIInnddeexx  **_w_o_r_d_s_1,,  ccoonnsstt  VVooccaabbIInnddeexx
+       **_w_o_r_d_s_2))
               Extends the order of _c_o_m_p_a_r_e_(_) to strings of words.
 
-       For compatibilty with the C library  calling  conventions,
-       ccoommppaarree(())  cannot  be a member function of a Vocab object.
+       For  compatibilty  with the C library calling conventions,
+       ccoommppaarree(()) cannot be a member function of a  Vocab  object.
        For  index-based  comparisons  the  associated  vocabulary
        needs to be set globally.  This is achieved by calling the
        ccoommppaarreeIInnddeexx(()) member function of a Vocab object.
@@ -252,39 +214,28 @@ Vocab(3)                                                 Vocab(3)
 
        oossttrreeaamm &&ooppeerraattoorr<<<< ((oossttrreeaamm &&,, ccoonnsstt VVooccaabbIInnddeexx **_w_o_r_d_s))
               These  operators  output  strings  of  words  to  a
-              stream.   For  the second variant, the Vocab object
-              used for interpreting indices needs to  be  identi-
-              fied  globally by calling the _u_s_e_(_) member function
+              stream.  For the second variant, the  Vocab  object
+              used  for  interpreting indices needs to be identi-
+              fied globally by calling the _u_s_e_(_) member  function
               on the object.
 
-
-
-SRILM              $Date: 1996/07/13 01:35:40 $                 4
-
-
-
-
-
-Vocab(3)                                                 Vocab(3)
-
-
 IITTEERRAATTOORRSS
-       The VVooccaabbIItteerr class provides iteration over  vocabularies.
-       An  iteration  returns  the  elements  of  a Vocab in some
+       The  VVooccaabbIItteerr class provides iteration over vocabularies.
+       An iteration returns the  elements  of  a  Vocab  in  some
        unspecified, but deterministic order.
 
-       When copied or used in initialization  of  other  objects,
-       VocabIter  objects  retain  the current ``position'' in an
-       iteration.  This allows nested iterations  that  enumerate
+       When  copied  or  used in initialization of other objects,
+       VocabIter objects retain the current  ``position''  in  an
+       iteration.   This  allows nested iterations that enumerate
        all pairs of distinct elements, etc.
 
-       NOTE:  While  an iteration over a Vocab object is ongoing,
+       NOTE: While an iteration over a Vocab object  is  ongoing,
        no modifications are allowed to the object, _e_x_c_e_p_t removal
        of the ``current'' vocabulary item.
 
        VVooccaabbIItteerr((VVooccaabb &&_v_o_c_a_b,, BBoooolleeaann _s_o_r_t_e_d == ffaallssee))
-              Creates  an iteration over _v_o_c_a_b.  If _s_o_r_t_e_d is set
-              to ttrruuee the vocabulary items will be enumerated  in
+              Creates an iteration over _v_o_c_a_b.  If _s_o_r_t_e_d is  set
+              to  ttrruuee the vocabulary items will be enumerated in
               lexicographic order.
 
        vvooiidd iinniitt(())
@@ -293,16 +244,16 @@ IITTEERRAATTOORRSS
        VVooccaabbSSttrriinngg nneexxtt(())
 
        VVooccaabbSSttrriinngg nneexxtt((VVooccaabbIInnddeexx &&_i_n_d_e_x))
-              Steps  the  iteration  and  returns  the  next word
-              string.  Optionally, the associated word  index  is
-              returned  in _i_n_d_e_x.  Returns 0 if the vocabulary is
+              Steps the  iteration  and  returns  the  next  word
+              string.   Optionally,  the associated word index is
+              returned in _i_n_d_e_x.  Returns 0 if the vocabulary  is
               exhausted.
 
 SSEEEE AALLSSOO
        LM(3), File(3)
 
 BBUUGGSS
-       There is no good  way  to  synchronize  VocabIndex  values
+       There  is  no  good  way  to synchronize VocabIndex values
        across multiple Vocab objects.
 
 AAUUTTHHOORR
@@ -311,20 +262,4 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SRILM              $Date: 1996/07/13 01:35:40 $                 5
-
-
+SRILM              $Date: 1996/07/13 01:35:40 $          Vocab(3)

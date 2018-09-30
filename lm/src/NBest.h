@@ -2,9 +2,9 @@
  * NBest.h --
  *	N-best lists
  *
- * Copyright (c) 1995-2000, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2001, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.21 2000/05/10 00:24:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.22 2001/08/07 01:16:32 stolcke Exp $
  *
  */
 
@@ -28,6 +28,32 @@
 const char nbest1Magic[] = "NBestList1.0";
 const char nbest2Magic[] = "NBestList2.0";
 
+typedef float NBestTimestamp;
+
+/*
+ * Optional detailed information associated with words in N-best lists
+ */
+class NBestWordInfo {
+public:
+    NBestWordInfo();
+    ~NBestWordInfo();
+    NBestWordInfo &operator= (const NBestWordInfo &other);
+
+    void write(File &file);			// write info to file
+    Boolean parse(const char *s);		// parse info from string
+    void invalidate();				// invalidate info
+    Boolean valid() const;			// check that info is valid
+    void merge(const NBestWordInfo &other);	// combine two pieces of info
+
+    VocabIndex word;
+    NBestTimestamp start;
+    NBestTimestamp duration;
+    LogP acousticScore;
+    LogP languageScore;
+    char *phones;
+    char *phoneDurs;
+};
+
 /*
  * A hypothesis in an N-best list with associated info
  */
@@ -42,11 +68,13 @@ public:
     void reweight(double lmScale, double wtScale, double amScale = 1.0);
 
     Boolean parse(char *line, Vocab &vocab, unsigned decipherFormat = 0,
-			LogP acousticOffset = 0.0, Boolean multiwords = false);
+			LogP acousticOffset = 0.0,
+			Boolean multiwords = false, Boolean backtrace = false);
     void write(File &file, Vocab &vocab, Boolean decipherFormat = true,
 						    LogP acousticOffset = 0.0);
 
     VocabIndex *words;
+    NBestWordInfo *wordInfo;
     LogP acousticScore;
     LogP languageScore;
     unsigned numWords;
@@ -58,7 +86,8 @@ public:
 class NBestList: public Debug
 {
 public:
-    NBestList(Vocab &vocab, unsigned maxSize = 0, Boolean multiwords = false);
+    NBestList(Vocab &vocab, unsigned maxSize = 0,
+			Boolean multiwords = false, Boolean backtrace = false);
     ~NBestList() {};
 
     static unsigned initialSize;
@@ -96,7 +125,8 @@ private:
     Array<NBestHyp> hypList;
     unsigned _numHyps;
     unsigned maxSize;
-    Boolean multiwords;
+    Boolean multiwords;		// split multiwords
+    Boolean backtrace;		// keep backtrace information (if available)
 };
 
 #endif /* _NBest_h_ */

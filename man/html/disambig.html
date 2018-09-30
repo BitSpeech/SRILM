@@ -1,4 +1,4 @@
-<! $Id: disambig.1,v 1.17 1999/10/18 15:14:10 stolcke Exp $>
+<! $Id: disambig.1,v 1.18 2001/08/17 21:56:35 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>disambig</TITLE>
@@ -141,6 +141,13 @@ Outputs the V2 tokens that have the highest posterior probability,
 for each position.
 The default is to use Viterbi decoding, i.e., the output is the
 V2 sequence with the higher joint posterior probability.
+<DT><B> -fw-only </B>
+<DD>
+Similar to 
+<B>-fb</B>,<B></B>
+but uses only the forward probabilities for computing posteriors.
+This may be used to simulate on-line prediction of tags, without the
+benefit of future context.
 <DT><B> -posteriors </B>
 <DD>
 Output the table of posterior probabilities for each 

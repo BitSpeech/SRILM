@@ -1,5 +1,5 @@
-.\" $Id: nbest-scripts.1,v 1.18 2001/06/19 19:34:16 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2001/06/19 19:34:16 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.20 2001/08/19 17:57:11 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2001/08/19 17:57:11 $" "SRILM Tools"
 .SH NAME
 nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
@@ -9,6 +9,8 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .RB [ \-multiwords ]
 .RB [ \-pretty
 .IR mapfile ]
+.RB [ \-filter
+.IR command ]
 .RB [ \-norescore ]
 .RB [ \-lm-only ]
 .I nbest-file-list
@@ -80,7 +82,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .B nbest-error
 .IR score-dir | file-list
 .I refs
-.RI [ max-nbest ]
+.RI [ nbest-lattice-option ...]
 .br
 .B sentid-to-sclite
 .I hyps
@@ -158,6 +160,14 @@ The
 .I mapfile
 contains one mapping per line, the first field specifying the word to be
 replaced and subsequent fields forming the replacement string.
+.BR \-filter
+specifies a
+.I command
+that is used to filter the N-best hypotheses prior to
+evaluating the language model.
+This may be used for more general textual rewriting so that non-standard
+LMs can be applied.
+The output N-best lists will contain the filtered hypotheses.
 .BR \-norescore
 causes N-best lists to be simply reformatted from one of the Decipher formats
 into the SRILM N-best format, separating acoustic and LM scores, without
@@ -169,6 +179,10 @@ options
 and 
 .BR \-decipher-wtw
 are relevant, and others are ignored.
+.B \-norescore 
+and 
+.B \-filter
+may be used together to perform textual rewriting of N-best lists.
 .BR \-lm-only
 dumps out LM scores only, instead of complete N-best lists.
 .PP
@@ -353,9 +367,10 @@ The reference answers are given in
 in the format output by 
 .B rescore-reweight 
 (see above).
-The optional
-.I max-nbest
-controls the length of N-best lists considered.
+Additional arguments are passed to the underlying invocation of
+.BR nbest-lattice (1),
+and can be used to limit the depth of the N-best list,
+compute lattice error rather than N-best error, etc.
 .PP
 .B sentid-to-sclite
 converts 1-best hypotheses and references in the format used here to

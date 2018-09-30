@@ -1,4 +1,4 @@
-<! $Id: nbest-scripts.1,v 1.18 2001/06/19 19:34:16 stolcke Exp $>
+<! $Id: nbest-scripts.1,v 1.20 2001/08/19 17:57:11 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-scripts</TITLE>
@@ -13,6 +13,8 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 [<B>-multiwords</B>]
 [<B>-pretty</B>
 <I>mapfile</I>]<I></I>
+[<B>-filter</B>
+<I>command</I>]<I></I>
 [<B>-norescore</B>]
 [<B>-lm-only</B>]
 <I> nbest-file-list </I>
@@ -84,7 +86,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <B> nbest-error </B>
 <I>score-dir</I>|<I>file-list</I>
 <I> refs </I>
-[<I>max-nbest</I>]
+[<I>nbest-lattice-option</I>...]
 <BR>
 <B> sentid-to-sclite </B>
 <I> hyps </I>
@@ -158,6 +160,14 @@ The
 <I> mapfile </I>
 contains one mapping per line, the first field specifying the word to be
 replaced and subsequent fields forming the replacement string.
+<B>-filter</B><B></B>
+specifies a
+<I> command </I>
+that is used to filter the N-best hypotheses prior to
+evaluating the language model.
+This may be used for more general textual rewriting so that non-standard
+LMs can be applied.
+The output N-best lists will contain the filtered hypotheses.
 <B>-norescore</B><B></B>
 causes N-best lists to be simply reformatted from one of the Decipher formats
 into the SRILM N-best format, separating acoustic and LM scores, without
@@ -169,6 +179,10 @@ options
 and 
 <B>-decipher-wtw</B><B></B>
 are relevant, and others are ignored.
+<B> -norescore </B>
+and 
+<B> -filter </B>
+may be used together to perform textual rewriting of N-best lists.
 <B>-lm-only</B><B></B>
 dumps out LM scores only, instead of complete N-best lists.
 <P>
@@ -353,9 +367,10 @@ The reference answers are given in
 in the format output by 
 <B> rescore-reweight </B>
 (see above).
-The optional
-<I> max-nbest </I>
-controls the length of N-best lists considered.
+Additional arguments are passed to the underlying invocation of
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>,
+and can be used to limit the depth of the N-best list,
+compute lattice error rather than N-best error, etc.
 <P>
 <B> sentid-to-sclite </B>
 converts 1-best hypotheses and references in the format used here to

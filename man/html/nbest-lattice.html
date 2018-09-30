@@ -1,4 +1,4 @@
-<! $Id: nbest-lattice.1,v 1.23 2001/07/11 05:27:50 stolcke Exp $>
+<! $Id: nbest-lattice.1,v 1.28 2001/08/11 18:12:23 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-lattice</TITLE>
@@ -81,7 +81,18 @@ A synonym for
 <DT><B>-write-nbest</B><I> file</I><B></B>
 <DD>
 Outputs the N-best list to a file, after sorting and processing 
-(for validation purposes).
+(for validation or format conversion purposes).
+<DT><B> -decipher-nbest </B>
+<DD>
+Output N-best list in Decipher
+<A HREF="nbest-format.html">nbest-format(5)</A>,
+rather than the default native SRILM format.
+(All N-best formats are accepted for input regardless of this option.)
+<DT><B> -no-rescore </B>
+<DD>
+Suppress rescoring of lattices;
+useful if only the operations of lattice/N-best list reading/writing
+are desired.
 <DT><B>-nbest-files</B><I> file-list</I><B></B>
 <DD>
 Rescores multiple N-best lists whose filenames are read from
@@ -121,6 +132,13 @@ This is another strategy to speed up the algorithm.
 <DD>
 Process N-best hypotheses in the order in which they appear.
 By default, hypotheses are first sorted by their aggregate scores.
+<DT><B> -nbest-backtrace </B>
+<DD>
+Preserve backtrace information (word-level timemarks and scores) when reading
+N-best lists containing such information (see 
+<A HREF="nbest-format.html">nbest-format(5)</A>).
+The default is to ignore backtrace information and record only sentence-level
+scores and the word identities.
 <DT><B>-rescore-lmw</B><I> lmw</I><B></B>
 <DD>
 Sets the language model weight used in combining the language model log
@@ -188,13 +206,10 @@ instead of, or in addition to, the single noise tag specified by
 <DD>
 Do not remove pause or noise tokens from hypotheses. The default
 is to preserve noise tags but still eliminate pauses.
-<DT><B>-nbest-errors</B><I> references</I><B></B>
+<DT><B>-nbest-error</B><I></I><B></B>
 <DD>
 Compute the N-best error (minimum word error) of the N-best list read with
 <B>-nbest</B>.<B></B>
-Error is computed relative to all the hypotheses contained in a separate
-N-best list given by
-<I>references</I>.<I></I>
 Pause and noise tokens (as specified with
 <B>-noise</B>)<B></B>
 in the N-best list are ignored.
@@ -222,13 +237,27 @@ option limits the number of hypotheses per N-best list processed.
 <DT><B>-reference</B><I> w1 w2 ...</I><B></B>
 <DD>
 Specifies a reference word string for 
-<B>-dump-errors</B>.<B></B>
+<B>-dump-errors</B>,<B></B>
+<B>-nbest-error</B>,<B></B>
+and
+<B> -lattice-error </B>
+options.
 Additionally, in 
 <B> -use-mesh </B>
 mode, the reference words are recorded in the word mesh and can be output
 with 
 <B>-write</B>,<B></B>
 indicating which word in each alignment position is the correct one.
+<DT><B>-refs</B><I> references</I><B></B>
+<DD>
+Read a table of reference transcripts from file
+<I>reference</I>,<I></I>
+for when multiple N-best lists are processed (see
+<B>-nbest-files</B>).<B></B>
+Each line in 
+<I> references </I>
+must contain the sentence ID (the last component in the N-best filename
+path, minus any suffixes) followed by zero or more reference words.
 </DD>
 </DL>
 <P>
@@ -242,8 +271,17 @@ to be merged with additional paths constructed from the
 N-best hypotheses.
 <DT><B>-write</B><I> file</I><B></B>
 <DD>
-Writes the resulting N-best lattice to
-<I>file</I>.<I></I>
+Writes the resulting word posterior lattice or mesh to
+<I>file</I>,<I></I>
+in
+<A HREF="wlat-format.html">wlat-format(5)</A>.
+<DT><B>-write-dir</B><I> directory</I><B></B>
+<DD>
+Write the resulting N-best lattices to 
+<I>directory</I>,<I></I>
+in files named after the input N-best lists,
+for when multiple N-best lists are processed (see
+<B>-nbest-files</B>).<B></B>
 <DT><B> -prime-lattice </B>
 <DD>
 Start building the lattice with the best hypothesis obtained from
@@ -263,19 +301,34 @@ gives best results.)
 Build a lattice from the N-best hypotheses without merging edges
 (string/lattice alignment).  This creates a lattice with one disjoint path
 per hypothesis, and is useful mainly for debugging purposes.
-<DT><B>-lattice-errors</B><I> references</I><B></B>
+<DT><B> -lattice-error </B>
 <DD>
 Compute the lattice error (minimum word error) of the lattice read with
 <B> -read </B>
 or built with 
 <B>-nbest</B>.<B></B>
-Error is computed relative to all the hypotheses contained in a separate
-N-best list given by
-<I>references</I>.<I></I>
+<DT><B>-dictionary</B> file<B></B>
+<DD>
+Use word pronunciations listed in 
+<I> file </I>
+to construct word alignments when building word meshes.
+This will use an alignment cost function that reflects the number of
+inserted/deleted/substituted phones, rather than words.
+The dictionary 
+<I> file </I>
+should contain one pronunciation per line, each naming a word in the first
+field, followed by a string of phone symbols.
+<DT><B> -record-hyps </B>
+<DD>
+Record the ranks of the hyps contributing to each word hypothesis in the 
+resulting word lattice;
+the information is included in
+<B> -write </B>
+output.
 </DD>
 </DL>
 <H2> SEE ALSO </H2>
-<A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-optimize.html">nbest-optimize(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-optimize.html">nbest-optimize(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>, <A HREF="wlat-format.html">wlat-format(5)</A>.
 <BR>
 A. Stolcke, Y. Konig, and M. Weintraub,
 ``Explicit Word Error Minimization in N-best List Rescoring,''
@@ -287,16 +340,13 @@ L. Mangu, E. Brill, and A. Stolcke, ``Finding Consensus Among Words:
 Lattice-based Word Error Minimization.'' <I>Proc. Eurospeech</I>,
 vol. 1, 495-498, 1999.
 <H2> BUGS </H2>
-Only a subset of functions is available when processing multiple
-N-best lists.
-<BR>
-The options for word and lattice error computation are not consistent:
-<B> -dump-errors </B>
-takes the reference on the command line, whereas
-<B> -lattice-errors </B>
-and
-<B> -nbest-errors </B>
-use a separate N-best list.
+Several functions are not uniformly implemented for all rescoring modes
+(e.g., 
+<B>-dictionary</B>,<B></B>
+<B>-record-hyps</B>,<B></B>
+and 
+<B> -nbest-backtrace </B>
+are currently effective only in mesh-lattice mode).
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>

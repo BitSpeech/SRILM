@@ -1,7 +1,7 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.11 2001/05/21 23:11:37 stolcke Exp $
+# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.12 2001/08/03 07:09:23 stolcke Exp $
 #
 
 GROFF = groff -Tascii -mgan
@@ -36,7 +36,8 @@ MAN5PAGES = \
 	ngram-format \
 	nbest-format \
 	classes-format \
-	pfsg-format
+	pfsg-format \
+	wlat-format
 
 CATS = $(MAN1PAGES:%=cat1/%.1) \
 	$(MAN3PAGES:%=cat3/%.3)\

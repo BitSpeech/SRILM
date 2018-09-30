@@ -17,37 +17,11 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile,v 1.7 1999/08/02 00:44:55 stolcke Exp $
-#
-#    $Log: Makefile,v $
-#    Revision 1.7  1999/08/02 00:44:55  stolcke
-#    updated for WS99
-#
-#    Revision 1.6  1997/08/27 00:20:19  stolcke
-#    define vars only if HTK support exists
-#
-#    Revision 1.5  1997/08/13 05:59:23  stolcke
-#    updaged to HTK2.1
-#
-#    Revision 1.4  1997/08/09 18:38:15  stolcke
-#    added JAStar-restart
-#
-#    Revision 1.3  1997/07/21 13:26:07  stolcke
-#    upgraded to HTK 2.0
-#
-#    Revision 1.2  1997/07/18 21:16:15  stolcke
-#    added OracleLM support
-#
-#    Revision 1.1  1997/07/18 21:05:07  stolcke
-#    Initial revision
+#    $Header: /home/srilm/devel/htk/src/RCS/Makefile,v 1.8 2001/08/03 02:03:38 stolcke Exp $
 #
 
-DECIPHER = $(SRILM)
-MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
-
-# Include common DECIPHER (TM) variable definitions.
-include $(DECIPHER)/common/Makefile.common.variables
-
+# Include common SRILM variable definitions.
+include $(SRILM)/common/Makefile.common.variables
 
 # Define variables.
 
@@ -201,8 +175,8 @@ release:	release-headers \
 		release-programs \
 		release-scripts
 
-# Include common DECIPHER (TM) target definitions.
-include $(DECIPHER)/common/Makefile.common.targets
+# Include common SRILM target definitions.
+include $(SRILM)/common/Makefile.common.targets
 
 # Compile code in the HTK directory
 # NOTE: place this after other rules so local sources override precompiled

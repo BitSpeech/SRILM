@@ -1,7 +1,5 @@
-
-
-
 hidden-ngram(1)                                   hidden-ngram(1)
+
 
 
 NNAAMMEE
@@ -44,7 +42,7 @@ OOPPTTIIOONNSS
               If  a  p  value  is  omitted  a  likelihood of 1 is
               assumed.  All  events  not  explicitly  listed  are
               given likelihood 0, and are hence excluded for that
-              word.A In particular, the label **nnooeevveenntt**  must  be
+              word.  In particular, the label **nnooeevveenntt**  must  be
               listed  to  allow absence of a hidden event.  Input
               word strings are assembled from multiple  lines  of
               --tteexxtt--mmaapp  input  until  either  an end-of-sentence
@@ -58,17 +56,6 @@ OOPPTTIIOONNSS
        --llmm _f_i_l_e
               Specifies the word/tag language model as a standard
               ARPA  N-gram backoff model file in nnggrraamm--ffoorrmmaatt(5).
-
-
-
-SRILM Tools        $Date: 2000/06/09 00:27:04 $                 1
-
-
-
-
-
-hidden-ngram(1)                                   hidden-ngram(1)
-
 
        --oorrddeerr _n
               Set the effective N-gram order used by the language
@@ -108,75 +95,69 @@ hidden-ngram(1)                                   hidden-ngram(1)
               output  is  the tag sequence with the highest joint
               posterior probability.
 
+       --ffww--oonnllyy
+              Similar to --ffbb, but uses only the forward probabil-
+              ities  for  computing posteriors.  This may be used
+              to simulate on-line prediction of tags, without the
+              benefit of future context.
+
        --ccoonnttiinnuuoouuss
-              Process all words in the input as one  sequence  of
-              words,  irrespective of line breaks.  Normally each
-              line is processed separately as a sentence.   Input
-              tokens  are  output one-per-line, followed by event
+              Process  all  words in the input as one sequence of
+              words, irrespective of line breaks.  Normally  each
+              line  is processed separately as a sentence.  Input
+              tokens are output one-per-line, followed  by  event
               tokens.
 
        --ppoosstteerriioorrss
-              Output the table  of  posterior  probabilities  for
-              each  tag  position.   If --ffbb is also specified the
+              Output  the  table  of  posterior probabilities for
+              each tag position.  If --ffbb is  also  specified  the
               posterior probabilities will be computed using for-
-              ward-backward  probabilities; otherwise an approxi-
-              mation will be used that is based on the  probabil-
-              ity  of the most likely path containing a given tag
+              ward-backward probabilities; otherwise an  approxi-
+              mation  will be used that is based on the probabil-
+              ity of the most likely path containing a given  tag
               at given position.
 
-
-
-
-SRILM Tools        $Date: 2000/06/09 00:27:04 $                 2
-
-
-
-
-
-hidden-ngram(1)                                   hidden-ngram(1)
-
-
        --ttoottaallss
-              Output the total string probability for each  input
-              sentence.   If --ffbb is also specified this probabil-
-              ity is obtained by summing over  all  hidden  event
+              Output  the total string probability for each input
+              sentence.  If --ffbb is also specified this  probabil-
+              ity  is  obtained  by summing over all hidden event
               sequences; otherwise it is calculated (i.e., under-
-              estimated) using the  most  probably  hidden  event
+              estimated)  using  the  most  probably hidden event
               sequence.
 
        --wwrriittee--ccoouunnttss _f_i_l_e
-              Write  the  posterior  weighted  counts of n-grams,
-              including those with hidden tags, summed  over  the
-              entire  input  data, to _f_i_l_e.  The posterior proba-
-              bilities should normally be computed with the  for-
-              ward-backward  algorithm  (instead  of Viterbi), so
-              the --ffbb option is usually also specified.  Only  n-
-              grams  whose  contexts  occur in the language model
+              Write the posterior  weighted  counts  of  n-grams,
+              including  those  with hidden tags, summed over the
+              entire input data, to _f_i_l_e.  The  posterior  proba-
+              bilities  should  normally  be  computed  with  the
+              forward-backward algorithm (instead of Viterbi), so
+              the  --ffbb option is usually also specified.  Only n-
+              grams whose contexts occur in  the  language  model
               are output.
 
        --uunnkk--pprroobb _L
               Specifies that unknown words and other words having
-              zero  probability in the language model be assigned
-              a log probability of _L.  This is  -100  by  default
-              but  might  be set to 0, e.g., to compute perplexi-
+              zero probability in the language model be  assigned
+              a  log  probability  of _L.  This is -100 by default
+              but might be set to 0, e.g., to  compute  perplexi-
               ties excluding unknown words.
 
        --ddeebbuugg Sets debugging output level.
 
-       Each filename argument can be an ASCII  file,  or  a  com-
-       pressed  file   (name  ending  in  .Z  or  .gz),  or ``-''
+       Each  filename  argument  can  be an ASCII file, or a com-
+       pressed file  (name  ending  in  .Z  or  .gz),   or  ``-''
        to indicate stdin/stdout.
 
 BBUUGGSS
-       The --ccoonnttiinnuuoouuss  option  effectively  disables  --kkeeeepp--uunnkk,
-       i.e.,  unknown  input  words  are  always mapped to <unk>.
-       Also,  --ccoonnttiinnuuoouuss  doesn't  preserve  the  positions   of
+       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
+       i.e., unknown input words  are  always  mapped  to  <unk>.
+       Also,   --ccoonnttiinnuuoouuss  doesn't  preserve  the  positions  of
        escaped input lines relative to the input.
 
 SSEEEE AALLSSOO
-       ngram-count(1),  disambig(1), segment(1), ngram-format(5).
-       A. Stolcke  et  al.,  ``Automatic  Detection  of  Sentence
-       Boundaries  and  Disfluencies based on Recognized Words,''
+       ngram-count(1), disambig(1), segment(1),  ngram-format(5).
+       A.  Stolcke  et  al.,  ``Automatic  Detection  of Sentence
+       Boundaries and Disfluencies based on  Recognized  Words,''
        _P_r_o_c_. _I_C_S_L_P, 2247-2250, Sydney.
 
 AAUUTTHHOORR
@@ -185,14 +166,4 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-
-
-SRILM Tools        $Date: 2000/06/09 00:27:04 $                 3
-
-
+SRILM Tools        $Date: 2001/08/18 03:22:02 $   hidden-ngram(1)

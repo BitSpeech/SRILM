@@ -15,6 +15,15 @@ libraries.
     that defines platform-dependent makefile variables.
     Some platform-specific notes may be found in doc/README.<platform>.
 
+    Even on the known platforms you might have to edit
+    common/Makefile.machine.<platform> .  Candidates for changes are
+
+    CC, CXX: 	choose compiler or compiler version.  For example, you will
+		have to remove "-V2.8.1" if you don't have that version of
+		gcc installed.
+    TCL_INCLUDE, TCL_LIBRARY:  to whatever is needed to find the Tcl header
+		files and library.
+
 4 - You need the following free third-party software to build SRILM:
 
 	- gcc version 2.8.1 or higher
@@ -60,5 +69,5 @@ libraries.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2000/10/06 23:46:31 $
+$Date: 2001/07/24 05:55:28 $
 

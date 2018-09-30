@@ -1,11 +1,11 @@
 /*
  * nbest-lattice --
- *	Build and rerank N-Best lattices
+ *	Build and rerank N-Best lattices and confusion networks
  */
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.51 2001/06/08 05:57:49 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.61 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,6 +24,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.c
 #include "WordMesh.h"
 #include "WordAlign.h"
 #include "VocabMultiMap.h"
+#include "RefList.h"
+#include "zio.h"
 
 #define DEBUG_ERRORS		1
 #define DEBUG_POSTERIORS	2
@@ -42,15 +44,17 @@ static unsigned debug = 0;
 static int werRescore = 0;
 static unsigned maxRescore = 0;
 static char *vocabFile = 0;
-static int tolower = 0;
+static int toLower = 0;
 static int multiwords = 0;
 static char *readFile = 0;
 static char *writeFile = 0;
+static char *writeDir = 0;
 static char *rescoreFile = 0;
-static char *nbestErrorFile = 0;
-static char *latticeErrorFile = 0;
+static int computeNbestError = 0;
+static int computeLatticeError = 0;
 static char *nbestFiles = 0;
 static char *writeNbestFile = 0;
+static int writeDecipherNbest = 0;
 static unsigned maxNbest = 0;
 static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
@@ -72,23 +76,29 @@ static char *dictFile = 0;
 static double deletionBias = 1.0;
 static int dumpPosteriors = 0;
 static char *refString = 0;
+static char *refFile = 0;
 static int dumpErrors = 0;
+static int recordHypIDs = 0;
+static int nbestBacktrace = 0;
+static int noRescore = 0;
 
 static Option options[] = {
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_TRUE, "wer", &werRescore, "optimize expected WER using N-best list" },
     { OPT_FALSE, "lattice-wer", &werRescore, "optimize expected WER using lattice" },
     { OPT_STRING, "read", &readFile, "lattice file to read" },
     { OPT_STRING, "write", &writeFile, "lattice file to write" },
+    { OPT_STRING, "write-dir", &writeDir, "lattice directory to write to" },
 
     { OPT_STRING, "rescore", &rescoreFile, "hyp stream input file to rescore" },
-    { OPT_STRING, "nbest-errors", &nbestErrorFile, "compute n-best error of hypotheses" },
-    { OPT_STRING, "lattice-errors", &latticeErrorFile, "compute lattice error of hypotheses" },
+    { OPT_TRUE, "nbest-error", &computeNbestError, "compute n-best error" },
+    { OPT_TRUE, "lattice-error", &computeLatticeError, "compute lattice error" },
     { OPT_STRING, "nbest", &rescoreFile, "same as -rescore" },
     { OPT_STRING, "write-nbest", &writeNbestFile, "output n-best list" },
+    { OPT_TRUE, "decipher-nbest", &writeDecipherNbest, "output Decipher n-best format" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_UINT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
@@ -100,6 +110,7 @@ static Option options[] = {
     { OPT_FLOAT, "posterior-lmw", &posteriorLMW, "posterior LM weight" },
     { OPT_FLOAT, "posterior-wtw", &posteriorWTW, "posterior word transition weight" },
     { OPT_TRUE, "keep-noise", &keepNoise, "do not eliminate pause and noise tokens" },
+    { OPT_TRUE, "nbest-backtrace", &nbestBacktrace, "read backtrace info from N-best lists" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "no-merge", &noMerge, "don't merge hyps for lattice building" },
@@ -112,11 +123,14 @@ static Option options[] = {
     { OPT_FLOAT, "deletion-bias", &deletionBias, "bias factor in favor of deletions" },
     { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" },
     { OPT_TRUE, "dump-errors", &dumpErrors, "output word error labels" },
-    { OPT_STRING, "reference", &refString, "reference words for word error computation" }
+    { OPT_TRUE, "record-hyps", &recordHypIDs, "record hyp IDs in lattice" },
+    { OPT_TRUE, "no-rescore", &noRescore, "suppress lattice rescoring" },
+    { OPT_STRING, "reference", &refString, "reference words" },
+    { OPT_STRING, "refs", &refFile, "reference transcript file" }
 };
 
 void
-latticeRescore(MultiAlign &lat, NBestList &nbestList)
+latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList)
 {
     unsigned totalWords = 0;
     unsigned numHyps = nbestList.numHyps();
@@ -182,6 +196,17 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
      */
     for (unsigned i = 0; i < numHyps; i ++) {
 	NBestHyp &hyp = nbestList.getHyp(i);
+	HypID hypID = i;
+	HypID *hypIDPtr = recordHypIDs ? &hypID : 0;
+
+	/*
+	 * Check for overflow in the hypIDs
+	 */
+	if (recordHypIDs && ((unsigned)hypID != i || hypID == refID)) {
+	    cerr << "Sorry, too many hypotheses in N-best list "
+		 << (sentid ? sentid : "") << endl;
+	    exit(2);
+	}
 
 	totalWords += Vocab::length(hyp.words);
 
@@ -190,10 +215,19 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 	 * initial/final nodes) we add fresh path to it.
 	 * Otherwise merge using string alignment.
 	 */
+	
 	if (noMerge || lat.isEmpty()) {
-	    lat.addWords(hyp.words, hyp.posterior);
+	    if (hyp.wordInfo) {
+		lat.addWords(hyp.wordInfo, hyp.posterior, hypIDPtr);
+	    } else {
+		lat.addWords(hyp.words, hyp.posterior, hypIDPtr);
+	    }
 	} else {
-	    lat.alignWords(hyp.words, hyp.posterior);
+	    if (hyp.wordInfo) {
+		lat.alignWords(hyp.wordInfo, hyp.posterior, 0, hypIDPtr);
+	    } else {
+		lat.alignWords(hyp.words, hyp.posterior, 0, hypIDPtr);
+	    }
 	}
 
 	/*
@@ -226,6 +260,7 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 
 	    lat.alignWords(hyp.words, 0.0, posteriors);
 
+	    if (sentid) cout << sentid << ":" << i << " ";
 	    cout << hyp.posterior;
 	    for (unsigned j = 0; j < hypLength; j ++) {
 		cout << " " << posteriors[j];
@@ -249,9 +284,11 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 		lat.minimizeWordError(bestWords, maxWordsPerLine,
 				      subs, inss, dels, flags, deletionBias);
 
+	if (sentid) cout << sentid << " ";
 	cout << (lat.vocab.use(), bestWords) << endl;
 
 	if (debug >= DEBUG_ERRORS) {
+	    if (sentid) cerr << sentid << " ";
 	    cerr << "err " << errors << " sub " << subs
 		 << " ins " << inss << " del " << dels << endl;
 	}
@@ -262,6 +299,7 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 
 	    lat.alignWords(bestWords, 0.0, posteriors);
 
+	    if (sentid) cerr << sentid << " ";
 	    cerr << "post";
 	    for (unsigned j = 0; j < numWords; j ++) {
 		cerr << " " << posteriors[j];
@@ -272,7 +310,7 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 }
 
 void
-wordErrorRescore(NBestList &nbestList)
+wordErrorRescore(const char *sentid, NBestList &nbestList)
 {
     unsigned numHyps = nbestList.numHyps();
     unsigned howmany = (maxRescore > 0) ? maxRescore : numHyps;
@@ -293,6 +331,7 @@ wordErrorRescore(NBestList &nbestList)
 	 * Dump hyp posteriors
 	 */
 	for (unsigned i = 0; i < howmany; i ++) {
+	    if (sentid) cout << sentid << ":" << i << " ";
 	    cout << nbestList.getHyp(i).posterior << endl;
 	}
     } else if (!dumpErrors) {
@@ -302,17 +341,22 @@ wordErrorRescore(NBestList &nbestList)
 	double errors = nbestList.minimizeWordError(bestWords, maxWordsPerLine,
 				    subs, inss, dels, maxRescore, postPrune);
 
+	if (sentid) cout << sentid << " ";
 	cout << (nbestList.vocab.use(), bestWords) << endl;
 
 	if (debug >= DEBUG_ERRORS) {
-	    cerr << "err " << errors << " sub " << subs
-		 << " ins " << inss << " dels " << dels << endl;
+	    if (sentid) cerr << sentid << " ";
+	    cerr << "err " << errors
+		 << " sub " << subs
+		 << " ins " << inss
+		 << " del " << dels << endl;
 	}
     }
 }
 
 void
-computeWordErrors(NBestList &nbestList, VocabIndex *reference)
+computeWordErrors(const char *sentid, NBestList &nbestList,
+						const VocabIndex *reference)
 {
     unsigned numHyps = nbestList.numHyps();
     unsigned howmany = (maxRescore > 0) ? maxRescore : numHyps;
@@ -328,6 +372,7 @@ computeWordErrors(NBestList &nbestList, VocabIndex *reference)
 	unsigned numErrors = wordError(reference, nbestList.getHyp(i).words,
 						    sub, ins, del, alignment);
 
+	if (sentid) cout << sentid << ":" << i << " ";
 	cout << numErrors;
 	for (unsigned j = 0; alignment[j] != END_ALIGN; j ++) {
 	    cout << " " << ((alignment[j] == INS_ALIGN) ? "INS" :
@@ -336,6 +381,156 @@ computeWordErrors(NBestList &nbestList, VocabIndex *reference)
 	}
 	cout << endl;
     }
+}
+
+/*
+ * Process a single N-best list
+ */
+void
+processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
+			VocabMultiMap &dictionary,
+			const VocabIndex *reference, const char *outLattice)
+{
+    Vocab &vocab = nullLM.vocab;
+    MultiAlign *lat;
+    DictionaryAbsDistance wordDistance(vocab, dictionary);
+    
+    if (useMesh) {
+	if (dictFile) {
+	    lat = new WordMesh(vocab, &wordDistance);
+	} else {
+	    lat = new WordMesh(vocab);
+	}
+    } else {
+	lat = new WordLattice(vocab);
+    }
+    assert(lat != 0);
+
+    /*
+     * Read preexisting lattice if specified
+     */
+    if (readFile) {
+	File file(readFile, "r");
+
+	if (!lat->read(file)) {
+	    cerr << "format error in lattice file\n";
+	    exit(1);
+	}
+    }
+
+    /*
+     * Process nbest list
+     */
+    if (nbestFile) {
+	NBestList nbestList(vocab, maxNbest, multiwords, nbestBacktrace);
+	nbestList.debugme(debug);
+
+	{
+	    File input(nbestFile, "r");
+
+	    if (!nbestList.read(input)) {
+		cerr << "format error in nbest list\n";
+		exit(1);
+	    }
+	}
+
+	/*
+	 * Remove pauses and noise from nbest hyps since these would
+	 * confuse the inter-hyp alignments.
+	 */
+	if (!keepNoise) {
+	    nbestList.removeNoise(nullLM);
+	}
+
+	/*
+	 * Compute nbest error relative to reference
+	 */
+	if (computeNbestError) {
+	    unsigned sub, ins, del;
+
+	    unsigned err = nbestList.wordError(reference, sub, ins, del);
+	    if (sentid) cout << sentid << " ";
+	    cout << err
+		 << " sub " << sub 
+		 << " ins " << ins
+		 << " del " << del
+		 << " words " << Vocab::length(reference) << endl;
+	} else if (werRescore) {
+	    /*
+	     * Word error rescoring
+	     */
+	    wordErrorRescore(sentid, nbestList);
+	} else if (!noRescore) {
+	    /*
+	     * Lattice building (and rescoring)
+	     */
+	    latticeRescore(sentid, *lat, nbestList);
+	}
+
+	if (dumpErrors) {
+	    computeWordErrors(sentid, nbestList, reference);
+	}
+
+	if (writeNbestFile) {
+	    File output(writeNbestFile, "w");
+
+	    nbestList.write(output, writeDecipherNbest);
+	}
+    }
+    
+    /*
+     * Compute word error of lattice relative to reference hyps
+     */
+    if (computeLatticeError) {
+	unsigned sub, ins, del;
+	unsigned err = lat->wordError(reference, sub, ins, del);
+
+	if (sentid) cout << sentid << " ";
+	cout << err
+	     << " sub " << sub 
+	     << " ins " << ins
+	     << " del " << del
+	     << " words " << Vocab::length(reference) << endl;
+    }
+
+    /*
+     * If reference words are known, record them in alignment
+     */
+    if (reference && !computeNbestError) {
+	lat->alignReference(reference);
+    }
+    
+    if (outLattice) {
+	File file(outLattice, "w");
+
+	lat->write(file);
+    }
+
+    delete lat;
+}
+
+/*
+ * Locate utterance id in filename
+ */
+char *
+sentidFromFilename(const char *filename)
+{
+    const char *id = strrchr(filename, '/');
+    if (id) {
+	id += 1;
+    } else {
+	id = filename;
+    }
+
+    char *suffix = strchr(id, '.');
+    if (suffix) *suffix = '\0';
+
+    char *result = strdup(id);
+    assert(result != 0);
+
+    if (suffix) *suffix = '.';
+
+    return result;
 }
 
 int
@@ -358,7 +553,7 @@ main (int argc, char *argv[])
 	vocab.read(file);
     }
 
-    vocab.toLower = tolower ? true : false;
+    vocab.toLower = toLower ? true : false;
 
     /*
      * Skip noise tags in scoring
@@ -391,36 +586,15 @@ main (int argc, char *argv[])
 
     Vocab dictVocab;
     VocabMultiMap dictionary(vocab, dictVocab);
-    DictionaryAbsDistance wordDistance(vocab, dictionary);
 
-    MultiAlign *lat;
-    
-    if (useMesh) {
-	if (dictFile) {
-	    /* 
-	     * read dictionary to be help in word alignment
-	     */
-	    File file(dictFile, "r");
+    /* 
+     * Read optional dictionary to help in word alignment
+     */
+    if (dictFile) {
+	File file(dictFile, "r");
 
-	    if (!dictionary.read(file)) {
-		cerr << "format error in dictionary file\n";
-		exit(1);
-	    }
-
-	    lat = new WordMesh(vocab, &wordDistance);
-	} else {
-	    lat = new WordMesh(vocab);
-	}
-    } else {
-	lat = new WordLattice(vocab);
-    }
-    assert(lat != 0);
-
-    if (readFile) {
-	File file(readFile, "r");
-
-	if (!lat->read(file)) {
-	    cerr << "format error in lattice file\n";
+	if (!dictionary.read(file)) {
+	    cerr << "format error in dictionary file\n";
 	    exit(1);
 	}
     }
@@ -428,9 +602,12 @@ main (int argc, char *argv[])
     /*
      * Read reference words
      */
-    VocabIndex reference[maxWordsPerLine + 1];
+    VocabIndex *reference = 0;
 
     if (refString) {
+	reference = new VocabIndex[maxWordsPerLine + 1];
+	assert(reference != 0);
+
 	VocabString refWords[maxWordsPerLine + 1];
 	unsigned numWords =
 		    Vocab::parseWords(refString, refWords, maxWordsPerLine);
@@ -440,185 +617,79 @@ main (int argc, char *argv[])
 	}
 
 	vocab.addWords(refWords, reference, maxWordsPerLine + 1);
-    } else {
-	if (dumpErrors) {
-	    cerr << "cannot compute word errors without reference\n";
+    } else if (rescoreFile) {
+	if (dumpErrors || computeNbestError || computeLatticeError) {
+	    cerr << "cannot compute errors without reference\n";
 	    exit(1);
 	}
     }
 
     /*
-     * Read single nbest list
+     * Process single nbest file
      */
-    NBestList nbestList(vocab, maxNbest, multiwords);
-    nbestList.debugme(debug);
-
     if (rescoreFile) {
-	File input(rescoreFile, "r");
-
-	if (!nbestList.read(input)) {
-	    cerr << "format error in nbest list\n";
-	    exit(1);
-	}
-
+	processNbest(nullLM, 0, rescoreFile, dictionary, reference, writeFile);
+    } else if (!nbestFiles) {
 	/*
-	 * Remove pauses and noise from nbest hyps since these would
-	 * confuse the inter-hyp alignments.
+	 * If neither -nbest nor -nbest-files was specified
+	 * do lattice processing only.
 	 */
-	if (!keepNoise) {
-	    nbestList.removeNoise(nullLM);
-	}
-
-	if (nbestErrorFile) {
-	    /*
-	     * Compute nbest error relative to reference list
-	     */
-	    NBestList refList(vocab);
-
-	    File input(nbestErrorFile, "r");
-
-	    if (!refList.read(input)) {
-		cerr << "format error in reference nbest list\n";
-		exit(1);
-	    }
-
-	    /*
-	     * Remove pauses and noise from nbest hyps since these would
-	     * confuse the inter-hyp alignments.
-	     */
-	    if (!keepNoise) {
-		refList.removeNoise(nullLM);
-	    }
-
-	    for (unsigned h = 0; h < refList.numHyps(); h ++) {
-		unsigned sub, ins, del;
-		unsigned err =
-		    nbestList.wordError(refList.getHyp(h).words, sub, ins, del);
-		cout << err
-		     << " sub " << sub 
-		     << " ins " << ins
-		     << " del " << del << endl;
-	    }
-	} else if (werRescore) {
-	    /*
-	     * Word error rescoring
-	     */
-	    wordErrorRescore(nbestList);
-	} else {
-	    /*
-	     * Lattice building (and rescoring)
-	     */
-	    latticeRescore(*lat, nbestList);
-	}
-
-	if (dumpErrors) {
-	    computeWordErrors(nbestList, reference);
-	}
-
-	if (writeNbestFile) {
-	    File output(writeNbestFile, "w");
-
-	    nbestList.write(output);
-	}
-    }
-    
-    /*
-     * Compute word error of lattice relative to reference hyps
-     */
-    if (latticeErrorFile) {
-	NBestList refList(vocab);
-
-	File input(latticeErrorFile, "r");
-
-	if (!refList.read(input)) {
-	    cerr << "format error in reference nbest list\n";
-	    exit(1);
-	}
-
-	/*
-	 * Remove pauses and noise from nbest hyps since these would
-	 * confuse the inter-hyp alignments.
-	 */
-	if (!keepNoise) {
-	    refList.removeNoise(nullLM);
-	}
-
-	for (unsigned h = 0; h < refList.numHyps(); h ++) {
-	    unsigned sub, ins, del;
-	    unsigned err =
-			lat->wordError(refList.getHyp(h).words, sub, ins, del);
-	    cout << err
-		 << " sub " << sub 
-		 << " ins " << ins
-		 << " del " << del << endl;
-	}
-    }
-
-    /*
-     * If reference words are known, record them in alignment
-     */
-    if (refString) {
-	lat->alignReference(reference);
-    }
-    
-    if (writeFile) {
-	File file(writeFile, "w");
-
-	lat->write(file);
+	processNbest(nullLM, 0, 0, dictionary, reference, writeFile);
     }
 
     /*
      * Read list of nbest filenames
      */
     if (nbestFiles) {
-	File file(nbestFiles, "r");
+	RefList refs(vocab);
 
+	if (refFile) {
+	    File file(refFile, "r");
+	    refs.read(file, true);	 // add reference words to vocabulary
+	} else {
+	    if (dumpErrors || computeNbestError || computeLatticeError) {
+		cerr << "cannot compute errors without reference\n";
+		exit(1);
+	    }
+	}
+		
+
+	File file(nbestFiles, "r");
 	char *line;
 	while (line = file.getline()) {
 	    char *fname = strtok(line, " \t\n");
-	    if (fname) {
-		MultiAlign *lat;
+	    if (!fname) continue;
 
-		if (useMesh) {
-		    lat = new WordMesh(vocab);
-		} else {
-		    lat = new WordLattice(vocab);
+	    char *sentid = sentidFromFilename(fname);
+
+	    VocabIndex *reference = 0;
+
+	    if (refFile) {
+		reference = refs.findRef(sentid);
+		if (!reference) {
+		    cerr << "no reference for " << sentid << endl;
+		    if (dumpErrors || computeNbestError || computeLatticeError)
+		    {
+			free(sentid);
+			continue;
+		    }
 		}
-		assert(lat != 0);
-
-		NBestList nbestList(vocab, maxNbest, multiwords);
-		nbestList.debugme(debug);
-
-		File input(fname, "r");
-
-		if (!nbestList.read(input)) {
-		    cerr << "format error in nbest list\n";
-		    exit(1);
-		}
-
-		/*
-		 * Remove pauses and noise from nbest hyps since these would
-		 * confuse the inter-hyp alignments.
-		 */
-		if (!keepNoise) {
-		    nbestList.removeNoise(nullLM);
-		}
-
-		if (werRescore) {
-		    wordErrorRescore(nbestList);
-		} else {
-		    latticeRescore(*lat, nbestList);
-		}
-
-		if (dumpErrors) {
-		    computeWordErrors(nbestList, reference);
-		}
-
-		delete lat;
 	    }
+
+	    if (writeDir) {
+		char writeName[strlen(writeDir) + 1 + strlen(sentid) 
+						+ strlen(GZIP_SUFFIX) + 1];
+		sprintf(writeName, "%s/%s%s", writeDir, sentid, GZIP_SUFFIX);
+
+		processNbest(nullLM, sentid, fname, dictionary, reference,
+								    writeName);
+	    } else {
+		processNbest(nullLM, sentid, fname, dictionary, reference, 0);
+	    }
+
+	    free(sentid);
 	}
     }
 
-    delete lat;
     exit(0);
 }

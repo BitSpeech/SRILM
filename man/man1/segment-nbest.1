@@ -1,7 +1,7 @@
-.\" $Id: segment-nbest.1,v 1.5 2000/05/07 02:04:15 stolcke Exp $
-.TH segment-nbest 1 "$Date: 2000/05/07 02:04:15 $" "SRILM Tools"
+.\" $Id: segment-nbest.1,v 1.6 2001/08/30 17:28:52 stolcke Exp $
+.TH segment-nbest 1 "$Date: 2001/08/30 17:28:52 $" "SRILM Tools"
 .SH NAME
-segment-nbest \- rescore and segment N-best lists using N-gram language models
+segment-nbest \- rescore and segment N-best lists using hidden segment N-gram model
 .SH SYNOPSIS
 .B segment-nbest
 [\c
@@ -17,11 +17,11 @@ recognizer
 and applies a hidden segment N-gram language model to them.
 The language model is a standard backoff N-gram model in ARPA
 .BR ngram-format (5)
-modeling segmentation using the boundary tags <s> and </s>.
+modeling sentence segmentation using the boundary tags <s> and </s>.
 The program reads in all N-best lists and outputs the 
-hypotheses that have the highest aggregate score (both acoustic 
-and language model).
-Hypothesized segment boundaries are marked by <s> tags.
+hypotheses that have the highest aggregate (combined acoustic 
+and language model) score.
+Hypothesized sentence boundaries are marked by <s> tags.
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
@@ -90,6 +90,12 @@ hypothesis.
 The default is to perform Viterbi rescoring and output only the
 best combined hypothesis.
 .TP
+.BI \-write-nbest-dir " dir"
+Write rescored N-best lists to directory 
+.I dir
+instead of to stdout.
+The filenames from the input are preserved.
+.TP
 .BI \-max-nbest " n"
 Limits the number of hypotheses read from each N-best list to the first
 .IR n .
@@ -151,6 +157,24 @@ Default is the start-of-sentence symbol defined in the language model (<s>).
 .BI \-bias " b"
 Make a segment boundary a priori more likely by a factor of
 .IR b .
+If
+.I b
+is 0, the dynamic program algorithm is restricted to never consider
+hidden sentence boundaries; this is useful when
+.B segment-nbest 
+is used merely for its ability to apply the LM across N-best boundaries.
+.TP
+.BI \-start-tag " string"
+Insert a tag 
+.I string
+at the front of every N-best hypothesis read in.
+.TP
+.BI \-end-tag " string"
+Insert a tag 
+.I string
+at the end of every N-best hypothesis read in.
+This and the previous option are useful if the LM marks acoustic
+waveform boundaries with a special tag.
 .PP
 .I segment-nbest
 will also process any command line arguments following the options
@@ -170,8 +194,10 @@ ngram-count(1), segment(1), ngram-format(5), nbest-format(5).
 A. Stolcke, ``Modeling Linguistic Segment and Turn Boundaries for N-best
 Rescoring of Spontaneous Speech,'' \fIProc. Eurospeech\fP, 2779\-2782, 1997.
 .SH BUGS
-Only N-gram models up to trigram order are used accurately.
+N-gram models of arbitrary order can be used, but the context at the 
+beginning of a hypothesis never extends beyond the words from the preceding
+N-best list.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1997 SRI International
+Copyright 1997-2001 SRI International

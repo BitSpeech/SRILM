@@ -1,4 +1,4 @@
-<! $Id: hidden-ngram.1,v 1.11 2000/06/09 00:27:04 stolcke Exp $>
+<! $Id: hidden-ngram.1,v 1.13 2001/08/18 03:22:02 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>hidden-ngram</TITLE>
@@ -50,7 +50,7 @@ pairs in the format
 <BR>
 If a p value is omitted a likelihood of 1 is assumed.
 All events not explicitly listed are given likelihood 0, and are
-hence excluded for that word.A
+hence excluded for that word.
 In particular, the label 
 <B> *noevent* </B>
 must be listed to allow absence of a hidden event.
@@ -111,6 +111,13 @@ Outputs the tags that have the highest posterior probability,
 for each position.
 The default is to use Viterbi decoding, i.e., the output is the
 tag sequence with the highest joint posterior probability.
+<DT><B> -fw-only </B>
+<DD>
+Similar to 
+<B>-fb</B>,<B></B>
+but uses only the forward probabilities for computing posteriors.
+This may be used to simulate on-line prediction of tags, without the
+benefit of future context.
 <DT><B> -continuous </B>
 <DD>
 Process all words in the input as one sequence of words, irrespective of

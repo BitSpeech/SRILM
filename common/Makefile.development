@@ -2,7 +2,6 @@
 #    File:   Makefile.development
 #    Author: The SRI DECIPHER (TM) System
 #    Date:   Thu Dec 17 13:44:23 1992
-#    Update: Tue Jun  6 16:16:54 1995
 #
 #    Description:
 #       This is the makefile for developing a new application
@@ -10,8 +9,8 @@
 #
 #       To use this makefile:
 #
-#	   0). Make sure you have your DECIPHER environment variables
-#		set correctly.  (See the file "$DECIPHER/common/CSHRC".)
+#	   0). Make sure you have your SRILM environment variable
+#		set correctly. 
 #
 #          1). Make a development directory (e.g. "~user/dev/src") and
 #               then move to it:
@@ -21,11 +20,11 @@
 #
 #	   2). Copy this file to your development directory:
 #
-#		  prompt% cp $DECIPHER/common/Makefile.development Makefile
+#		  prompt% cp $SRILM/common/Makefile.development Makefile
 #
 #	   3). Create the directories for object and binary files:
 #
-#	          prompt% make init
+#	          prompt% gnumake init
 #
 #	   4). Update the list of libraries to reflect those needed to link
 #	       your program.  If it comes from a module directory, use the
@@ -33,66 +32,35 @@
 #	       this list.
 #
 #	   5). Build your application, using the released versions of the 
-#	       DECIPHER libraries:
+#	       SRILM libraries:
 #
-#	       - Create your application "main()" file, e.g. "app-main.c".
+#	       - Create your application "main()" file, e.g. "app-main.cc".
 #              - Replace the line "PROGRAM_NAMES = none" with
 #                "PROGRAM_NAMES = app-main" to "Makefile".  (Note:
 #                You can have multiple programs defined here, as long
-#                as each one has a single file, named "<ProgramName>.c"
+#                as each one has a single file, named "<ProgramName>.cc"
 #                which provides its "main()" function.)
-#              - Build your application with "make".
+#              - Build your application with "gnumake".
 #
-#          6). To replace the released versions of files in the DECIPHER
+#          6). To replace the released versions of files in the SRILM
 #              libraries with your own modified versions, copy the
 #              files to your development directory and then add each
 #              new source file to the "REPLACEMENT_SOURCES" definition.
-#              Do a  "make depend" on each type of machine, and then 
-#	       remake your application with "make".
+#              Do a  "gnumake depend" on each type of machine, and then 
+#	       remake your application with "gnumake".
 #
-#          7). After you have debugged your modifications, have them
-#              merged into the main DECIPHER System in "$DECIPHER".
+#          7). (Optional) After you have debugged your modifications, have
+#	       them merged into the main SRILM System in "$SRILM".
 #
-#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.development,v 1.9 1996/07/26 22:40:10 stolcke Exp $
-#
-#    $Log: Makefile.development,v $
-#    Revision 1.9  1996/07/26 22:40:10  stolcke
-#    added demangler to link command
-#
-#    Revision 1.8  1996/01/08 07:36:21  stolcke
-#    changes to reflect typical SRILM linking
-#
-#    Revision 1.7  1995/11/13 23:29:16  stolcke
-#    added SRILM, MACHINE_TYPE setting
-#
-#    Revision 1.6  1995/06/19 02:08:21  stolcke
-#    added C++ support
-#
-#    Revision 1.5  1995/06/08 18:08:44  tmk
-#    Updated to link with all decipher libraries.  Updated directions and added
-#    some warnings.
-#
-# Revision 1.4  1994/08/08  23:16:23  decipher
-# Fixed the definition of the LIBRARIES variable to remove out
-# of date libraries and add the equivalent new libraries.
-#
-# Revision 1.3  1994/03/09  02:37:00  psi
-# Updated to work better with "make depend".
-#
-# Revision 1.2  1993/03/26  18:33:58  decipher
-# Removed the specification of the DECIPHER library directory from the link command.
-#
-# Revision 1.1  1993/01/25  02:37:38  decipher
-# Initial revision
+#    $Header: /home/srilm/devel/common/RCS/Makefile.development,v 1.11 2001/08/03 02:13:33 stolcke Exp $
 #
 
-DECIPHER = $(SRILM)
-MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
+#MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
 
-# Include common DECIPHER (TM) variable definitions.
-include $(DECIPHER)/common/Makefile.common.variables
+# Include common SRILM variable definitions.
+include $(SRILM)/common/Makefile.common.variables
 
 
 # Define variables.
@@ -100,7 +68,7 @@ include $(DECIPHER)/common/Makefile.common.variables
 
 # Application variables.
 
-PROGRAM_NAMES = none
+PROGRAM_NAMES = fill-in
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
@@ -113,9 +81,9 @@ PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
 
 #  XXX -- Files listed as REPLACEMENT_SOURCES must have $(SRCDIR) prepended!
 #         i.e.  They should look like:
-# REPLACEMENT_SOURCES = $(SRCDIR)/my_source.c
+# REPLACEMENT_SOURCES = $(SRCDIR)/my_source.cc
 
-REPLACEMENT_SOURCES =
+REPLACEMENT_SOURCES = $(SRCDIR)/fill-in.cc
 REPLACEMENT_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
                 $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(REPLACEMENT_SOURCES)))
 
@@ -149,6 +117,5 @@ all:	$(PROGRAMS)
 $(PROGRAMS):	$(REPLACEMENT_OBJECTS) $(LIBRARIES)
 	$(LINK.cc) -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%.o) $(REPLACEMENT_OBJECTS) $(LIBRARIES) $(DEMANGLE_FILTER)
 
-
-# Include common DECIPHER (TM) target definitions.
-include $(DECIPHER)/common/Makefile.common.targets
+# Include common SRILM target definitions.
+include $(SRILM)/common/Makefile.common.targets

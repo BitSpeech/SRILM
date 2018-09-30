@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-8 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.26 2000/01/13 04:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.28 2001/08/18 04:29:09 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -44,6 +44,7 @@ static int tolower2 = 0;
 static double lmw = 1.0;
 static double mapw = 1.0;
 static int fb = 0;
+static int fwOnly = 0;
 static int posteriors = 0;
 static int logMap = 0;
 static int noEOS = 0;
@@ -68,6 +69,7 @@ static Option options[] = {
     { OPT_FLOAT, "lmw", &lmw, "language model weight" },
     { OPT_FLOAT, "mapw", &mapw, "map log likelihood weight" },
     { OPT_TRUE, "fb", &fb, "use forward-backward algorithm" },
+    { OPT_TRUE, "fwOnly", &fwOnly, "use forward probabilities only" },
     { OPT_TRUE, "posteriors", &posteriors, "output posterior probabilities" },
     { OPT_TRUE, "no-eos", &noEOS, "don't assume end-of-sentence token" },
     { OPT_TRUE, "continuous", &continuous, "read input without line breaks" },
@@ -198,7 +200,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	pos ++;
     }
 
-    if (fb || posteriors) {
+    if (fb || fwOnly || posteriors) {
 	/*
 	 * Forward-backward algorithm: compute backward scores
 	 */
@@ -317,15 +319,17 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	     * Compute symbol probabilities by summing posterior probs
 	     * of all states corresponding to the same symbol
 	     */
-	    LHash<VocabIndex,LogP> symbolProbs;
+	    LHash<VocabIndex,LogP2> symbolProbs;
 
 	    TrellisIter<VocabContext> iter(trellis, pos);
 	    VocabContext context;
 	    LogP forwProb;
 	    while (iter.next(context, forwProb)) {
-		LogP posterior;
+		LogP2 posterior;
 		
-		if (fb) {
+		if (fwOnly) {
+		    posterior = forwProb;
+		} else if (fb) {
 		    posterior = forwProb + trellis.getBackLogP(context, pos);
 		} else {
 		    LogP backmax;
@@ -334,7 +338,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 		}
 
 		Boolean foundP;
-		LogP *symbolProb = symbolProbs.insert(context[0], foundP);
+		LogP2 *symbolProb = symbolProbs.insert(context[0], foundP);
 		if (!foundP) {
 		    *symbolProb = posterior;
 		} else {
@@ -345,12 +349,12 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	    /*
 	     * Find symbol with highest posterior
 	     */
-	    LogP totalPosterior = LogP_Zero;
-	    LogP maxPosterior = LogP_Zero;
+	    LogP2 totalPosterior = LogP_Zero;
+	    LogP2 maxPosterior = LogP_Zero;
 	    VocabIndex bestSymbol = Vocab_None;
 
-	    LHashIter<VocabIndex,LogP> symbolIter(symbolProbs);
-	    LogP *symbolProb;
+	    LHashIter<VocabIndex,LogP2> symbolIter(symbolProbs);
+	    LogP2 *symbolProb;
 	    VocabIndex symbol;
 	    while (symbolProb = symbolIter.next(symbol)) {
 		if (bestSymbol == Vocab_None || *symbolProb > maxPosterior) {
@@ -376,7 +380,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 
 		symbolIter.init();
 		while (symbolProb = symbolIter.next(symbol)) {
-		    LogP posterior = *symbolProb - totalPosterior;
+		    LogP2 posterior = *symbolProb - totalPosterior;
 
 		    cout << " " << map.vocab2.getWord(symbol)
 			 << " " << (logMap ? posterior : LogPtoProb(posterior));

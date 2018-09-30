@@ -1,7 +1,5 @@
-
-
-
 ngram(1)                                                 ngram(1)
+
 
 
 NNAAMMEE
@@ -58,18 +56,6 @@ OOPPTTIIOONNSS
        --ttaaggggeedd
               Interpret the LM as containing word/tag N-grams.
 
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 1
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
-
        --sskkiipp  Interpret the LM as a ``skip'' N-gram model.
 
        --hhiiddddeenn--vvooccaabb _f_i_l_e
@@ -124,18 +110,6 @@ ngram(1)                                                 ngram(1)
        --hhmmmm   Use  an  HMM  of  N-grams  language model.  The --llmm
               option specifies a file  that  describes  a  proba-
               bilistic  graph,  with each line corresponding to a
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 2
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
-
               node or state.  A line has the format:
                    _s_t_a_t_e_n_a_m_e _n_g_r_a_m_-_f_i_l_e _s_1 _p_1 _s_2 _p_2 ...
               where _s_t_a_t_e_n_a_m_e is a string identifying the  state,
@@ -191,17 +165,6 @@ ngram(1)                                                 ngram(1)
               memory.   In  most  cases a more efficient, dynamic
               interpolation is sufficient, requested by --bbaayyeess 00.
 
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 3
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
-
        --llaammbbddaa _w_e_i_g_h_t
               Set the weight of the main model when interpolating
               with --mmiixx--llmm.  Default value is 0.5.
@@ -255,18 +218,6 @@ ngram(1)                                                 ngram(1)
               LM  changes  are indicated by the tag ``<LMstate>''
               starting a line in the input to --ppppll, followed by a
               filename containing the new LM.
-
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 4
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
 
        --ddyynnaammiicc--llaammbbddaa _w_e_i_g_h_t
               Set   interpolation  weight  for  the  dynamic  LM.
@@ -322,18 +273,6 @@ ngram(1)                                                 ngram(1)
               should  contain  one sentence per line.  The --ddeebbuugg
               option controls the level of detail  printed,  even
               though  output is to stdout (not stderr).  At level
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 5
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
-
               0, only summary statistics for  the  entire  corpus
               are printed.  At level 1, statistics for individual
               sentences are printed.  At level  2,  probabilities
@@ -386,19 +325,6 @@ ngram(1)                                                 ngram(1)
               Specifies the language model  weight  used  by  the
               recognizer.   Used  to compute acoustic scores from
               the composite scores.
-
-
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 6
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
 
        --ddeecciipphheerr--wwttww _w_e_i_g_h_t
               Specifies the word transition weight  used  by  the
@@ -454,18 +380,6 @@ SSEEEE AALLSSOO
        scripts(1), pfsg-scripts(1), nbest-scripts(1),  ngram-for-
        mat(5), nbest-format(5), classes-format(5).
        M. Weintraub et al., ``Fast Training and Portability,'' in
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 7
-
-
-
-
-
-ngram(1)                                                 ngram(1)
-
-
        Research Note No. 1, Center for Language and  Speech  Pro-
        cessing, Johns Hopkins University, Baltimore, Feb. 1996.
        A.  Stolcke,``  Entropy-based  Pruning of Backoff Language
@@ -487,42 +401,4 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SRILM Tools        $Date: 2000/10/04 01:00:09 $                 8
-
-
+SRILM Tools        $Date: 2000/10/04 01:00:09 $          ngram(1)

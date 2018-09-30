@@ -1,7 +1,5 @@
-
-
-
 LM(3)                                                       LM(3)
+
 
 
 NNAAMMEE
@@ -28,153 +26,130 @@ CCLLAASSSS MMEEMMBBEERRSS
 
        LLooggPP wwoorrddPPrroobb((VVooccaabbIInnddeexx _w_o_r_d,, ccoonnsstt VVooccaabbIInnddeexx **_c_o_n_t_e_x_t))
 
-       LLooggPP wwoorrddPPrroobb((VVooccaabbSSttrriinngg _w_o_r_d,, ccoonnsstt VVooccaabbSSttrriinngg **_c_o_n_-
-              _t_e_x_t))
-              Returns  the  conditional  log  probability of _w_o_r_d
-              given a history.  The history is given in  reversed
+       LLooggPP wwoorrddPPrroobb((VVooccaabbSSttrriinngg _w_o_r_d,,  ccoonnsstt  VVooccaabbSSttrriinngg  **_c_o_n_-
+       _t_e_x_t))
+              Returns the conditional  log  probability  of  _w_o_r_d
+              given  a history.  The history is given in reversed
               order (most recent word first) in _c_o_n_t_e_x_t, and ter-
-              minated by VVooccaabb__NNuullll.   Word  or  history  can  be
-              specified  either by strings or indices.  All func-
+              minated  by  VVooccaabb__NNuullll.   Word  or  history can be
+              specified either by strings or indices.  All  func-
               tional LM subclasses have to implement at least the
               first version.
 
-       LLooggPP  wwoorrddPPrroobbRReeccoommppuuttee((VVooccaabbIInnddeexx  _w_o_r_d,,  ccoonnsstt
-              VVooccaabbIInnddeexx **_c_o_n_- _t_e_x_t))
-              Returns  the  same  conditional  log probability as
-              wwoorrddPPrroobb(()), but on  the  promise  that  _c_o_n_t_e_x_t  is
-              identical  to  the  last  call to wwoorrddPPrroobb(()).  This
-              often allows for efficient implementation to  speed
+       LLooggPP wwoorrddPPrroobbRReeccoommppuuttee((VVooccaabbIInnddeexx _w_o_r_d,,  ccoonnsstt  VVooccaabbIInnddeexx
+       **_c_o_n_t_e_x_t))
+              Returns the same  conditional  log  probability  as
+              wwoorrddPPrroobb(()),  but  on  the  promise  that _c_o_n_t_e_x_t is
+              identical to the last  call  to  wwoorrddPPrroobb(()).   This
+              often  allows for efficient implementation to speed
               up repeated lookups in the same context.
 
-       LLooggPP sseenntteenncceePPrroobb((ccoonnsstt VVooccaabbIInnddeexx **_s_e_n_t_e_n_c_e,, TTeexxttSSttaattss
-              &&_s_t_a_t_s))
+       LLooggPP sseenntteenncceePPrroobb((ccoonnsstt  VVooccaabbIInnddeexx  **_s_e_n_t_e_n_c_e,,  TTeexxttSSttaattss
+       &&_s_t_a_t_s))
 
-       LLooggPP sseenntteenncceePPrroobb((ccoonnsstt VVooccaabbSSttrriinngg **_s_e_n_t_e_n_c_e,, TTeexxttSSttaattss
-              &&_s_t_a_t_s))
-              Returns  the  total  log probability of a string of
+       LLooggPP sseenntteenncceePPrroobb((ccoonnsstt VVooccaabbSSttrriinngg  **_s_e_n_t_e_n_c_e,,  TTeexxttSSttaattss
+       &&_s_t_a_t_s))
+              Returns the total log probability of  a  string  of
               word (a sentence).  The data in the _s_t_a_t_s object is
-              incremented  to  reflect the statistics of the sen-
+              incremented to reflect the statistics of  the  sen-
               tence.
 
-       uunnssiiggnneedd  ppppllFFiillee((FFiillee  &&_f_i_l_e,,  TTeexxttSSttaattss  &&_s_t_a_t_s,,   ccoonnsstt
-              cchhaarr **_e_s_c_a_p_e_S_t_r_i_n_g == 00))
-
-
-
-SRILM              $Date: 1996/07/15 18:57:37 $                 1
-
-
-
-
-
-LM(3)                                                       LM(3)
-
-
-              Reads sentences from _f_i_l_e, computing  their  proba-
+       uunnssiiggnneedd  ppppllFFiillee((FFiillee &&_f_i_l_e,, TTeexxttSSttaattss &&_s_t_a_t_s,, ccoonnsstt cchhaarr
+       **_e_s_c_a_p_e_S_t_r_i_n_g == 00))
+              Reads  sentences  from _f_i_l_e, computing their proba-
               bilities and aggregate perplexity, and updating the
               _s_t_a_t_s.  The debugging state of the LM object deter-
-              mines  how  much  information is printed to stderr.
-              debuglevel 0: total statistics only; debuglevel  1:
-              per-sentence  statistics; debuglevel 2: word proba-
-              bilities; debuglevel 3  and  greater:  LM  specific
+              mines how much information is  printed  to  stderr.
+              debuglevel  0: total statistics only; debuglevel 1:
+              per-sentence statistics; debuglevel 2: word  proba-
+              bilities;  debuglevel  3  and  greater: LM specific
               information.
-              Lines  in  _f_i_l_e  that  start  with _e_s_c_a_p_e_S_t_r_i_n_g are
-              copied to the output.  This allows  extra  informa-
+              Lines in _f_i_l_e  that  start  with  _e_s_c_a_p_e_S_t_r_i_n_g  are
+              copied  to  the output.  This allows extra informa-
               tion  in  the  input  file  to  be  passed  through
               unchanged.
 
-       uunnssiiggnneedd rreessccoorreeFFiillee((FFiillee &&_f_i_l_e,, ddoouubbllee _l_m_S_c_a_l_e,, ddoouubbllee
-              _w_t_S_c_a_l_e,,   LLMM  &&_o_l_d_L_M,,  ddoouubbllee  _o_l_d_L_m_S_c_a_l_e,,  ddoouubbllee
-              _o_l_d_W_t_S_c_a_l_e,,  ccoonnsstt cchhaarr **_e_s_c_a_p_e_S_t_r_i_n_g == 00))
+       uunnssiiggnneedd  rreessccoorreeFFiillee((FFiillee  &&_f_i_l_e,,  ddoouubbllee _l_m_S_c_a_l_e,, ddoouubbllee
+       _w_t_S_c_a_l_e,, LLMM &&_o_l_d_L_M,, ddoouubbllee _o_l_d_L_m_S_c_a_l_e,, ddoouubbllee  _o_l_d_W_t_S_c_a_l_e,,
+       ccoonnsstt cchhaarr **_e_s_c_a_p_e_S_t_r_i_n_g == 00))
               Reads  N-best  hypotheses  and  scores  from  _f_i_l_e,
-              replaces  the LM scores with new ones computed from
+              replaces the LM scores with new ones computed  from
               the  current  model,  and  prints  the  new  scores
               (including  hypotheses)  to  stdout.   _l_m_S_c_a_l_e  and
-              _w_t_S_c_o_r_e are the LM  and  word  transition  weights,
-              respectively.   _o_l_d_L_M  is  the  LM whose scores are
-              included in the  aggregate  scores  read  from  the
-              input  (provided  so  that  they  can be subtracted
-              out), and _o_l_d_L_m_S_c_a_l_e and _o_l_d_W_t_S_c_a_l_e are the old  LM
+              _w_t_S_c_o_r_e  are  the  LM  and word transition weights,
+              respectively.  _o_l_d_L_M is the  LM  whose  scores  are
+              included  in  the  aggregate  scores  read from the
+              input (provided so  that  they  can  be  subtracted
+              out),  and _o_l_d_L_m_S_c_a_l_e and _o_l_d_W_t_S_c_a_l_e are the old LM
               and word transition weights, respectively.
-              Lines  in  _f_i_l_e  that  start  with _e_s_c_a_p_e_S_t_r_i_n_g are
+              Lines in _f_i_l_e  that  start  with  _e_s_c_a_p_e_S_t_r_i_n_g  are
               copied to the output.
 
        vvooiidd sseettSSttaattee((ccoonnsstt cchhaarr **_s_t_a_t_e))
-              This is a generic interface to change the  internal
-              ``state''  of  a LM.  The default implementation of
+              This  is a generic interface to change the internal
+              ``state'' of a LM.  The default  implementation  of
               this function does nothing, but certain LM subclass
-              implementation  may  interpret  the _s_t_a_t_e string to
+              implementation may interpret the  _s_t_a_t_e  string  to
               assume different internal configurations.
 
        PPrroobb wwoorrddPPrroobbSSuumm((ccoonnsstt VVooccaabbIInnddeexx **_c_o_n_t_e_x_t))
-              Returns the sum of all word probabilities  in  _c_o_n_-
-              _t_e_x_t.   Useful for checking the well-definedness of
+              Returns  the  sum of all word probabilities in _c_o_n_-
+              _t_e_x_t.  Useful for checking the well-definedness  of
               a model.
 
        VVooccaabbIInnddeexx ggeenneerraatteeWWoorrdd((ccoonnsstt VVooccaabbIInnddeexx **_c_o_n_t_e_x_t))
-              Returns a word index from the vocabulary,  randomly
-              generated  according  to the conditional probabili-
+              Returns  a word index from the vocabulary, randomly
+              generated according to the  conditional  probabili-
               ties in _c_o_n_t_e_x_t.
 
-       VVooccaabbIInnddeexx **ggeenneerraatteeSSeenntteennccee((uunnssiiggnneedd _m_a_x_W_o_r_d_s == mmaaxx--
-              WWoorrddssPPeerrLLiinnee,, VVooccaabbIInnddeexx **_s_e_n_t_e_n_c_e == 00))
+       VVooccaabbIInnddeexx   **ggeenneerraatteeSSeenntteennccee((uunnssiiggnneedd  _m_a_x_W_o_r_d_s  ==  mmaaxx--
+       WWoorrddssPPeerrLLiinnee,, VVooccaabbIInnddeexx **_s_e_n_t_e_n_c_e == 00))
 
-       VVooccaabbSSttrriinngg **ggeenneerraatteeSSeenntteennccee((uunnssiiggnneedd  _m_a_x_W_o_r_d_s  ==  mmaaxx--
-              WWoorrddssPPeerr-- LLiinnee,, VVooccaabbSSttrriinngg **_s_e_n_t_e_n_c_e == 00))
-              Generates a random sentence of length  up  to  _m_a_x_-
-              _W_o_r_d_s.   The result is placed in _s_e_n_t_e_n_c_e if speci-
+       VVooccaabbSSttrriinngg  **ggeenneerraatteeSSeenntteennccee((uunnssiiggnneedd  _m_a_x_W_o_r_d_s  ==  mmaaxx--
+       WWoorrddssPPeerrLLiinnee,, VVooccaabbSSttrriinngg **_s_e_n_t_e_n_c_e == 00))
+              Generates  a  random  sentence of length up to _m_a_x_-
+              _W_o_r_d_s.  The result is placed in _s_e_n_t_e_n_c_e if  speci-
               fied, or in a static buffer otherwise.
 
-
-
-SRILM              $Date: 1996/07/15 18:57:37 $                 2
-
-
-
-
-
-LM(3)                                                       LM(3)
-
-
        vvooiidd **ccoonntteexxttIIDD((ccoonnsstt VVooccaabbIInnddeexx **_c_o_n_t_e_x_t))
-              Returns  an  implementation-dependent  value   that
-              identifies  a  the  word  context used to compute a
+              Returns   an  implementation-dependent  value  that
+              identifies a the word context  used  to  compute  a
               conditional  probability.   (The  context  actually
-              used  may be shorted that what is specified in _c_o_n_-
+              used may be shorted that what is specified in  _c_o_n_-
               _t_e_x_t).
 
        BBoooolleeaann iissNNoonnWWoorrdd((VVooccaabbIInnddeexx _w_o_r_d))
-              Return ttrruuee if _w_o_r_d is a regular word  in  the  LM,
-              i.e.,  one  that  the LM computes probabilities for
-              (as opposed to  non-event  tag  such  as  sentence-
+              Return  ttrruuee  if  _w_o_r_d is a regular word in the LM,
+              i.e., one that the LM  computes  probabilities  for
+              (as  opposed  to  non-event  tag  such as sentence-
               start).
 
        BBoooolleeaann rreeaadd((FFiillee &&_f_i_l_e))
-              Read  a LM from _f_i_l_e.  Return ttrruuee is the file con-
-              tents was formated correctly  and  an  internal  LM
-              representation  could  be  successfully constructed
+              Read a LM from _f_i_l_e.  Return ttrruuee is the file  con-
+              tents  was  formated  correctly  and an internal LM
+              representation could  be  successfully  constructed
               from it.
 
        vvooiidd wwrriittee((FFiillee &&_f_i_l_e))
-              Writes the LM to _f_i_l_e in a format that can be  read
+              Writes  the LM to _f_i_l_e in a format that can be read
               back by rreeaadd(()).
 
        VVooccaabb &&vvooccaabb
-              The  vocabulary  object  associated with LM (set at
+              The vocabulary object associated with  LM  (set  at
               initialization).
 
        VVooccaabbIInnddeexx nnooiisseeIInnddeexx
-              The index of the noise tag, i.e., a  word  that  is
+              The  index  of  the noise tag, i.e., a word that is
               skipped when computing probabilities.
 
        ccoonnsstt cchhaarr **ssttaatteeTTaagg
-              A  string  introducing  ``state''  information that
-              should be passed to the LM.  Input  lines  starting
+              A string  introducing  ``state''  information  that
+              should  be  passed to the LM.  Input lines starting
               with this tag are handed to sseettSSttaattee(()) bbyy ppppllFFiillee(())
               aanndd rreessccoorreeFFiillee(())..
 
        BBoooolleeaann rreevveerrsseeWWoorrddss
-              If set to ttrruuee, the LM reverses word  order  before
+              If  set  to ttrruuee, the LM reverses word order before
               computing sentence probabilities.  This means wwoorrdd--
               PPrroobb(()) is expected to compute conditional probabil-
               ities based on _r_i_g_h_t contexts.
@@ -189,10 +164,4 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-SRILM              $Date: 1996/07/15 18:57:37 $                 3
-
-
+SRILM              $Date: 1996/07/15 18:57:37 $             LM(3)

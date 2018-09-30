@@ -3,18 +3,24 @@
 # nbest-error --
 #	compute minimum error of nbest lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-error,v 1.1 1997/11/03 19:48:36 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-error,v 1.4 2001/08/04 09:39:53 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
-	echo "usage: $0 score-dir refs max-nbest]" >&2
-	echo "    or $0 file-list refs [max-nbest]" >&2
+	echo "usage: $0 score-dir refs [nbest-lattice-option ...]" >&2
+	echo "    or $0 file-list refs [nbest-lattice-option ...]" >&2
 	exit 2
 fi
 
 scoredir="$1"
 refs="$2"
-maxnbest="${3-100000}"
+shift; shift
+
+option=-nbest-error
+
+case "$*" in
+*-lattice-error*)	option= ;;
+esac
 
 if [ ! -r $scoredir ]; then
 	echo "$0: cannot access $scoredir" >&2
@@ -28,41 +34,22 @@ fi
 
 if [ -d $scoredir ]; then
     find $scoredir -type f \( -name \*.score -o \
-			    -name \*.score.Z -o \
-			    -name \*.score.gz \) \
+			    -name \*.Z -o \
+			    -name \*.gz \) \
 		    -print | sort
 else
     cat $scoredir
 fi | \
-while read file 
-do
-	sentid=`basename $file .gz`
-	sentid=`basename $sentid .score`
-
-	ref=`gawk '$1 == sentid { $1 = ""; print; exit }' sentid=$sentid $refs`
-
-	if [ "$ref" = "X" ]; then
-		echo "no reference found for $sentid" >&2
-		continue;
-	fi
-
-	nwords=`echo $ref | gawk '{ print NF }'`
-
-	echo "$sentid words $nwords errors \c"
-
-	echo "0 0 0 $ref" | \
-	nbest-lattice -max-nbest $maxnbest -nbest-errors - -nbest $file
-done | \
+nbest-lattice -nbest-files - -refs $refs $option "$@" | \
 gawk '
-{
+$2 ~ /^[0-9]*$/ && $10 ~ /^[0-9]*$/ && $9 == "words" {
 	nsents ++;
-	nwords += $3;
-	nerrors += $5;
+	nwords += $10;
+	nerrors += $2;
 	print;
 }
 END {
 	printf "%d sentences, %d words, %d errors (%.2f%%)\n", \
 		nsents, nwords, nerrors, 100*nerrors/nwords;
-}
-'
+}'
 

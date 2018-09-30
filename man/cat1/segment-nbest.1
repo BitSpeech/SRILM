@@ -1,12 +1,10 @@
-
-
-
 segment-nbest(1)                                 segment-nbest(1)
 
 
+
 NNAAMMEE
-       segment-nbest  - rescore and segment N-best lists using N-
-       gram language models
+       segment-nbest  -  rescore  and  segment N-best lists using
+       hidden segment N-gram model
 
 SSYYNNOOPPSSIISS
        sseeggmmeenntt--nnbbeesstt [--hheellpp] option ...  nbest-file-list ...
@@ -16,11 +14,11 @@ DDEESSCCRRIIPPTTIIOONN
        lists  from  a speech recognizer and applies a hidden seg-
        ment N-gram language model to them.  The language model is
        a  standard  backoff  N-gram model in ARPA nnggrraamm--ffoorrmmaatt(5)
-       modeling segmentation using  the  boundary  tags  <s>  and
-       </s>.   The  program reads in all N-best lists and outputs
-       the hypotheses that have the highest aggregate score (both
-       acoustic and language model).  Hypothesized segment bound-
-       aries are marked by <s> tags.
+       modeling sentence segmentation using the boundary tags <s>
+       and  </s>.  The program reads in all N-best lists and out-
+       puts the hypotheses that have the highest aggregate  (com-
+       bined  acoustic  and  language model) score.  Hypothesized
+       sentence boundaries are marked by <s> tags.
 
        Each filename argument can be an ASCII  file,  or  a  com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
@@ -58,18 +56,6 @@ OOPPTTIIOONNSS
 
        --bbaayyeess _l_e_n_g_t_h
               Interpolate  the  second  and  the main model using
-
-
-
-SRILM Tools        $Date: 2000/05/07 02:04:15 $                 1
-
-
-
-
-
-segment-nbest(1)                                 segment-nbest(1)
-
-
               posterior probabilities for  local  N-gram-contexts
               of  length  _l_e_n_g_t_h.  The --llaammbbddaa value is used as a
               prior mixture weight in this case.
@@ -93,6 +79,11 @@ segment-nbest(1)                                 segment-nbest(1)
               the  posterior probability of each hypothesis.  The
               default is to perform Viterbi rescoring and  output
               only the best combined hypothesis.
+
+       --wwrriittee--nnbbeesstt--ddiirr _d_i_r
+              Write   rescored  N-best  lists  to  directory  _d_i_r
+              instead of to stdout.  The filenames from the input
+              are preserved.
 
        --mmaaxx--nnbbeesstt _n
               Limits  the  number of hypotheses read from each N-
@@ -124,18 +115,6 @@ segment-nbest(1)                                 segment-nbest(1)
        --nnooiissee _n_o_i_s_e_-_t_a_g
               Designate _n_o_i_s_e_-_t_a_g as a vocabulary item that is to
               be ignored by the LM.  (This is typically  used  to
-
-
-
-SRILM Tools        $Date: 2000/05/07 02:04:15 $                 2
-
-
-
-
-
-segment-nbest(1)                                 segment-nbest(1)
-
-
               identify a noise marker.)
 
        --nnooiissee--vvooccaabb _f_i_l_e
@@ -167,7 +146,21 @@ segment-nbest(1)                                 segment-nbest(1)
 
        --bbiiaass _b
               Make  a  segment boundary a priori more likely by a
-              factor of _b.
+              factor of _b.  If _b is 0, the dynamic program  algo-
+              rithm  is  restricted to never consider hidden sen-
+              tence boundaries; this is useful when sseeggmmeenntt--nnbbeesstt
+              is  used  merely  for  its  ability to apply the LM
+              across N-best boundaries.
+
+       --ssttaarrtt--ttaagg _s_t_r_i_n_g
+              Insert a tag _s_t_r_i_n_g at the front  of  every  N-best
+              hypothesis read in.
+
+       --eenndd--ttaagg _s_t_r_i_n_g
+              Insert  a  tag  _s_t_r_i_n_g  at  the end of every N-best
+              hypothesis read in.  This and the  previous  option
+              are useful if the LM marks acoustic waveform bound-
+              aries with a special tag.
 
        _s_e_g_m_e_n_t_-_n_b_e_s_t will also process any command line arguments
        following  the  options  as lists of N-best lists, as with
@@ -184,15 +177,14 @@ SSEEEE AALLSSOO
        _E_u_r_o_s_p_e_e_c_h, 2779-2782, 1997.
 
 BBUUGGSS
-       Only  N-gram  models  up  to  trigram order are used accu-
-       rately.
+       N-gram models of arbitrary order can be used, but the con-
+       text at the beginning of a hypothesis never extends beyond
+       the words from the preceding N-best list.
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1997 SRI International
+       Copyright 1997-2001 SRI International
 
 
 
-SRILM Tools        $Date: 2000/05/07 02:04:15 $                 3
-
-
+SRILM Tools        $Date: 2001/08/30 17:28:52 $  segment-nbest(1)

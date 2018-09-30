@@ -1,5 +1,5 @@
-.\" $Id: disambig.1,v 1.17 1999/10/18 15:14:10 stolcke Exp $
-.TH disambig 1 "$Date: 1999/10/18 15:14:10 $" "SRILM Tools"
+.\" $Id: disambig.1,v 1.18 2001/08/17 21:56:35 stolcke Exp $
+.TH disambig 1 "$Date: 2001/08/17 21:56:35 $" "SRILM Tools"
 .SH NAME
 disambig \- disambiguate text tokens using an N-gram model
 .SH SYNOPSIS
@@ -137,6 +137,13 @@ Outputs the V2 tokens that have the highest posterior probability,
 for each position.
 The default is to use Viterbi decoding, i.e., the output is the
 V2 sequence with the higher joint posterior probability.
+.TP
+.B \-fw-only
+Similar to 
+.BR \-fb ,
+but uses only the forward probabilities for computing posteriors.
+This may be used to simulate on-line prediction of tags, without the
+benefit of future context.
 .TP
 .B \-posteriors
 Output the table of posterior probabilities for each 

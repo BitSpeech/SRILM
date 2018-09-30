@@ -1,13 +1,13 @@
 /*
  * segment-nbest --
- *	Segment a sequence of n-best lists using a hidden segment
- *	boundary model
+ *	Appply a hidden segment boundary model to a sequence of N-best lists,
+ *	across utterance boundaries.
  *
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.17 2000/05/07 02:04:43 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.19 2001/10/31 07:00:31 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -32,8 +32,10 @@ static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
 static const char *sTag = 0;
+static const char *startTag = 0;
+static const char *endTag = 0;
 static double bias = 1.0;
-static int tolower = 0;
+static int toLower = 0;
 
 static char *nbestFiles = 0;
 static unsigned maxNbest = 0;
@@ -45,6 +47,7 @@ static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static int noReorder = 0;
 static int fbRescore = 0;
+static char *writeNbestDir = 0;
 static char *noiseTag = 0;
 static char *noiseVocabFile = 0;
 
@@ -55,13 +58,17 @@ static double mixLambda = 0.5;
 
 const LogP LogP_PseudoZero = -100;
 
+static int contextLength = 0;
+
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_UINT, "debug", &debug, "debugging level for lm" },
     { OPT_STRING, "stag", &sTag, "segment tag to use in output" },
+    { OPT_STRING, "start-tag", &startTag, "tag to insert in front of N-best hyps" },
+    { OPT_STRING, "end-tag", &endTag, "tag to insert at end of N-best hyps" },
     { OPT_FLOAT, "bias", &bias, "bias for segment model" },
-    { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
 
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
@@ -75,6 +82,7 @@ static Option options[] = {
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "fb-rescore", &fbRescore, "rescore N-best lists with forward-backward algorithm" },
+    { OPT_STRING, "write-nbest-dir", &writeNbestDir, "output directory for rescored N-best lists" },
     { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
     { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
     { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
@@ -145,12 +153,13 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
     {
 	Boolean isZero = (lm.wordProb(hyp.words[0], leftContext) == LogP_Zero);
 
-	LogP probS = lm.wordProb(vocab.seIndex, leftContext) +
-	             Z(lm.wordProb(hyp.words[0], sContext));
+	if (bias > 0.0) {
+	    LogP probS = lm.wordProb(vocab.seIndex, leftContext) +
+			 Z(lm.wordProb(hyp.words[0], sContext));
+	    trellis.setProb(S, probS + logBias);
+	}
 
 	LogP probNOS = Z(lm.wordProb(hyp.words[0], leftContext));
-
-        trellis.setProb(S, probS + logBias);
         trellis.setProb(NOS, probNOS);
 
 	if (debug >= DEBUG_TRANSITIONS) {
@@ -167,27 +176,37 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
 	Boolean isZero = (lm.wordProb(hyp.words[pos], noContext) == LogP_Zero);
 
 	/*
+	 * Set up the contet for next word prob
+	 */
+	VocabIndex context[contextLength + 1];
+	unsigned i;
+
+	for (i = 0; i < contextLength && i < pos; i ++) {
+	    context[i] = hyp.words[pos - i - 1];
+	}
+	for (unsigned k = 0; i < contextLength; i ++, k ++) {
+	    context[i] = leftContext[k];
+	}
+	context[i] = Vocab_None;
+
+	/*
 	 * Iterate over all combinations of hidden tags for the previous and
 	 * the current word
 	 */
-	VocabIndex context[3];
-
-	context[0] = hyp.words[pos-1];
-	context[1] = pos > 1 ? hyp.words[pos-2] : leftContext[0];
-	context[2] = Vocab_None;
-
 	trellis.update(NOS, NOS, Z(lm.wordProb(hyp.words[pos], context)));
 
-	context[1] = vocab.ssIndex;
-	trellis.update(S, NOS, Z(lm.wordProb(hyp.words[pos], context)) + logBias);
+	if (bias > 0.0) {
+	    trellis.update(NOS, S, lm.wordProb(vocab.seIndex, context) +
+				   Z(lm.wordProb(hyp.words[pos], sContext)));
 
-	context[1] = pos > 1 ? hyp.words[pos-2] : leftContext[0];
-	trellis.update(NOS, S, lm.wordProb(vocab.seIndex, context) +
-	                       Z(lm.wordProb(hyp.words[pos], sContext)));
+	    context[1] = vocab.ssIndex;
+	    context[2] = Vocab_None;
 
-	context[1] = vocab.ssIndex;
-	trellis.update(S, S, lm.wordProb(vocab.seIndex, context) +
-	                     Z(lm.wordProb(hyp.words[pos], sContext)) + logBias);
+	    trellis.update(S, NOS,
+			Z(lm.wordProb(hyp.words[pos], context)) + logBias);
+	    trellis.update(S, S, lm.wordProb(vocab.seIndex, context) +
+			Z(lm.wordProb(hyp.words[pos], sContext)) + logBias);
+	}
 
 	if (debug >= DEBUG_TRANSITIONS) {
 	    cerr << pos << ": p(NOS) = " << trellis.getProb(NOS)
@@ -291,8 +310,11 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 
 	    nbestTrellis->setProb(NBEST_STATE(j, NOS),
 		    hyp.acousticScore + lmw * NOSscore + wtw * hyp.numWords);
-	    nbestTrellis->setProb(NBEST_STATE(j, S),
-		    hyp.acousticScore + lmw * Sscore + wtw * hyp.numWords);
+	    if (bias > 0.0) {
+		nbestTrellis->setProb(NBEST_STATE(j, S),
+			hyp.acousticScore + lmw * Sscore + wtw * hyp.numWords);
+	    }
+		
 
 //cerr << "FORW:list " << 0 << " hyp " << j
 //	<< " forw " << nbestTrellis->getLogP(NBEST_STATE(j, NOS))
@@ -303,7 +325,8 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     }
 
     for (unsigned i = 1; i < numLists; i ++) {
-	VocabIndex context[3];	/* word context from preceding nbest hyp */
+	VocabIndex context[contextLength + 1];
+				/* word context from preceding nbest hyp */
 
 	if (debug >= DEBUG_PROGRESS) {
 	    cerr << "..." << i;
@@ -329,43 +352,44 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 		LogP NOSscore, Sscore;
 
 		/*
-		 * Set up the last two words from the previous hyp
+		 * Set up the last words from the previous hyp
 		 * as context for this one.
 		 */
-		if (prevLen == 0) {
-		    context[0] = Vocab_None;
-		} else if (prevLen == 1) {
-		    context[0] = prevHyp.words[0];
-		    context[1] = Vocab_None;
-		} else {
-		    context[0] = prevHyp.words[prevLen - 1];
-		    context[1] = prevHyp.words[prevLen - 2];
-		    context[2] = Vocab_None;
+		{
+		    unsigned k;
+
+		    for (k = 0; k < contextLength && k < prevLen; k ++) {
+			context[k] = prevHyp.words[prevLen - 1 - k];
+		    }
+		    context[k] = Vocab_None;
 		}
+
 		segmentHyp(hyp, context, lm, NOSscore, Sscore, NOSTATE);
 
 		nbestTrellis->update(NBEST_STATE(k, NOS), NBEST_STATE(j, NOS),
 			hyp.acousticScore + lmw * NOSscore + wtw * hyp.numWords);
-		nbestTrellis->update(NBEST_STATE(k, NOS), NBEST_STATE(j, S),
+		if (bias > 0.0) {
+		    nbestTrellis->update(NBEST_STATE(k, NOS), NBEST_STATE(j, S),
 			hyp.acousticScore + lmw * Sscore + wtw * hyp.numWords);
 
-		/*
-		 * Now the same for the case where the previous hyp's
-		 * last word starts a sentence.
-		 */
-		if (prevLen == 0) {
-		    context[0] = Vocab_None;
-		} else {
-		    context[0] = prevHyp.words[prevLen - 1];
-		    context[1] = vocab.ssIndex;
-		    context[2] = Vocab_None;
+		    /*
+		     * Now the same for the case where the previous hyp's
+		     * last word starts a sentence.
+		     */
+		    if (prevLen == 0) {
+			context[0] = Vocab_None;
+		    } else {
+			context[0] = prevHyp.words[prevLen - 1];
+			context[1] = vocab.ssIndex;
+			context[2] = Vocab_None;
+		    }
+		    segmentHyp(hyp, context, lm, NOSscore, Sscore, NOSTATE);
+
+		    nbestTrellis->update(NBEST_STATE(k, S), NBEST_STATE(j, NOS),
+		       hyp.acousticScore + lmw * NOSscore + wtw * hyp.numWords);
+		    nbestTrellis->update(NBEST_STATE(k, S), NBEST_STATE(j, S),
+		       hyp.acousticScore + lmw * Sscore + wtw * hyp.numWords);
 		}
-		segmentHyp(hyp, context, lm, NOSscore, Sscore, NOSTATE);
-
-		nbestTrellis->update(NBEST_STATE(k, S), NBEST_STATE(j, NOS),
-			hyp.acousticScore + lmw * NOSscore + wtw * hyp.numWords);
-		nbestTrellis->update(NBEST_STATE(k, S), NBEST_STATE(j, S),
-			hyp.acousticScore + lmw * Sscore + wtw * hyp.numWords);
 	    }
 //cerr << "FORW:list " << i << " hyp " << j
 //	<< " forw " << nbestTrellis->getLogP(NBEST_STATE(j, NOS))
@@ -385,8 +409,8 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
  * Forward-backward on nbest trellis
  */
 void
-forwardBackNbest(Array<NBestList *> &nbestLists, unsigned numLists,
-	         LM &lm, double lmw, double wtw)
+forwardBackNbest(Array<NBestList *> &nbestLists, Array<char *> &nbestNames,
+		 unsigned numLists, LM &lm, double lmw, double wtw)
 {
     Vocab &vocab = lm.vocab;
 
@@ -420,12 +444,15 @@ forwardBackNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 	     * If we did, this should be p(</s> | hyp) .
 	     */
 	    nbestTrellis->setBackProb(NBEST_STATE(j, NOS), LogP_One);
-	    nbestTrellis->setBackProb(NBEST_STATE(j, S), LogP_One);
+	    if (bias > 0.0) {
+		nbestTrellis->setBackProb(NBEST_STATE(j, S), LogP_One);
+	    }
 	}
     }
 
     for (int i = numLists - 2; i >= 0; i --) {
-	VocabIndex context[3];	/* word context from preceding nbest hyp */
+	VocabIndex context[contextLength + 1];
+				/* word context from preceding nbest hyp */
 
 	if (debug >= DEBUG_PROGRESS) {
 	    cerr << "..." << i;
@@ -454,16 +481,15 @@ forwardBackNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 		 * Set up the last two words from the previous hyp
 		 * as context for this one.
 		 */
-		if (hypLen == 0) {
-		    context[0] = Vocab_None;
-		} else if (hypLen == 1) {
-		    context[0] = hyp.words[0];
-		    context[1] = Vocab_None;
-		} else {
-		    context[0] = hyp.words[hypLen - 1];
-		    context[1] = hyp.words[hypLen - 2];
-		    context[2] = Vocab_None;
+		{
+		    unsigned k;
+
+		    for (k = 0; k < contextLength && k < hypLen; k ++) {
+			context[k] = hyp.words[hypLen - 1 - k];
+		    }
+		    context[k] = Vocab_None;
 		}
+
 		segmentHyp(nextHyp, context, lm, NOSscore, Sscore, NOSTATE);
 
 //cerr << "j = " << j << " k = " << k << " context  = " << (vocab.use(), context) << " : " << NOSscore << " " << Sscore << endl;
@@ -473,34 +499,35 @@ forwardBackNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 						NBEST_STATE(k, NOS),
 			nextHyp.acousticScore + lmw * NOSscore +
 						wtw * nextHyp.numWords);
-		nbestTrellis->updateBack(NBEST_STATE(j, NOS),
-						NBEST_STATE(k, S),
-			nextHyp.acousticScore + lmw * Sscore +
-						wtw * nextHyp.numWords);
+		if (bias > 0.0) {
+		    nbestTrellis->updateBack(NBEST_STATE(j, NOS),
+						    NBEST_STATE(k, S),
+			    nextHyp.acousticScore + lmw * Sscore +
+						    wtw * nextHyp.numWords);
 
-		/*
-		 * Now the same for the case where the previous hyp's
-		 * last word starts a sentence.
-		 */
-		if (hypLen == 0) {
-		    context[0] = Vocab_None;
-		} else {
-		    context[0] = hyp.words[hypLen - 1];
-		    context[1] = vocab.ssIndex;
-		    context[2] = Vocab_None;
-		}
-		segmentHyp(nextHyp, context, lm, NOSscore, Sscore, NOSTATE);
+		    /*
+		     * Now the same for the case where the previous hyp's
+		     * last word starts a sentence.
+		     */
+		    if (hypLen == 0) {
+			context[0] = Vocab_None;
+		    } else {
+			context[0] = hyp.words[hypLen - 1];
+			context[1] = vocab.ssIndex;
+			context[2] = Vocab_None;
+		    }
+		    segmentHyp(nextHyp, context, lm, NOSscore, Sscore, NOSTATE);
 //cerr << "j = " << j << " k = " << k << " context  = " << (vocab.use(), context) << " : " << NOSscore << " " << Sscore << endl;
 
-
-		nbestTrellis->updateBack(NBEST_STATE(j, S),
-						NBEST_STATE(k, NOS),
-			nextHyp.acousticScore + lmw * NOSscore +
-						wtw * nextHyp.numWords);
-		nbestTrellis->updateBack(NBEST_STATE(j, S),
-						NBEST_STATE(k, S),
-			nextHyp.acousticScore + lmw * Sscore +
-						wtw * nextHyp.numWords);
+		    nbestTrellis->updateBack(NBEST_STATE(j, S),
+						    NBEST_STATE(k, NOS),
+			    nextHyp.acousticScore + lmw * NOSscore +
+						    wtw * nextHyp.numWords);
+		    nbestTrellis->updateBack(NBEST_STATE(j, S),
+						    NBEST_STATE(k, S),
+			    nextHyp.acousticScore + lmw * Sscore +
+						    wtw * nextHyp.numWords);
+		}
 	    }
 //cerr << "BACK:list " << i << " hyp " << j
 //	<< " back " << nbestTrellis->getBackProb(NBEST_STATE(j, NOS))
@@ -551,12 +578,28 @@ forwardBackNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     /*
      * Dump out the new nbest scores
      */
-    for (h = 0; h < numLists ; h ++) {
-	cout << "<nbestlist " << (h + 1) << ">\n";
+    for (h = 0; h < numLists; h ++) {
+	if (writeNbestDir) {
+	    char outputName[strlen(writeNbestDir) + 2 + 256];
 
-	File sout(stdout);
+	    char *rootname = strrchr(nbestNames[h], '/');
+	    if (rootname) {
+		rootname += 1;
+	    } else {
+		rootname = nbestNames[h];
+	    }
+	    sprintf(outputName, "%s/%.255s", writeNbestDir, rootname);
 
-	nbestLists[h]->write(sout, false, maxRescore);
+	    File file(outputName, "w");
+
+	    nbestLists[h]->write(file, false, maxRescore);
+	} else {
+	    cout << "<nbestlist " << (h + 1) << ">\n";
+
+	    File sout(stdout);
+
+	    nbestLists[h]->write(sout, false, maxRescore);
+	}
     }
 
     delete nbestTrellis;
@@ -599,7 +642,8 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
      * Do a viterbi traceback on the best hyps
      */
     {
-	VocabIndex context[3];	/* word context from preceding nbest hyp */
+	VocabIndex context[contextLength + 1];
+				/* word context from preceding nbest hyp */
 	LogP NOSscore, Sscore;	/* dummies required by segmentHyp() */
 
 	context[0] = vocab.ssIndex;
@@ -635,14 +679,12 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 		    context[1] = vocab.ssIndex;
 		    context[2] = Vocab_None;
 		} else {
-		    if (prevLen == 1) {
-			context[0] = prevHyp.words[0];
-			context[1] = Vocab_None;
-		    } else {
-			context[0] = prevHyp.words[prevLen - 1];
-			context[1] = prevHyp.words[prevLen - 2];
-			context[2] = Vocab_None;
+		    unsigned k;
+
+		    for (k = 0; k < contextLength && k < prevLen; k ++) {
+			context[k] = prevHyp.words[prevLen - 1 - k];
 		    }
+		    context[k] = Vocab_None;
 		}
 	    }
 	    segmentHyp(hyp, context, lm, NOSscore, Sscore, seg);
@@ -655,8 +697,43 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     delete nbestTrellis;
 }
 
+void insertStartEndTags(NBestList &nb, VocabIndex first, VocabIndex last)
+{
+    if (first == Vocab_None && last == Vocab_None) {
+	return;
+    }
+
+    for (unsigned h = 0; h < nb.numHyps(); h++) {
+	NBestHyp &hyp = nb.getHyp(h);
+
+	unsigned numWords = Vocab::length(hyp.words);
+
+	VocabIndex *newWords = new VocabIndex[numWords + 3];
+	assert(newWords != 0);
+
+	unsigned i = 0;
+
+	if (first != Vocab_None) {
+	    newWords[i ++] = first;
+	}
+	    
+	for (unsigned j = 0; j < numWords; j ++) { 
+	    newWords[i ++] = hyp.words[j];
+	}
+
+	if (last != Vocab_None) {
+	    newWords[i ++] = last;
+	}
+	newWords[i] = Vocab_None;
+
+	delete [] hyp.words;
+	hyp.words = newWords;
+    }
+}
+
 void
-processNbestLists(const char *fileList, LM &lm, LM &oldLM)
+processNbestLists(const char *fileList, LM &lm, LM &oldLM,
+					VocabIndex firstTag, VocabIndex lastTag)
 {
     Vocab &vocab = lm.vocab;
 
@@ -728,10 +805,15 @@ processNbestLists(const char *fileList, LM &lm, LM &oldLM)
 	 * Remove noise and pauses which would disrupt the DP procedure
 	 */
 	nbestListArray[i]->removeNoise(lm);
+
+	/*
+	 * Insert start/end tags
+	 */
+	insertStartEndTags(*nbestListArray[i], firstTag, lastTag);
     }
 
     if (fbRescore) {
-	forwardBackNbest(nbestListArray, numNbestLists,
+	forwardBackNbest(nbestListArray, nbestFileList, numNbestLists,
 		         lm, rescoreLMW, rescoreWTW);
     } else {
 	segmentNbest(nbestListArray, numNbestLists,
@@ -753,6 +835,15 @@ main(int argc, char **argv)
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     /*
+     * Set length of N-gram context;
+     * use at least 2 to hold previous word and <s> tags
+     */
+    contextLength = order - 1;
+    if (contextLength < 2) {
+	contextLength = 2;
+    }
+
+    /*
      * Construct language model
      */
     Vocab vocab;
@@ -763,7 +854,19 @@ main(int argc, char **argv)
 	exit(1);
     }
 
-    vocab.toLower = tolower ? true : false;
+    vocab.toLower = toLower ? true : false;
+
+    VocabIndex startTagIndex, endTagIndex;
+    if (startTag) {
+	startTagIndex = vocab.addWord(startTag);
+    } else {
+	startTagIndex = Vocab_None;
+    }
+    if (endTag) {
+	endTagIndex = vocab.addWord(endTag);
+    } else {
+	endTagIndex = Vocab_None;
+    }
 
     Ngram *ngramLM;
 	
@@ -847,7 +950,8 @@ main(int argc, char **argv)
     }
 
     if (nbestFiles) {
-	processNbestLists(nbestFiles, *useLM, oldLM);
+	processNbestLists(nbestFiles, *useLM, oldLM,
+					startTagIndex, endTagIndex);
     }
 
     /*
@@ -855,8 +959,10 @@ main(int argc, char **argv)
      * Print delimiter info
      */
     for (unsigned i = 1; argv[i] != 0; i ++) {
-	cout << "<nbestfile " << argv[i] << ">\n";
-	processNbestLists(argv[i], *useLM, oldLM);
+	if (!(fbRescore && writeNbestDir)) {
+	    cout << "<nbestfile " << argv[i] << ">\n";
+	}
+	processNbestLists(argv[i], *useLM, oldLM, startTagIndex, endTagIndex);
     }
 
 #ifdef DEBUG

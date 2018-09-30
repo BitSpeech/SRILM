@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.40 2001/01/11 17:28:38 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.41 2001/08/07 06:55:57 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -24,9 +24,136 @@ INSTANTIATE_ARRAY(NBestHyp);
 
 #define DEBUG_PRINT_RANK	1
 
+const NBestTimestamp frameLength = 0.01; // quantization unit of word timemarks
+
+/*
+ * N-best word backtrace information
+ */
+
+const unsigned phoneStringLength = 100;
+const char *phoneSeparator = ":";	 // used for phones & phoneDurs strings
+
+NBestWordInfo::NBestWordInfo()
+    : word(Vocab_None), phones(0), phoneDurs(0)
+{
+}
+
+NBestWordInfo::~NBestWordInfo()
+{
+    if (phones) free(phones);
+    if (phoneDurs) free(phoneDurs);
+}
+
+NBestWordInfo &
+NBestWordInfo::operator= (const NBestWordInfo &other)
+{
+    if (&other == this) {
+	return *this;
+    }
+
+    if (phones) free(phones);
+    if (phoneDurs) free(phoneDurs);
+
+    word = other.word;
+    start = other.start;
+    duration = other.duration;
+    acousticScore = other.acousticScore;
+    languageScore = other.languageScore;
+
+    if (!other.phones) {
+	phones = 0;
+    } else {
+	phones = strdup(other.phones);
+	assert(phones != 0);
+    }
+
+    if (!other.phoneDurs) {
+	phoneDurs = 0;
+    } else {
+	phoneDurs = strdup(other.phoneDurs);
+	assert(phoneDurs != 0);
+    }
+
+    return *this;
+}
+
+void
+NBestWordInfo::write(File &file)
+{
+    fprintf(file, "%lg %lg %lg %lg %s %s",
+			(double)start, (double)duration,
+			(double)acousticScore, (double)languageScore,
+			phones ? phones : phoneSeparator,
+			phoneDurs ? phoneDurs : phoneSeparator);
+}
+
+Boolean
+NBestWordInfo::parse(const char *s)
+{
+    double sTime, dur, aScore, lScore;
+    char phs[phoneStringLength], phDurs[phoneStringLength];
+
+    if (sscanf(s, "%lg %lg %lg %lg %100s %100s",
+			&sTime, &dur, &aScore, &lScore, phs, phDurs) != 6)
+    {
+	return false;
+    } else {
+	start = sTime;
+	duration = dur;
+	acousticScore = aScore;
+	languageScore = lScore;
+
+	if (strcmp(phs, phoneSeparator) == 0) {
+	    phones = 0;
+	} else {
+	    phones = strdup(phs);
+	    assert(phones != 0);
+	}
+
+	if (strcmp(phDurs, phoneSeparator) == 0) {
+	    phoneDurs = 0;
+	} else {
+	    phoneDurs = strdup(phDurs);
+	    assert(phoneDurs != 0);
+	}
+
+	return true;
+    }
+}
+
+void
+NBestWordInfo::invalidate()
+{
+    duration = 0.0;
+}
+
+Boolean
+NBestWordInfo::valid() const
+{
+    return (duration > 0);
+}
+
+void
+NBestWordInfo::merge(const NBestWordInfo &other)
+{
+    /*
+     * let the "other" word information supercede our own if it has
+     * higher duration-normalized acoustic likelihood
+     */
+    if (other.acousticScore/other.duration > acousticScore/duration)
+    {
+	*this = other;
+    }
+}
+
+/*
+ * N-Best hypotheses
+ */
+
 NBestHyp::NBestHyp()
 {
     words = 0;
+    wordInfo = 0;
     acousticScore = languageScore = totalScore = 0.0;
     posterior = 0.0;
     numWords = numErrors = 0;
@@ -35,6 +162,7 @@ NBestHyp::NBestHyp()
 NBestHyp::~NBestHyp()
 {
     delete [] words;
+    delete [] wordInfo;
 }
 
 NBestHyp &
@@ -47,6 +175,7 @@ NBestHyp::operator= (const NBestHyp &other)
     }
 
     delete [] words;
+    delete [] wordInfo;
 
     acousticScore = other.acousticScore;
     languageScore = other.languageScore;
@@ -63,27 +192,60 @@ NBestHyp::operator= (const NBestHyp &other)
 	for (unsigned i = 0; i < actualNumWords; i++) {
 	    words[i] = other.words[i];
 	}
+
+	if (other.wordInfo) {
+	    wordInfo = new NBestWordInfo[actualNumWords];
+	    assert(wordInfo != 0);
+
+	    for (unsigned i = 0; i < actualNumWords; i++) {
+		wordInfo[i] = other.wordInfo[i];
+	    }
+	} else {
+	    wordInfo = 0;
+	}
+
     } else {
 	words = 0;
+	wordInfo = 0;
     }
+
     return *this;
 }
 
 /*
- * N-Best Hyoptheses
+ * N-Best Hypotheses
  */
 
 const char multiwordSeparator = '_';
 
+static Boolean
+addPhones(char *old, const char *ph) 
+{
+    unsigned oldLen = strlen(old);
+    unsigned newLen = strlen(ph);
+
+    if (oldLen + 1 + newLen + 1 > phoneStringLength) {
+	return false;
+    } else {
+	if (oldLen > 0) {
+	    old[oldLen ++] = phoneSeparator[0];
+	}
+	strcpy(&old[oldLen], ph);
+
+	return true;
+    }
+}
+
 Boolean
 NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
-				    LogP acousticOffset, Boolean multiwords)
+		    LogP acousticOffset, Boolean multiwords, Boolean backtrace)
 {
     const unsigned maxFieldsPerLine = 11 * maxWordsPerLine + 4;
 			    /* NBestList2.0 format uses 11 fields per word */
 
     static VocabString wstrings[maxFieldsPerLine];
     static VocabString justWords[maxFieldsPerLine + 1];
+    Array<NBestWordInfo> backtraceInfo;
 
     unsigned actualNumWords =
 		Vocab::parseWords(line, wstrings, maxFieldsPerLine);
@@ -91,6 +253,14 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
     if (actualNumWords == maxFieldsPerLine) {
 	cerr << "more than " << maxFieldsPerLine << " fields per line\n";
 	return false;
+    }
+
+    /*
+     * We don't do multiword splitting with backtraces -- that would require
+     * a dictionary (see external split-nbest-words script).
+     */
+    if (backtrace) {
+	multiwords = false;
     }
 
     /*
@@ -107,6 +277,11 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
     if (decipherFormat == 1 || 
 	decipherFormat == 0 && wstrings[0][0] == '(')
     {
+	/*
+	 * These formats don't support backtrace info
+	 */
+	backtrace = false;
+
 	actualNumWords --;
 
 	if (actualNumWords > maxWordsPerLine) {
@@ -160,29 +335,96 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	/*
 	 * Parse remaining line into words and scores
 	 *	skip over phone and state backtrace tokens, which can be
-	 *	be identified by noting that their times are contained within
+	 *	identified by noting that their times are contained within
 	 *	the word duration.
 	 */
 	Bytelog acScore = 0;
 	Bytelog lmScore = 0;
 
-	float prevEndTime = -1.0;	/* end time of last token */
+	NBestTimestamp prevEndTime = -1.0;	/* end time of last token */
+	NBestWordInfo *prevWordInfo = 0;
+
+	char phones[phoneStringLength];
+	char phoneDurs[phoneStringLength];
 
 	actualNumWords = 0;
 	for (unsigned i = 0; i < numTokens; i ++) {
 
-	    float startTime = atof(wstrings[1 + 11 * i + 3]);
-	    float endTime = atof(wstrings[1 + 11 * i + 5]);
+	    const char *token = wstrings[1 + 11 * i];
+	    NBestTimestamp startTime = atof(wstrings[1 + 11 * i + 3]);
+	    NBestTimestamp endTime = atof(wstrings[1 + 11 * i + 5]);
 
 	    if (startTime > prevEndTime) {
-		justWords[actualNumWords] = wstrings[1 + 11 * i];
+		int acWordScore = atol(wstrings[1 + 11 * i + 9]);
+		int lmWordScore = atol(wstrings[1 + 11 * i + 7]);
 
-		acScore += atol(wstrings[1 + 11 * i + 9]);
-		lmScore += atol(wstrings[1 + 11 * i + 7]);
+		justWords[actualNumWords] = token;
+
+		if (backtrace) {
+		    NBestWordInfo winfo;
+		    winfo.word = Vocab_None;
+		    winfo.start = startTime;
+		    /*
+		     * NB: "et" in nbest backtrace is actually the START time
+		     * of the last frame
+		     */
+		    winfo.duration = endTime - startTime + frameLength;
+		    winfo.acousticScore = BytelogToLogP(acWordScore);
+		    winfo.languageScore = BytelogToLogP(lmWordScore);
+		    winfo.phones = winfo.phoneDurs = 0;
+
+		    backtraceInfo[actualNumWords] = winfo;
+
+		    /*
+		     * prepare for collecting phone backtrace info
+		     */
+		    prevWordInfo = &backtraceInfo[actualNumWords];
+		    phones[0] = phoneDurs[0] = '\0';
+		}
+
+		acScore += acWordScore;
+		lmScore += lmWordScore;
 
 		actualNumWords ++;
 
 		prevEndTime = endTime;
+	    } else {
+		/*
+		 * check if this token refers to an HMM state, i.e., if
+		 * if matches the pattern /-[0-9]$/
+		 */
+		char *hyphen = strrchr(token, '-');
+		if (hyphen != 0 &&
+		    hyphen[1] >= '0' && hyphen[1] <= '9' &&
+		    hyphen[2] == '\0')
+		{
+		    continue;
+		}
+
+		/*
+		 * a phone token: if we're extracting backtrace information,
+		 * get phone identity and duration and store in word Info
+		 */
+		if (prevWordInfo) {
+		    char *lbracket = strchr(token, '[');
+		    const char *phone = lbracket ? lbracket + 1 : token;
+		    char *rbracket = strrchr(phone, ']');
+		    if (rbracket) *rbracket = '\0';
+		    addPhones(phones, phone);
+
+		    char phoneDur[20];
+		    sprintf(phoneDur, "%d",
+			    (int)((endTime - startTime)/frameLength + 0.5) + 1);
+		    addPhones(phoneDurs, phoneDur);
+
+		    if (endTime == prevEndTime) {
+			prevWordInfo->phones = strdup(phones);
+			assert(prevWordInfo->phones != 0);
+
+			prevWordInfo->phoneDurs = strdup(phoneDurs);
+			assert(prevWordInfo->phoneDurs != 0);
+		    }
+		}
 	    }
 	}
 	justWords[actualNumWords] = 0;
@@ -261,6 +503,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
     /*
      * Copy words to nbest list
      */
+    delete [] words;
     words = new VocabIndex[actualNumWords + 1];
     assert(words != 0);
 
@@ -269,6 +512,19 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
      */
     if (!multiwords) {
 	vocab.addWords(justWords, words, actualNumWords + 1);
+
+	if (backtrace) {
+	    delete [] wordInfo;
+	    wordInfo = new NBestWordInfo[actualNumWords + 1];
+
+	    for (unsigned j = 0; j < actualNumWords; j ++) {
+		wordInfo[j] = backtraceInfo[j];
+		wordInfo[j].word = words[j];
+	    }
+	    wordInfo[actualNumWords].word = Vocab_None;
+	} else {
+	    wordInfo = 0;
+	}
     } else {
 	unsigned i = 0;
 	for (unsigned j = 0; justWords[j] != 0; j ++) {
@@ -302,7 +558,19 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
     }
 
     for (unsigned i = 0; words[i] != Vocab_None; i++) {
-	fprintf(file, " %s", vocab.getWord(words[i]));
+	/*
+	 * Write backtrace information if known and Decipher format is desired
+	 */
+	if (decipherFormat && wordInfo) {
+	    fprintf(file, " %s ( st: %.2f et: %.2f g: %d a: %d )", 
+			   vocab.getWord(wordInfo[i].word),
+			   wordInfo[i].start,
+			   wordInfo[i].start+wordInfo[i].duration - frameLength,
+			   (int)LogPtoBytelog(wordInfo[i].languageScore),
+			   (int)LogPtoBytelog(wordInfo[i].acousticScore));
+	} else {
+	    fprintf(file, " %s", vocab.getWord(words[i]));
+	}
     }
 
     fprintf(file, "\n");
@@ -394,10 +662,11 @@ NBestHyp::decipherFix(LM &lm, double lmScale, double wtScale)
 
 unsigned NBestList::initialSize = 100;
 
-NBestList::NBestList(Vocab &vocab, unsigned maxSize, Boolean multiwords)
+NBestList::NBestList(Vocab &vocab, unsigned maxSize,
+				    Boolean multiwords, Boolean backtrace)
     : vocab(vocab), _numHyps(0),
       hypList(0, initialSize), maxSize(maxSize), multiwords(multiwords),
-      acousticOffset(0.0)
+      backtrace(backtrace), acousticOffset(0.0)
 {
 }
 
@@ -414,7 +683,11 @@ NBestList::memStats(MemStats &stats)
      * Add space taken up by hyp strings
      */
     for (unsigned h = 0; h < _numHyps; h++) {
-	stats.total += Vocab::length(hypList[h].words) + 1;
+	unsigned numWords = Vocab::length(hypList[h].words);
+	stats.total += (numWords + 1) * sizeof(VocabIndex);
+	if (hypList[h].wordInfo) {
+	    stats.total += (numWords + 1) * sizeof(NBestWordInfo);
+	}
     }
 }
 
@@ -461,7 +734,7 @@ NBestList::read(File &file)
 
     while (line && (maxSize == 0 || howmany < maxSize)) {
 	if (! hypList[howmany++].parse(line, vocab, decipherFormat,
-						acousticOffset, multiwords))
+					acousticOffset, multiwords, backtrace))
 	{
 	    file.position() << "bad n-best hyp\n";
 	    return false;
@@ -479,7 +752,7 @@ Boolean
 NBestList::write(File &file, Boolean decipherFormat, unsigned numHyps)
 {
     if (decipherFormat) {
-	fprintf(file, "%s\n", nbest1Magic);
+	fprintf(file, "%s\n", backtrace ? nbest2Magic : nbest1Magic);
     }
 
     for (unsigned h = 0;
@@ -594,8 +867,29 @@ NBestList::decipherFix(LM &lm, double lmScale, double wtScale)
 void
 NBestList::removeNoise(LM &lm)
 {
+    NBestWordInfo endOfHyp;
+    endOfHyp.word = Vocab_None;
+
     for (unsigned h = 0; h < _numHyps; h++) {
 	lm.removeNoise(hypList[h].words);
+
+	// remove corresponding tokens from wordInfo array
+	if (hypList[h].wordInfo) {
+
+	    unsigned k = 0;	// index into wordInfo
+	    for (unsigned i = 0; hypList[h].words[i] != Vocab_None; i ++) {
+
+		// find corresponding word in wordInfo
+		while (hypList[h].wordInfo[k].word != hypList[h].words[i]) {
+		    k ++;
+		}
+		// copy it to target position
+		if (i != k) {
+		    hypList[h].wordInfo[i] = hypList[h].wordInfo[k];
+		    hypList[h].wordInfo[k] = endOfHyp;
+		}
+	    }
+	}
     }
 }
 

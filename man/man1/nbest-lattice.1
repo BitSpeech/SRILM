@@ -1,5 +1,5 @@
-.\" $Id: nbest-lattice.1,v 1.23 2001/07/11 05:27:50 stolcke Exp $
-.TH nbest-lattice 1 "$Date: 2001/07/11 05:27:50 $" "SRILM Tools"
+.\" $Id: nbest-lattice.1,v 1.28 2001/08/11 18:12:23 stolcke Exp $
+.TH nbest-lattice 1 "$Date: 2001/08/11 18:12:23 $" "SRILM Tools"
 .SH NAME
 nbest-lattice \- rescore N-best lists and lattices
 .SH SYNOPSIS
@@ -77,7 +77,18 @@ A synonym for
 .TP
 .BI \-write-nbest " file"
 Outputs the N-best list to a file, after sorting and processing 
-(for validation purposes).
+(for validation or format conversion purposes).
+.TP
+.B \-decipher-nbest
+Output N-best list in Decipher
+.BR nbest-format (5),
+rather than the default native SRILM format.
+(All N-best formats are accepted for input regardless of this option.)
+.TP
+.B \-no-rescore
+Suppress rescoring of lattices;
+useful if only the operations of lattice/N-best list reading/writing
+are desired.
 .TP
 .BI \-nbest-files " file-list"
 Rescores multiple N-best lists whose filenames are read from
@@ -117,6 +128,13 @@ This is another strategy to speed up the algorithm.
 .B \-no-reorder
 Process N-best hypotheses in the order in which they appear.
 By default, hypotheses are first sorted by their aggregate scores.
+.TP
+.B \-nbest-backtrace
+Preserve backtrace information (word-level timemarks and scores) when reading
+N-best lists containing such information (see 
+.BR nbest-format (5)).
+The default is to ignore backtrace information and record only sentence-level
+scores and the word identities.
 .TP
 .BI \-rescore-lmw " lmw"
 Sets the language model weight used in combining the language model log
@@ -185,12 +203,9 @@ instead of, or in addition to, the single noise tag specified by
 Do not remove pause or noise tokens from hypotheses. The default
 is to preserve noise tags but still eliminate pauses.
 .TP
-.BI \-nbest-errors " references"
+.BI \-nbest-error
 Compute the N-best error (minimum word error) of the N-best list read with
 .BR \-nbest .
-Error is computed relative to all the hypotheses contained in a separate
-N-best list given by
-.IR references .
 Pause and noise tokens (as specified with
 .BR \-noise )
 in the N-best list are ignored.
@@ -218,13 +233,27 @@ option limits the number of hypotheses per N-best list processed.
 .TP
 .BI \-reference " w1 w2 ..."
 Specifies a reference word string for 
-.BR \-dump-errors .
+.BR \-dump-errors ,
+.BR \-nbest-error ,
+and
+.B \-lattice-error
+options.
 Additionally, in 
 .B -use-mesh
 mode, the reference words are recorded in the word mesh and can be output
 with 
 .BR \-write ,
 indicating which word in each alignment position is the correct one.
+.TP
+.BI \-refs " references"
+Read a table of reference transcripts from file
+.IR reference ,
+for when multiple N-best lists are processed (see
+.BR \-nbest-files ).
+Each line in 
+.I references
+must contain the sentence ID (the last component in the N-best filename
+path, minus any suffixes) followed by zero or more reference words.
 .PP
 The following options only affect lattice mode.
 .TP
@@ -235,8 +264,17 @@ to be merged with additional paths constructed from the
 N-best hypotheses.
 .TP
 .BI \-write " file"
-Writes the resulting N-best lattice to
-.IR file .
+Writes the resulting word posterior lattice or mesh to
+.IR file ,
+in
+.BR wlat-format (5).
+.TP
+.BI \-write-dir " directory"
+Write the resulting N-best lattices to 
+.IR directory ,
+in files named after the input N-best lists,
+for when multiple N-best lists are processed (see
+.BR \-nbest-files ).
 .TP
 .B \-prime-lattice
 Start building the lattice with the best hypothesis obtained from
@@ -257,16 +295,31 @@ Build a lattice from the N-best hypotheses without merging edges
 (string/lattice alignment).  This creates a lattice with one disjoint path
 per hypothesis, and is useful mainly for debugging purposes.
 .TP
-.BI \-lattice-errors " references"
+.B \-lattice-error 
 Compute the lattice error (minimum word error) of the lattice read with
 .B \-read
 or built with 
 .BR \-nbest .
-Error is computed relative to all the hypotheses contained in a separate
-N-best list given by
-.IR references .
+.TP
+.BR \-dictionary " file"
+Use word pronunciations listed in 
+.I file
+to construct word alignments when building word meshes.
+This will use an alignment cost function that reflects the number of
+inserted/deleted/substituted phones, rather than words.
+The dictionary 
+.I file
+should contain one pronunciation per line, each naming a word in the first
+field, followed by a string of phone symbols.
+.TP
+.B \-record-hyps
+Record the ranks of the hyps contributing to each word hypothesis in the 
+resulting word lattice;
+the information is included in
+.B \-write
+output.
 .SH "SEE ALSO"
-ngram(1), nbest-optimize(1), nbest-scripts(1), nbest-format(5).
+ngram(1), nbest-optimize(1), nbest-scripts(1), nbest-format(5), wlat-format(5).
 .br
 A. Stolcke, Y. Konig, and M. Weintraub,
 ``Explicit Word Error Minimization in N-best List Rescoring,''
@@ -278,16 +331,13 @@ L. Mangu, E. Brill, and A. Stolcke, ``Finding Consensus Among Words:
 Lattice-based Word Error Minimization.'' \fIProc. Eurospeech\fP,
 vol. 1, 495-498, 1999.
 .SH BUGS
-Only a subset of functions is available when processing multiple
-N-best lists.
-.br
-The options for word and lattice error computation are not consistent:
-.B \-dump-errors 
-takes the reference on the command line, whereas
-.B \-lattice-errors 
-and
-.B \-nbest-errors
-use a separate N-best list.
+Several functions are not uniformly implemented for all rescoring modes
+(e.g., 
+.BR \-dictionary ,
+.BR \-record-hyps ,
+and 
+.B \-nbest-backtrace
+are currently effective only in mesh-lattice mode).
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br

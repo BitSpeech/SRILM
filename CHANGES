@@ -289,5 +289,71 @@ Version History
 	* Fixed weight normalization in nbest-optimize when first element is 0.
 	* Miscellaneous fixes for compile under RH Linux 7.0.
 
-$Date: 2001/07/21 02:16:04 $
+1.2	20 November 2001
+	
+	Functionality:
+
+	* nbest-lattice -dictionary allows word alignments to be guided by
+	  dictionary pronunciations.
+	* nbest-lattice -use-mesh -record-hyps records the rank of N-best hyps
+	  contributing to each word hypothesis in the confusion network.
+	* nbest-lattice -no-rescore and -decipher-format options make it
+	  more convenient as an N-best format conversion tool.
+	* VocabDistance: new class and subclasses to represent distance metrics
+	  (e.g., phonetic distance) over vocabularies.
+	* WordMesh: output word hyps in order of decreasing posteriors.
+	* WordMesh: reading/writing of confusion networks now includes hyp IDs
+	  from alignment.
+	* NBest/MultiAlign/WordMesh: support for keeping extra word-level 
+	  information (NBeSTWordInfo).
+	* nbest-lattice: unified single and multiple file processing.
+	  New option -write-dir to write multiple output lattices.
+	  New option -refs to supply multiple references.
+	  Options -nbest-errors and -lattice-errors are replaced by 
+	  switches -nbest-error/-lattice-error, in conjunction with
+	  -references/-refs.  Outputs are now prefixed by utterance IDs
+	  when processing multiple files.
+	* nbest-lattice -nbest-backtrace enables processing of backtrace 
+	  information from N-best lists; combined with -use-mesh this produces
+	  sausages that contain word-level scores and alignment information,
+	  as well as phone backtraces (see new wlat-format(5) man page).
+	* wlat-stats script now also computes error statistics when processing
+	  confusion networks with references.
+	* nbest-rover now handles N-best lists in Decipher format.
+	* hidden-ngram and disambig: new option -fw-only to use only forward
+	  probabilities for posterior computation.
+	* rescore-decipher -filter option to apply textual rewriting filters
+	  to hypotheses before rescoring.
+	* segment-nbest -write-nbest-dir option for dumping rescored N-best
+	  lists to a directory instead of to stdout.
+	* segment-nbest -start-tag and -end-tag options to insert tags at
+	  margins of N-best hyps.
+
+	Bug fixes:
+		
+	* WordMesh: computation of deletion costs using a dictionary distance
+	  was completely bogus (only affected undocumented nbest-lattice
+	  -dictionary option).
+	* nbest-lattice: correctly process -nbest-files using -dictionary in
+	  alignment.
+	* nbest-rover: fixed to work on Linux 
+	* hidden-ngram: don't abort when an event posterior is 0.
+	* hidden-ngram: avoid abort when *noevent* occurs in -hidden-vocab list.
+	* segment-nbest: now correctly uses ngram contexts longer than trigram.
+	* segment-nbest: optimized -bias 0 case by disallowing sentence
+	  boundary states altogether.
+	* multi-ngram -prune-unseen-ngrams prevents insertion of multiword
+	  N-grams whose component N-grams were not in the original model.
+	* ngram: fixed computation of mixture lambda for second LM when three
+	  or more models are interpolated.
+	* nbest-posterior (and thus nbest-rover) no longer split multiwords by
+	  themselves.  To split multiwords with nbest-rover, append the
+	  -multiwords option to the argument list, which is passed on to
+	  nbest-lattice to achieve the desired effect.
+	* ngram -renorm now applies BEFORE class expansion or pruning of 
+	  model (in case input model is unnormalized).
+	* make-nbest-pfsg bug involving transition into final node fixed.
+	* Minor script changes to avoid warnings with gawk 3.1.0.
+
+$Date: 2001/11/20 23:10:01 $
 

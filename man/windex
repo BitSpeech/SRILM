@@ -66,12 +66,13 @@ rescore-decipher		nbest-scripts (1)   - rescore and evaluate N-best lists
 rescore-reweight		nbest-scripts (1)   - rescore and evaluate N-best lists
 reverse-ngram-counts		training-scripts (1)	- miscellaneous conveniences for language model training
 segment 	segment (1)	- segment text using N-gram language model
-segment-nbest	segment-nbest (1)   - rescore and segment N-best lists using N-gram language models
+segment-nbest	segment-nbest (1)   - rescore and segment N-best lists using hidden segment N-gram model
 sentid-to-sclite		nbest-scripts (1)   - rescore and evaluate N-best lists
 subtract-ppls	ppl-scripts (1) - manipulate perplexities
 training-scripts		training-scripts (1)	- miscellaneous conveniences for language model training
 uniform-classes training-scripts (1)	- miscellaneous conveniences for language model training
 vp2text 	training-scripts (1)	- miscellaneous conveniences for language model training
+wlat-format	wlat-format (5) - File format for SRILM word posterior lattices
 wlat-stats	pfsg-scripts (1)    - create and manipulate finite-state networks
 wlat-to-dot	pfsg-scripts (1)    - create and manipulate finite-state networks
 wlat-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks

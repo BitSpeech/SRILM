@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.cc,v 1.2 2000/08/06 03:20:18 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.cc,v 1.3 2001/07/31 02:38:32 stolcke Exp $";
 #endif
 
 #include "VocabDistance.h"
@@ -94,7 +94,7 @@ DictionaryDistance::distance(VocabIndex w1, VocabIndex w2)
  * Absolute phonetic distance
  */
 
-const double defaultDistance = 5.0; /* for word without dictionary entries */
+const double defaultDistance = 1.0; /* for word without dictionary entries */
 const char *emptyWord = "*EMPTY*WORD*";
 
 DictionaryAbsDistance::DictionaryAbsDistance(Vocab &vocab,

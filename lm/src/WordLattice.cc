@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.29 2000/03/18 23:01:07 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.30 2001/08/03 04:05:29 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -450,7 +450,7 @@ WordLattice::sortAlignedNodes(unsigned *sortedNodes)
  *	Add new nodes representing word string
  */
 void
-WordLattice::addWords(const VocabIndex *words, Prob score)
+WordLattice::addWords(const VocabIndex *words, Prob score, const HypID *hypID)
 {
     unsigned prevNode = initial;
 
@@ -498,7 +498,8 @@ const unsigned LAT_ARC_COST = 1;
  *	Add a word string to lattice by finding best alignment
  */
 void
-WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
+WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
+							const HypID *hypID)
 {
     unsigned numWords = Vocab::length(words);
 
@@ -803,6 +804,7 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 				// delBias is ignored, unimplemented
 {
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
+    double expectedError;
 
     /*
      * Sort nodes topologically respecting alignments
@@ -1010,7 +1012,8 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 	if (length > 0) {
 	    words[0] = Vocab_None;
 	}
-	return 0.0;
+
+	expectedError = 0.0;
     } else {
 
 	sub = chart[final].subs;
@@ -1035,8 +1038,9 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 
 	Vocab::reverse(words);
 
-	return chart[final].errs;
+	expectedError = chart[final].errs;
     }
+    return expectedError;
 }
 
 /*

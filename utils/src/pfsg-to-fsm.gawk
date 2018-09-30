@@ -12,14 +12,18 @@
 #			(default -1)
 # 
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm,v 1.11 2000/02/12 00:31:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm.gawk,v 1.12 2001/11/20 02:03:12 stolcke Exp $
 #
 BEGIN {
 	empty_output = "NULL";
 	output_symbols[empty_output] = 0;
 	numoutputs = 1;
 
-	getline pid < "/dev/pid";
+	if ("pid" in PROCINFO) {
+	    pid = PROCINFO["pid"];
+	} else {
+	    getline pid < "/dev/pid";
+	}
 	tmpfile = "/tmp/pfsg.tmp" pid;
 
 	symbolfile = "";
