@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/misc/src/Debug.h,v 1.6 2010/06/02 04:44:21 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/Debug.h,v 1.8 2013/03/30 15:55:25 stolcke Exp $
  *
  */
 
@@ -52,16 +52,17 @@ class Debug
 public:
     Debug(unsigned level = 0)
       : nodebug(false), debugLevel(level), debugStream(&cerr) {};
+    virtual ~Debug() {};	    /* prevent warning about no virtual dtor */
 
-    Boolean debug(unsigned level)   /* true if debugging */
+    Boolean debug(unsigned level) const  /* true if debugging */
 	{ return (!nodebug && (debugAll >= level || debugLevel >= level)); };
     virtual void debugme(unsigned level) { debugLevel = level; };
 				    /* set object's debugging level */
     void debugall(unsigned level) { debugAll = level; };
 				    /* set global debugging level */
-    unsigned debuglevel() { return debugLevel; };
+    unsigned debuglevel() const { return debugLevel; };
 
-    virtual ostream &dout() { return *debugStream; };
+    virtual ostream &dout() const { return *debugStream; };
 				    /* output stream for use with << */
     virtual ostream &dout(ostream &stream)  /* redirect debugging output */
 	{ debugStream = &stream; return stream; };

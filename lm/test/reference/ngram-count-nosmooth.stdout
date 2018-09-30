@@ -1,0 +1,2 @@
+file ../ngram-count-gt/eval97.text: 5290 sentences, 38238 words, 681 OOVs
+11555 zeroprobs, logprob= -45549.2 ppl= 28.5508 ppl1= 56.4622

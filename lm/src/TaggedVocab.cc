@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedVocab.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedVocab.cc,v 1.12 2013-03-19 06:41:41 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -239,7 +239,7 @@ TaggedVocab::write(File &file, Boolean sorted) const
     VocabString word;
 
     while (!file.error() && (word = iter.next())) {
-	fprintf(file, "%c%s\n", tagSep, word);
+	file.fprintf("%c%s\n", tagSep, word);
     }
 }
 

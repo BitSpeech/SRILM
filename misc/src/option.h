@@ -12,7 +12,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/srilm/CVS/srilm/misc/src/option.h,v 1.12 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/CVS/srilm/misc/src/option.h,v 1.13 2013/04/09 06:07:02 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _OPTION
@@ -130,10 +130,13 @@ typedef struct Option {
  *				"foo -abc" the same as "foo -a -b -c".
  * OPT_OPTIONS_FIRST	-	Stop parsing if something other than an
  *				option (starting with a hyphen) is encountered.
+ * OPT_UNKNOWN_IS_ERROR	-	Stop parsing if unknown optionis encountered
+ *				and do not print -help message hint.
  */
 
 #define OPT_ALLOW_CLUSTERING	1
 #define OPT_OPTIONS_FIRST	2
+#define OPT_UNKNOWN_IS_ERROR	4
 
 /*
  * Exported procedures:

@@ -2,9 +2,9 @@
  * Discount.h --
  *	Discounting schemes
  *
- * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.h,v 1.21 2010/06/02 06:22:48 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.h,v 1.23 2013/06/21 05:46:13 stolcke Exp $
  *
  */
 
@@ -72,7 +72,8 @@ public:
 	/*
 	 * by default, don't allow discount estimation from fractional counts
 	 */
-	{ return false; };
+	{ dout() << "discounting method does not support float counts\n";
+          return false; };
 
     virtual void prepareCounts(NgramCounts<NgramCount> &counts,
 				unsigned order, unsigned maxOrder)
@@ -106,8 +107,6 @@ public:
     Boolean read(File &file);
 
     Boolean estimate(NgramStats &counts, unsigned order);
-    Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
-	{ return false; };
 
 protected:
     Count minCount;		    /* counts below this are set to 0 */
@@ -126,7 +125,7 @@ protected:
 class ConstDiscount: public Discount
 {
 public:
-    ConstDiscount(double d, unsigned mincount = 0)
+    ConstDiscount(double d, double mincount = 0.0)
 	: _discount(d < 0.0 ? 0.0 : d > 1.0 ? 1.0 : d),
 	  _mincount(mincount) {};
 
@@ -160,7 +159,7 @@ protected:
 class NaturalDiscount: public Discount
 {
 public:
-    NaturalDiscount(unsigned mincount = 0)
+    NaturalDiscount(double mincount = 0.0)
 	: _vocabSize(0), _mincount(mincount) {};
 
     double discount(Count count, Count totalCount, Count observedVocab);
@@ -190,7 +189,7 @@ protected:
 class AddSmooth: public Discount
 {
 public:
-    AddSmooth(double delta = 1.0, unsigned mincount = 0)
+    AddSmooth(double delta = 1.0, double mincount = 0.0)
 	: _delta(delta < 0.0 ? 0.0 : delta),
 	  _mincount(mincount) {};
 
@@ -228,7 +227,7 @@ protected:
 class WittenBell: public Discount
 {
 public:
-    WittenBell(unsigned mincount = 0) : _mincount(mincount) {};
+    WittenBell(double mincount = 0.0) : _mincount(mincount) {};
 
     double discount(Count count, Count totalCount, Count observedVocab)
       { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
@@ -275,8 +274,6 @@ public:
     virtual Boolean read(File &file);
 
     virtual Boolean estimate(NgramStats &counts, unsigned order);
-    virtual Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
-	{ return false; };
 
     virtual void prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
 							    unsigned maxOrder);
@@ -313,8 +310,6 @@ public:
     Boolean read(File &file);
 
     Boolean estimate(NgramStats &counts, unsigned order);
-    Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
-	{ return false; };
 
 protected:
     double discount2;		    /* additional discounting constants */

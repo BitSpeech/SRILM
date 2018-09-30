@@ -20,7 +20,6 @@
 #include "WordMesh.h"
 #include "XCount.h"
 
-#if !defined(NO_TLS)
 void 
 LMThreads::freeThread() {
     // Call freeThread on the various classes that utilize TLS/static storage.
@@ -40,7 +39,6 @@ LMThreads::freeThread() {
     TLSW_FREE(countSentenceWidsTLS);
     TLSW_FREE(writeBufferTLS);
 }
-#endif
 
 /* These TLS variables are used by templates in the LM module. They are 
    defined here so that there is only one instance of each regardless of the

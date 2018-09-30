@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char CachedMem_Copyright[] = "Copyright (c) 2008-2012 SRI International.  All Rights Reserved.";
-static char CachedMem_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/CachedMem.cc,v 1.5 2012/10/29 17:24:57 mcintyre Exp $";
+static char CachedMem_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/CachedMem.cc,v 1.7 2015-04-17 00:33:01 frandsen Exp $";
 #endif
 
 #include "CachedMem.h"
@@ -60,6 +60,7 @@ void CachedMem<T>::freeThread()
 
     TLSW_FREE(__alloclistTLS);
     TLSW_FREE(__freelistTLS);
+    TLSW_FREE(__num_chkTLS);
     TLSW_FREE(__num_newTLS);
     TLSW_FREE(__num_delTLS);
 }
@@ -108,7 +109,9 @@ void * CachedMem<T>::operator new (size_t sz)
   }
 
   T * p = __freelist;
-  __freelist = __freelist->CachedMem<T>::__next;
+  if (__freelist) {
+    __freelist = __freelist->CachedMem<T>::__next;
+  } // else unexpected error (addToFreelist failed)
   return p;
 }
 

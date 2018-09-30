@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SkipNgram.cc,v 1.14 2010/06/02 06:22:48 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SkipNgram.cc,v 1.19 2016/04/09 06:53:01 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -16,6 +16,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SkipNgram.cc,v 
 using namespace std;
 #endif
 #include <stdlib.h>
+#include <assert.h>
 
 #include "SkipNgram.h"
 
@@ -120,8 +121,8 @@ SkipNgram::read(File &file, Boolean limitVocab)
 
 	wid = vocab.addWord(words[0]);
 
-	double prob;
-	if (sscanf(words[1], "%lf", &prob) != 1) {
+	Prob prob;
+	if (!parseProb(words[1], prob)) {
 	    file.position() << "bad skip prob value " << words[1] << endl;
 	    return false;
 	}
@@ -142,7 +143,7 @@ SkipNgram::write(File &file)
 	return false;
     }
     
-    fprintf(file, "\n");
+    file.fprintf("\n");
 
     LHashIter<VocabIndex, Prob> skipProbsIter(skipProbs, vocab.compareIndex());
 
@@ -150,10 +151,11 @@ SkipNgram::write(File &file)
     Prob *prob;
 
     while ((prob = skipProbsIter.next(wid))) {
-	fprintf(file, "%s %lg\n", vocab.getWord(wid), *prob);
+	file.fprintf("%s %.*lg\n", vocab.getWord(wid),
+				   Prob_Precision, (double)*prob);
     }
 
-    fprintf(file, "\n");
+    file.fprintf("\n");
 
     return true;
 }
@@ -201,7 +203,9 @@ SkipNgram::estimate(NgramStats &stats, Discount **discounts)
 	    break;
 	}
 
-	estimateMstep(stats, ngramExps, skipExps, discounts);
+	if (!estimateMstep(stats, ngramExps, skipExps, discounts)) {
+	    return false;
+	}
 	like = newLike;
     }
 
@@ -269,7 +273,7 @@ SkipNgram::estimateEstepNgram(VocabIndex *ngram, NgramCount ngramCount,
 	if (stats.findCount(&ngram[i], word)) {
 	    //cerr << " incrementing " << (vocab.use(), &ngram[i])
 	    //     << " " << vocab.getWord(word) << endl;
-	    *ngramExps.insertCount(&ngram[i], word) += skipPr *ngramCount;
+	    *ngramExps.insertCount(&ngram[i], word) += skipPr * ngramCount;
 	}
     }
     ngram[ngramLength - 2] = skipped;
@@ -340,7 +344,7 @@ SkipNgram::estimateEstep(NgramStats &stats,
  *	the cound are floats.
  *	We also estimate the skip probabilities using ML.
  */
-void
+Boolean
 SkipNgram::estimateMstep(NgramStats &stats,
 		         NgramCounts<FloatCount> &ngramExps,
 		         LHash<VocabIndex,double> &skipExps,
@@ -364,9 +368,24 @@ SkipNgram::estimateMstep(NgramStats &stats,
 	*skipProbs.insert(wid) = *skipCount / *total;
     }
 
+    //{
+    //    File file("SKIP-NGRAM-EXPECTATIONS", "w");
+    //    ngramExps.write(file, 0);
+    //}
+
+    /*
+     * Reestimate discounting parameters from expected counts
+     */
+    for (unsigned i = 1; i <= order; i++) {
+	if (!discounts[i-1]->estimate(ngramExps, i)) {
+	    dout() << "warning: skip-ngram discount estimator for order "
+		   << i << " failed -- using old parameters\n";
+	}
+    }
+
     /*
      * Reestimate probs from expected counts
      */
-    Ngram::estimate(ngramExps, discounts);
+    return Ngram::estimate(ngramExps, discounts);
 }
 

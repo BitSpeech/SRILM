@@ -10,12 +10,10 @@
 #ifndef DStructThreads_h
 #define DStructThreads_h
 
-#ifndef NO_TLS
 class DStructThreads {
 public:
   static void freeThread();
 };
-#endif /* NO_TLS */
 
 #endif /* DStructThreads_h */
 

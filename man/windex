@@ -1,3 +1,0 @@
-disambig	disambig (1)	- disambiguate text tokens using an N-gram model
-ngram-count	ngram-count (1) - count N-grams and estimate language models
-ngram-format	ngram-format (5)    - File format for ARPA backoff N-gram models

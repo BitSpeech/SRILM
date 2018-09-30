@@ -11,6 +11,7 @@
 #define TLSWrapper_h
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "tls.h"
 #include "Boolean.h"
@@ -64,6 +65,7 @@ public:
                 mem = new T();
             else
                 mem = (T*)calloc(num, sizeof(T));
+	    assert(mem != 0);
             TLS_SET(key, mem);
         }
         return *mem;
@@ -96,9 +98,9 @@ private:
 #  define TLSW_DECL(type, name) type name
 #  define TLSW_DECL_ARRAY(type, name, size) type name[size] 
 
-#  define TLSW_DEF(type, name) type name;
-#  define TLSW_DEFC(type, name) type name;
-#  define TLSW_DEF_ARRAY(type, name, size) type name[];
+#  define TLSW_DEF(type, name) type name
+#  define TLSW_DEFC(type, name) type name
+#  define TLSW_DEF_ARRAY(type, name, size) type name[size]
 
 #  define TLSW_GET(name) name
 #  define TLSW_GET_ARRAY(name) name

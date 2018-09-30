@@ -11,9 +11,9 @@
 #      identity. (Based on the Corona script of the same name)
 #
 #
-#    Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
+#    Copyright (c) 1995-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
 #
-#    RCS ID: $Id: machine-type,v 1.12 2012/01/09 17:47:35 stolcke Exp $
+#    RCS ID: $Id: machine-type,v 1.13 2013/08/02 21:55:10 stolcke Exp $
 #
 
 ##    NOTE:  (tmk 950414)
@@ -59,7 +59,11 @@ if [ $# -gt 0 ]; then
 	    ;;
     *)
 	    case "`uname -s`" in
-	    CYGWIN*)	MACHINE_TYPE=cygwin
+	    CYGWIN*)	
+			case "`uname -m`" in
+			x86_64) MACHINE_TYPE=cygwin64;;
+			*)	MACHINE_TYPE=cygwin;;
+			esac
 			;;
 	    FreeBSD*)	MACHINE_TYPE=freebsd
 			;;

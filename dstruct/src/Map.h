@@ -46,7 +46,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.24 2012/10/11 20:23:52 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.25 2014-05-27 03:04:56 stolcke Exp $
  *
  */
 
@@ -56,6 +56,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #if !defined(_MSC_VER) && !defined(WIN32)
 #include <sys/param.h>
 #endif
@@ -183,6 +184,14 @@ inline void Map_noKey(short unsigned &key) { key = UShortNokeyValue; }
 inline Boolean Map_noKeyP(short unsigned key) { return key == UShortNokeyValue; }
 inline void Map_noKey(long unsigned &key) { key = ULongNokeyValue; }
 inline Boolean Map_noKeyP(long unsigned key) { return key == ULongNokeyValue; }
+
+/*
+ * Floats use HUGE_VAL as the non-key
+ */
+inline void Map_noKey(float &key) { key = HUGE_VAL; }
+inline Boolean Map_noKeyP(float key) { return key == HUGE_VAL; }
+inline void Map_noKey(double &key) { key = HUGE_VAL; }
+inline Boolean Map_noKeyP(double key) { return key == HUGE_VAL; }
 
 #endif /* _Map_h_ */
 

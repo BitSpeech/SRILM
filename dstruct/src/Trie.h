@@ -23,6 +23,12 @@
  *	With this and the other functions, the foundP argument is optional
  *	and returns whether the key was found.
  *
+ * DataT *findPrefix(const KeyT *keys, unsigned &depth)
+ * DataT *findPrefix(const KeyT *keys)
+ *	Returns a pointer to the data item corresponding to a maximal 
+ *	prefix of keys.  This maybe the item at the root if keys[0] doesn't
+ *	match any root entry.
+ *
  * DataT *insert(const KeyT *keys, Boolean &foundP)
  * DataT *insert(KeyT key, Boolean &foundP)
  * DataT *insert(const KeyT *keys)
@@ -43,6 +49,11 @@
  * Trie *findTrie(KeyT key)
  *	Returns a pointer to the trie node found under key, or null if
  *	the key is no in the trie.
+ *
+ * Trie *findPrefixTrie(const KeyT *keys, unsigned &depth)
+ * Trie *findPrefixTrie(const KeyT *keys)
+ *	Returns a pointer to the trie node indexed by the maximal prefix of
+ *	keys.
  *
  * Trie *insertTrie(const KeyT *keys, Boolean &foundP)
  * Trie *insertTrie(KeyT key, Boolean &foundP)
@@ -86,9 +97,9 @@
  * Note that the iterator returns pointers to the Trie nodes, not the
  * stored data items.  Those can be accessed with value(), see above.
  *
- * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.24 2012/10/18 20:55:19 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.25 2013/03/08 14:31:00 stolcke Exp $
  *
  */
 
@@ -141,9 +152,14 @@ public:
 	{ Trie<KeyT,DataT> *node = findTrie(key, foundP);
 	  return node ? &(node->data) : 0; };
     DataT *find(const KeyT *keys) const
-	{ Boolean found; return find(keys, found); } 
+	{ Boolean found; return find(keys, found); };
     DataT *find(KeyT key) const
-	{ Boolean found; return find(key, found); } 
+	{ Boolean found; return find(key, found); };
+
+    DataT *findPrefix(const KeyT *keys, unsigned &depth) const
+	{ return &(findPrefixTrie(keys, depth)->data); };
+    DataT *findPrefix(const KeyT *keys) const
+	{ unsigned depth; return findPrefix(keys, depth); };
 
     DataT *insert(const KeyT *keys, Boolean &foundP)
 	{ return &(insertTrie(keys, foundP)->data); };
@@ -176,6 +192,11 @@ public:
 	{ Boolean found; return findTrie(keys, found); };
     Trie<KeyT,DataT> *findTrie(const KeyT key) const
 	{ Boolean found; return findTrie(key, found); };
+
+    Trie<KeyT,DataT> *findPrefixTrie(const KeyT *keys,
+					unsigned &depth) const;
+    Trie<KeyT,DataT> *findPrefixTrie(const KeyT *keys) const
+	{ unsigned depth; return findPrefixTrie(keys, depth); };
 
     Trie<KeyT,DataT> *insertTrie(const KeyT *keys,
 				Boolean &foundP);

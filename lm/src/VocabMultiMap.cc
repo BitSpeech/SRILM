@@ -6,8 +6,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMultiMap.cc,v 1.7 2011/01/12 20:10:59 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2011 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMultiMap.cc,v 1.10 2016/04/09 06:53:01 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -88,7 +88,7 @@ VocabMultiMap::read(File &file, Boolean limitVocab)
 	 */
 	double prob;
 	unsigned startWords;
-	if (howmany > 1 && sscanf(words[1], "%lf", &prob)) {
+	if (howmany > 1 && parseProbOrLogP(words[1], prob, logmap)) {
 	    startWords = 2;
 	} else {
 	    prob = logmap ? LogP_One : 1.0;
@@ -123,9 +123,10 @@ VocabMultiMap::write(File &file)
 
 	while ((prob = iter2.next(w2))) {
 	    if (*prob == (logmap ? LogP_One : 1.0)) {
-		fprintf(file, "%s\t", word1);
+		file.fprintf("%s\t", word1);
 	    } else {
-		fprintf(file, "%s\t%lg ", word1, *prob);
+		file.fprintf("%s\t%.*lg ", word1,
+					   Prob_Precision, (double)*prob);
 	    }
 
 	    unsigned numWords = Vocab::length(w2);
@@ -133,7 +134,7 @@ VocabMultiMap::write(File &file)
 	    vocab2.getWords(w2, mappedWords, numWords + 1);
 
 	    Vocab::write(file, mappedWords);
-	    fprintf(file, "\n");
+	    file.fprintf("\n");
 	}
     }
     return true;

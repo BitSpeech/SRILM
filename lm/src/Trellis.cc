@@ -9,8 +9,8 @@
 #define _Trellis_cc_
 
 #ifndef lint
-static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.24 2012/02/27 22:52:55 stolcke Exp $";
+static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.26 2015-03-05 07:45:01 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -87,7 +87,7 @@ Trellis<StateT>::step()
  */
 template <class StateT>
 void
-Trellis<StateT>::setProb(StateT state, LogP prob)
+Trellis<StateT>::setProb(const StateT &state, LogP prob)
 {
     TrellisSlice<StateT>& currSlice = trellis[currTime];
     Boolean foundP;
@@ -114,7 +114,7 @@ Trellis<StateT>::setProb(StateT state, LogP prob)
 
 template <class StateT>
 LogP
-Trellis<StateT>::getLogP(StateT state, unsigned t)
+Trellis<StateT>::getLogP(const StateT &state, unsigned t)
 {
     assert(t <= currTime);
     TrellisNode<StateT> *node = trellis[t].find(state);
@@ -124,7 +124,7 @@ Trellis<StateT>::getLogP(StateT state, unsigned t)
 
 template <class StateT>
 LogP
-Trellis<StateT>::getMax(StateT state, unsigned t, LogP &backmax)
+Trellis<StateT>::getMax(const StateT &state, unsigned t, LogP &backmax)
 {
     assert(t <= currTime);
     TrellisNode<StateT> *node = trellis[t].find(state);
@@ -139,7 +139,7 @@ Trellis<StateT>::getMax(StateT state, unsigned t, LogP &backmax)
 
 template<class StateT>
 void
-Trellis<StateT>::update(StateT oldState, StateT newState, LogP trans)
+Trellis<StateT>::update(const StateT &oldState, const StateT &newState, LogP trans)
 {
     assert(currTime > 0 && currTime < trellisSize);
     TrellisSlice<StateT>& lastSlice = trellis[currTime-1];
@@ -194,8 +194,16 @@ Trellis<StateT>::max(unsigned t)
 }
 
 template <class StateT>
+unsigned
+Trellis<StateT>::prune(LogP p, unsigned t)
+{
+    assert(t <= currTime);
+    return trellis[t].prune(p);
+}
+
+template <class StateT>
 void
-Trellis<StateT>::setBackProb(StateT state, LogP prob)
+Trellis<StateT>::setBackProb(const StateT &state, LogP prob)
 {
     TrellisNode<StateT> *node = trellis[backTime].find(state);
 
@@ -213,7 +221,7 @@ Trellis<StateT>::setBackProb(StateT state, LogP prob)
 
 template <class StateT>
 LogP
-Trellis<StateT>::getBackLogP(StateT state, unsigned t)
+Trellis<StateT>::getBackLogP(const StateT &state, unsigned t)
 {
     assert(t <= currTime);
     TrellisNode<StateT> *node = trellis[t].find(state);
@@ -240,7 +248,7 @@ Trellis<StateT>::stepBack()
 
 template <class StateT>
 void
-Trellis<StateT>::updateBack(StateT oldState, StateT newState, LogP trans)
+Trellis<StateT>::updateBack(const StateT &oldState, const StateT &newState, LogP trans)
 {
     assert(backTime != (unsigned)-1);	/* check for underflow */
 
@@ -313,7 +321,7 @@ Trellis<StateT>::nbest_viterbi(StateT *path, unsigned len, unsigned nth, LogP& s
 template <class StateT>
 unsigned
 Trellis<StateT>::nbest_viterbi(StateT *path, unsigned len, unsigned n,
-					    LogP &score, StateT lastState)
+					    LogP &score, const StateT &lastState)
 {
     if (len > currTime + 1) {		  // Sanity check
 	len = currTime + 1;
@@ -470,6 +478,43 @@ TrellisSlice<StateT>::max()
 	}
     }
     return maxState;
+}
+
+/*
+ * Remove states with forward log prob less than the max forward probs minus p.
+ * Returns number of pruned states.
+ */
+template <class StateT>
+unsigned
+TrellisSlice<StateT>::prune(LogP p)
+{
+    LogP maxProb = LogP_Zero;
+
+    LHashIter<StateT, TrellisNode<StateT> > iter(nodes);
+    TrellisNode<StateT> *node;
+    StateT state;
+
+    /*
+     * Find the largest forward probability
+     * Note: this is different from max(), which looks at the probability of
+     * single path leading into a node.
+     */
+    while ((node = iter.next(state))) {
+	if (node->lprob > maxProb) {
+	    maxProb = node->lprob;
+	}
+    }
+
+    unsigned pruned = 0;
+
+    iter.init();
+    while ((node = iter.next(state))) {
+	if (node->lprob < maxProb - p) {
+	    nodes.remove(state);
+	    pruned += 1;
+	}
+    }
+    return pruned;
 }
 
 /*

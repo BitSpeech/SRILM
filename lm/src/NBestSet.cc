@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBestSet.cc,v 1.14 2012/07/04 21:50:39 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBestSet.cc,v 1.15 2014-08-29 21:35:48 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -96,6 +96,9 @@ NBestSet::read(File &file)
 	    elt->nbest = 0;
 	} else if (!readList(id, *elt)) {
 	    file.position() << "error reading N-best list\n";
+	    if (elt->nbest) {
+		delete elt->nbest;
+	    }
 	    elt->nbest = 0;
 	}
     }
@@ -144,6 +147,9 @@ NBestSet::readSRInterpFormat(File &file, LHash<RefString, NBestScore **> & allSc
 	    elt->nbest = 0;
 	} else if (!readListSRInterpFormat(id, *elt, scores)) {
 	    file.position() << "error reading N-best list\n";
+	    if (elt->nbest) {
+		delete elt->nbest;
+	    }
 	    elt->nbest = 0;
 	} else {
 	    // copy scores;
@@ -152,7 +158,12 @@ NBestSet::readSRInterpFormat(File &file, LHash<RefString, NBestScore **> & allSc
 	    NBestScore ** mat = new NBestScore * [ numScores ];
 	    for (n = 0; n < numScores; n++) {	     
 	        mat[n] = new NBestScore [ numHyps ];
-		Array<NBestScore> &array = **scores.find(feats[n]);
+		Array<NBestScore>** ptr = scores.find(feats[n]);
+		if (!ptr || !*ptr || !**ptr) {
+		    // Unexpected lookup error
+		    continue;
+		}
+		Array<NBestScore> &array = **ptr;
 		double scale = scales[n];
 		for (unsigned j = 0; j < numHyps; j++) {
 		    mat[n][j] = (NBestScore) (array[j]/scale);
@@ -163,7 +174,10 @@ NBestSet::readSRInterpFormat(File &file, LHash<RefString, NBestScore **> & allSc
     }
 
     for (n = 0; n < numScores; n++) {
-	delete *scores.find(feats[n]);
+	Array<NBestScore>** ptr = scores.find(feats[n]);
+	if (ptr && *ptr) {
+	    delete *ptr;
+	}
     }
     
     return true;

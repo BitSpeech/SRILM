@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2014 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.50 2012/07/06 06:31:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.57 2014-05-28 00:04:02 stolcke Exp $
  *
  */
 
@@ -42,13 +42,15 @@ typedef Trie<VocabIndex,BOnode> BOtrie;
 
 const unsigned defaultNgramOrder = 3;
 
+class NgramBayesMix;				/* forward declaration */
+
 class Ngram: public LM
 {
     friend class NgramBOsIter;
 
 public:
     Ngram(Vocab &vocab, unsigned order = defaultNgramOrder);
-    virtual ~Ngram();
+    virtual ~Ngram() {};
 
     unsigned setorder(unsigned neworder = 0);   /* change/return ngram order */
 
@@ -75,6 +77,8 @@ public:
 
     virtual void useCodebook(PQCodebook &cb)
 	{ codebook = &cb; };	/* start using VQ codebook */
+    virtual void useCodebook()
+	{ codebook = 0; };	/* stop using VQ codebook */
 
     /*
      * Estimation
@@ -87,6 +91,7 @@ public:
 							Discount **discounts);
     virtual void mixProbs(Ngram &lm2, double lambda);
     virtual void mixProbs(Ngram &lm1, Ngram &lm2, double lambda);
+    virtual void mixProbs(NgramBayesMix &mixLMs);
     virtual void recomputeBOWs();
     virtual void pruneProbs(double threshold, unsigned minorder = 2,
 							LM *historyLM = 0);
@@ -96,15 +101,16 @@ public:
     /*
      * Statistics
      */
-    virtual unsigned int numNgrams(unsigned int n);
+    virtual Count numNgrams(unsigned int n) const;
     virtual void memStats(MemStats &stats);
+    virtual Count countParams(SArray<LogP, FloatCount> &params);
 
     /*
      * Low-level access
      */
-    LogP *findBOW(const VocabIndex *context);
+    LogP *findBOW(const VocabIndex *context) const;
     LogP *insertBOW(const VocabIndex *context);
-    LogP *findProb(VocabIndex word, const VocabIndex *context);
+    LogP *findProb(VocabIndex word, const VocabIndex *context) const;
     LogP *insertProb(VocabIndex word, const VocabIndex *context);
     void removeBOW(const VocabIndex *context);
     void removeProb(VocabIndex word, const VocabIndex *context);
@@ -160,7 +166,7 @@ protected:
 class NgramBOsIter
 {
 public:
-    NgramBOsIter(Ngram &lm, VocabIndex *keys, unsigned order,
+    NgramBOsIter(const Ngram &lm, VocabIndex *keys, unsigned order,
 			int (*sort)(VocabIndex, VocabIndex) = 0)
 	 : myIter(lm.contexts, keys, order, sort) {};
 
@@ -178,7 +184,7 @@ private:
 class NgramProbsIter
 {
 public:
-    NgramProbsIter(BOnode &bonode, 
+    NgramProbsIter(const BOnode &bonode, 
 			int (*sort)(VocabIndex, VocabIndex) = 0)
 	: myIter(bonode.probs, sort) {};
 

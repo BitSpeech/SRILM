@@ -5,9 +5,9 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.63 2012/10/29 17:25:03 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.65 2015-10-13 21:04:27 stolcke Exp $
  *
  */
 
@@ -101,10 +101,10 @@ public:
 					(NgramCounts<FloatCount> *)0); };
 
     virtual unsigned pplFile(File &file, TextStats &stats,
-				const char *escapeString = 0);
+				const char *escapeString = 0, Boolean weighted = false);
     virtual unsigned rescoreFile(File &file, double lmScale, double wtScale,
-			       LM &oldLM, double oldLmScale, double oldWtScale,
-			       const char *escapeString = 0);
+				LM &oldLM, double oldLmScale, double oldWtScale,
+				const char *escapeString = 0);
 
     virtual unsigned probServer(unsigned port, unsigned maxClients = 0);
 
@@ -148,7 +148,7 @@ public:
     virtual Boolean write(File &file);
     virtual Boolean writeBinary(File &file);
 
-    virtual Boolean running() { return _running; };
+    virtual Boolean running() const { return _running; };
     virtual Boolean running(Boolean newstate)
       { Boolean old = _running; _running = newstate; return old; };
 

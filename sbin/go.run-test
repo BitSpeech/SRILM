@@ -3,7 +3,7 @@
 # go.run-test --
 #	run a regression test
 #
-# $Header: /home/srilm/CVS/srilm/sbin/go.run-test,v 1.15 2011/01/29 06:25:54 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/go.run-test,v 1.16 2013/03/09 06:51:05 stolcke Exp $
 #
 
 dir=$1
@@ -16,7 +16,7 @@ name=`basename $dir`
 
 #diff=cmp
 # ignore different whitespace and EOL conventions
-diff="gawk -f $SRILM/sbin/compare-outputs 2>/dev/null"
+diff="${GAWK-gawk} -f $SRILM/sbin/compare-outputs 2>/dev/null"
 
 test -d output || mkdir output
 

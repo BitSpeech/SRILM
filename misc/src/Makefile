@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.34 2012/10/18 23:05:39 mcintyre Exp $
+#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.38 2016/05/25 16:26:15 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -49,7 +49,7 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/option.c		\
 	$(SRCDIR)/zio.c			\
 	$(SRCDIR)/fcheck.c		\
-	$(SRCDIR)/fake-rand48.c		\
+	$(SRCDIR)/rand48.c		\
 	$(SRCDIR)/Debug.cc		\
 	$(SRCDIR)/File.cc		\
 	$(SRCDIR)/MStringTokUtil.cc	\
@@ -66,6 +66,12 @@ ifneq ($(NO_ICONV), )
   CXXFLAGS += -DNO_ICONV
 endif
 
+# tell version.c about compile-time options
+ifneq ($(HAVE_LIBLBFGS), )
+  ADDITIONAL_CFLAGS += -DHAVE_LIBLBFGS
+  ADDITIONAL_CXXFLAGS += -DHAVE_LIBLBFGS
+endif
+
 # Example Library object files.
 LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
 		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
@@ -77,13 +83,15 @@ ADDITIONAL_INCLUDES += \
 	$(TCL_INCLUDE)
 
 ADDITIONAL_LIBRARIES += \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)z$(LIB_SUFFIX) \
 	$(TCL_LIBRARY) \
 	$(MATH_LIBRARY)
 
 # Example programs.
 PROGRAM_NAMES = \
 	ztest \
-	testFile
+	testFile \
+	testRand
 
 PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 

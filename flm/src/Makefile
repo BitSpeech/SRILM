@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/lite/flm/src/RCS/Makefile,v 1.2 2012/12/25 13:55:55 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/flm/src/Makefile,v 1.15 2013/03/31 06:00:37 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -48,10 +48,10 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/FNgramStats.h \
 	$(SRCDIR)/FNgramSpecs.h \
 	$(SRCDIR)/FactoredVocab.h \
-	$(SRCDIR)/FLMThreads.h \
 	$(SRCDIR)/FNgram.h \
 	$(SRCDIR)/ProductVocab.h \
 	$(SRCDIR)/ProductNgram.h \
+	$(SRCDIR)/FLMThreads.h \
 	$(SRCDIR)/wmatrix.h
 
 # Example Library source files.
@@ -62,10 +62,10 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/FNgramSpecs.cc \
 	$(SRCDIR)/FNgramSpecsInt.cc \
 	$(SRCDIR)/FactoredVocab.cc \
-	$(SRCDIR)/FLMThreads.cc \
 	$(SRCDIR)/FNgramLM.cc \
 	$(SRCDIR)/ProductVocab.cc \
 	$(SRCDIR)/ProductNgram.cc \
+	$(SRCDIR)/FLMThreads.cc \
 	$(SRCDIR)/strtolplusb.cc \
 	$(SRCDIR)/wmatrix.cc
 
@@ -86,16 +86,20 @@ ADDITIONAL_LIBRARIES += \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)oolm$(LIB_SUFFIX) \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)z$(LIB_SUFFIX) \
 	$(TCL_LIBRARY) \
-	$(MATH_LIBRARY)
+	$(MATH_LIBRARY) \
+	$(LBFGS_LIBRARY)
 
 # Example programs.
 
 # compile a version of ngram here for convenient testing only
-TEST_PROGRAM_NAMES =
+TEST_PROGRAM_NAMES = \
+	pngram
 
 REAL_PROGRAM_NAMES = \
-	fngram-count
+	fngram-count \
+	fngram 
 
 PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \

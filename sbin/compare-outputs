@@ -4,11 +4,11 @@
 #
 # Copyright (c) 2003-2006 SRI International, 2012 Microsoft Corp. All Right Reserved.
 #
-# $Header: /home/srilm/CVS/srilm/sbin/compare-outputs,v 1.3 2012/07/09 11:44:38 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/compare-outputs,v 1.4 2013/02/21 06:34:48 stolcke Exp $
 #
 
 BEGIN {
-	numerical = "^([-+])?[0-9]*(.[0-9]*)?([Ee][-+]?[0-9][0-9]*)?$";
+	numerical = "^([-+])?[0-9]*(.[0-9]*)?([Ee][-+]?[0-9][0-9]*)?[,]?$";
 
 	epsilon = 1e-5;
 	tolerance = 0.001;
@@ -18,14 +18,28 @@ function abs(x) {
 	return (x < 0) ? -x : x;
 }
 		
-function same_words(w1, w2) {
+function same_words(w1, w2, eq_sign) {
+
+	# split words of the form STRING=NUMBER
+	eq_sign = index(w1, "=");
+	if (eq_sign > 0 && index(w2, "=") == eq_sign) {
+		return same_words(substr(w1, 1, eq_sign-1), substr(w2, 1, eq_sign-1)) \
+		   && same_words(substr(w1, eq_sign+1), substr(w2, eq_sign+1));
+	}
+
 	# ignore filename differences due to optional gzipping
 	gsub("\\.gz", "", w1);
 	gsub("\\.gz", "", w2);
 
 	# MSVC infinity values
+	if (w1 == "1.#INF") w1 = "inf";
+	if (w2 == "1.#INF") w2 = "inf";
 	if (w1 == "-1.#INF") w1 = "-inf";
 	if (w2 == "-1.#INF") w2 = "-inf";
+
+	# normalize case in infinity
+	if (tolower(w1) ~ /inf/) w1 = tolower(w1);
+	if (tolower(w2) ~ /inf/) w2 = tolower(w2);
 
 	if (w1 == w2) {
 		return 1;

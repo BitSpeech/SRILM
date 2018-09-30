@@ -2,9 +2,9 @@
  * Counts.h --
  *	Utility functions for counts
  *
- * Copyright (c) 2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 2006 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.h,v 1.4 2006/09/05 01:03:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.h,v 1.7 2016/04/08 23:34:42 stolcke Exp $
  *
  */
 
@@ -29,6 +29,8 @@ typedef unsigned long long Count;	/* a count of something */
 typedef unsigned long Count;		/* a count of something */
 #endif
 typedef double FloatCount;		/* a fractional count */
+
+extern const unsigned FloatCount_Precision;
 
 /*
  * Type-dependent count <--> string conversions
@@ -80,7 +82,7 @@ template <class CountT>
 inline const char *
 countToString(CountT count)
 {
-    sprintf(ctsBuffer, "%lg", (double)count);
+    sprintf(ctsBuffer, "%.*lg", FloatCount_Precision, (double)count);
     return ctsBuffer;
 }
 
@@ -162,78 +164,78 @@ stringToCount(const char *str, CountT &count)
  * 	Functions return 0 on failure,  number of bytes read/written otherwise
  */
 
-unsigned writeBinaryCount(FILE *fp, unsigned long long count,
+unsigned writeBinaryCount(File &file, unsigned long long count,
 						    unsigned minBytes = 0);
-unsigned writeBinaryCount(FILE *fp, float count);
-unsigned writeBinaryCount(FILE *fp, double count);
+unsigned writeBinaryCount(File &file, float count);
+unsigned writeBinaryCount(File &file, double count);
 
 inline unsigned
-writeBinaryCount(FILE *fp, unsigned long count) {
-    return writeBinaryCount(fp, (unsigned long long)count);
+writeBinaryCount(File &file, unsigned long count) {
+    return writeBinaryCount(file, (unsigned long long)count);
 }
 
 inline unsigned
-writeBinaryCount(FILE *fp, unsigned count)
+writeBinaryCount(File &file, unsigned count)
 {
-    return writeBinaryCount(fp, (unsigned long long)count);
+    return writeBinaryCount(file, (unsigned long long)count);
 }
 
 inline unsigned
-writeBinaryCount(FILE *fp, unsigned short count)
+writeBinaryCount(File &file, unsigned short count)
 {
-    return writeBinaryCount(fp, (unsigned long long)count);
+    return writeBinaryCount(file, (unsigned long long)count);
 }
 
 inline unsigned
-writeBinaryCount(FILE *fp, XCount count)
+writeBinaryCount(File &file, XCount count)
 {
-    return writeBinaryCount(fp, (unsigned long long)count);
+    return writeBinaryCount(file, (unsigned long long)count);
 }
 
-unsigned readBinaryCount(FILE *fp, unsigned long long &count);
-unsigned readBinaryCount(FILE *fp, float &count);
-unsigned readBinaryCount(FILE *fp, double &count);
+unsigned readBinaryCount(File &file, unsigned long long &count);
+unsigned readBinaryCount(File &file, float &count);
+unsigned readBinaryCount(File &file, double &count);
 
 inline unsigned
-readBinaryCount(FILE *fp, unsigned long &count)
+readBinaryCount(File &file, unsigned long &count)
 {
     unsigned long long lcount;
-    unsigned result = readBinaryCount(fp, lcount);
+    unsigned result = readBinaryCount(file, lcount);
     if (result > 0) {
-	count = lcount;
+	count = (unsigned long)lcount;
     }
     return result;
 }
 
 inline unsigned
-readBinaryCount(FILE *fp, unsigned &count)
+readBinaryCount(File &file, unsigned &count)
 {
     unsigned long long lcount;
-    unsigned result = readBinaryCount(fp, lcount);
+    unsigned result = readBinaryCount(file, lcount);
     if (result > 0) {
-	count = lcount;
+	count = (unsigned int)lcount;
     }
     return result;
 }
 
 inline unsigned
-readBinaryCount(FILE *fp, unsigned short &count)
+readBinaryCount(File &file, unsigned short &count)
 {
     unsigned long long lcount;
-    unsigned result = readBinaryCount(fp, lcount);
+    unsigned result = readBinaryCount(file, lcount);
     if (result > 0) {
-	count = lcount;
+	count = (unsigned short)lcount;
     }
     return result;
 }
 
 inline unsigned
-readBinaryCount(FILE *fp, XCount &count)
+readBinaryCount(File &file, XCount &count)
 {
     unsigned long long lcount;
-    unsigned result = readBinaryCount(fp, lcount);
+    unsigned result = readBinaryCount(file, lcount);
     if (result > 0) {
-	count = lcount;
+	count = (XCountValue)lcount;
     }
     return result;
 }

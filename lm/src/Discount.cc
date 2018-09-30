@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.cc,v 1.28 2012/12/18 01:14:04 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2011-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.cc,v 1.33 2016/04/09 06:53:01 stolcke Exp $";
 #endif
 
 #include <math.h>
@@ -94,11 +94,11 @@ GoodTuring::nodiscount()
 void
 GoodTuring::write(File &file)
 {
-    fprintf(file, "mincount %s\n", countToString(minCount));
-    fprintf(file, "maxcount %s\n", countToString(maxCount));
+    file.fprintf("mincount %s\n", countToString(minCount));
+    file.fprintf("maxcount %s\n", countToString(maxCount));
 
     for (unsigned i = 1; !file.error() && i <= maxCount; i++) {
-	fprintf(file , "discount %u %lf\n", i, discountCoeffs[i]);
+	file.fprintf("discount %u %.*lg\n", i, Prob_Precision, discountCoeffs[i]);
     }
 }
 
@@ -122,6 +122,11 @@ GoodTuring::read(File &file)
 	} else if (sscanf(line, "maxcount %99s", buffer) == 1 &&
 	    stringToCount(buffer, maxCount))
 	{
+	    if (maxCount > maxNgramOrder) {
+	        file.position() << "maxcount value out of range\n";
+		return false;
+	    }
+
 	    /*
 	     * Zero all old discount coeffs
 	     */
@@ -129,11 +134,25 @@ GoodTuring::read(File &file)
 		discountCoeffs[n] = 0.0;
 	    }
 	} else if (sscanf(line, "discount %u %lf", &count, &coeff) == 2) {
-	    discountCoeffs[count] = coeff;
+	    /*
+	     * It's okay for the count value to be larger than maxCount,
+	     * we just make sure it's not unreasonably large
+	     */
+	    if (count <= maxNgramOrder) {
+	        discountCoeffs[count] = coeff;
+	    } else {
+	        file.position() << "warning: count value out of range\n";
+	    }
 	} else {
 	    file.position() << "unrecognized parameter\n";
 	    return false;
 	}
+    }
+
+    // Add 2nd check in case "&& stringToCount()" failed
+    if (maxCount > maxNgramOrder) {
+	file.position() << "maxcount value out of range\n";
+	return false;
     }
 
     for (Count n = minCount; n <= maxCount; n++) {
@@ -298,8 +317,8 @@ KneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 KneserNey::write(File &file)
 {
-    fprintf(file, "mincount %s\n", countToString(minCount));
-    fprintf(file, "discount1 %lf\n", discount1);
+    file.fprintf("mincount %s\n", countToString(minCount));
+    file.fprintf("discount1 %.*lg\n", Prob_Precision, discount1);
 }
 
 Boolean
@@ -481,10 +500,10 @@ ModKneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 ModKneserNey::write(File &file)
 {
-    fprintf(file, "mincount %s\n", countToString(minCount));
-    fprintf(file, "discount1 %lf\n", discount1);
-    fprintf(file, "discount2 %lf\n", discount2);
-    fprintf(file, "discount3+ %lf\n", discount3plus);
+    file.fprintf("mincount %s\n", countToString(minCount));
+    file.fprintf("discount1 %.*lf\n", Prob_Precision, discount1);
+    file.fprintf("discount2 %.*lf\n", Prob_Precision, discount2);
+    file.fprintf("discount3+ %.*lf\n", Prob_Precision, discount3plus);
 }
 
 Boolean
@@ -497,7 +516,7 @@ ModKneserNey::read(File &file)
 	unsigned count;
 	double coeff;
 	
-	if (sscanf(line, "mincount %s", buffer) == 1 &&
+	if (sscanf(line, "mincount %99s", buffer) == 1 &&
 	    stringToCount(buffer, minCount))
 	{
 	    continue;

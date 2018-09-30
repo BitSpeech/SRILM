@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/dstruct/src/Makefile,v 1.39 2012/10/29 17:24:57 mcintyre Exp $
+#    $Header: /home/srilm/CVS/srilm/dstruct/src/Makefile,v 1.41 2014-05-27 03:05:34 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -85,6 +85,7 @@ ADDITIONAL_INCLUDES += \
 
 ADDITIONAL_LIBRARIES += \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)z$(LIB_SUFFIX) \
 	$(TCL_LIBRARY) \
 	$(MATH_LIBRARY)
 
@@ -97,6 +98,7 @@ PROGRAM_NAMES = \
 		$(REAL_PROGRAM_NAMES) \
 		testArray \
 		testMap \
+		testFloatMap \
 		benchHash \
 		testHash \
 		testSizes \

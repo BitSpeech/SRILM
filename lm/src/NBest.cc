@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.87 2012/10/29 17:25:04 mcintyre Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.95 2016/06/17 00:11:06 victor Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -43,7 +43,7 @@ const NBestTimestamp frameLength = 0.01f; // quantization unit of word timemarks
 const unsigned phoneStringLength = 100;
 
 NBestWordInfo::NBestWordInfo()
-    : word(Vocab_None), phones(0), phoneDurs(0),
+    : word(Vocab_None), confidenceScore(LogP_Inf), confidenceScore2(LogP_Inf), confidenceScore3(LogP_Inf), phones(0), phoneDurs(0),
       wordPosterior(0.0), transPosterior(0.0)
 {
     // make acoustic info invalid by default
@@ -95,45 +95,80 @@ NBestWordInfo::operator= (const NBestWordInfo &other)
 void
 NBestWordInfo::write(File &file)
 {
-    file.fprintf("%lg %lg %lg %lg %s %s",
+    file.fprintf("%lg %lg %.*lg %.*lg %s %s",
 			(double)start, (double)duration,
-			(double)acousticScore, (double)languageScore,
+			LogP_Precision, (double)acousticScore,
+			LogP_Precision, (float)languageScore,
 			phones ? phones : phoneSeparator,
 			phoneDurs ? phoneDurs : phoneSeparator);
+
+    if (confidenceScore != LogP_Inf) {
+        file.fprintf(" %.*lg", LogP_Precision, (double)confidenceScore);
+    }
+    if (confidenceScore2 != LogP_Inf) {
+        file.fprintf(" %.*lg", LogP_Precision, (double)confidenceScore2);
+    }
+    if (confidenceScore3 != LogP_Inf) {
+        file.fprintf(" %.*lg", LogP_Precision, (double)confidenceScore3);
+    }
 }
 
 Boolean
 NBestWordInfo::parse(const char *s)
 {
-    double sTime, dur, aScore, lScore;
+    double sTime, dur, aScore, lScore, cScore, cScore2, cScore3;
     char phs[phoneStringLength], phDurs[phoneStringLength];
+    int nRet = 0;
 
-    if (sscanf(s, "%lg %lg %lg %lg %100s %100s",
-			&sTime, &dur, &aScore, &lScore, phs, phDurs) != 6)
+    // Handle differently depending on how many confidence values can be found
+    // confidence fields are optional
+    nRet = sscanf(s, "%lg %lg %lg %lg %100s %100s %lg %lg %lg",
+		  &sTime, &dur, &aScore, &lScore, phs, phDurs, &cScore, &cScore2, &cScore3);
+    if (nRet == 9) 
     {
-	return false;
-    } else {
-	start = sTime;
-	duration = dur;
-	acousticScore = aScore;
-	languageScore = lScore;
-
-	if (strcmp(phs, phoneSeparator) == 0) {
-	    phones = 0;
-	} else {
-	    phones = strdup(phs);
-	    assert(phones != 0);
-	}
-
-	if (strcmp(phDurs, phoneSeparator) == 0) {
-	    phoneDurs = 0;
-	} else {
-	    phoneDurs = strdup(phDurs);
-	    assert(phoneDurs != 0);
-	}
-
-	return true;
+        confidenceScore3 = cScore3;
+        confidenceScore2 = cScore2;
+        confidenceScore = cScore;
     }
+    else if (nRet == 8)
+    {
+        confidenceScore2 = cScore2;
+        confidenceScore = cScore;
+    }
+    else if (nRet == 7)
+    {
+        confidenceScore = cScore;
+    }
+    else 
+    {
+        // required fields
+        if (sscanf(s, "%lg %lg %lg %lg %100s %100s",
+		   &sTime, &dur, &aScore, &lScore, phs, phDurs) != 6)
+        {
+            return false;
+        } 
+    }
+
+    start = sTime;
+    duration = dur;
+    acousticScore = aScore;
+    languageScore = lScore;
+
+    if (strcmp(phs, phoneSeparator) == 0) {
+        phones = 0;
+    } else {
+        phones = strdup(phs);
+        assert(phones != 0);
+    }
+
+    if (strcmp(phDurs, phoneSeparator) == 0) {
+        phoneDurs = 0;
+    } else {
+        phoneDurs = strdup(phDurs);
+        assert(phoneDurs != 0);
+    }
+
+    return true;
 }
 
 void
@@ -481,7 +516,7 @@ static TLSW_ARRAY(VocabString, justWordsTLS, maxFieldsPerLine + 1);
 
 Boolean
 NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
-		LogP acousticOffset, const char *multiChar, Boolean backtrace)
+		LogP2 acousticOffset, const char *multiChar, Boolean backtrace)
 {
     VocabString *wstrings  = TLSW_GET_ARRAY(wstringsTLS);
     VocabString *justWords = TLSW_GET_ARRAY(justWordsTLS);
@@ -840,13 +875,13 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 
 void
 NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
-						LogP acousticOffset)
+						LogP2 acousticOffset)
 {
     if (decipherFormat) {
-	fprintf(file, "(%d)", (int)LogPtoBytelog(totalScore + acousticOffset));
+	file.fprintf("(%d)", (int)LogPtoBytelog(totalScore + acousticOffset));
     } else {
-	fprintf(file, "%g %g %lu", acousticScore + acousticOffset,
-				      languageScore, (unsigned long)numWords);
+	file.fprintf("%.15lg %.15lg %lu", (double)(acousticScore + acousticOffset),
+				      (double)languageScore, (unsigned long)numWords);
     }
 
     for (unsigned i = 0; words[i] != Vocab_None; i++) {
@@ -854,18 +889,18 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
 	 * Write backtrace information if known and Decipher format is desired
 	 */
 	if (decipherFormat && wordInfo) {
-	    fprintf(file, " %s ( st: %.2f et: %.2f g: %d a: %d )", 
+	    file.fprintf(" %s ( st: %.2f et: %.2f g: %d a: %d )", 
 			   vocab.getWord(wordInfo[i].word),
 			   wordInfo[i].start,
 			   wordInfo[i].start+wordInfo[i].duration - frameLength,
 			   (int)LogPtoBytelog(wordInfo[i].languageScore),
 			   (int)LogPtoBytelog(wordInfo[i].acousticScore));
 	} else {
-	    fprintf(file, " %s", vocab.getWord(words[i]));
+	    file.fprintf(" %s", vocab.getWord(words[i]));
 	}
     }
 
-    fprintf(file, "\n");
+    file.fprintf("\n");
 }
 
 // SRInterp format has scores and words in the same line. Scores are in the form of 
@@ -887,8 +922,10 @@ NBestHyp::parseSRInterpFormat(char * line, Vocab &vocab, LHash<VocabString, LogP
 
   char field[maxFieldLength];
   char *p;
-  unsigned pos = 0, newPos;
-  while(sscanf(line + pos, "%s%n", field, &newPos) == 1) {
+  unsigned pos = 0;
+  int newPos;
+  // @kw false positive: SV.TAINTED.INDEX_ACCESS (pos)
+  while(sscanf(line + pos, "%1023s%n", field, &newPos) == 1) {
     char * eqSign = strchr(field, '=');
     if (!eqSign) {
       
@@ -1239,7 +1276,7 @@ Boolean
 NBestList::write(File &file, Boolean decipherFormat, unsigned numHyps)
 {
     if (decipherFormat) {
-	fprintf(file, "%s\n", backtrace ? nbest2Magic : nbest1Magic);
+	file.fprintf("%s\n", backtrace ? nbest2Magic : nbest1Magic);
     }
 
     for (unsigned h = 0;
@@ -1397,7 +1434,7 @@ void
 NBestList::acousticNorm()
 {
     unsigned h;
-    LogP maxScore;
+    LogP maxScore = 0.0;
 
     /*
      * Find maximum acoustic score
@@ -1486,8 +1523,8 @@ NBestList::minimizeWordError(VocabIndex *words, unsigned length,
     /*
      * Compute expected word errors
      */
-    double bestError;
-    unsigned bestHyp;
+    double bestError = 0.0;
+    unsigned bestHyp = 0;
 
     unsigned howmany = (maxRescore > 0) ? maxRescore : _numHyps;
     if (howmany > _numHyps) {

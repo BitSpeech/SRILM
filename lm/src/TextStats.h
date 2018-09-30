@@ -5,9 +5,9 @@
  * TextStats objects are used to pass and accumulate various 
  * statistics of text sources (training or test).
  *
- * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.8 2012/07/09 10:10:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.9 2015-10-13 21:04:27 stolcke Exp $
  *
  */
 
@@ -37,7 +37,7 @@ public:
 	numSentences = numWords = numOOVs = 0.0;
 	r1 = r5 = r10 = r1se = r5se = r10se = rTotal = 0;
 	posQuadLoss = posAbsLoss = 0.0; };
-    TextStats &increment(const TextStats &stats);
+    TextStats &increment(const TextStats &stats, FloatCount weight = 1.0);
 
     LogP2 prob;
     FloatCount zeroProbs;

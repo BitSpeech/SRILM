@@ -10,9 +10,9 @@
  * SArrayIter<KeyT,DataT> implements iteration over the entries of the
  * Map object.
  *
- * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.h,v 1.36 2012/10/18 20:55:19 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.h,v 1.38 2014-05-27 03:04:56 stolcke Exp $
  *
  */
 
@@ -117,9 +117,37 @@ SArray_compareKey(KeyT key1, KeyT key2)
 }
 
 inline int
+SArray_compareKey(float key1, float key2)
+{
+    if (key1 < key2) return -1;
+    else if (key1 > key2) return 1;
+    else return 0;
+}
+
+inline int
+SArray_compareKey(double key1, double key2)
+{
+    if (key1 < key2) return -1;
+    else if (key1 > key2) return 1;
+    else return 0;
+}
+
+inline int
 SArray_compareKey(const char *key1, const char *key2)
 {
-    return strcmp(key1, key2);
+    if (key1 == 0) {
+	if (key2 == 0) {
+	    return 0;
+	} else {
+	    return -1;
+	}
+    } else {
+	if (key2 == 0) {
+	    return +1;
+	} else {
+	    return strcmp(key1, key2);
+	}
+   }
 }
 
 #endif /* _SArray_h_ */

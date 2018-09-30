@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2007-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.22 2012/12/04 20:58:45 frandsen Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.23 2016/07/27 06:55:01 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -371,10 +371,10 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
     } else {
 	buffer[msglen] = '\0';
 
-	unsigned long cid;
+	unsigned long long cid;
 
 	if (strncmp(buffer, REMOTELM_OK, sizeof(REMOTELM_OK)-1) == 0 &&
-	    sscanf(buffer + sizeof(REMOTELM_OK), "%lu %u", &cid, &length) == 2)
+	    sscanf(buffer + sizeof(REMOTELM_OK), "%llu %u", &cid, &length) == 2)
     	 {
 	    if (clen < cacheOrder) {
 	    	// cache results

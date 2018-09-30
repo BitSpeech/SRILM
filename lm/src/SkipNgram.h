@@ -49,7 +49,7 @@ protected:
     LogP estimateEstep(NgramStats &stats,
 		       NgramCounts<FloatCount> &ngramExps,
 		       LHash<VocabIndex, double> &skipExps);
-    void estimateMstep(NgramStats &stats,
+    Boolean estimateMstep(NgramStats &stats,
 		       NgramCounts<FloatCount> &ngramExps,
 		       LHash<VocabIndex, double> &skipExps,
 		       Discount **discounts);

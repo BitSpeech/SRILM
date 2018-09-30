@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.51 2012/12/06 17:49:26 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.57 2014-08-29 21:35:48 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -28,6 +28,7 @@ using namespace std;
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(VocabString,VocabIndex);
 INSTANTIATE_ARRAY(VocabString);
+INSTANTIATE_ARRAY(VocabIndex);		// for repeated use elsewhere
 #endif
 
 /* vocabulary implicitly used by operator<< */
@@ -156,7 +157,7 @@ Vocab::addWord(VocabString name)
 		    if (name[metaTagLength] == '\0') {
 			type = 0;
 		    } else {
-			sscanf(&name[metaTagLength], "%u", &type);
+			sscanf(&name[metaTagLength], "%u", (unsigned *)&type);
 		    }
 		    if (type >= 0) {
 			*metaTagMap.insert(nextIndex) = type;
@@ -557,7 +558,7 @@ void
 Vocab::write(File &file, const VocabString *words)
 {
     for (unsigned int i = 0; words[i] != 0; i++) {
-	fprintf(file, "%s%s", (i > 0 ? " " : ""), words[i]);
+	file.fprintf("%s%s", (i > 0 ? " " : ""), words[i]);
     }
 }
 
@@ -685,7 +686,7 @@ Vocab::write(File &file, Boolean sorted) const
     VocabString word;
 
     while (!file.error() && (word = iter.next())) {
-	fprintf(file, "%s\n", word);
+	file.fprintf("%s\n", word);
     }
 }
 
@@ -851,10 +852,10 @@ Vocab::writeIndexMap(File &file, Boolean writingLM)
     // on reading, and ensures faster insertions into SArray-based tries.
     for (unsigned i = byIndex.base(); i < nextIndex; i ++) {
 	if (byIndex[i] && !(writingLM && isMetaTag(i))) {
-	    fprintf(file, "%u %s\n", i, byIndex[i]);
+	    file.fprintf("%u %s\n", i, byIndex[i]);
 	}
     }
-    fprintf(file, ".\n");
+    file.fprintf(".\n");
 }
 
 Boolean
@@ -875,7 +876,7 @@ Vocab::readIndexMap(File &file, Array<VocabIndex> &map, Boolean limitVocab)
 	VocabString idstring = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	VocabString word = MStringTokUtil::strtok_r(0, wordSeparators, &strtok_ptr);
 
-	if (idstring[0] == '.' && idstring[1] == '\0' && word == 0) {
+	if (!idstring || (idstring[0] == '.' && idstring[1] == '\0' && word == 0)) {
 	    // end of vocabulary table
 	    break;
 	}
@@ -890,6 +891,7 @@ Vocab::readIndexMap(File &file, Array<VocabIndex> &map, Boolean limitVocab)
 	} else {
 	    newid = addWord(word);
 	}
+	// @kw false positive: SV.TAINTED.ALLOC_SIZE (id)
 	map[id] = newid;
     }
 

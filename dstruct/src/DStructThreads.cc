@@ -12,11 +12,13 @@
 #include "BlockMalloc.h"
 #include "tserror.h"
 
-#if !defined(NO_TLS)
 void 
 DStructThreads::freeThread() {
     BM_freeThread();
 
+#ifndef NO_TLS
+    // This is a special case that completely doesn't
+    // exist unless using TLS.
     srilm_tserror_freeThread();
+#endif // NO_TLS
 }
-#endif

@@ -6,11 +6,14 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000-2010 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.5 2012/07/04 23:47:07 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.6 2015-01-28 23:52:00 wwang Exp $";
 #endif
 
 #include "VocabDistance.h"
 #include "WordAlign.h"
+
+#include <string>
+#include <vector>
 
 #include "Map2.cc"
 #ifdef INSTANTIATE_TEMPLATES
@@ -226,5 +229,77 @@ MatrixDistance::distance(VocabIndex w1, VocabIndex w2)
 	}
      }
      return d;
+}
+
+/*
+ * Word distances based on prefix/stem/suffix
+ */
+static const string RXwhite = " \t\n";
+static const string prefix = "#";
+static const string suffix= "@";
+
+// Split A_STRING into PARTS; the split is based on a separator_list;
+// returns the number of fields resulting from the split
+static unsigned int split(const std::string& a_string, std::vector<std::string>& parts, std::string separator_list)
+{
+
+  //assert(parts.empty() == true);
+  parts.clear();
+  unsigned int _ret = 0;
+
+  unsigned int first = 0;
+  unsigned int last  = 0;
+  while(true){
+    first = a_string.find_first_not_of(separator_list, last);
+    if(first >= a_string.length()){
+      break;
+    } else if((first > 0) && (last == 0)){// it starts with a separator
+      parts.push_back("");
+      _ret++;
+    }
+    last  = a_string.find_first_of(separator_list, first);
+    assert(first < last);
+    if(last > a_string.length()){
+      last = a_string.length();
+    }
+    string element = a_string.substr(first,last-first);
+    parts.push_back(element);
+    _ret++;
+  }
+  assert(_ret == parts.size());
+  return _ret;
+}
+
+double
+StemDistance::distance(VocabIndex w1, VocabIndex w2)
+{   
+  if (w1 == w2) return 0;
+
+  // Decompose w1 and w2 into prefix#stem@suffix
+  std::string str1 = vocab.getWord(w1);
+  std::string str2 = vocab.getWord(w2);
+  std::vector<std::string> tk1, tk2;
+
+  // string string into
+  split(str1, tk1, prefix);
+  split(str2, tk2, prefix);
+
+  // the last part of tk1 and tk2 must contain stem info
+  std::string last1 = tk1[tk1.size()-1];
+  std::string last2 = tk2[tk2.size()-1];
+
+  tk1.clear();
+  tk2.clear();
+
+  // strip suffix
+  split(last1, tk1, suffix);
+  split(last2, tk2, suffix);
+
+  // Take the first one as stem
+  if (tk1[0] == tk2[0]) {
+    return 0;
+  } else {
+    return 1;
+  }
 }
 

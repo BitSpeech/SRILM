@@ -15,7 +15,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2011 A. Stolcke";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/BlockMalloc.cc,v 1.2 2012/10/29 17:24:56 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/BlockMalloc.cc,v 1.4 2015-04-16 23:30:19 frandsen Exp $";
 #endif
 
 #include <stdlib.h>
@@ -63,12 +63,22 @@ BM_malloc(size_t size)
 	    size_t nchunks = BLOCK_MALLOC_BLKSIZE / nwords;
 	    size_t blockSize = nchunks * nwords * WORD_SIZE;
 
-	    void *newChunks = malloc(blockSize);
+	    // Track linked list of allocated memory.
+            size_t allocTrackerSize = sizeof(struct BMchunk);
 
-	    if (newChunks == NULL) {
+	    void *fullChunks = malloc(allocTrackerSize + blockSize);
+
+	    if (fullChunks == NULL) {
 		return NULL;
 	    } else {
-                mallocList[nwords] = (struct BMchunk *)newChunks;
+	        // Block memory begins after header for tracking
+	        // allocated blocks.
+	        void *newChunks = (char*)fullChunks + allocTrackerSize;
+                struct BMchunk* hdr = (struct BMchunk *)fullChunks;
+		// This is just a linked list. In this case, it
+		// is the next block to free (or NULL) when freeing.
+		hdr->nextfree = mallocList[nwords];
+                mallocList[nwords] = hdr;
 		/*
 		 * Link new chunks into the free list
 		 */
@@ -119,6 +129,8 @@ BM_free(void *chunk, size_t size)
    }
 }
 
+#endif /* NO_BLOCK_MALLOC */
+
 void
 BM_freeThread()
 {
@@ -126,18 +138,20 @@ BM_freeThread()
 
     if (mallocList != NULL) {
         unsigned i;
-        for (i = 0; i < BLOCK_MALLOC_MAXWORDS; i++)
-            if (mallocList[i] != NULL)
-                free(mallocList[i]);
+        for (i = 0; i < BLOCK_MALLOC_MAXWORDS; i++) {
+	    BMchunk *next = mallocList[i];
+	    while (next != NULL) {
+		BMchunk *tmp = next->nextfree;
+		free(next);
+		next = tmp;
+	    }
+	}
     }
 
     TLSW_FREE(mallocListTLS);
     TLSW_FREE(allocCountsTLS);
     TLSW_FREE(freeListsTLS);
 }
-
-#endif /* NO_BLOCK_MALLOC */
-
 
 void
 BM_printstats()

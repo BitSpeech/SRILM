@@ -1,6 +1,16 @@
 
                       SRILM Research Community License
-                                 Version 1.0
+                                 Version 1.1
+
+
+Preamble
+
+THE SRILM RESEARCH COMMUNITY LICENSE PERMITS USE OF THE SOFTWARE ONLY BY
+GOVERNMENT AGENCIES, OR BY SCHOOLS, UNIVERSITIES, AND NON-PROFIT ORGANIZATIONS
+FOR PROJECTS THAT DO NOT RECEIVE EXTERNAL FUNDING OTHER THAN GOVERNMENT
+RESEARCH GRANTS AND CONTRACTS.  FOR THE SPECIFIC LIMITATIONS, SEE SECTION
+1.12.  ANY OTHER USE REQUIRES A COMMERCIAL LICENSE.  PLEASE CONTACT US FOR
+DETAILS AT http://www.speechatsri.com/utils/contact.php.
 
 1. DEFINITIONS
 
@@ -40,17 +50,18 @@ trade secrets owned or licensable by the Initial Developer which are
 embodied in or necessarily practiced by the unmodified Original Source Code.
 
     1.11. "License" means this agreement, the SRILM Research Community
-License Version 1.0.
+License Version 1.1.
 
     1.12. "Licensed Purpose" means the exercise of rights under this
 License: (a) by an official governmental agency, strictly for
-non-commercial, public benefit purposes, or (b) solely for non-commercial
+non-commercial, public benefit purposes; or (b) by a school, university
+or non-profit organization solely for non-commercial teaching or
 research purposes in exchange for which no financially valuable
 consideration (including but not limited to sales or license revenue,
 service revenue, and advertising revenue, and further including but not
 limited to monetary, equity, and in-kind forms of consideration) is
-received, except for research funding received from an official government
-agency sponsor.
+received, except for tuition, or research funding received from an 
+official government agency sponsor.
 
     1.13. "Licensed Software" means any copy of the Original Source Code,
 the Modifications, and/or Executable versions thereof, as to which You are
@@ -65,8 +76,7 @@ in any case remain subject to the terms of this License.
 
     1.15. "Original Source Code" means the Source Code for the SRI Language
 Modeling Toolkit as made available for download by SRI International from
-URL http://www.speech.sri.com/ or ftp://ftp.speech.sri.com/ as of July 1,
-1999.
+URL http://www.speech.sri.com/ or ftp://ftp.speech.sri.com/.
 
     1.16. "Source Code" means the preferred form of software for making
 modifications to it, including all modules it contains, plus any associated
@@ -220,11 +230,11 @@ License.
                                  EXHIBIT A.
 
 The contents of this file are subject to the SRILM Community Research
-License Version 1.0 (the "License"); you may not use this file except in
+License Version 1.1 (the "License"); you may not use this file except in
 compliance with the License. You may obtain a copy of the License at
 http://www.speech.sri.com/srilm/. Software distributed under the License is
 distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either
 express or implied. See the License for the specific language governing
 rights and limitations under the License. Portions of the software are
-Copyright (c) SRI International, 1995-2011.  All rights reserved.
+Copyright (c) SRI International, 1995-2013.  All rights reserved.
 

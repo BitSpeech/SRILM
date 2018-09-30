@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.22 2012/12/13 20:45:08 stolcke Exp $";
+static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.24 2014-08-29 21:35:47 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -970,7 +970,8 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	    exit(-1);
 	  }
 	  tok++;
-	  if (sscanf(tokens[tok],"%d",&fnSpecArray[i].parentSubsets[nodeId].gtmin) != 1){
+	  // @kw false positive: SV.FMT_STR.SCAN_FORMAT_MISMATCH.BAD
+	  if (sscanf(tokens[tok],"%u",&fnSpecArray[i].parentSubsets[nodeId].gtmin) != 1){
 	    fprintf(stderr,"Error: gtmin argument needs integer value");
 	    exit(-1);
 	  }
@@ -981,7 +982,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	    exit(-1);
 	  }
 	  tok++;
-	  if (sscanf(tokens[tok],"%d",&fnSpecArray[i].parentSubsets[nodeId].gtmax) != 1){
+	  if (sscanf(tokens[tok],"%u",&fnSpecArray[i].parentSubsets[nodeId].gtmax) != 1){
 	    fprintf(stderr,"Error: gtmax argument needs integer value");
 	    exit(-1);
 	  }
@@ -1322,6 +1323,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	  Boolean do_comma = false;
 	  for (unsigned child;citer.next(child);) {
 	    if (fnSpecArray[i].parentSubsets[child].counts != NULL) {
+	      // @kw false positive: SV.FMTSTR.GENERIC
 	      fprintf(stderr, (do_comma?"; ":" "));
 	      fnSpecArray[i].printNodeString(stderr,child);
 	      fprintf(stderr, " (0x%X)",child);
@@ -1371,6 +1373,7 @@ FNgramSpecs<CountT>::FNgramSpec::printNodeString(FILE *f,unsigned int node)
   Boolean do_comma = false;
   for (unsigned i=0;i<numParents;i++) {
     if (node & (1<<i)) {
+      // @kw false positive: SV.FMT_STR.PRINT_FORMAT_MISMATCH.BAD
       fprintf(f,"%s%s%+d",
 	      (do_comma?",":""),
 	      parents[i],

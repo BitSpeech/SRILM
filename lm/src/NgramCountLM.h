@@ -2,9 +2,9 @@
  * NgramCountLM.h --
  *	LM based on interpolated N-gram counts
  *
- * Copyright (c) 2006-2007 SRI International.  All Rights Reserved.
+ * Copyright (c) 2006-2007 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.h,v 1.7 2012/02/25 18:30:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.h,v 1.8 2014-04-22 06:57:45 stolcke Exp $
  *
  */
 
@@ -50,7 +50,7 @@ public:
      */
     void debugme(unsigned level)
 	{ ngramCounts.debugme(level); Debug::debugme(level); };
-    ostream &dout() { return Debug::dout(); };
+    ostream &dout() const { return Debug::dout(); };
     ostream &dout(ostream &stream)
 	{ ngramCounts.dout(stream); return Debug::dout(stream); };
 

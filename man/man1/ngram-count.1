@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.45 2012/04/12 20:01:16 stolcke Exp $
-.TH ngram-count 1 "$Date: 2012/04/12 20:01:16 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.48 2016/06/02 23:43:28 stolcke Exp $
+.TH ngram-count 1 "$Date: 2016/06/02 23:43:28 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -173,10 +173,10 @@ the vocabulary.
 .SS LM Options
 .TP
 .BI \-lm " lmfile"
-Estimate a backoff N-gram model from the total counts, and write it
-to
-.I lmfile 
-in 
+Estimate a language model from the total counts and write it to
+.IR lmfile .
+This option applies to several LM model types (see below) but the default is to
+estimate a backoff N-gram model, and write it in
 .BR ngram-format (5).
 .TP
 .B \-write-binary-lm
@@ -240,6 +240,35 @@ The counts specified with
 or
 .B \-text
 are used only to estimate the smoothing (interpolation weights).
+.TP
+.B \-maxent
+Estimate a maximum entropy N-gram model.
+The model is written to the file specifed by the
+.B \-lm 
+option.
+.br
+If 
+.BI \-init-lm " file"
+is also specified then use an existing maxent model from
+.I file
+as prior and adapt it using the given data.
+.TP
+.BI \-maxent-alpha " A"
+Use the L1 regularization constant
+.I A
+for maxent estimation.
+The default value is 0.5.
+.TP
+.BI \-maxent-sigma2 " S"
+Use the L2 regularization constant
+.I S
+for maxent estimation.
+The default value is 6 for estimation and 0.5 for adaptation.
+.TP
+.B \-maxent-convert-to-arpa
+Convert the maxent model to
+.BR ngram-format (5)
+before writing it out, using the algorithm by Wu (2002).
 .TP
 .B \-unk
 Build an ``open vocabulary'' LM, i.e., one that contains the unknown-word
@@ -466,6 +495,10 @@ so that smoothing methods that need this information still work correctly.
 ngram-merge(1), ngram(1), ngram-class(1), training-scripts(1), lm-scripts(1),
 ngram-format(5).
 .br
+T. Alumäe and M. Kurimo, ``Efficient Estimation of Maximum Entropy
+Language Models with N-gram features: an SRILM extension,''
+\fIProc. Interspeech\fP, 1820\-1823, 2010.
+.br
 S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques for
 Language Modeling,'' TR-10-98, Computer Science Group, Harvard Univ., 1998.
 .br
@@ -485,6 +518,9 @@ Comp. Sci. Dept., Princeton Univ., 1995.
 I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
 Probabilities of Novel Events in Adaptive Text Compression,''
 \fIIEEE Trans. Information Theory\fP 37(4), 1085\-1094, 1991.
+.br
+J. Wu (2002), ``Maximum Entropy Language Modeling with Non-Local Dependencies,''
+doctoral dissertation, Johns Hopkins University, 2002.
 .SH BUGS
 Several of the LM types supported by 
 .BR ngram (1)
@@ -526,6 +562,12 @@ operate on the modified counts, potentially leading to a different set of N-gram
 being retained than with other discounting methods.
 This can be considered either a feature or a bug.
 .SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+Andreas Stolcke <andreas.stolcke@microsoft.com>
 .br
-Copyright 1995\-2011 SRI International
+Tanel Alumäe <tanel.alumae@phon.ioc.ee>
+.br
+Copyright (c) 1995\-2011 SRI International
+.br
+Copyright (c) 2009\-2013 Tanel Alumäe
+.br
+Copyright (c) 2012\-2013 Microsoft Corp.

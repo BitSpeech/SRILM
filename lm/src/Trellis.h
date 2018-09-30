@@ -2,9 +2,9 @@
  * Trellis.h --
  *	Trellises for dynamic programming finite state models
  *
- * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International, 2013-2015 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.h,v 1.21 2011/04/06 03:43:16 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.h,v 1.24 2015-09-25 00:09:41 stolcke Exp $
  *
  */
 
@@ -64,7 +64,7 @@ public:
   
 private:
     LogP lprob;				// total forward probability
-    LogP backlpr;			// total backword probability
+    LogP backlpr;			// total backward probability
     LogP backmax;			// maximum backward probability
 
     TrellisNBestList<StateT> nbest;	// list of n-best paths
@@ -178,14 +178,15 @@ public:
     unsigned size() const { return nodes.size(); };
     LogP sum();
     StateT max();
-    TrellisNode<StateT>& operator[](StateT s) { return nodes[s]; };
-    TrellisNode<StateT>& operator[](StateT s) const { return nodes[s]; };
+    unsigned prune(LogP p);
+    TrellisNode<StateT>& operator[](const StateT &s) { return nodes[s]; };
+    TrellisNode<StateT>& operator[](const StateT &s) const { return nodes[s]; };
     TrellisNBestList<StateT>& nbest(unsigned numNbest);
 
-    TrellisNode<StateT> *insert(StateT s, Boolean& foundP)
+    TrellisNode<StateT> *insert(const StateT &s, Boolean& foundP)
       { return nodes.insert(s, foundP); };
-    TrellisNode<StateT> *find(StateT s) { return nodes.find(s); };
-    TrellisNode<StateT> *find(StateT s) const { return nodes.find(s); };
+    TrellisNode<StateT> *find(const StateT &s) { return nodes.find(s); };
+    TrellisNode<StateT> *find(const StateT &s) const { return nodes.find(s); };
 
 private:
     LHash<StateT, TrellisNode<StateT> > nodes;
@@ -217,28 +218,35 @@ public:
     void init(unsigned time = 0);		/* start DP for time index 0 */
     void step();	      /* step and initialize next time index */
 
+    Boolean setTime(unsigned time)		/* reset current time index */
+	{ if (time >= trellisSize) return false; currTime = time; return true; };
+
     TrellisSlice<StateT>& operator[](unsigned t) { return trellis[t]; };
     const TrellisSlice<StateT>& operator[](unsigned t) const
 	{ return trellis[t]; };
 
-    void setProb(StateT state, LogP prob);
-    Prob getProb(StateT state) { return getProb(state, currTime); };
-    Prob getProb(StateT state, unsigned time)
+    void setProb(const StateT &state, LogP prob);
+    Prob getProb(const StateT &state) { return getProb(state, currTime); };
+    Prob getProb(const StateT &state, unsigned time)
       { return LogPtoProb(getLogP(state, time)); };
-    LogP getLogP(StateT state) { return getLogP(state, currTime); };
-    LogP getLogP(StateT state, unsigned time);
+    LogP getLogP(const StateT &state) { return getLogP(state, currTime); };
+    LogP getLogP(const StateT &state, unsigned time);
 
-    LogP getMax(StateT state) { return getMax(state, currTime); };
-    LogP getMax(StateT state, unsigned time)
+    LogP getMax(const StateT &state) { return getMax(state, currTime); };
+    LogP getMax(const StateT &state, unsigned time)
       { LogP dummy; return getMax(state, time, dummy); };
-    LogP getMax(StateT state, unsigned time, LogP &backmax);
+    LogP getMax(const StateT &state, unsigned time, LogP &backmax);
 
-    void update(StateT oldState, StateT newState, LogP trans);
+    void update(const StateT &oldState, const StateT &newState, LogP trans);
 			/* update DP with a transition */
 
     LogP sumLogP(unsigned time);	/* sum of all state probs */
     Prob sum(unsigned time) { return LogPtoProb(sumLogP(time)); };
     StateT max(unsigned time);		/* maximum prob state */
+
+    unsigned prune(LogP p, unsigned time);
+			/* remove states with forward log prob less than best log prob minus p */
+    unsigned prune(LogP p) { return prune(p, currTime); };
 
     unsigned viterbi(StateT *path, unsigned len);
     unsigned viterbi(StateT *path, unsigned len, StateT lastState)
@@ -248,21 +256,21 @@ public:
     unsigned nbest_viterbi(StateT *path, unsigned len, unsigned nth,
 						LogP &score);
     unsigned nbest_viterbi(StateT *path, unsigned len, unsigned nth,
-						LogP &score, StateT lastState);
+					LogP &score, const StateT &lastState);
 
-    void setBackProb(StateT state, LogP prob);
+    void setBackProb(const StateT &state, LogP prob);
     Prob getBackProb(StateT state)
       { return getBackProb(state, backTime); };
-    Prob getBackProb(StateT state, unsigned time)
+    Prob getBackProb(const StateT &state, unsigned time)
       { return LogPtoProb(getBackLogP(state, time)); };
-    LogP getBackLogP(StateT state)
+    LogP getBackLogP(const StateT &state)
       { return getBackLogP(state, backTime); };
-    LogP getBackLogP(StateT state, unsigned time);
+    LogP getBackLogP(const StateT &state, unsigned time);
 
     void initBack() { initBack(currTime); };	/* start backward DP */
     void initBack(unsigned time);		/* start backward DP */
     void stepBack();	                        /* step back in time */
-    void updateBack(StateT oldState, StateT newState, LogP trans);
+    void updateBack(const StateT &oldState, const StateT &newState, LogP trans);
       /* update backward probs with a transition */
 
 private:

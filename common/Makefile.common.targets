@@ -12,7 +12,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.targets,v 1.38 2012/07/31 23:58:24 victor Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.targets,v 1.41 2014-08-04 22:14:44 victor Exp $
 #
 
 
@@ -140,11 +140,16 @@ RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%$(LIB_SUFFIX)=$(SRILM_LIBDI
 # And take care not to run $(MAKE) without arguments.
 # Same applies to $(RELEASED_PROGRAMS) and $(RELEASED_SCRIPTS) below.
 
-release-libraries:	$(RELEASED_LIBRARIES)
+release-libraries:	$(RELEASED_LIBRARIES) $(SRILM_LIBDIR)/SRILM_OPTIONS.mk
 
 $(SRILM_LIBDIR)/%$(LIB_SUFFIX):	$(OBJDIR)/%$(LIB_SUFFIX)
 	-$(INSTALL) 0644 $^ $(SRILM_LIBDIR)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
+
+$(SRILM_LIBDIR)/SRILM_OPTIONS.mk: $(SRILM)/common/Makefile.common.variables $(RELEASED_LIBRARIES)
+	echo "SRILM_BUILD_LIB_DEPENDENCIES = $(EXPORT_SRILM_BUILD_LIB_DEPENDENCIES)" > $(SRILM_LIBDIR)/SRILM_OPTIONS.mk
+	echo "SRILM_BUILD_ADDITIONAL_CFLAGS = $(ADDITIONAL_CFLAGS)" >> $(SRILM_LIBDIR)/SRILM_OPTIONS.mk
+	echo "SRILM_BUILD_ADDITIONAL_CXXFLAGS = $(ADDITIONAL_CXXFLAGS)" >> $(SRILM_LIBDIR)/SRILM_OPTIONS.mk
 
 RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(SRILM_BINDIR)/%)
 
@@ -202,6 +207,7 @@ remove-exported-libraries:
 ifneq ($(RELEASED_LIBRARIES), )
 	-$(RM) $(RELEASED_LIBRARIES)
 endif
+	-$(RM) $(SRILM_LIBDIR)/SRILM_OPTIONS.mk
 
 remove-exported-programs:
 ifneq ($(RELEASED_PROGRAMS), )

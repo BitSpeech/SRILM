@@ -8,8 +8,8 @@
 #define _Array_cc_
 
 #ifndef lint
-static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International.  All Rights Reserved.";
-static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.cc,v 1.12 2011/07/19 16:41:57 stolcke Exp $";
+static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
+static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.cc,v 1.15 2013/05/24 04:50:05 frandsen Exp $";
 #endif
 
 #include <assert.h>
@@ -31,15 +31,17 @@ static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Arra
  */
 template <class DataT>
 void
-Array<DataT>::alloc(unsigned int size)
+Array<DataT>::alloc(unsigned size, Boolean zero)
 {
+    // size is highest index needed so size + 1 is number
+    // of elements, and pad by half current size for growth. 
     unsigned int newSize = size + 1 + alloc_size/2;
     DataT *newData = new DataT[newSize];
     assert(newData != 0);
 
-#ifdef ZERO_INITIALIZE
-    memset(newData, 0, newSize * sizeof(DataT));
-#endif
+    if (zero) {
+        memset(newData, 0, newSize * sizeof(DataT));
+    }
 
     for (unsigned i = 0; i < alloc_size; i++) {
 	newData[i] = _data[i];
@@ -80,17 +82,45 @@ Array<DataT>::operator= (const Array<DataT> &other)
 
     _base = other._base;
     _size = other._size;
-    alloc_size = other.alloc_size;
+
+    // make new array only as large as needed
+    alloc_size = other._size;
 
     _data = new DataT[alloc_size];
     assert(_data != 0);
 
-#ifdef ZERO_INITIALIZE
-    memset(_data, 0, alloc_size * sizeof(DataT));
+    for (unsigned i = 0; i < _size; i++) {
+	_data[i] = other._data[i];
+    }
+
+    return *this;
+}
+
+template <class DataT>
+ZeroArray<DataT> &
+ZeroArray<DataT>::operator= (const ZeroArray<DataT> &other)
+{
+#ifdef DEBUG
+    cerr << "warning: ZeroArray::operator= called\n";
 #endif
 
-    for (unsigned i = 0; i < alloc_size; i++) {
-	_data[i] = other._data[i];
+    if (&other == this) {
+        return *this;
+    }
+
+    delete [] Array<DataT>::_data;
+
+    Array<DataT>::_base = other._base;
+    Array<DataT>::_size = other._size;
+
+    // make new array only as large as needed
+    Array<DataT>::alloc_size = other._size;
+
+    Array<DataT>::_data = new DataT[Array<DataT>::alloc_size];
+    assert(Array<DataT>::_data != 0);
+
+    for (unsigned i = 0; i < Array<DataT>::_size; i++) {
+        Array<DataT>::_data[i] = other._data[i];
     }
 
     return *this;

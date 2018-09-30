@@ -11,7 +11,7 @@
  *
  * Copyright (c) 2001,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordLM.h,v 1.6 2007/12/05 00:31:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordLM.h,v 1.7 2014-04-22 06:57:46 stolcke Exp $
  *
  */
 
@@ -43,7 +43,7 @@ public:
     /*
      * Propagate changes to running state to wrapped models
      */
-    virtual Boolean running() { return _running; }
+    virtual Boolean running() const { return _running; }
     virtual Boolean running(Boolean newstate)
       { Boolean old = _running; _running = newstate; 
 	lm.running(newstate); return old; };
@@ -53,7 +53,7 @@ public:
      */
     void debugme(unsigned level)
 	{ lm.debugme(level); Debug::debugme(level); };
-    ostream &dout() { return Debug::dout(); };
+    ostream &dout() const { return Debug::dout(); };
     ostream &dout(ostream &stream)
 	{ lm.dout(stream); return Debug::dout(stream); };
 

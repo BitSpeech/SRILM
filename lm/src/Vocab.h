@@ -78,7 +78,7 @@
  *
  * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.48 2012/12/06 17:49:26 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.50 2013/04/03 19:44:29 stolcke Exp $
  *
  */
 
@@ -179,12 +179,12 @@ public:
      *	__META__N		count of word types occurring N times
      */
     virtual VocabString &metaTag() { return _metaTag; }; /* meta-count tag */
-    Boolean isMetaTag(VocabIndex word)
+    virtual Boolean isMetaTag(VocabIndex word) const
 	{ return metaTagMap.find(word) != 0; };
-    unsigned typeOfMetaTag(VocabIndex word)
+    virtual unsigned typeOfMetaTag(VocabIndex word) const
 	{ unsigned *type = metaTagMap.find(word);
 	  return type != 0 ? *type : (unsigned)-1; };
-    VocabIndex metaTagOfType(unsigned);
+    virtual VocabIndex metaTagOfType(unsigned type);
 
     /*
      * Utilities for handling Vocab sequences
@@ -264,7 +264,7 @@ protected:
 						   ...
 						   N	count of count N */
 
-    // hidden data members (accessed through virtual functions
+    // hidden data members (accessed through virtual functions)
     VocabIndex _unkIndex;		/* <unk> index */
     VocabIndex _ssIndex;		/* <s> index */
     VocabIndex _seIndex;		/* </s> index */

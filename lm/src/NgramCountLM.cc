@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2006-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.cc,v 1.15 2012/02/25 18:30:33 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2006-2010 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.cc,v 1.19 2016/04/09 06:53:01 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -175,39 +175,41 @@ NgramCountLM::computeTotals()
 	sstart[1] = Vocab_None;
 
 	NgramCount *ssCount = ngramCounts.findCount(sstart);
-	if (ssCount != 0) {
-	    *root -= *ssCount;
-	}
+	if (root) {
+	    if (ssCount != 0) {
+	        *root -= *ssCount;
+	    }
 
-	/*
-	 * Make sure total is at least 1
-	 */
-	if (*root == 0) {
-	    *root = 1;
-	}
+	    /*
+	     * Make sure total is at least 1
+	     */
+	    if (*root == 0) {
+	        *root = 1;
+	    }
 
-	totalCount = *root;
+	    totalCount = *root;
+	} // else unexpected error
     }
 }
 
 Boolean
 NgramCountLM::write(File &file)
 {
-    fprintf(file, "order %u\n", order);
-    fprintf(file, "mixweights %u\n", numWeights);
+    file.fprintf("order %u\n", order);
+    file.fprintf("mixweights %u\n", numWeights);
     for (unsigned i = 0; i <= numWeights; i ++) {
     	for (unsigned j = 0; j < order; j ++) {
-	    fprintf(file, " %lg", mixWeights[i][j]);
+	    file.fprintf(" %.*lg", Prob_Precision, (double)mixWeights[i][j]);
 	}
-	fprintf(file, "\n");
+	file.fprintf("\n");
     }
 
-    fprintf(file, "countmodulus %s\n", countToString(countModulus));
-    fprintf(file, "vocabsize %s\n", countToString(vocabSize));
-    fprintf(file, "totalcount %s\n", countToString(totalCount));
+    file.fprintf("countmodulus %s\n", countToString(countModulus));
+    file.fprintf("vocabsize %s\n", countToString(vocabSize));
+    file.fprintf("totalcount %s\n", countToString(totalCount));
 
     if (countsName == 0 || writeCounts & !useGoogle) {
-	fprintf(file, "counts -\n");
+	file.fprintf("counts -\n");
 	if (writeInBinary) {
 	    if (!ngramCounts.writeBinary(file, 0)) {
 		return false;
@@ -216,9 +218,9 @@ NgramCountLM::write(File &file)
 	    ngramCounts.write(file, 0);
 	}
     } else if (useGoogle) {
-	fprintf(file, "google-counts %s\n", countsName);
+	file.fprintf("google-counts %s\n", countsName);
     } else {
-	fprintf(file, "counts %s\n", countsName);
+	file.fprintf("counts %s\n", countsName);
     }
 
     return true;
@@ -248,8 +250,11 @@ NgramCountLM::read(File &file, Boolean limitVocab)
 	     * copy total count into the unigram trie root
 	     */
 	    VocabIndex empty[1]; empty[0] = Vocab_None;
-	    *ngramCounts.findCount(empty) = totalCount;
 
+	    NgramCount* ptr = ngramCounts.findCount(empty);
+	    assert(ptr != 0);
+
+	    *ptr = totalCount;
 	} else if (sscanf(line, "countmodulus %99s", arg1) == 1 &&
 		   stringToCount(arg1, countModulus)) {
 	    ;

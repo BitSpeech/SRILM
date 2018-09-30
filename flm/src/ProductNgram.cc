@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.cc,v 1.14 2012/10/29 17:25:00 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.cc,v 1.15 2014-08-29 21:35:47 frandsen Exp $";
 #endif
 
 #include "ProductNgram.h"
@@ -67,6 +67,7 @@ ProductNgram::read(File &file, Boolean limitVocab)
     // TODO: change so that counts are not needed for ppl/rescoring.
     if (!factoredStats->read()) {
         //cerr << "error reading in counts in factor file\n";
+	// @kw false positive: MLK.MIGHT (factoredStats)
 	return false;
     }
 

@@ -1940,5 +1940,158 @@ Version History
 	* Exclude metatags when writing out the vocabulary of binary Ngram LMs.
 	* Fixed some missing dependencies in Visual Studio solution file.
 
-$Date: 2012/12/23 07:26:51 $
+1.7.1	4 June 2014
+
+	* Updated INSTALL, Copyright.  Added ACKNOWLEDGEMENTS.
+
+	Functionality:
+
+	* Integrated the maximum entropy extension by Tanel Alumae, described
+	at http://www.phon.ioc.ee/~tanela/srilm-me/ .
+	Please cite Tanel's paper (copied here in doc/is2010-maxent.pdf) if you
+	use this functionality in your research.
+	* Enable LM server to process multiple commands in a single message
+	(separated by newlines).  This capability was never documented, but
+	existed in the first implementation that used read/write system calls,
+	but was lost when we switched to recv/send calls.
+	* Generalized the BayesMix LM class to allow an arbitrary number of
+	mixture components, similar to LoglinearMix.
+	* Added the ngram -context-priors option to read context-dependent
+	mixture weight priors from a file.
+	* Added the ngram -read-mix-lms option to read the list of interpolated
+	LMs, weights and options from a file, specified by the -lm option.
+	* Use zlib for I/O from/to gzipped files. Benefits are: (a) works with
+	native Windows binaries, (b) avoids subprocess, (c) allows reading
+	(though still not writing) of gzipped binary LM and count files.
+	* ngram-count -gtNmin options accept floating point values for more
+	flexibility with LM estimation from fractional counts.
+	* Added lattice-tool -set-lattice-names option to preserve input 
+	filenames inside lattices.
+	* New script replace-unk-words, for replacing OOV words relative to
+	a vocabulary with <unk> tag.
+	* Added new lattice-tool options -hyp-list -hyp-file -hyp2-list
+	-hyp2-file -add-hyps to add ASR hypotheses into word mesh (confusion
+	network). The added options are similar to -ref-list -ref-file -add-refs,
+	except that the added hypothesized words will not be indicated as 
+	reference words in the word mesh.
+	* Added a function in WordMesh to compute slot-to-slot alignment
+	between two confusion networks.
+	* Added ngram-class option to limit number of words per class (from
+	seppo.enarvi@aalto.fi).
+
+	Portability:
+
+	* Added support for 64bit cygwin builds (MACHINE_TYPE=cygwin64).
+
+	Bug fixes:
+
+	* ngram -rescore-ngram was not setting the handling of special word
+	tokens (<s>, </s>) if the rescored LM was being evaluated in the same
+	run.
+	* ngram-count -skip needs to read counts one order higher than specified
+	by -order .
+	* SkipNgram will now try to reestimate the discounting parameters from 
+	expected counts on each EM iteration (but fall back on initial parameters
+	if that fails, e.g., for discounting methods that cannot handle float
+	counts).
+	* SubVocab instances' handling of metatags and nonevent words is now
+	tied to the base Vocab instance.
+	* Avoid anomalies in random word generation due to nonzero probabilities
+	for nonwords.
+	* Cleaned-up select-vocab script from Anand Venkataraman.  Now works
+	with perl 5.12 and gives consistent results on different platforms.
+	Added a test case.
+	* Fixed removeTrie() bug that was leading to memory leak in Ngram 
+	destructor.
+	* Fixed bug in LHash iterator that lead to potential double enumeration
+	of items after deletions, and could affect Ngram pruning results.
+	* Allow number of ngrams in ARPA LM to exceed 2^31. (Vocabulary size
+	is still limited to 2^32.)
+	* Initialize key and data objects in SArray and LHash containers after 
+	allocation.
+	* Pass Trellis state parameters by reference to avoid copying of
+	potentially complex objects.
+	* Fixed memory access error in Ngram::clear() for order-1 models.
+	* Fixed a problem handling null string states in Trellis.
+	* Fix to preserve double precision in NBest acoustic and LM scores.
+	* Fixed an error concerning the use of -gtNmin options in the srilm-faq(7)
+	man page pointed out by dugast@systran.fr.
+        * If a lattice-tool input lattice is a word mesh, avoid calling
+	alignLattice() since the input is already a word mesh.
+	* Fixes to reading/writing of quantization codebook files.
+	* Fixed header comment and test program for Map2::remove().
+
+1.7.2	9 November 2016
+
+	Functionality:
+
+	* Added interfaces to Lattice and WordMesh that allows external programs 
+	to map sausage nodes to their original lattice nodes.
+	* New VocabDistance subclass StemDistance, comparing words only based on
+	their stems.
+	* New lattice-tool option -stem-dist triggers StemDistance use in
+	confusion network alignments, including -add-hyps and -add-refs processing.
+	* Add optional support for keyword spotting (in Lattice.h and
+          LatticeIndex.cc) when writing a 1-gram index.
+  	* Added new File field NBestOptions::nbestRttm2, if it exists then write
+          (an approximation to) the NBestList2.0 format output.
+	* Added simple Trellis pruning based on relative thresholding of forward
+	probabilities (Trellis::prune()).
+	* make-big-lm now understands the -ukndiscount option. The make-kn-discounts
+	helper script has an option to compute unmodified KN discounts.
+	* The -version option now reports the compiler version used.
+	* Added ngram-count -write-text option to test conversion of UTF-16 files
+	to ASCII/UTF-8.
+	* Added ngram -text-has-weights option to allow weighting sentences in ppl
+	computation.
+	* Added scripts nbest-words and compute-sclite-nbest for conveniently
+	computing nbest-optimize -errors information using sclite.
+	* Added the nbest-optimize -xval-files option to support cross-validation.
+	* Added script search-rover-combo for searching for best combination among
+	a list of systems.
+	* Added confidence value fields to NBestWordInfo class.
+	* Added check to compute-best-mix to warn about word label mismatches between
+	input files.
+
+	Portability:
+
+	* Honor TMPDIR environment variable in various scripts.
+	* Miscellarous MacosX fixes. 
+	* Include BSD rand48 functions so that random sentence generation gives same
+	result on all platforms.
+
+	Bug fixes:
+
+	* Avoid leaky backoff by mapping very small probability sums to 0 in BOW
+	computation.  Otherwise unseen ngrams may end up with nonzero probabilties
+	in unsmoothed LMs.
+	* Fixed compare-ppls compute-best-mix compute-best-sentence-mix ppl-from-log
+	to recognize the MSVC representation of -infinity.
+	* Fixed a bug in the handling of zero prefix probabilities in ClassNgram,
+	HiddenNgram and HMMofNgrams.
+	* Fixed a memory allocation bug that caused the ngram-count-maxent test
+	to crash.
+	* Fixes to lattice-tool rttm nbest output.
+	* Fix for possible endless loop in lattice-tool -posterior-prune due to 
+	limited float precision (from Seppo Enarvi).
+	 * Fixed a problem with declaration of Map_nokeyP() that takes reference
+	arguments and were missing "const"; was causing crash in segment tool.
+	* Workaround for what looks like an optimizer bug in gcc >= 4.9 that can
+	cause ngram -prune to core dump.
+	* Output TextStats quantities (sentence/word counts, log probs, perplexities),
+	model parameters, nbest and lattices scores, and other quantities with full
+	precision so as to avoid loss of information.
+	* nbest-optimize -1best now outputs a rover-control file that simulates
+	Viterbi decoding (by using a small posterior scale).
+	* nbest-optimize -errrors now tolerates varying number of reference words
+	for the same sentence.  This can arise from sclite references with alternate
+	words strings.
+	* Fixed a stupid bug in uniform-classes.gawk script.
+	* Allow combine-rover-controls to merge control files with the same systems 
+	in them, adding their weights.
+	* Updated zlib to version 1.2.8.  This fixes a bug whereby gzipped output files
+	could end up with zero size (instead of a legal gzipped file that results in a 
+	zero-length file when decompressed).
+
+$Date: 2016/11/09 07:26:14 $
 

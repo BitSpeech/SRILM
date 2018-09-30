@@ -2,9 +2,9 @@
  * Prob.h --
  *	Probabilities and stuff
  *
- * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.28 2012/12/18 01:14:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.39 2016/04/09 06:53:01 stolcke Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 #include "Counts.h"
 #include "File.h"
 #include "Array.h"
+#include "SArray.h"
 
 #ifndef M_E
 #define M_E	2.7182818284590452354
@@ -32,6 +33,9 @@
  * Functions missing from math library
  */
 #ifdef _MSC_VER
+
+#include <float.h>
+
 inline double rint(double x) 
 {
 	if (x >= 0) {
@@ -46,7 +50,7 @@ inline double rint(double x)
 
 #endif /* _MSC_VER */
 
-#if defined(sun)
+#if defined(sun) && !defined(isfinite)
 #include <ieeefp.h>
 #define isfinite(x)	finite(x)
 #endif
@@ -72,18 +76,47 @@ extern const LogP LogP_Zero;		/* log(0) = -Infinity */
 extern const LogP LogP_Inf;		/* log(Inf) = Infinity */
 extern const LogP LogP_One;		/* log(1) = 0 */
 
-extern const int LogP_Precision;	/* number of significant decimals
+extern const unsigned LogP_Precision;	/* number of significant decimals
 				 	 * in a LogP */
-
+extern const unsigned LogP2_Precision;	/* no of signif digits in LogP2 */
+extern const unsigned Prob_Precision;	/* no of signif digits in Prob */
 extern const Prob Prob_Epsilon;		/* probability sum considered not
 					 * significantly different from 0 */
+
+Boolean parseProb(const char *string, Prob &prob);
 
 /*
  * Convenience functions for handling LogPs
  *	Many of these are time critical, so we use inline definitions.
  */
 
-Boolean parseLogP(const char *string, LogP &prob);
+Boolean parseLogP(const char *string, LogP2 &prob);
+
+inline Boolean parseLogP(const char *string, LogP &prob)
+{
+    LogP2 p2;
+    if (parseLogP(string, p2)) {
+	prob = (LogP)p2;
+	return true;
+    } else {
+	return false;
+    }
+}
+
+inline Boolean parseProbOrLogP(const char *string, Prob &prob, Boolean useLog)
+{
+    if (useLog) {
+	LogP logp;
+	if (parseLogP(string, logp)) {
+		prob = logp;
+		return true;
+	} else {
+		return false;
+	}
+    } else {
+	return parseProb(string, prob);
+    }
+}
 
 inline Prob LogPtoProb(LogP2 prob)
 {
@@ -101,7 +134,7 @@ inline Prob LogPtoPPL(LogP2 prob)
 
 inline LogP ProbToLogP(Prob prob)
 {
-    return log10(prob);
+    return (LogP)log10(prob);
 }
 
 inline LogP2 MixLogP(LogP2 prob1, LogP2 prob2, double lambda)
@@ -208,14 +241,14 @@ inline LogP IntlogToLogP(double prob)	/* use double argument to avoid loss
 					 * of information when converting from
 					 * floating point values */
 {
-    return prob/(M_LN10 * 10000.5);
+    return (LogP)(prob/(M_LN10 * 10000.5));
 }
 
 inline LogP BytelogToLogP(double bytelog) /* use double argument so we can
 					 * scale float values without loss of
 					 * precision */
 {
-    return bytelog * (1024.0 / 10000.5 / M_LN10);
+    return (LogP)(bytelog * (1024.0 / 10000.5 / M_LN10));
 }
 
 const int BytelogShift = 10;
@@ -243,7 +276,7 @@ inline Intlog BytelogToIntlog(Bytelog bytelog)
 class PQCodebook
 {
 public:
-    PQCodebook() : numBins(0) {};
+    PQCodebook() : numBins(0), binsAreSorted(false) {};
 
     Boolean read(File &file);
     Boolean write(File &file);
@@ -253,10 +286,22 @@ public:
 
     LogP2 getProb(unsigned bin);
 
+    unsigned getBin(LogP2 prob);
+
+    Boolean estimate(SArray<LogP, FloatCount> &data, unsigned nbins);
+
 private:
     unsigned numBins;
     Array<LogP2> binMeans;
-    Array<Count> binCounts;
+    Array<FloatCount> binCounts;	// fractional counts
+
+    // support for mapping values to bins
+    Array<unsigned> binOrder;
+    Boolean binsAreSorted;
+    void sortBins();
+
+    Boolean estimateInit(SArray<LogP, FloatCount> &data, unsigned nbins);
+    LogP2 estimateUpdate(SArray<LogP, FloatCount> &data, unsigned nbins);
 };
 
 #endif /* _Prob_h_ */

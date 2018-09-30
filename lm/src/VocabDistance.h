@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2000,2004 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.5 2012/07/04 23:47:07 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.7 2015-01-28 23:51:10 wwang Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 class VocabDistance
 {
 public:
+    virtual ~VocabDistance() {};     /* prevent warning about no virtual dtor */
     virtual double penalty(VocabIndex w1) = 0;	/* insertion/deletion penalty */
     virtual double distance(VocabIndex w1, VocabIndex w2) = 0; /* substitution*/
 };
@@ -111,6 +112,18 @@ public:
 private:
     VocabIndex deleteIndex;
     VocabMap &map;
+};
+
+/*                                                                                                                                                                                                                       * Distance based on stem                                                                                                                                                                                                * Return distance                                                                                                                                                                                                       *      0 if words are identical or its stem are identical,                                                                                                                                                              *      1 otherwise                                                                                                                                                                                                      */
+class StemDistance: public VocabDistance
+{
+ public:
+ StemDistance(Vocab &_vocab) : vocab(_vocab) {};
+  double penalty(VocabIndex w1) { return 1.0; }
+  double distance(VocabIndex w1, VocabIndex w2);
+
+ private:
+  Vocab& vocab;
 };
 
 #endif /* _VocabDistance_h_ */

@@ -8,8 +8,8 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.59 2012/10/18 20:55:19 mcintyre Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.61 2013/10/03 03:35:03 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -144,7 +144,9 @@ LHash<KeyT,DataT>::alloc(unsigned size)
     BODY(body)->nEntries = 0;
 
     for (i = 0; i < maxEntries; i++) {
+        new (&(BODY(body)->data[i].key)) KeyT;	  // initialize the key object
 	Map_noKey(BODY(body)->data[i].key);
+        new (&(BODY(body)->data[i].value)) DataT; // initialize the key object
     }
     //cerr << "memory for header = " <<
     //		((void *)&(BODY(body)->data[0]) - (void *)BODY(body)) << endl;
@@ -437,6 +439,7 @@ LHash<KeyT,DataT>::remove(KeyT key, DataT *removedData)
 	Map_freeKey(BODY(body)->data[index].key);
 	Map_noKey(BODY(body)->data[index].key);
 
+//cerr << "REMOVE key = " << key << " index = " << index << endl;
         if (removedData != 0)
 	    memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));
 
@@ -479,6 +482,7 @@ LHash<KeyT,DataT>::remove(KeyT key, DataT *removedData)
 		 * the hole created by this move.
 		 */
 		if (!locate(BODY(body)->data[index].key, newIndex)) {
+//cerr << "MOVING key = " << (BODY(body)->data[index].key) << " from " << index << " to " << newIndex << endl;
 		    memcpy(&(BODY(body)->data[newIndex]),
 			   &(BODY(body)->data[index]),
 			   sizeof(BODY(body)->data[0]));
@@ -514,7 +518,9 @@ LHashIter<KeyT,DataT>::sortKeys()
     }
     assert(j == numEntries);
 
-    sort(sortedIndex, sortedIndex + numEntries, *this);
+    if (sortFunction != 0) {
+        sort(sortedIndex, sortedIndex + numEntries, *this);
+    }
 
     /*
      * Save the keys for enumeration.  The reason we save the keys,
@@ -545,7 +551,7 @@ LHashIter<KeyT,DataT>::LHashIter(const LHash<KeyT,DataT> &lhash,
      * - it is illegal to insert while iterating
      * - deletions don't cause reallocation of the data
      */
-    if (sortFunction && myLHashBody) {
+    if (myLHashBody) {
 	sortKeys();
     }
 }
@@ -616,10 +622,8 @@ LHashIter<KeyT,DataT>::init()
 	myLHash.body = 0;
     }
 
-    if (sortFunction && myLHashBody) {
+    if (myLHashBody) {
 	sortKeys();
-    } else {
-	sortedKeys = 0;
     }
 }
 
@@ -633,65 +637,20 @@ LHashIter<KeyT,DataT>::next(KeyT &key)
     } else {
 	unsigned index;
 
-	if (sortedKeys) {
-	    /*
-	     * Sorted enumeration -- advance to next key in sorted list
-	     */
-	    if (current == numEntries) {
-		return 0;
-	    }
+	assert(sortedKeys != 0);
 
-	    /*
-	     * XXX: fake LHash object to access locate()
-	     */
-	    LHash<KeyT,DataT> myLHash(0);
-
-	    myLHash.body = myLHashBody;
-	    myLHash.locate(sortedKeys[current++], index);
-	    myLHash.body = 0;;
-	} else {
-	    /*
-	     * Detect deletions by comparing old and current number of 
-	     * entries.
-	     * A legal deletion can only affect the current entry, so
-	     * adjust the current position to reflect the next entry was
-	     * moved.
-	     */
-	    if (myLHashBody->nEntries != numEntries) {
-		assert(myLHashBody->nEntries == numEntries - 1);
-
-		numEntries --;
-		current --;
-	    }
-
-	    /*
-	     * Random enumeration mode
-	     */
-	    unsigned maxBits = myLHashBody->maxBits;
-
-	    if (maxBits < minHashBits) {
-		/*
-		 * Linear search mode - advance one to the next entry
-		 */
-		if (current == numEntries) {
-		    return 0;
-		}
-	    } else {
-		unsigned maxEntries = hashSize(maxBits);
-
-		while (current < maxEntries &&
-		       Map_noKeyP(myLHashBody->data[current].key))
-		{
-		    current++;
-		}
-
-		if (current == maxEntries) {
-		    return 0;
-		}
-	    }
-
-	    index = current ++;
+	if (current == numEntries) {
+	    return 0;
 	}
+
+	/*
+	 * XXX: fake LHash object to access locate()
+	 */
+	LHash<KeyT,DataT> myLHash(0);
+
+	myLHash.body = myLHashBody;
+	myLHash.locate(sortedKeys[current++], index);
+	myLHash.body = 0;
 
 	key = myLHashBody->data[index].key;
 	return &(myLHashBody->data[index].value);

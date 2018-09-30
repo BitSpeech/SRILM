@@ -8,8 +8,8 @@
 #define _SArray_cc_
 
 #ifndef lint
-static char SArray_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.cc,v 1.48 2012/10/18 20:55:19 mcintyre Exp $";
+static char SArray_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
+static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.cc,v 1.49 2013/10/03 03:35:03 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -102,7 +102,9 @@ SArray<KeyT,DataT>::alloc(unsigned size)
      * Fill the array with dummy keys, marking the unused space
      */
     for (unsigned i = 0; i < size; i ++) {
+	new (&(BODY(body)->data[i].key)) KeyT;	  // initialize key object
 	Map_noKey(BODY(body)->data[i].key);
+	new (&(BODY(body)->data[i].value)) DataT; // initialize value object
     }
 }
 
@@ -375,7 +377,9 @@ SArray<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 	     * Fill new space with dummy keys
 	     */
 	    for (unsigned i = maxEntries + 1; i < newMaxEntries; i ++) {
+		new (&(BODY(newBody)->data[i].key)) KeyT;    // initialize key object
 		Map_noKey(BODY(newBody)->data[i].key);
+		new (&(BODY(newBody)->data[i].value)) DataT; // initialize value object
 	    }
 
 	    BM_free(body, BODY_SIZE(body, maxEntries));

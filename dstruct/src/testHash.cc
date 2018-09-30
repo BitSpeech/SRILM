@@ -86,6 +86,15 @@ main(int argc, char **argv)
 	 << "avg collisions: "
 	 << (double)LHash<key_type,int>::collisionCount / maxKey << endl;
 
+    cerr << "==== Deleting data from table 1\n";
+    htIter.init();
+    unsigned numdeleted = 0;
+    while (htIter.next(key)) {
+	assert(ht.remove(key));
+	numdeleted ++;
+    }
+    cerr << "elements removed: " << numdeleted << endl;
+
     exit(0);
 }
 

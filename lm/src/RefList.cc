@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998-2012 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.cc,v 1.16 2012/10/29 17:25:05 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.cc,v 1.18 2013/10/10 20:54:35 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -37,7 +37,7 @@ INSTANTIATE_ARRAY(VocabIndex *);
  * utterance ids.
  */
 static const char *suffixes[] = {
-  ".Z", ".gz", ".score", ".nbest", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", ".plp", 0
+  ".Z", ".gz", ".score", ".nbest", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", ".slf", ".plp", 0
 };
 
 /*
@@ -154,9 +154,9 @@ RefList::write(File &file)
 	    VocabString words[maxWordsPerLine + 1];
 	    vocab.getWords(*wids, words, maxWordsPerLine + 1);
 
-	    fprintf(file, "%s ", id);
+	    file.fprintf("%s ", id);
 	    Vocab::write(file, words);
-	    fprintf(file, "\n");
+	    file.fprintf("\n");
 	}
     } else {
 	/*
@@ -167,7 +167,7 @@ RefList::write(File &file)
 	    vocab.getWords(refarray[i], words, maxWordsPerLine + 1);
 
 	    Vocab::write(file, words);
-	    fprintf(file, "\n");
+	    file.fprintf("\n");
 	}
     }
 

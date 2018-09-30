@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: disambig.cc,v 1.51 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013-2015 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: disambig.cc,v 1.55 2015-03-05 07:48:14 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -50,26 +50,14 @@ static char *useServer = 0;
 static int cacheServedNgrams = 0;
 static int useCountLM = 0;
 static int factored = 0;
-static char *mixFile  = 0;
-static char *mixFile2 = 0;
-static char *mixFile3 = 0;
-static char *mixFile4 = 0;
-static char *mixFile5 = 0;
-static char *mixFile6 = 0;
-static char *mixFile7 = 0;
-static char *mixFile8 = 0;
-static char *mixFile9 = 0;
-static int bayesLength = 0;
+#define MAX_MIX_LMS 10
+static char *mixFile[MAX_MIX_LMS] =
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static int bayesLength = -1;
 static double bayesScale = 1.0;
-static double mixLambda = 0.5;
-static double mixLambda2 = 0.0;
-static double mixLambda3 = 0.0;
-static double mixLambda4 = 0.0;
-static double mixLambda5 = 0.0;
-static double mixLambda6 = 0.0;
-static double mixLambda7 = 0.0;
-static double mixLambda8 = 0.0;
-static double mixLambda9 = 0.0;
+static char *contextPriorsFile = 0;
+static double mixLambda[MAX_MIX_LMS] =
+	{ 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static char *vocab1File = 0;
 static char *vocab2File = 0;
 static char *vocab2AliasFile = 0;
@@ -85,6 +73,7 @@ static int tolower1 = 0;
 static int tolower2 = 0;
 static double lmw = 1.0;
 static double mapw = 1.0;
+static double prune = -1.0;
 static int fb = 0;
 static int fwOnly = 0;
 static int posteriors = 0;
@@ -105,25 +94,25 @@ static Option options[] = {
     { OPT_TRUE, "factored", &factored, "use a factored LM" },
     { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
     { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
-    { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
-    { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
-    { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
-    { OPT_FLOAT, "mix-lambda2", &mixLambda2, "mixture weight for -mix-lm2" },
-    { OPT_STRING, "mix-lm3", &mixFile3, "third LM to mix in" },
-    { OPT_FLOAT, "mix-lambda3", &mixLambda3, "mixture weight for -mix-lm3" },
-    { OPT_STRING, "mix-lm4", &mixFile4, "fourth LM to mix in" },
-    { OPT_FLOAT, "mix-lambda4", &mixLambda4, "mixture weight for -mix-lm4" },
-    { OPT_STRING, "mix-lm5", &mixFile5, "fifth LM to mix in" },
-    { OPT_FLOAT, "mix-lambda5", &mixLambda5, "mixture weight for -mix-lm5" },
-    { OPT_STRING, "mix-lm6", &mixFile6, "sixth LM to mix in" },
-    { OPT_FLOAT, "mix-lambda6", &mixLambda6, "mixture weight for -mix-lm6" },
-    { OPT_STRING, "mix-lm7", &mixFile7, "seventh LM to mix in" },
-    { OPT_FLOAT, "mix-lambda7", &mixLambda7, "mixture weight for -mix-lm7" },
-    { OPT_STRING, "mix-lm8", &mixFile8, "eighth LM to mix in" },
-    { OPT_FLOAT, "mix-lambda8", &mixLambda8, "mixture weight for -mix-lm8" },
-    { OPT_STRING, "mix-lm9", &mixFile9, "ninth LM to mix in" },
-    { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
-    { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
+    { OPT_STRING, "mix-lm", &mixFile[1], "LM to mix in" },
+    { OPT_FLOAT, "lambda", &mixLambda[0], "mixture weight for -lm" },
+    { OPT_STRING, "mix-lm2", &mixFile[2], "second LM to mix in" },
+    { OPT_FLOAT, "mix-lambda2", &mixLambda[2], "mixture weight for -mix-lm2" },
+    { OPT_STRING, "mix-lm3", &mixFile[3], "third LM to mix in" },
+    { OPT_FLOAT, "mix-lambda3", &mixLambda[3], "mixture weight for -mix-lm3" },
+    { OPT_STRING, "mix-lm4", &mixFile[4], "fourth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda4", &mixLambda[4], "mixture weight for -mix-lm4" },
+    { OPT_STRING, "mix-lm5", &mixFile[5], "fifth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda5", &mixLambda[5], "mixture weight for -mix-lm5" },
+    { OPT_STRING, "mix-lm6", &mixFile[6], "sixth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda6", &mixLambda[6], "mixture weight for -mix-lm6" },
+    { OPT_STRING, "mix-lm7", &mixFile[7], "seventh LM to mix in" },
+    { OPT_FLOAT, "mix-lambda7", &mixLambda[7], "mixture weight for -mix-lm7" },
+    { OPT_STRING, "mix-lm8", &mixFile[8], "eighth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda8", &mixLambda[8], "mixture weight for -mix-lm8" },
+    { OPT_STRING, "mix-lm9", &mixFile[9], "ninth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda9", &mixLambda[9], "mixture weight for -mix-lm9" },
+    { OPT_STRING, "context-priors", &contextPriorsFile, "context-dependent mixture weights file" },
     { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "write-vocab1", &vocab1File, "output observable vocabulary" },
@@ -146,6 +135,7 @@ static Option options[] = {
     { OPT_FLOAT, "mapw", &mapw, "map log likelihood weight" },
     { OPT_TRUE, "fb", &fb, "use forward-backward algorithm" },
     { OPT_TRUE, "fwOnly", &fwOnly, "use forward probabilities only" },
+    { OPT_FLOAT, "prune", &prune, "apply pruning cutoff to forward computation" },
     { OPT_TRUE, "posteriors", &posteriors, "output posterior probabilities" },
     { OPT_TRUE, "totals", &totals, "output total string probabilities" },
     { OPT_TRUE, "no-eos", &noEOS, "don't assume end-of-sentence token" },
@@ -278,6 +268,10 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 	}
 
 	pos ++;
+
+	if (prune >= 0.0) {
+	    cerr << "pruned " << trellis.prune(prune) << endl;
+	}
     }
 
     if (debug >= DEBUG_TRELLIS) {
@@ -788,7 +782,7 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
 
 		VocabIndex w2 = lm.vocab.addWord(mapFields[i++]);
 
-		if (i < howmany && sscanf(mapFields[i], "%lf", &prob)) {
+		if (i < howmany && parseProbOrLogP(mapFields[i], prob, logMap)) {
 		    i ++;
 		} else {
 		    prob = logMap ? LogP_One : 1.0;
@@ -841,47 +835,62 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
     }
 }
 
-LM *
-makeMixLM(const char *filename, Vocab &vocab,
-		    unsigned order, LM *oldLM, double lambda1, double lambda2)
+BayesMix *
+makeBayesMixLM(char *filenames[], Vocab &vocab, unsigned order,
+	       LM *oldLM, double lambdas[])
 {
-    LM *lm;
+    Array<LM *> allLMs;
+    allLMs[0] = oldLM;
 
-    if (useServer && strchr(filename, '@') && !strchr(filename, '/')) {
-	/*
-	 * Filename looks like a network LM spec -- create LMClient object
-	 */
-	lm = new LMClient(vocab, filename, order,
-					    cacheServedNgrams ? order : 0);
-	assert(lm != 0);
-    } else {
-	File file(filename, "r");
+    Array<Prob> allLambdas;
+    allLambdas[0] = lambdas[0];
 
-	lm = factored ? 
-		      new ProductNgram((ProductVocab &)vocab, order) :
-			new Ngram(vocab, order);
-	assert(lm != 0);
+    for (unsigned i = 1; i < MAX_MIX_LMS && filenames[i]; i++) {
+	File file(filenames[i], "r");
 
-	if (!lm->read(file, !textMapFile)) {
-	    cerr << "format error in mix-lm file " << filename << endl;
+	allLambdas[i] = lambdas[i];
+
+	LM *lm;
+
+	if (useServer && strchr(filenames[i], '@') && !strchr(filenames[i], '/')) {
+	    /*
+	     * Filename looks like a network LM spec -- create LMClient object
+	     */
+	    lm = new LMClient(vocab, filenames[i], order,
+						cacheServedNgrams ? order : 0);
+	    assert(lm != 0);
+	} else {
+	    File file(filenames[i], "r");
+
+	    lm = factored ? 
+			  new ProductNgram((ProductVocab &)vocab, order) :
+			    new Ngram(vocab, order);
+	    assert(lm != 0);
+
+	    if (!lm->read(file, !textMapFile)) {
+		cerr << "format error in mix-lm file " << filenames[i] << endl;
+		exit(1);
+	    }
+	    // @kw false positive: RH.LEAK (lm->serverSocket)
+	}
+
+	allLMs[i] = lm;
+    }
+
+    BayesMix *newLM = new BayesMix(vocab, allLMs, allLambdas,
+			           bayesLength, bayesScale);
+    assert(newLM != 0);
+
+    if (contextPriorsFile) {
+        File file(contextPriorsFile, "r");
+
+	if (!newLM->readContextPriors(file)) {
+	    cerr << "error reading context priors\n";
 	    exit(1);
 	}
     }
 
-    if (oldLM) {
-	/*
-	 * Compute mixture lambda (make sure 0/0 = 0)
-	 */
-	Prob lambda = (lambda1 == 0.0) ? 0.0 : lambda1/lambda2;
-
-	LM *newLM = new BayesMix(vocab, *lm, *oldLM,
-					bayesLength, lambda, bayesScale);
-	assert(newLM != 0);
-
-	return newLM;
-    } else {
-	return lm;
-    }
+    return newLM;
 }
 
 int
@@ -983,66 +992,32 @@ main(int argc, char **argv)
      */
     LM *useLM = hiddenLM;
 
-    if (mixFile) {
+    if (mixFile[1]) {
 	/*
 	 * create a Bayes mixture LM 
 	 */
-	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
-				mixLambda4 - mixLambda5 - mixLambda6 -
-				mixLambda7 - mixLambda8 - mixLambda9;
+	mixLambda[1] = 1.0 - mixLambda[0];
+	for (unsigned i = 2; i < MAX_MIX_LMS; i++) {
+	    mixLambda[1] -= mixLambda[i];
+	}
 
-	useLM = makeMixLM(mixFile, *hiddenVocab, order, useLM,
-				mixLambda1,
-				mixLambda + mixLambda1);
+	if (bayesLength < 0) {
+	    if (contextPriorsFile) {
+		/*
+		 * User wants context-dependent priors but not Bayesian posteriors
+		 */
+		bayesLength = order - 1;
+		bayesScale = 0.0;
+	    }
+	} else {
+	    /*
+	     * Default is not to use context
+	     */
+	    bayesLength = 0;
+        }
 
-	if (mixFile2) {
-	    useLM = makeMixLM(mixFile2, *hiddenVocab, order, useLM,
-				mixLambda2,
-				mixLambda + mixLambda1 + mixLambda2);
-	}
-	if (mixFile3) {
-	    useLM = makeMixLM(mixFile3, *hiddenVocab, order, useLM,
-				mixLambda3,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3);
-	}
-	if (mixFile4) {
-	    useLM = makeMixLM(mixFile4, *hiddenVocab, order, useLM,
-				mixLambda4,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3 + mixLambda4);
-	}
-	if (mixFile5) {
-	    useLM = makeMixLM(mixFile5, *hiddenVocab, order, useLM,
-				mixLambda5,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3 + mixLambda4 + mixLambda5);
-	}
-	if (mixFile6) {
-	    useLM = makeMixLM(mixFile6, *hiddenVocab, order, useLM,
-				mixLambda6,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3 + mixLambda4 + mixLambda5 +
-				mixLambda6);
-	}
-	if (mixFile7) {
-	    useLM = makeMixLM(mixFile7, *hiddenVocab, order, useLM,
-				mixLambda7,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3 + mixLambda4 + mixLambda5 +
-				mixLambda6 + mixLambda7);
-	}
-	if (mixFile8) {
-	    useLM = makeMixLM(mixFile8, *hiddenVocab, order, useLM,
-				mixLambda8,
-				mixLambda + mixLambda1 + mixLambda2 +
-				mixLambda3 + mixLambda4 + mixLambda5 +
-				mixLambda6 + mixLambda7 + mixLambda8);
-	}
-	if (mixFile9) {
-	    useLM = makeMixLM(mixFile9, *hiddenVocab, order, useLM,
-				mixLambda9, 1.0);
-	}
+	useLM = makeBayesMixLM(mixFile, *hiddenVocab, order,
+			       useLM, mixLambda);
     }
 
     VocabMap *counts;

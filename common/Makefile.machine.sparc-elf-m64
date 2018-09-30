@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2009 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.sparc-elf-m64,v 1.5 2012-07-06 23:05:08 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.sparc-elf-m64,v 1.7 2014-06-13 07:18:21 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
@@ -17,8 +17,8 @@ ifeq ($(USE_CC), )
    # XXX: Since most of our fast machines are UltraSPARC based, optimize
    # the code for that platform.
    # XXX: WordMesh.cc won't wompile if we specify ultarsparc
-   GCC_FLAGS = -m64 -mtune=supersparc -Wreturn-type -Wimplicit
-   CC = $(GCC_PATH)gcc $(GCC_FLAGS)
+   GCC_FLAGS = -m64 -mtune=ultrasparc -Wreturn-type
+   CC = $(GCC_PATH)gcc $(GCC_FLAGS) -Wimplicit-int
    CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.

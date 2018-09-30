@@ -3,7 +3,7 @@
 //
 // Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
 //
-// $Header: /home/srilm/CVS/srilm/dstruct/src/testMap2.cc,v 1.4 2010/06/02 04:52:43 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/testMap2.cc,v 1.5 2014-05-25 20:01:43 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -101,7 +101,8 @@ Insert(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 int
 Delete(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
-   DATA_T *result;
+   DATA_T result;
+   Boolean found;
 
    if (argc < 2) {
 	Tcl_SetResult(interp, (char *)"2 args expected", TCL_STATIC);
@@ -111,9 +112,9 @@ Delete(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    KEY1_T key1 = get_key1(interp, argv + 1);
    KEY2_T key2 = get_key2(interp, argv + 1);
 
-   result = myMap2.remove(key1, key2);
-   if (result) {
-       Tcl_SetResult(interp, *result, TCL_DYNAMIC);
+   found = myMap2.remove(key1, key2, &result);
+   if (found) {
+       Tcl_SetResult(interp, result, TCL_DYNAMIC);
    }
    return TCL_OK;
 }

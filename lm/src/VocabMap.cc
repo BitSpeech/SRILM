@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMap.cc,v 1.15 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMap.cc,v 1.18 2016/04/09 06:53:01 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -104,11 +104,11 @@ VocabMap::read(File &file)
 	unsigned i = 1;
 
 	while (i < howmany) {
-	    double prob;
+	    Prob prob;
 
 	    VocabIndex w2 = vocab2.addWord(words[i++]);
 
-	    if (i < howmany && sscanf(words[i], "%lf", &prob)) {
+	    if (i < howmany && parseProbOrLogP(words[i], prob, logmap)) {
 		i ++;
 	    } else {
 		prob = logmap ? LogP_One : 1.0;
@@ -145,13 +145,13 @@ VocabMap::readClasses(File &file)
 	 */
 	VocabIndex clasz = vocab2.addWord(words[0]);
 
-	double prob = logmap ? LogP_One : 1.0;
+	Prob prob = logmap ? LogP_One : 1.0;
 	unsigned numExpansionWords;
 
 	/*
 	 * If second word is numeral, assume it's the class expansion prob
 	 */
-	if (howmany > 1 && sscanf(words[1], "%lf", &prob)) {
+	if (howmany > 1 && parseProbOrLogP(words[1], prob, logmap)) {
 	    numExpansionWords = howmany - 2;
 	} else {
 	    numExpansionWords = howmany - 1;
@@ -182,7 +182,7 @@ VocabMap::write(File &file)
 	VocabString word1 = vocab1.getWord(w1);
 	assert(word1 != 0);
 
-	fprintf(file, "%s", word1);
+	file.fprintf("%s", word1);
 
 	Map2Iter2<VocabIndex,VocabIndex,Prob> iter2(map, w1);
 
@@ -197,12 +197,13 @@ VocabMap::write(File &file)
 	    char sep = (i++ == 0)  ? '\t' : ' ';
 
 	    if (*prob == (logmap ? LogP_One : 1.0)) {
-		fprintf(file, "%c%s", sep, word2);
+		file.fprintf("%c%s", sep, word2);
 	    } else {
-		fprintf(file, "%c%s %lg", sep, word2, *prob);
+		file.fprintf("%c%s %.*lg", sep, word2,
+					   Prob_Precision, (double)*prob);
 	    }
 	}
-	fprintf(file, "\n");
+	file.fprintf("\n");
     }
     return true;
 }
@@ -232,7 +233,8 @@ VocabMap::writeBigrams(File &file)
 	    assert(word1 != 0);
 
 	    // prob = P(word1|word2), hence the bigram word order
-	    fprintf(file, "%s %s\t%lg\n", word2, word1, *prob);
+	    file.fprintf("%s %s\t%.*lg\n", word2, word1,
+					   Prob_Precision, (double)*prob);
 	}
     }
     return true;

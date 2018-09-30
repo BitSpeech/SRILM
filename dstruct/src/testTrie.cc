@@ -3,7 +3,7 @@
 //
 // Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
 //
-// $Header: /home/srilm/CVS/srilm/dstruct/src/testTrie.cc,v 1.14 2010/06/02 04:56:52 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/testTrie.cc,v 1.15 2013/03/08 14:31:00 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -68,6 +68,29 @@ Find(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 
 /*ARGSUSED*/
 int
+Prefix(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+{
+   DATA_T *result;
+   KEY_T *keys;
+   unsigned depth;
+
+   keys = get_keys(interp, argv + 1);
+   if (!keys) {
+	return TCL_ERROR;
+   }
+
+   result = myTrie.findPrefix(keys, depth);
+
+   cerr << "depth = " << depth << endl;
+   
+   if (result) {
+       Tcl_SetResult(interp, *result, TCL_STATIC);
+    }
+   return TCL_OK;
+}
+
+/*ARGSUSED*/
+int
 Insert(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
    DATA_T *result;
@@ -108,8 +131,7 @@ Delete(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
    }
 
-   result = myTrie.remove(keys);
-   if (result) {
+   if (myTrie.remove(keys, result)) {
        Tcl_SetResult(interp, *result, TCL_DYNAMIC);
    }
    return TCL_OK;
@@ -134,7 +156,7 @@ List(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	while ((result = iter.next(key))) {
 	    if (result->value()) {
 		cout << "key = " << key << ", value = " << result->value() << endl;
-		cout << "find = " << *(result->find()) << endl;
+		//cout << "find = " << *(result->data()) << endl;
 	    }
 	}
    }
@@ -207,6 +229,7 @@ extern "C" int
 Tcl_AppInit(Tcl_Interp *interp)
 {
    Tcl_CreateCommand(interp, "find", (Tcl_CmdProc *)Find, 0, NULL);
+   Tcl_CreateCommand(interp, "prefix", (Tcl_CmdProc *)Prefix, 0, NULL);
    Tcl_CreateCommand(interp, "insert", (Tcl_CmdProc *)Insert, 0, NULL);
    Tcl_CreateCommand(interp, "delete", (Tcl_CmdProc *)Delete, 0, NULL);
    Tcl_CreateCommand(interp, "list", (Tcl_CmdProc *)List, 0, NULL);

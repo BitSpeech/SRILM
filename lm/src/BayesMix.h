@@ -14,9 +14,9 @@
  * mixtures of bigram models, the p(context | M_i) would simply be the unigram 
  * probability of the last word according to M_i.
  *
- * Copyright (c) 1995-2002 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.11 2012/08/17 18:14:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.19 2014-04-22 06:57:45 stolcke Exp $
  *
  */
 
@@ -24,17 +24,40 @@
 #define _BayesMix_h_
 
 #include "LM.h"
+#include "Ngram.h"
+#include "Array.h"
+#include "NgramProbArrayTrie.h"
 
 class BayesMix: public LM
 {
 public:
+    BayesMix(Vocab &vocab,
+		    unsigned clength = 0, double llscale = 1.0);
     BayesMix(Vocab &vocab, LM &lm1, LM &lm2,
 		    unsigned clength = 0, Prob prior = 0.5,
 		    double llscale = 1.0);
+    BayesMix(Vocab &vocab, Array<LM *> &subLMs, Array<Prob> &priors,
+		    unsigned clength = 0, double llscale = 1.0);
+    ~BayesMix();
+
+    unsigned numLMs;		/* number of component LMs */
+    Array<Prob> priors;		/* prior weights */
+    Prob &prior;		/* backward compatibility: prior of lm1 */
 
     unsigned clength;		/* context length used for posteriors */
-    Prob prior;			/* prior weight for lm1 */
     double llscale;		/* log likelihood scaling factor */
+
+    virtual Boolean read(File &file, Boolean limitVocab = false)
+	{ return readMixLMs(file, limitVocab, false); };
+				/* read list of mixture LMs and weights */
+
+    Boolean readContextPriors(File &file, Boolean limitVocab = false);
+				/* read and use context-dependent priors */
+    Array<Prob> &findPriors(const VocabIndex *context);
+				/* retrieve context-dependent priors */
+
+    LM *subLM(unsigned i)
+	{ return (i < numLMs)? subLMs[i] : 0; };
 
     /*
      * LM interface
@@ -44,44 +67,51 @@ public:
 							unsigned &length);
     virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
+    virtual Boolean addUnkWords();
 
-    virtual Boolean addUnkWords()
-       { return lm1.addUnkWords() || lm2.addUnkWords(); };
+    virtual Boolean running() const { return _running; }
+    virtual Boolean running(Boolean newstate);
 
-    /*
-     * Propagate changes to running state to component models
-     */
-    virtual Boolean running() { return _running; }
-    virtual Boolean running(Boolean newstate)
-      { Boolean old = _running; _running = newstate; 
-	lm1.running(newstate); lm2.running(newstate); return old; };
+    void debugme(unsigned level);
+    ostream &dout() const { return Debug::dout(); };
+    ostream &dout(ostream &stream);
 
-    /*
-     * Propagate changes to Debug state to component models
-     */
-    void debugme(unsigned level)
-	{ lm1.debugme(level); lm2.debugme(level); Debug::debugme(level); };
-    ostream &dout() { return Debug::dout(); };
-    ostream &dout(ostream &stream)  /* propagate dout changes to sub-lms */
-	{ lm1.dout(stream); lm2.dout(stream); return Debug::dout(stream); };
-
-    /*
-     * Propagate prefetching protocol to component models
-     */
-    unsigned prefetchingNgrams()
-	{ unsigned pf1 = lm1.prefetchingNgrams();
- 	  unsigned pf2 = lm2.prefetchingNgrams();
-	  return pf1 > pf2 ? pf1 : pf2; };
-    Boolean prefetchNgrams(NgramCounts<Count> &ngrams)
-	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
-    Boolean prefetchNgrams(NgramCounts<XCount> &ngrams)
-	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
-    Boolean prefetchNgrams(NgramCounts<FloatCount> &ngrams)
-	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
+    unsigned prefetchingNgrams();
+    Boolean prefetchNgrams(NgramCounts<Count> &ngrams);
+    Boolean prefetchNgrams(NgramCounts<XCount> &ngrams);
+    Boolean prefetchNgrams(NgramCounts<FloatCount> &ngrams);
 
 protected:
-    LM &lm1, &lm2;				/* component models */
+    Array<LM *> subLMs;				/* component models */
+    Boolean deleteSubLMs;			/* need to delete sub lms */
+    Boolean useContextPriors;
+    NgramProbArrayTrie contextPriors;
+
+    Boolean readMixLMs(File &file, Boolean limitVocab, Boolean ngramOnly);
 };
 
+/*
+ * Specialize subclass mixing only Ngram models
+ */
+class NgramBayesMix: public BayesMix
+{
+public:
+    NgramBayesMix(Vocab &vocab,
+		    unsigned clength = 0, double llscale = 1.0)
+	: BayesMix(vocab, clength, llscale) {};
+    NgramBayesMix(Vocab &vocab, Ngram &lm1, Ngram &lm2,
+		    unsigned clength = 0, Prob prior = 0.5,
+		    double llscale = 1.0)
+	: BayesMix(vocab, lm1, lm2, clength, prior, llscale) {};
+    NgramBayesMix(Vocab &vocab, Array<Ngram *> &subLMs, Array<Prob> &priors,
+		    unsigned clength = 0, double llscale = 1.0)
+	: BayesMix(vocab, *(Array<LM *> *)&subLMs, priors, clength, llscale) {};
+
+    Ngram *subLM(unsigned i)
+	{ return (i < BayesMix::numLMs)? (Ngram *)BayesMix::subLMs[i] : 0; };
+
+    virtual Boolean read(File &file, Boolean limitVocab = false)
+	{ return BayesMix::readMixLMs(file, limitVocab, true); };
+};
 
 #endif /* _BayesMix_h_ */

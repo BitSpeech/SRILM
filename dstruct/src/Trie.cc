@@ -8,8 +8,8 @@
 #define _Trie_cc_
 
 #ifndef lint
-static char Trie_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.23 2012/10/18 20:55:19 mcintyre Exp $";
+static char Trie_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.28 2016-03-05 01:23:28 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -33,22 +33,22 @@ using namespace std;
 # include "SArray.cc"
 
 # define INSTANTIATE_TRIE(KeyT,DataT) \
-	typedef Trie<KeyT,DataT> TrieType; \
+	typedef Trie< KeyT,DataT > TrieType; \
 	INSTANTIATE_SARRAY(KeyT, TrieType ); \
-	template class Trie< KeyT,DataT>; \
-	template class TrieIter<KeyT,DataT>; \
-	template class TrieIter2<KeyT,DataT>
+	template class Trie< KeyT,DataT >; \
+	template class TrieIter< KeyT,DataT >; \
+	template class TrieIter2< KeyT,DataT >
 
 #else /* ! USE_SARRAY_TRIE */
 
 # include "LHash.cc"
 
 # define INSTANTIATE_TRIE(KeyT,DataT) \
-	typedef Trie<KeyT,DataT> TrieType; \
+	typedef Trie< KeyT,DataT > TrieType; \
 	INSTANTIATE_LHASH(KeyT, TrieType ); \
-	template class Trie< KeyT,DataT>; \
-	template class TrieIter<KeyT,DataT>; \
-	template class TrieIter2<KeyT,DataT>
+	template class Trie< KeyT,DataT >; \
+	template class TrieIter< KeyT,DataT >; \
+	template class TrieIter2< KeyT,DataT >
 
 #endif /* USE_SARRAY_TRIE */
    
@@ -147,6 +147,29 @@ Trie<KeyT,DataT>::findTrie(const KeyT *keys, Boolean &foundP) const
 
 template <class KeyT, class DataT>
 Trie<KeyT,DataT> *
+Trie<KeyT,DataT>::findPrefixTrie(const KeyT *keys, unsigned &depth) const
+{
+    if (keys == 0 || Map_noKeyP(keys[0])) {
+	depth = 0;
+	return (Trie<KeyT,DataT> *)this;	// discard const
+    } else {
+	Trie<KeyT,DataT> *subtrie = sub.find(keys[0]);
+
+	if (subtrie == 0) {
+	    depth = 0;
+	    return (Trie<KeyT,DataT> *)this;	// discard const
+	} else {
+	    unsigned subDepth;
+	    Trie<KeyT,DataT> *node = 
+	    	subtrie->findPrefixTrie(keys + 1, subDepth);
+	    depth = subDepth + 1;
+	    return node;
+	}
+    }
+}
+
+template <class KeyT, class DataT>
+Trie<KeyT,DataT> *
 Trie<KeyT,DataT>::insertTrie(const KeyT *keys, Boolean &foundP)
 {
     if (keys == 0 || Map_noKeyP(keys[0])) {
@@ -174,16 +197,23 @@ Trie<KeyT,DataT>::removeTrie(const KeyT *keys, Trie<KeyT,DataT> *removedData)
     if (keys == 0 || Map_noKeyP(keys[0])) {
 	return false;
     } else if (Map_noKeyP(keys[1])) {
-	if (sub.remove(keys[0], removedData)) {
-            if (removedData != 0) {
-                /*
-                 * XXX: Need to call deallocator explicitly
-                 */
-	        removedData->~Trie();
-            }
-	    return true;
+	if (removedData == 0) {
+	    Trie<KeyT,DataT> node;
+	    if (sub.remove(keys[0], &node)) {
+#if !defined(__GNUC__) || !(__GNUC__ >= 4 && __GNUC_MINOR__ >= 9 || __GNUC__ > 4) 
+		/*
+		 * XXX: Call subtrie destructor explicitly since we're not
+		 * passing the removed node to the caller.
+		 * !!! Triggers bug with gcc >= 4.9 optimization !!!
+		 */
+	        node.~Trie();
+#endif
+		return true;
+	    } else {
+		return false;
+	    }
 	} else {
-	    return false;
+	    return sub.remove(keys[0], removedData);
 	}
     } else {
         Boolean foundP;

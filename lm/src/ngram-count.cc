@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.70 2011/07/19 16:55:15 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.79 2015-10-13 07:08:49 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -35,6 +35,7 @@ using namespace std;
 #include "Discount.h"
 #include "NgramCountLM.h"
 #include "Array.cc"
+#include "MEModel.h"
 #include "BlockMalloc.h"
 
 const unsigned maxorder = 9;		/* this is only relevant to the 
@@ -56,7 +57,7 @@ static unsigned writeOrder = 0;		/* default is all ngram orders */
 static char *writeFile[maxorder+1];
 static char *writeBinaryFile;
 
-static unsigned gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2, 2, 2, 2};
+static double gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2, 2, 2, 2};
 static unsigned gtmax[maxorder+1] = {5, 1, 7, 7, 7, 7, 7, 7, 7, 7};
 
 static double cdiscount[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
@@ -81,6 +82,7 @@ static char *noneventFile = 0;
 static int limitVocab = 0;
 static char *writeVocab = 0;
 static char *writeVocabIndex = 0;
+static char *writeTextFile = 0;
 static int memuse = 0;
 static int recompute = 0;
 static int sortNgrams = 0;
@@ -103,6 +105,12 @@ static double minEMdelta = 0.001;
 
 static char *stopWordFile = 0;
 static char *metaTag = 0;
+
+static int useMaxentLM = 0;
+static double maxentAlpha = 0.5;
+static double maxentSigma2 = 0;
+static int maxentConvertToArpa = 0;
+
 
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
@@ -135,25 +143,25 @@ static Option options[] = {
 
     { OPT_STRING, "write-binary", &writeBinaryFile, "binary counts file to write" },
 
-    { OPT_UINT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
+    { OPT_FLOAT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
     { OPT_UINT, "gtmax", &gtmax[0], "upper GT discounting cutoff" },
-    { OPT_UINT, "gt1min", &gtmin[1], "lower 1gram discounting cutoff" },
+    { OPT_FLOAT, "gt1min", &gtmin[1], "lower 1gram discounting cutoff" },
     { OPT_UINT, "gt1max", &gtmax[1], "upper 1gram discounting cutoff" },
-    { OPT_UINT, "gt2min", &gtmin[2], "lower 2gram discounting cutoff" },
+    { OPT_FLOAT, "gt2min", &gtmin[2], "lower 2gram discounting cutoff" },
     { OPT_UINT, "gt2max", &gtmax[2], "upper 2gram discounting cutoff" },
-    { OPT_UINT, "gt3min", &gtmin[3], "lower 3gram discounting cutoff" },
+    { OPT_FLOAT, "gt3min", &gtmin[3], "lower 3gram discounting cutoff" },
     { OPT_UINT, "gt3max", &gtmax[3], "upper 3gram discounting cutoff" },
-    { OPT_UINT, "gt4min", &gtmin[4], "lower 4gram discounting cutoff" },
+    { OPT_FLOAT, "gt4min", &gtmin[4], "lower 4gram discounting cutoff" },
     { OPT_UINT, "gt4max", &gtmax[4], "upper 4gram discounting cutoff" },
-    { OPT_UINT, "gt5min", &gtmin[5], "lower 5gram discounting cutoff" },
+    { OPT_FLOAT, "gt5min", &gtmin[5], "lower 5gram discounting cutoff" },
     { OPT_UINT, "gt5max", &gtmax[5], "upper 5gram discounting cutoff" },
-    { OPT_UINT, "gt6min", &gtmin[6], "lower 6gram discounting cutoff" },
+    { OPT_FLOAT, "gt6min", &gtmin[6], "lower 6gram discounting cutoff" },
     { OPT_UINT, "gt6max", &gtmax[6], "upper 6gram discounting cutoff" },
-    { OPT_UINT, "gt7min", &gtmin[7], "lower 7gram discounting cutoff" },
+    { OPT_FLOAT, "gt7min", &gtmin[7], "lower 7gram discounting cutoff" },
     { OPT_UINT, "gt7max", &gtmax[7], "upper 7gram discounting cutoff" },
-    { OPT_UINT, "gt8min", &gtmin[8], "lower 8gram discounting cutoff" },
+    { OPT_FLOAT, "gt8min", &gtmin[8], "lower 8gram discounting cutoff" },
     { OPT_UINT, "gt8max", &gtmax[8], "upper 8gram discounting cutoff" },
-    { OPT_UINT, "gt9min", &gtmin[9], "lower 9gram discounting cutoff" },
+    { OPT_FLOAT, "gt9min", &gtmin[9], "lower 9gram discounting cutoff" },
     { OPT_UINT, "gt9max", &gtmax[9], "upper 9gram discounting cutoff" },
 
     { OPT_STRING, "gt", &gtFile[0], "Good-Turing discount parameter file" },
@@ -273,6 +281,11 @@ static Option options[] = {
     { OPT_FLOAT, "em-delta", &minEMdelta, "min log likelihood delta for EM" },
     { OPT_STRING, "stop-words", &stopWordFile, "stop-word vocabulary for stop-Ngram LM" },
 
+    { OPT_TRUE, "maxent", &useMaxentLM, "Estimate maximum entropy model" },
+    { OPT_FLOAT, "maxent-alpha", &maxentAlpha, "The L1 regularisation constant for max-ent estimation" },
+    { OPT_FLOAT, "maxent-sigma2", &maxentSigma2, "The L2 regularisation constant for max-ent estimation (default: 6 for estimation, 0.5 for adaptation)" },
+    { OPT_TRUE, "maxent-convert-to-arpa", &maxentConvertToArpa, "Save estimated max-ent model as a regular ARPA backoff model" },
+
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "trust-totals", &trustTotals, "trust lower-order counts for estimation" },
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
@@ -283,9 +296,22 @@ static Option options[] = {
     { OPT_TRUE, "limit-vocab", &limitVocab, "limit count reading to specified vocabulary" },
     { OPT_STRING, "write-vocab", &writeVocab, "write vocab to file" },
     { OPT_STRING, "write-vocab-index", &writeVocabIndex, "write vocab index map to file" },
+    { OPT_STRING, "write-text", &writeTextFile, "write input text to file (for validation)" },
     { OPT_TRUE, "memuse", &memuse, "show memory usage" },
-    { OPT_DOC, 0, 0, "the default action is to write counts to stdout" }
+
+    { OPT_DOC, 0, 0, "the default action is to write counts to stdout" },
 };
+
+static Boolean
+copyFile(File &in, File &out)
+{
+    char *line;
+
+    while ((line = in.getline())) {
+	out.fputs(line);
+    }
+    return !(in.error());
+}
 
 int
 main(int argc, char **argv)
@@ -421,20 +447,22 @@ main(int argc, char **argv)
     if (readFile) {
 	File file(readFile, "r");
 
+	unsigned countOrder = USE_STATS(getorder());
+
 	if (readWithMincounts) {
-	    makeArray(Count, minCounts, order);
+	    makeArray(Count, minCounts, countOrder);
 
 	    /* construct min-counts array from -gtNmin options */
 	    unsigned i;
-	    for (i = 0; i < order && i < maxorder; i ++) {
-		minCounts[i] = gtmin[i + 1];
+	    for (i = 0; i < countOrder && i < maxorder; i ++) {
+		minCounts[i] = (Count)gtmin[i + 1];
 	    }
-	    for ( ; i < order; i ++) {
-		minCounts[i] = gtmin[0];
+	    for ( ; i < countOrder; i ++) {
+		minCounts[i] = (Count)gtmin[0];
 	    }
-	    USE_STATS(readMinCounts(file, order, minCounts));
+	    USE_STATS(readMinCounts(file, countOrder, minCounts));
 	} else {
-	    USE_STATS(read(file, order, limitVocab));
+	    USE_STATS(read(file, countOrder, limitVocab));
 	}
     }
 
@@ -448,7 +476,12 @@ main(int argc, char **argv)
 
     if (textFile) {
 	File file(textFile, "r");
-	USE_STATS(countFile(file, textFileHasWeights));
+	if (writeTextFile) {
+	    File outFile(writeTextFile, "w");
+	    copyFile(file, outFile);
+	} else {
+	    USE_STATS(countFile(file, textFileHasWeights));
+	}
     }
 
     if (memuse) {
@@ -499,7 +532,7 @@ main(int argc, char **argv)
      * - the user wants them written to a file
      * - we also want to estimate a LM later
      */
-    for (i = 1; !useCountLM && i <= order; i++) {
+    for (i = 1; !useCountLM && !useMaxentLM && i <= order; i++) {
 	/*
 	 * Detect inconsistent options for this order
 	 */
@@ -565,15 +598,15 @@ main(int argc, char **argv)
 	    assert(discount);
 	} else if (ukndiscount[useorder]) {
 	    if (debug) cerr << "using KneserNey for " << i << "-grams";
-	    discount = new KneserNey(gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
+	    discount = new KneserNey((unsigned)gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
 	    assert(discount);
 	} else if (knFile[useorder] || kndiscount[useorder]) {
 	    if (debug) cerr << "using ModKneserNey for " << i << "-grams";
-	    discount = new ModKneserNey(gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
+	    discount = new ModKneserNey((unsigned)gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
 	    assert(discount);
 	} else if (gtFile[useorder] || (i <= order && lmFile)) {
 	    if (debug) cerr << "using GoodTuring for " << i << "-grams";
-	    discount = new GoodTuring(gtmin[useorder], gtmax[useorder]);
+	    discount = new GoodTuring((unsigned)gtmin[useorder], gtmax[useorder]);
 	    assert(discount);
 	}
 	if (debug && discount != 0) cerr << endl;
@@ -699,6 +732,62 @@ main(int argc, char **argv)
 
 	// XXX: don't free the lm since this itself may take a long time
 	// and we're going to exit anyways.
+#ifdef DEBUG
+	delete lm;
+#endif
+    } else if (useMaxentLM && lmFile) {
+    	/*
+    	 * MaxEnt model estimation
+	 * -init-lm serves as model prior
+    	 */
+    	MEModel *lm = new MEModel(*vocab, order);
+    	lm->debugme(debug);
+    	if (initLMFile) {
+	    File file(initLMFile, "r");
+
+    	    if (!lm->read(file)) {
+		cerr << "format error in maxent prior (-init-lm) file\n";
+		exit(1);
+    	    }
+
+    	    // Use default value 0.5 for L2 smoothing
+    	    (useFloatCounts ? lm->adapt(*floatStats, maxentAlpha, maxentSigma2 == 0.0 ? 0.5 : maxentSigma2) :
+    	    		lm->adapt(*intStats, maxentAlpha, maxentSigma2 == 0.0 ? 0.5 : maxentSigma2));
+    	} else {
+	    // Use default value 6.0 for L2 smoothing
+	    if (!(useFloatCounts ? lm->estimate(*floatStats, maxentAlpha, maxentSigma2 == 0.0 ? 6.0 : maxentSigma2) :
+				   lm->estimate(*intStats, maxentAlpha, maxentSigma2 == 0.0 ? 6.0 : maxentSigma2)))
+	    {
+		cerr << "Maxent LM estimation failed\n";
+		exit(1);
+	    }
+    	}
+	if (maxentConvertToArpa) {
+	    Ngram *ngram = lm->getNgramLM();
+	    ngram->debugme(debug);
+
+	    /*
+	     * Remove redundant probs (perplexity increase below threshold)
+	     */
+	    if (prune != 0.0) {
+		ngram->pruneProbs(prune, minprune);
+	    }
+
+	    if (writeBinaryLM) {
+		File file(lmFile, "wb");
+		ngram->writeBinary(file);
+	    } else {
+		File file(lmFile, "w");
+		ngram->write(file);
+	    }
+#ifdef DEBUG
+	    delete ngram;
+#endif
+	} else {
+	    File file(lmFile, "w");
+	    lm->write(file);
+	}
+	written = true;
 #ifdef DEBUG
 	delete lm;
 #endif

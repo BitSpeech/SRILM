@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char LM_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.92 2012/12/04 20:58:45 frandsen Exp $";
+static char LM_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
+static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.103 2016/06/19 04:36:59 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -14,8 +14,10 @@ static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.92
 #include <math.h>
 #include <ctype.h>
 #include <assert.h>
+#include <string>
 #include "TLSWrapper.h"
 #include "tserror.h"
+#include "MStringTokUtil.h"
 
 #if !defined(_MSC_VER) && !defined(WIN32)
 #include <unistd.h>
@@ -306,10 +308,10 @@ LM::prepareSentence(const VocabIndex *sentence, VocabIndex *reversed,
     /*
      * Add </s> token if not already there.
      */
-    if (len == 0 || sentence[reverseWords ? 0 : len - 1] != vocab.seIndex()) {
-        if (addSentEnd) {
-	    reversed[j++] = vocab.seIndex();
-	}
+    if (addSentEnd && vocab.seIndex() != Vocab_None &&
+        (len == 0 || sentence[reverseWords ? 0 : len - 1] != vocab.seIndex()))
+    {
+	reversed[j++] = vocab.seIndex();
     }
 
     for (i = 1; i <= len; i++) {
@@ -372,6 +374,15 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     unsigned int i;
 
     /*
+     * output log probs with maximal precision
+     */
+    unsigned oldprec;
+    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+	oldprec = dout().precision();
+	dout().precision(LogP_Precision);
+    }
+
+    /*
      * Indicate to lm methods that we're in sequential processing
      * mode.
      */
@@ -412,7 +423,7 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     for (i = len; (int)i >= 0; i--) {
-	LogP probSum;
+	Prob probSum = 0.0;
 
 	if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	    dout() << "\tp( " << vocab.getWord(reversed[i]) << " | "
@@ -463,7 +474,7 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	 * If the probability returned is zero but the
 	 * word in question is <unk> we assume this is closed-vocab
 	 * model and count it as an OOV.  (This allows open-vocab
-	 * models to return regular probabilties for <unk>.)
+	 * models to return regular probabilities for <unk>.)
 	 * If this happens and the word is not <unk> then we are
 	 * dealing with a broken language model that return
 	 * zero probabilities for known words, and we count them
@@ -489,6 +500,10 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     running(wasRunning);
+
+    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+	dout().precision(oldprec);
+    }
 
     /*
      * Update stats with this sentence
@@ -581,6 +596,15 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
     makeArray(VocabIndex, ngram, countorder + 1);
 
     LogP totalProb = 0.0;
+
+    /*
+     * output log probs with maximal precision
+     */
+    unsigned oldprec;
+    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+	oldprec = dout().precision();
+	dout().precision(LogP_Precision);
+    }
 
     /*
      * Indicate to lm methods that we're in sequential processing
@@ -685,7 +709,7 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
 	     * If the probability returned is zero but the
 	     * word in question is <unk> we assume this is closed-vocab
 	     * model and count it as an OOV.  (This allows open-vocab
-	     * models to return regular probabilties for <unk>.)
+	     * models to return regular probabilities for <unk>.)
 	     * If this happens and the word is not <unk> then we are
 	     * dealing with a broken language model that return
 	     * zero probabilities for known words, and we count them
@@ -717,6 +741,10 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
     }
 
     running(wasRunning);
+
+    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+	dout().precision(oldprec);
+    }
 
     /* 
      * If computing entropy set total number of events to 1 so that 
@@ -899,9 +927,12 @@ LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
  *	constructing rescoring filters that feed hypothesis strings to
  *	pplFile(), but also need to pass other information to downstream
  *	processing.
+ *	If weighted is true, the input sentences are assumed to be preceded
+ *	by weights that act as multipliers on the log likelihoods.
  */
 unsigned int
-LM::pplFile(File &file, TextStats &stats, const char *escapeString)
+LM::pplFile(File &file, TextStats &stats,
+		const char *escapeString, Boolean weighted)
 {
     char *line;
     unsigned escapeLen = escapeString ? strlen(escapeString) : 0;
@@ -945,20 +976,43 @@ LM::pplFile(File &file, TextStats &stats, const char *escapeString)
 	    file.position() << "too many words per sentence\n";
 	} else {
 	    TextStats sentenceStats;
+	    FloatCount weight;
+	    VocabString *sentenceStart;
+
+	    if (weighted) {
+		/*
+		 * Parse the weight string as a float count
+		 */
+		if (!stringToCount(sentence[0], weight)) {
+		    file.position() << "bad sentence weight " << sentence[0] << endl;
+		    continue;
+		}
+		sentenceStart = &sentence[1];
+	    } else {
+		weight = 1.0;
+		sentenceStart = sentence;
+	    } 
+	
 
 	    if (debug(DEBUG_PRINT_SENT_PROBS)) {
-		dout() << sentence << endl;
+		if (weighted) {
+		   dout() << weight << "* ";
+		}
+		dout() << sentenceStart << endl;
 	    }
-	    LogP prob = sentenceProb(sentence, sentenceStats);
+	    LogP prob = sentenceProb(sentenceStart, sentenceStats);
 
 	    totalWords += numWords;
 
 	    if (debug(DEBUG_PRINT_SENT_PROBS)) {
-		dout() << sentenceStats << endl;
+		TextStats weightedStats;
+		weightedStats.increment(sentenceStats, weight);
+
+		dout() << weightedStats << endl;
 	    }
 
-	    stats.increment(sentenceStats);
-	    documentStats.increment(sentenceStats);
+	    stats.increment(sentenceStats, weight);
+	    documentStats.increment(sentenceStats, weight);
 	}
     }
 
@@ -1016,7 +1070,8 @@ LM::rescoreFile(File &file, double lmScale, double wtScale,
 	     * keep all three scores: acoustic, LM, word transition penalty.
 	     * Also, write this in straight log probs, not bytelog.
 	     */
-	    fprintf(stdout, "%g %g %lu", hyp.acousticScore, hyp.languageScore,
+	    fprintf(stdout, "%.*lg %.*lg %lu", LogP2_Precision, (double)hyp.acousticScore,
+						LogP2_Precision, (double)hyp.languageScore,
 						(unsigned long)hyp.numWords);
 	    for (unsigned i = 0; hyp.words[i] != Vocab_None; i++) {
 		fprintf(stdout, " %s", vocab.getWord(hyp.words[i]));
@@ -1093,6 +1148,7 @@ LM::probServer(unsigned port, unsigned maxClients)
 	int client = accept(sockfd, (struct sockaddr *)&theirAddr, &sin_size);
 	if (client == SOCKET_ERROR) {
 	    cerr << "could not accept connection: " << SOCKET_ERROR_STRING << endl;
+	    closesocket(sockfd);
 	    return 0;
 	}
 
@@ -1115,6 +1171,8 @@ LM::probServer(unsigned port, unsigned maxClients)
 
 	if (serverPID < 0) {
 	    cerr << "fork failed: " << srilm_ts_strerror(errno) << endl;
+	    closesocket(client);
+	    closesocket(sockfd);
 	    return 0;
 	} else if (serverPID > 0) {
 	    /*
@@ -1148,119 +1206,139 @@ LM::probServer(unsigned port, unsigned maxClients)
 		exit(-1);
 	    }
 
-	    char line[REMOTELM_MAXREQUESTLEN + 1];
+	    char msgBuffer[REMOTELM_MAXREQUESTLEN + 1];
 	    int msgLen;
 	    unsigned protocolVersion = 1;
 
-	    while ((msgLen = recv(client, line, sizeof(line)-1, 0)) != SOCKET_ERROR) {
+	    while ((msgLen = recv(client, msgBuffer, sizeof(msgBuffer)-1, 0)) != SOCKET_ERROR) {
 		if (msgLen == 0) break;
 
-		line[msgLen] = '\0';
+		msgBuffer[msgLen] = '\0';
+		string response = "";
 
-		if (debug(DEBUG_PRINT_WORD_PROBS)) {
-		    dout() << "client " << clientPort << "@" << clientName 
-			   << ": " << line;
+		char *strtok_ptr = NULL;
+		char *line;
+		
+		/*
+		 * Break message into commands, one per line
+		 */
+		for (line = MStringTokUtil::strtok_r(msgBuffer, "\n", &strtok_ptr);
+		     line != 0;
+		     line = MStringTokUtil::strtok_r(0, "\n", &strtok_ptr))
+		{
+		    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+			dout() << "client " << clientPort << "@" << clientName 
+			       << ": " << line << endl;
+		    }
+
+		    VocabString words[maxWordsPerLine + 2];
+
+		    unsigned len =
+				vocab.parseWords(line, words, maxWordsPerLine + 2);
+
+		    if (len > 0) {
+			char outbuf[REMOTELM_MAXRESULTLEN];
+
+			if (debug(DEBUG_PRINT_WORD_PROBS)) {
+			    dout() << "client " << clientPort << "@" << clientName
+				   << ": ";
+			}
+
+			/*
+			 * Decode Remote LM command
+			 */
+			if (strcmp(words[0], REMOTELM_VERSION2) == 0) {
+			    protocolVersion = 2;
+
+			    sprintf(outbuf, "%s\n", REMOTELM_OK);
+			} else if (protocolVersion == 1 ||
+				   strcmp(words[0], REMOTELM_WORDPROB) == 0)
+			{
+			    /*
+			     * Handle old or new protocol wordProb call
+			     */
+			    VocabString last = words[len-1];
+			    words[len-1] = 0;
+
+			    // reverse N-gram prefix to obtain context
+			    Vocab::reverse(protocolVersion > 1 ? words + 1 : words);
+
+			    LogP prob = wordProb(last, protocolVersion > 1 ?
+								words + 1 : words);
+
+			    if (protocolVersion == 1) {
+				sprintf(outbuf, "%.*g\n", LogP_Precision, prob);
+			    } else {
+				sprintf(outbuf, "%s %.*g\n", REMOTELM_OK,
+							     LogP_Precision, prob);
+			    }
+			    numProcessed += 1;
+			} else if (strcmp(words[0], REMOTELM_CONTEXTID1) == 0) {
+			    VocabIndex wids[maxWordsPerLine + 1];
+
+			    vocab.getIndices(words + 1, wids, maxWordsPerLine,
+								vocab.unkIndex());
+
+			    // reverse N-gram prefix to obtain context
+			    Vocab::reverse(wids);
+
+			    unsigned clen;
+			    void *cid = contextID(wids, clen);
+
+			    sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
+						(long long unsigned)(size_t)cid, clen);
+			} else if (strcmp(words[0], REMOTELM_CONTEXTID2) == 0) {
+			    VocabIndex wids[maxWordsPerLine + 1];
+
+			    vocab.getIndices(words + 1, wids, maxWordsPerLine,
+								vocab.unkIndex());
+			    VocabIndex last = wids[len - 1];
+			    wids[len - 1] = Vocab_None;
+
+			    // reverse N-gram prefix to obtain context
+			    Vocab::reverse(wids);
+
+			    unsigned clen;
+			    void *cid = contextID(last, wids, clen);
+
+			    sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
+						(long long unsigned)(size_t)cid, clen);
+			} else if (strcmp(words[0], REMOTELM_CONTEXTBOW) == 0) {
+			    unsigned clen;
+			    sscanf(words[len - 1], "%u", &clen);
+			    words[len - 1] = 0;
+
+			    VocabIndex wids[maxWordsPerLine + 1];
+			    vocab.getIndices(words + 1, wids, maxWordsPerLine,
+								vocab.unkIndex());
+
+			    // reverse N-gram prefix to obtain context
+			    Vocab::reverse(wids);
+
+			    LogP bow = contextBOW(wids, clen);
+
+			    sprintf(outbuf, "%s %.*g\n", REMOTELM_OK,
+							 LogP_Precision, bow);
+			} else {
+			    sprintf(outbuf, "%s command unknown\n", REMOTELM_ERROR);
+			}
+
+			/*
+			 * Concatenate responses for all commands in the message
+			 */
+			response += outbuf;
+		    }
+
 		}
 
-		VocabString words[maxWordsPerLine + 2];
+		if (send(client, response.c_str(), response.length(), 0) == SOCKET_ERROR) {
+		    cerr << "client " << clientPort << "@" << clientName
+			 << ": send: " << SOCKET_ERROR_STRING << endl;
+		    exit(-1);
+		}
 
-		unsigned len =
-			    vocab.parseWords(line, words, maxWordsPerLine + 2);
-
-		if (len > 0) {
-		    char outbuf[REMOTELM_MAXRESULTLEN];
-
-		    if (debug(DEBUG_PRINT_WORD_PROBS)) {
-			dout() << "client " << clientPort << "@" << clientName
-			       << ": ";
-		    }
-
-		    /*
-		     * Decode Remote LM command
-		     */
-		    if (strcmp(words[0], REMOTELM_VERSION2) == 0) {
-			protocolVersion = 2;
-
-			sprintf(outbuf, "%s\n", REMOTELM_OK);
-		    } else if (protocolVersion == 1 ||
-			       strcmp(words[0], REMOTELM_WORDPROB) == 0)
-		    {
-			/*
-			 * Handle old or new protocol wordProb call
-			 */
-			VocabString last = words[len-1];
-			words[len-1] = 0;
-
-			// reverse N-gram prefix to obtain context
-			Vocab::reverse(protocolVersion > 1 ? words + 1 : words);
-
-			LogP prob = wordProb(last, protocolVersion > 1 ?
-							    words + 1 : words);
-
-			if (protocolVersion == 1) {
-			    sprintf(outbuf, "%g\n", prob);
-			} else {
-			    sprintf(outbuf, "%s %g\n", REMOTELM_OK, prob);
-			}
-			numProcessed += 1;
-		    } else if (strcmp(words[0], REMOTELM_CONTEXTID1) == 0) {
-			VocabIndex wids[maxWordsPerLine + 1];
-
-			vocab.getIndices(words + 1, wids, maxWordsPerLine,
-							    vocab.unkIndex());
-
-			// reverse N-gram prefix to obtain context
-			Vocab::reverse(wids);
-
-			unsigned clen;
-			void *cid = contextID(wids, clen);
-
-			sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
-					    (long long unsigned)(size_t)cid, clen);
-		    } else if (strcmp(words[0], REMOTELM_CONTEXTID2) == 0) {
-			VocabIndex wids[maxWordsPerLine + 1];
-
-			vocab.getIndices(words + 1, wids, maxWordsPerLine,
-							    vocab.unkIndex());
-			VocabIndex last = wids[len - 1];
-			wids[len - 1] = Vocab_None;
-
-			// reverse N-gram prefix to obtain context
-			Vocab::reverse(wids);
-
-			unsigned clen;
-			void *cid = contextID(last, wids, clen);
-
-			sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
-					    (long long unsigned)(size_t)cid, clen);
-		    } else if (strcmp(words[0], REMOTELM_CONTEXTBOW) == 0) {
-			unsigned clen;
-			sscanf(words[len - 1], "%u", &clen);
-			words[len - 1] = 0;
-
-			VocabIndex wids[maxWordsPerLine + 1];
-			vocab.getIndices(words + 1, wids, maxWordsPerLine,
-							    vocab.unkIndex());
-
-			// reverse N-gram prefix to obtain context
-			Vocab::reverse(wids);
-
-			LogP bow = contextBOW(wids, clen);
-
-			sprintf(outbuf, "%s %g\n", REMOTELM_OK, bow);
-		    } else {
-			sprintf(outbuf, "%s command unknown\n", REMOTELM_ERROR);
-		    }
-
-		    if (send(client, outbuf, strlen(outbuf), 0) == SOCKET_ERROR) {
-			cerr << "client " << clientPort << "@" << clientName
-			     << ": send: " << SOCKET_ERROR_STRING << endl;
-			exit(-1);
-		    }
-
-		    if (debug(DEBUG_PRINT_WORD_PROBS)) {
-			dout() << outbuf;
-		    }
+		if (debug(DEBUG_PRINT_WORD_PROBS)) {
+		    dout() << response;
 		}
 	    }
 
@@ -1302,19 +1380,43 @@ LM::generateWord(const VocabIndex *context)
     /*
      * Algorithm: generate random number between 0 and 1, and partition
      * the interval 0..1 into pieces corresponding to the word probs.
-     * Chose the word whose interval contains the random value.
+     * Choose the word whose interval contains the random value.
      */
-    Prob rval = drand48();
-    Prob totalProb = 0.0;
+    VocabIndex wid = Vocab_None;
+    unsigned numtries = 0;
+    const unsigned generateMaxTries = 10;
 
-    VocabIter iter(vocab);
-    VocabIndex wid;
+    while (wid == Vocab_None && numtries < generateMaxTries) {
+	Prob rval = drand48();
+	Prob prob = 0, totalProb = 0;
+	VocabIter iter(vocab);
+	Boolean first = true;
 
-    while (totalProb <= rval && iter.next(wid)) {
-	if (!isNonWord(wid)) {
-	    totalProb += LogPtoProb(wordProb(wid, context));
+	while (totalProb <= rval && iter.next(wid)) {
+	    prob = LogPtoProb(first ? wordProb(wid, context) :
+	                              wordProbRecompute(wid, context));
+	    totalProb += prob;
+	    first = false;
+	}
+
+	/*
+	 * We've drawn a word that shouldn't have any probability mass.
+	 * Issue warning and try again.
+	 */
+	if (isNonWord(wid)) {
+	    if (prob > 0.0 && debug(DEBUG_PRINT_WORD_PROBS)) {
+		dout() << "nonword " << vocab.getWord(wid)
+		       << " has nonzero probability " << prob << endl;
+	    }
+	    wid = Vocab_None;
 	}
     }
+
+    if (wid == Vocab_None) {
+	dout() << "giving up word generation after " << generateMaxTries << endl;
+	wid = vocab.seIndex();
+    }
+
     return wid;
 }
 

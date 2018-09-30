@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char NgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.67 2012/12/04 20:58:45 frandsen Exp $";
+static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.72 2014-08-29 21:35:48 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -34,12 +34,6 @@ const char *NgramStats_BinaryFormatString = "SRILM_BINARY_COUNTS_001\n";
 #include "LHash.cc"
 #include "Array.cc"
 #include "SArray.h"	// for SArray_compareKey()
-#include "zio.h"
-
-#if defined(sgi) || defined(_MSC_VER) || defined(WIN32) || defined(linux) && defined(__INTEL_COMPILER) && __INTEL_COMPILER<=700
-#define fseeko fseek
-#define ftello ftell
-#endif
 
 #define INSTANTIATE_NGRAMCOUNTS(CountT) \
 	INSTANTIATE_TRIE(VocabIndex,CountT); \
@@ -330,9 +324,9 @@ template <class CountT>
 Boolean
 NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
 {
-    char *firstLine = file.getline();
+    char *line = file.getline();
 
-    if (!firstLine || strcmp(firstLine, NgramStats_BinaryFormatString) != 0) {
+    if (!line || strcmp(line, NgramStats_BinaryFormatString) != 0) {
 	file.position() << "bad binary format\n";
 	return false;
     }
@@ -340,8 +334,9 @@ NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
     /*
      * Maximal count order
      */
+    line = file.getline();
     unsigned maxOrder;
-    if (fscanf(file, "maxorder %u", &maxOrder) != 1) {
+    if (sscanf(line, "maxorder %u", &maxOrder) != 1) {
     	file.position() << "could not read ngram order\n";
 	return false;
     }
@@ -355,7 +350,7 @@ NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
 	return false;
     }
 
-    long long offset = ftello(file);
+    long long offset = file.ftell();
 
     // detect if file is not seekable
     if (offset < 0) {
@@ -384,10 +379,10 @@ NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
 template <class CountT>
 Boolean
 NgramCounts<CountT>::readBinaryNode(NgramNode &node,
-					unsigned order, unsigned maxOrder,
-					File &file, long long &offset,
-					Boolean limitVocab,
-					Array<VocabIndex> &vocabMap)
+				    unsigned order, unsigned maxOrder,
+				    File &file, long long &offset,
+				    Boolean limitVocab,
+				    Array<VocabIndex> &vocabMap)
 {
     if (maxOrder == 0) {
     	return true;
@@ -405,7 +400,7 @@ NgramCounts<CountT>::readBinaryNode(NgramNode &node,
 
 
 	if (order == 0) {
-	    if (fseeko(file, endOffset, SEEK_SET) < 0) {
+	    if (file.fseek(endOffset, SEEK_SET) < 0) {
 		file.offset() << srilm_ts_strerror(errno) << endl;
 		return false;
 	    }
@@ -579,7 +574,8 @@ NgramCounts<CountT>::readGoogle(const char *dir, unsigned order,
 	 */
 
 	for (unsigned k = 0; k < numEntries; k ++) {
-	    sprintf(filename, "%s/%dgms/%s", dir, i, indexEntries[k][1]);
+	    // @kw false positive: SV.FORMAT_STR.PRINT_FORMAT_MISMATCH.BAD
+	    sprintf(filename, "%s/%ugms/%s", dir, i, indexEntries[k][1]);
 
 	    File countFile(filename, "r", 0);
 	    if (countFile.error()) {
@@ -624,7 +620,7 @@ NgramCounts<CountT>::readGoogle(const char *dir, unsigned order,
 template <class CountT>
 void
 NgramCounts<CountT>::addCounts(const VocabIndex *prefix,
-				const LHash<VocabIndex, CountT> &set)
+			       const LHash<VocabIndex, CountT> &set)
 {
     NgramNode *node = intersect ?
 			counts.findTrie(prefix) :
@@ -648,7 +644,7 @@ NgramCounts<CountT>::addCounts(const VocabIndex *prefix,
 template <class CountT>
 Boolean
 NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
-					Count *minCounts, Boolean limitVocab)
+				   Count *minCounts, Boolean limitVocab)
 {
     /*
      * Check for binary format
@@ -799,18 +795,18 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 template <class CountT>
 unsigned int
 NgramCounts<CountT>::writeNgram(File &file,
-		       const VocabString *words,
-		       CountT count)
+				const VocabString *words,
+				CountT count)
 {
-    unsigned int i;
+    unsigned i = 0;
 
     if (words[0]) {
-	fprintf(file, "%s", words[0]);
+	file.fprintf("%s", words[0]);
 	for (i = 1; words[i]; i++) {
-	    fprintf(file, " %s", words[i]);
+	    file.fprintf(" %s", words[i]);
 	}
     }
-    fprintf(file, "\t%s\n", countToString(count));
+    file.fprintf("\t%s\n", countToString(count));
 
     return i;
 }
@@ -866,7 +862,7 @@ NgramCounts<CountT>::writeNode(
 	 * Otherwise set up another level of recursion.
 	 */
 	if (order == 0 || level == order) {
-	   fprintf(file, "%s\t%s\n", buffer, countToString(child->value()));
+	   file.fprintf("%s\t%s\n", buffer, countToString(child->value()));
 	} 
 	
 	if (order == 0 || level < order) {
@@ -892,19 +888,19 @@ NgramCounts<CountT>::writeBinary(File &file, unsigned int order)
     /*
      * Magic string
      */
-    fprintf(file, "%s", NgramStats_BinaryFormatString);
+    file.fprintf("%s", NgramStats_BinaryFormatString);
 
     /*
      * Maximal count order
      */
-    fprintf(file, "maxorder %u\n", order > 0 ? order : this->order);
+    file.fprintf("maxorder %u\n", order > 0 ? order : this->order);
 
     /*
      * Vocabulary index
      */
     vocab.writeIndexMap(file);
 
-    long long offset = ftello(file);
+    long long offset = file.ftell();
 
     // detect if file is not seekable
     if (offset < 0) {
@@ -978,7 +974,7 @@ retry:
 
 	long long endOffset = offset;
 
-	if (fseeko(file, startOffset, SEEK_SET) < 0) {
+	if (file.fseek(startOffset, SEEK_SET) < 0) {
 	    file.offset() << srilm_ts_strerror(errno) << endl;
 	    return false;
 	}
@@ -998,7 +994,7 @@ retry:
 
 	    offsetBytes = nbytes;
 
-	    if (fseeko(file, startOffset, SEEK_SET) < 0) {
+	    if (file.fseek(startOffset, SEEK_SET) < 0) {
 		file.offset() << srilm_ts_strerror(errno) << endl;
 		return false;
 	    }
@@ -1007,7 +1003,7 @@ retry:
 	    goto retry;
 	}
 
-	if (fseeko(file, endOffset, SEEK_SET) < 0) {
+	if (file.fseek(endOffset, SEEK_SET) < 0) {
 	    file.offset() << srilm_ts_strerror(errno) << endl;
 	    return false;
 	}

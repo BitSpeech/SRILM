@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Header: /home/srilm/CVS/srilm/misc/src/option.c,v 1.16 2011/09/22 01:15:42 stolcke Exp $ SPRITE (Berkeley)";
+static char rcsid[] = "$Header: /home/srilm/CVS/srilm/misc/src/option.c,v 1.17 2013/04/09 06:07:02 stolcke Exp $ SPRITE (Berkeley)";
 #endif
 
 #include <option.h>
@@ -75,6 +75,7 @@ Opt_Parse(
     int 	  	stop=0;	    /* Set non-zero to stop processing
 				     * arguments when an OPT_REST flag is
 				     * encountered */
+    int			error=0;    /* A bad option was found */
     int			length;	    /* Number of characters in current
 				     * option. */
 
@@ -134,9 +135,14 @@ Opt_Parse(
 		     * No match.  Print error message and skip option.
 		     */
 
-		    fprintf(stderr, "Unknown option \"-%s\";", curOpt);
-		    fprintf(stderr, "  type \"%s -help\" for information\n",
-			    argv[0]);
+		    if (flags & OPT_UNKNOWN_IS_ERROR) {
+			error = 1;
+			stop = 1;
+		    } else {
+			fprintf(stderr, "Unknown option \"-%s\";", curOpt);
+			fprintf(stderr, "  type \"%s -help\" for information\n",
+				argv[0]);
+		    }
 		    break;
 		}
 
@@ -286,7 +292,11 @@ Opt_Parse(
 	argc -= 1;
     }
     argv[argIndex] = (char *)NULL;
-    return argIndex;
+    if ((flags & OPT_UNKNOWN_IS_ERROR) && error) {
+	return -1;
+    } else {
+	return argIndex;
+    }
 }
 
 
@@ -333,7 +343,10 @@ Opt_PrintUsage(
 	}
     }
 
-    fprintf(stderr, "Usage of command \"%s\"\n", commandName);
+    if (commandName != NULL) {
+	fprintf(stderr, "Usage of command \"%s\"\n", commandName);
+    }
+
     for (i=0; i<numOptions; i++) {
 	if (optionArray[i].type != OPT_DOC) {
 	    fprintf(stderr, " -%s%-*s %s\n", optionArray[i].key,
@@ -370,7 +383,9 @@ Opt_PrintUsage(
 	    fprintf(stderr, " %s\n", optionArray[i].docMsg);
 	}
     }
-    fprintf(stderr, " -help%-*s Print this message\n", width-3, ":");
+    if (commandName != NULL) {
+	fprintf(stderr, " -help%-*s Print this message\n", width-3, ":");
+    }
 }
 
 

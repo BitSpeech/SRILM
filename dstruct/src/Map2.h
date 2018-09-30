@@ -18,9 +18,14 @@
  *	entry if necessary (indicated by foundP == false).
  *	New data items are zero-initialized.
  *
- * DataT *remove(Key1T key1 Key2T, Boolean &foundP)
+ * Boolean remove(Key1T key1, Key2T key2, DataT *removedData = 0)
  *	Deletes the entry associated with (key1, key2) from the Map, returning
- *	a pointer to the previously stored value, if any.
+ *	true iff the entry was found.  If removedData != 0 the removed value is
+ *	returned at *removedData.
+ *
+ * Boolean remove(Key1T key1)
+ *	Deletes all entries with the first key key1, returning true iff any
+ *	entries were deleted.
  *
  * void clear()
  *	Delete all entries.
@@ -57,7 +62,7 @@
  *
  * Copyright (c) 1999,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.h,v 1.8 2012/10/11 20:23:52 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.h,v 1.9 2014-05-25 20:01:43 stolcke Exp $
  *
  */
 

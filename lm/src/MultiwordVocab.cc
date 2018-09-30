@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2001-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.cc,v 1.8 2012/10/11 19:04:22 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.cc,v 1.9 2014-04-22 09:38:16 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -93,6 +93,7 @@ MultiwordVocab::addWord(VocabString name)
 	    numWords ++;
 	} while ((cp = MStringTokUtil::strtok_r((char *)0, multiChar, &strtok_ptr)));
 
+	assert(numWords <= maxWordsPerLine);
 	widString[numWords] = Vocab_None;
 
 	VocabIndex *wids = new VocabIndex[numWords + 1];

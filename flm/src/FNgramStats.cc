@@ -12,7 +12,7 @@
 
 #ifndef lint
 static char FNgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.21 2012/10/29 17:24:59 mcintyre Exp $";
+static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.22 2013-03-19 06:41:44 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -577,14 +577,14 @@ FNgramCounts<CountT>::writeFNgram(File &file,
 {
     unsigned int i;
     if (words[0]) {
-      fprintf(file,"0x%X\t",parSpec);
-      fprintf(file, "%s", words[0]);
+      file.fprintf("0x%X\t",parSpec);
+      file.fprintf("%s", words[0]);
       for (i = 1; words[i]; i++) {
-	fprintf(file, " %s", words[i]);
+	file.fprintf(" %s", words[i]);
       }
     }
     // why could we have a count w/o any words?
-    fprintf(file, "\t%s\n", countToString(count));
+    file.fprintf("\t%s\n", countToString(count));
 
     return i;
 }
@@ -641,7 +641,7 @@ FNgramCounts<CountT>::writeNode(
 	 * Otherwise set up another level of recursion.
 	 */
 	if (order == 0 || level == order) {
-	   fprintf(file, "0x%X\t%s\t%s\n",parSpec,buffer, countToString(child->value()));
+	   file.fprintf("0x%X\t%s\t%s\n",parSpec,buffer, countToString(child->value()));
 	} 
 	
 	if (order == 0 || level < order) {

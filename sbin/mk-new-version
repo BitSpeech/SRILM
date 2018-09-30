@@ -20,7 +20,7 @@ fi
 
 mkdir $newversion
 
-excludefile=/tmp/exclude$$
+excludefile=${TMPDIR-/tmp}/exclude$$
 (cd $oldversion
 find . -type d \( -name mips\* -o -name sparc\* -o -name alpha\* \) -print \
 		> $excludefile

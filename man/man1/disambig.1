@@ -1,5 +1,5 @@
-.\" $Id: disambig.1,v 1.31 2007/12/20 19:13:52 stolcke Exp $
-.TH disambig 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
+.\" $Id: disambig.1,v 1.32 2013/03/09 04:13:59 stolcke Exp $
+.TH disambig 1 "$Date: 2013/03/09 04:13:59 $" "SRILM Tools"
 .SH NAME
 disambig \- disambiguate text tokens using an N-gram model
 .SH SYNOPSIS
@@ -232,11 +232,36 @@ and
 through
 .BR \-mix-lambda9 .
 .TP
+.BI \-context-priors " file"
+Read context-dependent mixture weight priors from
+.IR file .
+Each line in 
+.I file 
+should contain a context N-gram (most recent word first) followed by a vector 
+of mixture weights whose length matches the number of LMs being interpolated.
+.TP
 .BI \-bayes " length"
-Set the context length used for Bayesian interpolation.
-The default value is 0, giving the standard fixed interpolation weight
-specified by
-.BR \-lambda .
+Interpolate models using posterior probabilities
+based on the likelihoods of local N-gram contexts of length
+.IR length .
+The 
+.B \-lambda 
+values are used as prior mixture weights in this case.
+This option can also be combined with
+.BR \-context-priors ,
+in which case the 
+.I length
+parameter also controls how many words of context are maximally used to look up
+mixture weights.
+If 
+.BR \-context-priors
+is used without 
+.BR \-bayes ,
+the context length used is set by the
+.B \-order 
+option and Bayesian interpolation is disabled, as when
+.I scale
+(see next) is zero.
 .TP
 .BI \-bayes-scale " scale"
 Set the exponential scale factor on the context likelihood in conjunction

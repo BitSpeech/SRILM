@@ -5,12 +5,14 @@
  *
  * Copyright (c) 1998-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.h,v 1.25 2012/11/04 06:03:36 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.h,v 1.29 2014-10-15 21:09:21 bartels Exp $
  *
  */
 
 #ifndef _WordMesh_h_
 #define _WordMesh_h_
+
+#include <vector>
 
 #include "MultiAlign.h"
 #include "VocabDistance.h"
@@ -48,6 +50,9 @@ public:
     void alignAlignment(MultiAlign &alignment, Prob score,
 							Prob *alignScores = 0);
 
+    // only obtain slot-slot alignment (structure of WCN is unchanged)
+    void alignAlignment(MultiAlign &other_alignment, std::vector<int>& src2other_col_map);
+
     void normalizeDeletes();
 
     unsigned wordError(const VocabIndex *words,
@@ -64,6 +69,8 @@ public:
     unsigned length() { return numAligns; };
     LHash<VocabIndex,Prob> *wordColumn(unsigned columnNumber);
     LHash<VocabIndex,NBestWordInfo> *wordinfoColumn(unsigned columnNumber);
+    NBestWordInfo* wordInfoFromUnsortedColumn(unsigned unsortedColumnIndex, VocabIndex word);  
+    Prob wordProbFromUnsortedColumn(unsigned unsortedColumnIndex, VocabIndex word);
 
     static void freeThread();
     
@@ -71,7 +78,6 @@ public:
 
     VocabIndex deleteIndex;		// pseudo-word representing deletions
 
-private:
     double alignError(const LHash<VocabIndex,Prob> *column,
 		      Prob columnPosterior,
 		      VocabIndex word);
@@ -81,6 +87,8 @@ private:
 		      const LHash<VocabIndex,Prob> *column2,
 		      Prob columnPosterior2 = 1.0);
 					// error from aligning two columns
+
+private:
 
     Array< LHash<VocabIndex,Prob>* > aligns;	// alignment columns
     Array< LHash<VocabIndex,NBestWordInfo>* > wordInfo;
@@ -105,7 +113,7 @@ class WordMeshIter
 {
 public:
     WordMeshIter(WordMesh &mesh, unsigned position)
-       : myWordMesh(mesh), myIter(*mesh.hypMap[mesh.sortedAligns[position]]) {};
+       : myIter(*mesh.hypMap[mesh.sortedAligns[position]]) {};
 
     void init()
 	{ myIter.init(); };
@@ -113,7 +121,6 @@ public:
 	{ return myIter.next(word); };
 
 private:
-    WordMesh &myWordMesh;
     LHashIter<VocabIndex, Array<HypID> > myIter;
 };
 

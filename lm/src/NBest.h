@@ -2,9 +2,9 @@
  * NBest.h --
  *	N-best lists
  *
- * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.46 2012/10/29 17:25:04 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.49 2016/06/17 00:11:06 victor Exp $
  *
  */
 
@@ -70,6 +70,9 @@ public:
     NBestTimestamp duration;
     LogP acousticScore;
     LogP languageScore;
+    LogP confidenceScore;
+    LogP confidenceScore2;
+    LogP confidenceScore3;
     char *phones;
     char *phoneDurs;
     /*
@@ -116,21 +119,21 @@ public:
     void reweight(double lmScale, double wtScale, double amScale = 1.0);
 
     Boolean parse(char *line, Vocab &vocab, unsigned decipherFormat = 0,
-			LogP acousticOffset = 0.0,
+			LogP2 acousticOffset = 0.0,
 			const char *multiChar = 0, Boolean backtrace = false);
 
     Boolean parseSRInterpFormat(char *line, Vocab &vocab, LHash<VocabString, NBestScore>& scores);
 
     void write(File &file, Vocab &vocab, Boolean decipherFormat = true,
-						    LogP acousticOffset = 0.0);
+						    LogP2 acousticOffset = 0.0);
 
     Count getNumWords() { return numWords; }
     static void freeThread();
 
     VocabIndex *words;
     NBestWordInfo *wordInfo;
-    LogP acousticScore;
-    LogP languageScore;
+    LogP2 acousticScore;
+    LogP2 languageScore;
     Count numWords;
     LogP totalScore;
     Prob posterior;
@@ -188,7 +191,7 @@ public:
     void memStats(MemStats &stats);
 
     Vocab &vocab;
-    LogP acousticOffset;
+    LogP2 acousticOffset;
 
 private:
     Array<NBestHyp> hypList;

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VarNgram.cc,v 1.19 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VarNgram.cc,v 1.20 2014-08-29 21:35:48 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -141,9 +141,11 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 			    (discounts[i-1] == 0) ||
 			    discounts[i-1]->nodiscount();
 
+	    // Move outside of loop and set to something to
+	    // avoid potential use of uninitialized value.
+	    LogP lprob = LogP_Zero;
 	    while ((ngramCount = followIter.next())) {
 		Prob prob;
-		LogP lprob;
 		double discount;
 
 		if (vocab.isNonEvent(word[0])) {

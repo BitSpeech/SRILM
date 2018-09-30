@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.13 2012/07/06 01:01:44 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.17 2015-06-16 22:44:21 frandsen Exp $
 #
 
    # Use the MSVC compiler (tested with Visual C++ 2005 Express Edition)
@@ -51,6 +51,7 @@
      endif
    endif
    MSVC_BIN := "$(shell cygpath '$(MSVCDIR)/bin')"
+   MSVC_LIB := "$(shell cygpath '$(MSVCDIR)/lib')"
 
    MSC_FLAGS =  /DNEED_RAND48 /EHsc /W2 /nologo /wd4996
    CC = $(MSVC_BIN)/CL.exe $(MSC_FLAGS) 
@@ -108,8 +109,12 @@
    LDFLAGS = $(ADDITIONAL_LDFLAGS) /LIBPATH:$(SRILM_LIBDIR) /STACK:5000000 /FORCE:MULTIPLE /NOLOGO /IGNORE:4006 /IGNORE:4088 /IGNORE:4221
 
    # Other useful compilation flags.
-   ADDITIONAL_CFLAGS =
-   ADDITIONAL_CXXFLAGS =
+   # Hack to find out if system supports /openmp 
+   OPENMP_FLAG := $(shell [ -f $(MSVC_LIB)/vcomp.lib ] && echo /openmp)
+   ADDITIONAL_CFLAGS = $(OPENMP_FLAG)
+   ADDITIONAL_CXXFLAGS = $(OPENMP_FLAG)
+   #ADDITIONAL_CFLAGS += -DNO_BLOCK_MALLOC
+   #ADDITIONAL_CXXFLAGS += -DNO_BLOCK_MALLOC
 
    # Other useful include directories.
    ADDITIONAL_INCLUDES = 
@@ -134,6 +139,8 @@
 
    # no separate math library needed
    MATH_LIBRARY = 
+
+   LBFGS_LIBRARY = lbfgs.lib
 
    # Tcl support not available
    TCL_INCLUDE = 

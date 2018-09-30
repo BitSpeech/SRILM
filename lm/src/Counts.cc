@@ -6,8 +6,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.cc,v 1.5 2006/11/17 11:33:55 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2006 SRI International, 2013-2016 Micrsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.cc,v 1.9 2016/04/08 23:34:42 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -16,9 +16,12 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.cc,v 1.5
 #if !defined(_MSC_VER) && !defined(WIN32)
 #include <sys/param.h>
 #endif
+#include <limits>
 
 #include "Boolean.h"
 #include "Counts.h"
+
+const unsigned FloatCount_Precision = numeric_limits<FloatCount>::digits10 + 1;
 
 /*
  * Byte swapping
@@ -48,8 +51,12 @@ Boolean isLittleEndian()
 static inline
 void byteSwap(void *data, unsigned size)
 {
-    if (isLittleEndian()) {
-	assert(size <= sizeof(double));
+    if (isLittleEndian() && (size > 0)) {
+
+	if (size > sizeof(double)) {
+	    // Error; unexpected (do nothing)
+	    return;
+	}
 
 	char byteArray[sizeof(double)];
 
@@ -74,20 +81,20 @@ const unsigned long long isTooLongBit =
 			(unsigned long long)1 << (sizeof(long long)*NBBY-2);
 
 unsigned
-writeBinaryCount(FILE *fp, unsigned long long count, unsigned minBytes)
+writeBinaryCount(File &file, unsigned long long count, unsigned minBytes)
 {
     if (minBytes <= sizeof(short) && count < isLongBit) {
 	short int scount = count;
 
 	byteSwap(&scount, sizeof(scount));
-	fwrite(&scount, sizeof(scount), 1, fp);
+	file.fwrite(&scount, sizeof(scount), 1);
 	return sizeof(scount);
     } else if (minBytes <= sizeof(int) && count < isLongLongBit) {
 	unsigned int lcount = count;
 	lcount |= (unsigned int)isLongBit << (sizeof(short)*NBBY);
 
 	byteSwap(&lcount, sizeof(lcount));
-	fwrite(&lcount, sizeof(lcount), 1, fp);
+	file.fwrite(&lcount, sizeof(lcount), 1);
 	return sizeof(lcount);
     } else if (count < isTooLongBit) {
 	unsigned int lcount = (count >> sizeof(int)*NBBY) |
@@ -95,11 +102,11 @@ writeBinaryCount(FILE *fp, unsigned long long count, unsigned minBytes)
 			      isLongLongBit;
 
 	byteSwap(&lcount, sizeof(lcount));
-	fwrite(&lcount, sizeof(lcount), 1, fp);
+	file.fwrite(&lcount, sizeof(lcount), 1);
 
 	lcount = (unsigned int)count;
 	byteSwap(&lcount, sizeof(lcount));
-	fwrite(&lcount, sizeof(lcount), 1, fp);
+	file.fwrite(&lcount, sizeof(lcount), 1);
 	return 2*sizeof(lcount);
     } else {
 	cerr << "writeBinaryCount: count " << count << " is too large\n";
@@ -108,11 +115,11 @@ writeBinaryCount(FILE *fp, unsigned long long count, unsigned minBytes)
 }
 
 unsigned
-readBinaryCount(FILE *fp, unsigned long long &count)
+readBinaryCount(File &file, unsigned long long &count)
 {
     unsigned short scount;
 
-    if (fread(&scount, sizeof(scount), 1, fp) != 1) {
+    if (file.fread(&scount, sizeof(scount), 1) != 1) {
 	return 0;
     } else {
 	byteSwap(&scount, sizeof(scount));
@@ -127,7 +134,7 @@ readBinaryCount(FILE *fp, unsigned long long &count)
 						<< sizeof(short)*NBBY;
 
 	    // read second half of long count
-	    if (fread(&scount, sizeof(scount), 1, fp) != 1) {
+	    if (file.fread(&scount, sizeof(scount), 1) != 1) {
 		cerr << "readBinaryCount: incomplete long count\n";
 		return 0;
 	    } else {
@@ -135,7 +142,7 @@ readBinaryCount(FILE *fp, unsigned long long &count)
 		
 
 		// assemble long count from two shorts
-		lcount |= scount;
+		lcount |= (unsigned int)scount;
 
 		if (!(lcount & isLongLongBit)) {
 		    // long count
@@ -147,14 +154,14 @@ readBinaryCount(FILE *fp, unsigned long long &count)
 						<< sizeof(unsigned)*NBBY;
 
 		    // read second half of long count
-		    if (fread(&lcount, sizeof(lcount), 1, fp) != 1) {
+		    if (file.fread(&lcount, sizeof(lcount), 1) != 1) {
 			cerr << "readBinaryCount: incomplete long long count\n";
 			return 0;
 		    } else {
 			byteSwap(&lcount, sizeof(lcount));
 
 			// assemble long long count from two longs
-			count |= lcount;
+			count |= (unsigned long long)lcount;
 			return 2*sizeof(lcount);
 		    }
 		}
@@ -169,11 +176,11 @@ readBinaryCount(FILE *fp, unsigned long long &count)
  */
 
 unsigned
-writeBinaryCount(FILE *fp, float count)
+writeBinaryCount(File &file, float count)
 {
     byteSwap(&count, sizeof(count));
 
-    if (fwrite(&count, sizeof(count), 1, fp) == 1) {
+    if (file.fwrite(&count, sizeof(count), 1) == 1) {
 	return sizeof(count);
     } else {
 	return 0;
@@ -181,11 +188,11 @@ writeBinaryCount(FILE *fp, float count)
 }
 
 unsigned
-writeBinaryCount(FILE *fp, double count)
+writeBinaryCount(File &file, double count)
 {
     byteSwap(&count, sizeof(count));
 
-    if (fwrite(&count, sizeof(count), 1, fp) == 1) {
+    if (file.fwrite(&count, sizeof(count), 1) == 1) {
 	return sizeof(count);
     } else {
 	return 0;
@@ -194,9 +201,9 @@ writeBinaryCount(FILE *fp, double count)
 
 
 unsigned
-readBinaryCount(FILE *fp, float &count)
+readBinaryCount(File &file, float &count)
 {
-    if (fread(&count, sizeof(count), 1, fp) == 1) {
+    if (file.fread(&count, sizeof(count), 1) == 1) {
 	byteSwap(&count, sizeof(count));
 	return sizeof(count);
     } else {
@@ -205,9 +212,9 @@ readBinaryCount(FILE *fp, float &count)
 }
 
 unsigned
-readBinaryCount(FILE *fp, double &count)
+readBinaryCount(File &file, double &count)
 {
-    if (fread(&count, sizeof(count), 1, fp) == 1) {
+    if (file.fread(&count, sizeof(count), 1) == 1) {
 	byteSwap(&count, sizeof(count));
 	return sizeof(count);
     } else {

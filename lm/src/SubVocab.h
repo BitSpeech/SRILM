@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,1999,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.h,v 1.4 2003/10/10 01:23:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.h,v 1.7 2014-04-22 06:57:46 stolcke Exp $
  *
  */
 
@@ -21,7 +21,7 @@
 class SubVocab: public Vocab
 {
 public:
-    SubVocab(Vocab &baseVocab);
+    SubVocab(Vocab &baseVocab, Boolean keepNonwords = false);
     ~SubVocab() { };			/* works around g++ 2.7.2 bug */
 
     virtual VocabIndex addWord(VocabString name);
@@ -31,6 +31,18 @@ public:
     virtual Boolean &unkIsWord() { return _baseVocab.unkIsWord(); };
     virtual Boolean &toLower() { return _baseVocab.toLower(); };
     virtual VocabString &metaTag() { return _baseVocab.metaTag(); };
+    virtual Boolean isMetaTag(VocabIndex word) const
+	{ return _baseVocab.isMetaTag(word); };
+    virtual unsigned typeOfMetaTag(VocabIndex word) const
+ 	{ return _baseVocab.typeOfMetaTag(word); };
+    virtual VocabIndex metaTagOfType(unsigned type)
+	{ return _baseVocab.metaTagOfType(type); };
+
+    // a non-event in the base vocab that is also in the SubVocab
+    // must be a non-event for the SubVocab
+    virtual Boolean isNonEvent(VocabIndex word) const
+	{ return Vocab::isNonEvent(word) ||
+	         _baseVocab.isNonEvent(word); };
 
     inline Vocab &baseVocab() { return _baseVocab; };
 

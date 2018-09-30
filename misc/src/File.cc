@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/File.cc,v 1.29 2012/08/08 00:28:50 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/File.cc,v 1.34 2014-08-29 21:35:49 frandsen Exp $";
 #endif
 
 #include <string.h>
@@ -17,12 +17,10 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/File.cc,v 1.2
 #include <assert.h>
 #include <errno.h>
 
+#include "zio.h"
 #include "Boolean.h"
 #include "File.h"
 #include "Array.cc"
-
-#define ZIO_HACK
-#include "zio.h"
 
 #include "srilm_iconv.h"
 
@@ -47,17 +45,24 @@ const char *wordSeparators = " \t\r\n";
 #define iconvNone	((void *)-1)
 
 File::File(const char *name, const char *mode, int exitOnError)
-    : name(name), lineno(0), exitOnError(exitOnError), skipComments(true),
-      fp(0), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+    : name(name?strdup(name):0), lineno(0), exitOnError(exitOnError), skipComments(true),
+      fp(NULL), gzf(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
       reuseBuffer(false), atFirstLine(true), encoding(ASCII), iconvID(iconvNone),
       strFileLen(0), strFilePos(0), strFileActive(0)
 
 {
     assert(buffer != 0);
 
-    fp = fopen(name, mode);
+    unsigned len = name?strlen(name):0;
+    if (len > sizeof(GZIP_SUFFIX)-1 &&
+        (strcmp(name + len - (sizeof(GZIP_SUFFIX)-1), GZIP_SUFFIX) == 0))
+    {
+        gzf = gzopen(name, mode);
+    } else if (name) {
+	fp = zopen(name, mode);
+    }
 
-    if (fp == 0) {
+    if (gzf == NULL && fp == NULL) {
 	if (exitOnError) {
 	    perror(name);
 	    exit(exitOnError);
@@ -68,7 +73,7 @@ File::File(const char *name, const char *mode, int exitOnError)
 
 File::File(FILE *fp, int exitOnError)
     : name(0), lineno(0), exitOnError(exitOnError), skipComments(true),
-      fp(fp), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+      fp(fp), gzf(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
       reuseBuffer(false), atFirstLine(true), encoding(ASCII), iconvID(iconvNone),
       strFileLen(0), strFilePos(0), strFileActive(0)
 {
@@ -78,7 +83,7 @@ File::File(FILE *fp, int exitOnError)
 
 File::File(const char *fileStr, size_t fileStrLen, int exitOnError, int reserved_length)
     : name(0), lineno(0), exitOnError(exitOnError), skipComments(true),
-      fp(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+      fp(NULL), gzf(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
       reuseBuffer(false), atFirstLine(true), encoding(ASCII), iconvID(iconvNone),
       strFileLen(0), strFilePos(0), strFileActive(0)
 {
@@ -93,7 +98,7 @@ File::File(const char *fileStr, size_t fileStrLen, int exitOnError, int reserved
 
 File::File(std::string& fileStr, int exitOnError, int reserved_length)
     : name(0), lineno(0), exitOnError(exitOnError), skipComments(true),
-      fp(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+      fp(NULL), gzf(NULL), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
       reuseBuffer(false), atFirstLine(true), encoding(ASCII), iconvID(iconvNone),
       strFileLen(0), strFilePos(0), strFileActive(0)
 {
@@ -115,6 +120,7 @@ File::~File()
      */
     if (name != 0) {
 	close();
+	free(name);
     }
 
     if (iconvID != iconvNone) iconv_close((iconv_t)iconvID);
@@ -126,9 +132,17 @@ File::~File()
 int
 File::close()
 {
-    int status = fp ? fclose(fp) : 0;
+    int status = 0;
 
-    fp = 0;
+    if (gzf) {
+	status = gzclose(gzf);
+    } 
+    else if (fp) {
+	status = zclose(fp);
+    }
+
+    fp = NULL;
+    gzf = NULL;
     if (status != 0) {
 	if (exitOnError != 0) {
 	    perror(name ? name : "");
@@ -159,18 +173,26 @@ File::reopen(const char *newName, const char *mode)
      */
     if (name != 0) {
 	close();
+	free(name);
     }
 
     /*
      * Open new file as in File::File()
      */
-    name = newName;
+    name = newName?strdup(newName):0;
 
-    fp = fopen(name, mode);
+    unsigned len = name?strlen(name):0;
+    if (len > sizeof(GZIP_SUFFIX)-1 &&
+        (strcmp(name + len - (sizeof(GZIP_SUFFIX)-1), GZIP_SUFFIX) == 0))
+    {
+        gzf = gzopen(name, mode);
+    } else if (name) {
+	fp = zopen(name, mode);
+    }
 
-    if (fp == 0) {
+    if (fp == 0 && gzf == 0) {
 	if (exitOnError) {
-	    perror(name);
+            perror(name);
 	    exit(exitOnError);
 	}
 
@@ -195,7 +217,7 @@ File::reopen(const char *mode)
 	iconvID = iconvNone;
     }
 
-    if (fp == 0) {
+    if (fp == NULL) {
     	return false;
     }
 
@@ -269,7 +291,13 @@ Boolean
 File::error()
 {
     if (strFileActive) return 0; // i/o using strings not file pointer, so no error
-    return (fp == 0) || ferror(fp);
+
+    if (gzf) {
+        const char *msg = gzerror(gzf, NULL);
+	return msg == 0 || msg[0] != '\0';
+    } else {
+        return (fp == 0) || ferror(fp);
+    }
 };
 
 const char UTF8magic[] = "\357\273\277";
@@ -279,6 +307,11 @@ const char UTF16BEmagic[] = "\376\377";
 char *
 File::fgetsUTF8(char *buffer, int buflen)
 {
+    // Sanity check - need at least space for NULL terminator
+    if ((buflen < 1) || !buffer) {
+	return 0;
+    }
+
     memset(buffer, 0, buflen);
 
     /*
@@ -365,8 +398,13 @@ File::fgetsUTF8(char *buffer, int buflen)
 
 	memcpy(buffer, buffer2, outSize);
 
+	// Makes it clear to static code analysis that buffer will
+	// be NULL-terminated; even though we expect outSize above
+	// includes the NULL-terminator.
 	if (outSize < (size_t)buflen) {
 	    memset(buffer + outSize, 0, buflen - outSize);
+	} else {
+	    buffer[buflen - 1] = 0;
 	}
 
 	if (encoding == UTF16LE) {
@@ -485,7 +523,9 @@ File::offset(ostream &stream)
 int
 File::fgetc()
 {
-    if (fp) {
+    if (gzf) {
+        return gzgetc(gzf);
+    } else if (fp) {
         return ::fgetc(fp);
     }
 
@@ -498,7 +538,9 @@ File::fgetc()
 char *
 File::fgets(char *str, int n)
 {
-    if (fp) {
+    if (gzf) {
+	return gzgets(gzf, str, n);
+    } else if (fp) {
         return ::fgets(str, n, fp);
     }
 
@@ -532,7 +574,9 @@ File::fgets(char *str, int n)
 int
 File::fputc(int c)
 {
-    if (fp) {
+    if (gzf) {
+	return gzputc(gzf, c);
+    } else if (fp) {
         return ::fputc(c, fp);
     }
 
@@ -547,7 +591,9 @@ File::fputc(int c)
 int
 File::fputs(const char *str)
 {
-    if (fp) {
+    if (gzf) {
+	return gzputs(gzf, str);
+    } else if (fp) {
         return ::fputs(str, fp);
     }
 
@@ -562,7 +608,13 @@ File::fputs(const char *str)
 int
 File::fprintf(const char *format, ...)
 {
-    if (fp) {
+    if (gzf) {
+        va_list args;
+        va_start(args, format);
+        int num_written = gzvprintf(gzf, format, args);
+        va_end(args);
+        return num_written;
+    } else if (fp) {
         va_list args;
         va_start(args, format);
         int num_written = vfprintf(fp, format, args);
@@ -649,24 +701,54 @@ File::fprintf(const char *format, ...)
     return 0;
 }
 
-long
+size_t
+File::fread(void *data, size_t size, size_t n)
+{
+    if (gzf) {
+	return gzread(gzf, data, size * n)/size;
+    } else if (fp) {
+        return ::fread(data, size, n, fp);
+    }
+
+    // not supported for input from string
+    return 0;
+}
+
+size_t
+File::fwrite(const void *data, size_t size, size_t n)
+{
+    if (gzf) {
+	return gzwrite(gzf, data, size * n)/size;
+    } else if (fp) {
+        return ::fwrite(data, size, n, fp);
+    }
+
+    // not supported for output to string
+    return 0;
+}
+
+long long
 File::ftell()
 {
-    if (fp) {
-        return ::ftell(fp);
+    if (gzf) {
+	return gztell(gzf);
+    } else if (fp) {
+        return ::ftello(fp);
     }
 
     // error condition, no string active
     if (!strFileActive) return -1;
     
-    return (long) strFilePos;    
+    return (long long) strFilePos;    
 }
 
 int
-File::fseek(long offset, int origin)
+File::fseek(long long offset, int origin)
 {
-    if (fp) {
-        return ::fseek(fp, offset, origin);
+    if (gzf) {
+	return gzseek(gzf, offset, origin);
+    } else if (fp) {
+        return ::fseeko(fp, offset, origin);
     }
 
     // error condition, no string active
@@ -693,7 +775,7 @@ File::fseek(long offset, int origin)
 const char *
 File::c_str()
 {
-    if (fp) return NULL;
+    if (fp || gzf) return 0;
 
     // error condition, no string active
     if (!strFileActive) return NULL;
@@ -704,7 +786,7 @@ File::c_str()
 const char *
 File::data()
 {
-    if (fp) return NULL;
+    if (fp || gzf) return 0;
 
     // error condition, no string active
     if (!strFileActive) return NULL;
@@ -715,10 +797,11 @@ File::data()
 size_t
 File::length()
 {
-    if (fp) return 0;
+    if (fp || gzf) return 0;
 
     // error condition, no string active
     if (!strFileActive) return 0;
 
     return strFile.length();
 }
+

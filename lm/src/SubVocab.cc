@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1996-2012 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.cc,v 1.9 2012/10/18 20:55:22 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.cc,v 1.10 2013/04/03 18:56:49 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -24,7 +24,7 @@ using namespace std;
 #include "LHash.h"
 #include "Array.h"
 
-SubVocab::SubVocab(Vocab &baseVocab)
+SubVocab::SubVocab(Vocab &baseVocab, Boolean keepNonwords)
     :  _baseVocab(baseVocab)
 {
     /*
@@ -35,10 +35,18 @@ SubVocab::SubVocab(Vocab &baseVocab)
     /*
      * sub-vocabularies don't have any special tokens by default
      */
-    remove(_unkIndex);
-    remove(_ssIndex);
-    remove(_seIndex);
-    remove(_pauseIndex);
+    if (!keepNonwords) {
+	remove(_unkIndex);
+	remove(_ssIndex);
+	remove(_seIndex);
+	remove(_pauseIndex);
+    } else {
+        _unkIndex = addWord(baseVocab.unkIndex());
+        _ssIndex = addWord(baseVocab.ssIndex());
+        _seIndex = addWord(baseVocab.seIndex());
+        _pauseIndex = addWord(baseVocab.pauseIndex());
+ 	_unkIsWord = baseVocab.unkIsWord();
+    }
 }
 
 // Add word to vocabulary

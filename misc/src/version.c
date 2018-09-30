@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1.2 2008/12/21 23:10:21 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2004 SRI International, 2015 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1.7 2015-07-30 05:06:17 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -15,6 +15,10 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1
 #include "version.h"
 #include "SRILMversion.h"
 
+#if defined(_OPENMP) && defined(_MSC_VER)
+#include <omp.h>
+#endif
+
 void
 printVersion(const char *rcsid)
 {
@@ -22,9 +26,30 @@ printVersion(const char *rcsid)
 #ifndef EXCLUDE_CONTRIB
 	printf(" (with third-party contributions)");
 #endif /* EXCLUDE_CONTRIB_END */
-	printf("\n\nProgram version %s\n", rcsid);
+	printf("\n");
+#if defined(__GNUC__) && !defined(__clang__)
+	printf("Built with GCC %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+#endif
+#ifdef __clang__
+	printf("Built with Clang %d.%d.%d\n", __clang_major__, __clang_minor__, __clang_patchlevel__);
+#endif
+#ifdef __INTEL_COMPILER
+	printf("Built with IntelC %d\n", __INTEL_COMPILER);
+#endif
+#ifdef _MSC_VER
+	printf("Built with MSVC %d\n", _MSC_VER);
+#endif
+	printf("\nProgram version %s\n", rcsid);
 #ifndef NO_ZIO
 	printf("\nSupport for compressed files is included.\n");
+#else
+	printf("\nSupport for gzipped files is included.\n");
+#endif
+#ifdef HAVE_LIBLBFGS
+	printf("Using libLBFGS.\n");
+#endif
+#ifdef _OPENMP
+	printf("Using OpenMP version %d.\n", _OPENMP);
 #endif
  	puts(SRILM_COPYRIGHT);
 }

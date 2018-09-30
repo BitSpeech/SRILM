@@ -33,10 +33,10 @@ extern "C" {
 
 void *BM_malloc(size_t size);
 void BM_free(void *chunk, size_t size);		/* Note: must supply chunk size */
-void BM_freeThread();
 
 #endif /* NO_BLOCK_MALLOC */
 
+void BM_freeThread();
 void BM_printstats();
 
 #ifdef __cplusplus

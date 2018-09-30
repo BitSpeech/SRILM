@@ -10,12 +10,10 @@
 #ifndef LMThreads_h
 #define LMThreads_h
 
-#ifndef NO_TLS
 class LMThreads {
 public:
   static void freeThread();
 };
-#endif /* NO_TLS */
 
 #endif /* LMThreads_h */
 

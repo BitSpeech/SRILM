@@ -8,7 +8,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramLM.cc,v 1.24 2012/10/29 17:24:59 mcintyre Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramLM.cc,v 1.27 2014-04-23 00:25:52 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -944,7 +944,7 @@ FNgram::read(const unsigned int specNum, File &file)
 		numBitsInState = FNgramSpecsType::numBitsSet(state);
 		state_order = numBitsInState+1;
 		continue;
-	    } else if (sscanf(line, "ngram %i=%d", &thisNode, &nFNgrams) == 2) {
+	    } else if (sscanf(line, "ngram %i=%d", (int *)&thisNode, &nFNgrams) == 2) {
 		/*
 		 * scanned a line of the form
 		 *	ngram <0xCCCC>=<howmany>
@@ -1221,7 +1221,7 @@ FNgram::write(unsigned int specNum,File &file)
     VocabIndex context[maxNumParentsPerChild + 2];
     VocabString scontext[maxNumParentsPerChild + 2];
 
-    fprintf(file, "\n\\data\\\n");
+    file.fprintf("\n\\data\\\n");
 
 
     const unsigned numParents = fngs.fnSpecArray[specNum].numParents;
@@ -1231,7 +1231,7 @@ FNgram::write(unsigned int specNum,File &file)
       unsigned int node;
       while (liter.next(node)) {
 	howmanyFNgrams[node] = numFNgrams(specNum,node);
-	fprintf(file, "ngram 0x%X=%d\n",node, howmanyFNgrams[node]);
+	file.fprintf("ngram 0x%X=%d\n",node, howmanyFNgrams[node]);
       }
     }
 
@@ -1239,7 +1239,7 @@ FNgram::write(unsigned int specNum,File &file)
       FNgramSpecsType::FNgramSpec::LevelIter liter(numParents,level);
       unsigned int node;
       while (liter.next(node)) {
-	fprintf(file, "\n\\0x%X-grams:\n", node);
+	file.fprintf("\n\\0x%X-grams:\n", node);
 
         if (debug(DEBUG_WRITE_STATS)) {
 	  char buff[1024];
@@ -1273,14 +1273,14 @@ FNgram::write(unsigned int specNum,File &file)
 		    return;
 		}
 
-		fprintf(file, "%.*lg\t", LogP_Precision,
+		file.fprintf("%.*lg\t", LogP_Precision,
 				(double)(*prob == LogP_Zero ?
 						LogP_PseudoZero : *prob));
 		Vocab::write(file, scontext);
-		fprintf(file, "%s%s", (node != 0 ? " " : ""), vocab.getWord(pword));
+		file.fprintf("%s%s", (node != 0 ? " " : ""), vocab.getWord(pword));
 
 		// if (node > 0 && *cnt != ~0x0U)
-		// fprintf(file, "\t0x%X", *cnt);
+		// file.fprintf("\t0x%X", *cnt);
 
 		if (first_word && level > 0) {
 		  // write BOW for the context right here rather than
@@ -1291,7 +1291,7 @@ FNgram::write(unsigned int specNum,File &file)
 		  LogP *bow =
 		    fNgrams[specNum].parentSubsets[node].findBOW(context);
 		  if (bow) {
-		    fprintf(file, "\t%.*lg",LogP_Precision,
+		    file.fprintf("\t%.*lg",LogP_Precision,
 			    (double)(*bow == LogP_Zero ?
 				       LogP_PseudoZero : *bow));
 		  } else {
@@ -1301,12 +1301,12 @@ FNgram::write(unsigned int specNum,File &file)
 		  }
 		  first_word = false;
 		}
-		fprintf(file, "\n");
+		file.fprintf("\n");
 	    }
 	}
       }
     }
-    fprintf(file, "\n\\end\\\n");
+    file.fprintf("\n\\end\\\n");
 }
 
 unsigned int

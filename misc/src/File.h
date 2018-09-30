@@ -2,9 +2,9 @@
  * File.h
  *	File I/O utilities for LM
  *
- * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.23 2012/08/07 22:44:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.26 2014-08-29 21:35:49 frandsen Exp $
  *
  */
 
@@ -20,13 +20,20 @@ using namespace std;
 
 #include <stdio.h>
 
+#include "zio.h"
+#include "zlib.h"
+
 #include "Boolean.h"
+
+/*
+ * Tell clients that we can handle .gz files regardless of zio working
+ */
+#undef GZIP_SUFFIX
+#define GZIP_SUFFIX      ".gz"
 
 const unsigned int maxWordsPerLine = 50000;
 
 extern const char *wordSeparators;
-
-typedef FILE * FILEptr;
 
 /*
  * A File object is a wrapper around a stdio FILE pointer.  If presently
@@ -60,6 +67,11 @@ typedef FILE * FILEptr;
 class File
 {
 public:
+    // Note that prior to September, 2014, internal member variable
+    // only stored exact pointer to name, now makes copy of name
+    // since otherwise user needs to ensure name is not changed
+    // or deleted (or stack variable) during lifetime of File object
+    // (or prior to reopen with new name).
     File(const char *name, const char *mode, int exitOnError = 1);
     File(FILE *fp = 0, int exitOnError = 1);
     // Initialize strFile with contents of string.  strFile will be
@@ -79,11 +91,10 @@ public:
     Boolean reopen(std::string& fileStr, int reserved_length = 0);
     Boolean error();
 
-    operator FILEptr() { return fp; };
     ostream &position(ostream &stream = cerr);
     ostream &offset(ostream &stream = cerr);
 
-    const char *name;
+    char *name;
     unsigned int lineno;
     Boolean exitOnError;
     Boolean skipComments;
@@ -100,8 +111,10 @@ public:
     int fputs(const char *str);
     // uses internal 4KB buffer
     int fprintf(const char *format, ...);
-    long ftell();
-    int fseek(long offset, int origin);
+    size_t fread(void *data, size_t size, size_t n);
+    size_t fwrite(const void *data, size_t size, size_t n);
+    long long ftell();
+    int fseek(long long offset, int origin);
 
     // get string contents from File() object, provided we are doing string I/O
     const char *c_str();
@@ -111,6 +124,8 @@ public:
 private:
     
     FILE *fp;
+    gzFile gzf;			// when reading/writing via zlib
+    
     char *buffer;
     unsigned bufLen;
     Boolean reuseBuffer;

@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2008 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.amd64-solaris,v 1.7 2012/10/18 20:55:17 mcintyre Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.amd64-solaris,v 1.7 2012-10-18 20:55:17 mcintyre Exp $
 #
 
 ifeq ($(USE_CC), )

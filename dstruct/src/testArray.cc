@@ -3,7 +3,7 @@
 //
 // Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
 //
-// $Header: /home/srilm/CVS/srilm/dstruct/src/testArray.cc,v 1.13 2010/06/02 04:52:43 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/testArray.cc,v 1.14 2013/03/22 05:34:27 stolcke Exp $
 //
 
 #ifdef PRE_ISO_CXX
@@ -18,6 +18,8 @@ using namespace std;
 
 #define BASE 10
 
+#define SIZE 20
+
 void
 printArray(unsigned *a, unsigned start, unsigned end)
 {
@@ -29,7 +31,7 @@ printArray(unsigned *a, unsigned start, unsigned end)
 int
 main()
 {
-    Array<unsigned int> myarray(BASE);
+    ZeroArray<unsigned int> myarray(BASE, SIZE-BASE+1);
     Array<char *> array2;
     Array<const char *> array3;
     Array<float> array4;
@@ -37,7 +39,12 @@ main()
     Array<char> array6;
     unsigned i;
 
-    for (i = BASE+1; i <= 20; i++) {
+    // unitialized array values
+    printArray(myarray, BASE, BASE + myarray.size());
+
+    cout << "size = " << myarray.size() << endl;
+
+    for (i = BASE+1; i <= SIZE; i++) {
 	myarray[i] = i * i;
     }
 
