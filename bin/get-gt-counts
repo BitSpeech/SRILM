@@ -4,12 +4,13 @@
 #	generate the counts-of-counts required for Good-Turing discounting
 #	assumes the ngrams in the input contain no repetitions
 #
-# $Header: /home/spot71/srilm/devel/utils/src/RCS/get-gt-counts,v 1.2 1996/12/02 09:05:55 stolcke Exp $
-#
 # usage: get-gt-counts max=<number> out=<name> file ...
+#
+# $Header: /home/srilm/devel/utils/src/RCS/get-gt-counts,v 1.3 1999/08/06 22:22:43 stolcke Exp $
 #
 BEGIN {
 	max = 10
+	maxorder = 6;
 }
 {
 	total[NF - 1] ++;
@@ -29,7 +30,7 @@ $NF <= max {
 	    counts6[$NF] ++;
 }
 END {
-	for (order = 1; order <= 6; order++) {
+	for (order = 1; order <= maxorder; order++) {
 	    if (total[order] > 0) {
 		if (out) {
 		    outfile = out ".gt" order "counts";

@@ -12,7 +12,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.26 1998/01/18 05:33:13 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.27 1999/10/03 18:50:00 stolcke Exp $
  *
  */
 
@@ -101,6 +101,22 @@ private:
     static int compareIndex(const void *idx1, const void *idx2);
 					/* callback function for qsort() */
 };
+
+/*
+ * Key Comparison functions
+ */
+template <class KeyT>
+static inline int
+SArray_compareKey(KeyT key1, KeyT key2)
+{
+    return (key1 - key2);
+}
+
+static inline int
+SArray_compareKey(const char *key1, const char *key2)
+{
+    return strcmp(key1, key2);
+}
 
 #endif /* _SArray_h_ */
 

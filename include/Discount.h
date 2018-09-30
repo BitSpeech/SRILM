@@ -102,8 +102,16 @@ public:
     virtual double discount(Count count, Count totalCount, Count observedVocab)
       { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
 					(count - _discount) / count; };
+    virtual double discount(FloatCount count, FloatCount totalCount,
+							Count observedVocab)
+      { return (count <= 0.0) ? 1.0 :
+		(count < _mincount || count < _discount) ? 0.0 : 
+					(count - _discount) / count; };
 
     Boolean nodiscount() { return _mincount <= 1.0 && _discount == 0.0; } ;
+
+    virtual Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
+	{ return true; }	    /* allow fractional count discounting */
 
 private:
     double _discount;		    /* the discounting constant */

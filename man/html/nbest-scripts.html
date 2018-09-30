@@ -1,0 +1,361 @@
+<! $Id: nbest-scripts.1,v 1.11 2000/06/09 00:32:08 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>nbest-scripts</TITLE>
+<BODY>
+<H1>nbest-scripts</H1>
+<H2> NAME </H2>
+nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite - rescore and evaluate N-best lists
+<H2> SYNOPSIS </H2>
+<B> rescore-decipher </B>
+[<B>-bytelog</B>]
+[<B>-nodecipherlm</B>]
+[<B>-multiwords</B>]
+[<B>-norescore</B>]
+<I> nbest-file-list </I>
+<I> score-dir </I>
+<B> -lm </B>
+...
+<I> lm-options </I>
+...
+<BR>
+<B> rescore-acoustic </B>
+<I>old-nbest-dir</I>|<I>old-file-list</I>
+<I> old-ac-weight </I>
+<I> new-score-dir1 </I>
+<I> new-ac-weight1 </I>
+...
+<I> new-nbest-dir </I>
+[<I>max-nbest</I>]
+<BR>
+<B> rescore-reweight </B>
+[<B>-multiwords</B>]
+<I>score-dir</I>|<I>file-list</I>
+[<I>lmw</I>
+[<I>wtw</I>
+[<I>max-nbest</I>]]]
+<BR>
+<B> rescore-minimize-wer </B>
+<I> score-dir </I>
+[<I>lmw</I>
+[<I>wtw</I>
+[<I>max-nbest</I>]]]
+<BR>
+<B> nbest2-to-nbest1 </B>
+[<I>nbest-file</I>]
+<BR>
+<B> nbest-rover </B>
+[
+<I> sentid-list </I>
+|
+<B> - </B>
+]
+<I> control-file </I>
+[
+<I> posterior-file </I>
+[
+<I> nbest-lattice-options </I>
+] ]
+<BR>
+<B> nbest-posteriors </B>
+[
+<B>weight=</B><I>W</I><B></B>
+<B>lmw=</B><I>lmw</I><B></B>
+<B>wtw=</B><I>wtw</I><B></B>
+<B>postscale=</B><I>S</I><B></B>
+<B>max_nbest=</B><I>M</I><B></B>
+]
+<I> nbest-file </I>
+<BR>
+<B> nbest-error </B>
+<I>score-dir</I>|<I>file-list</I>
+<I> refs </I>
+[<I>max-nbest</I>]
+<BR>
+<B> sentid-to-sclite </B>
+<I> hyps </I>
+<BR>
+<B> compute-sclite </B>
+<B> -r </B>
+<I> refs </I>
+<B> -h </B>
+<I> hyps </I>
+[<B> -S </B>
+<I> subset </I>
+<B>-v</B>]<B></B>
+[<B>-multiwords</B>|
+[<I>sclite-options</I>...]
+<BR>
+<B> compare-sclite </B>
+<B> -r </B>
+<I> refs </I>
+<B> -h1 </B>
+<I> hyps1 </I>
+<B> -h2 </B>
+<I> hyps2 </I>
+[<B> -S </B>
+<I> subset </I>]
+[<B>-multiwords</B>|
+[<I>sclite-options</I>...]
+<H2> DESCRIPTION </H2>
+These scripts perform common tasks on N-best hypotheses in 
+<A HREF="nbest-format.html">nbest-format(5)</A>,
+especially those needed for rescoring and extracting and evaluating
+1-best hypotheses.
+<P>
+<B> rescore-decipher </B>
+applies a language model implemented by 
+<A HREF="ngram.html">ngram(1)</A>
+to the N-best lists listed in
+<I>nbest-file-list</I>.<I></I>
+The N-best files may be in compressed format.
+The rescored N-best lists are stored in directory
+<I>score-dir</I>.<I></I>
+All following arguments are passed to 
+<A HREF="ngram.html">ngram(1)</A>
+and are used to control the language model.
+The
+<B> -bytelog </B>
+option causes scores to be output on the bytelog scale
+(see 
+<A HREF="nbest-format.html">nbest-format(1)</A>).
+<B> -nodecipherlm </B>
+indicates that the recognizer language model is not being provided
+(with
+<B>-decipher-lm</B>).<B></B>
+(This is only possible if the N-best lists are not in ``NBestList1.0'' format.)
+<B>-multiwords</B><B></B>
+specifies that N-best lists contain words joined by underscores, which are
+to be split into their component prior to rescoring.
+<B>-norescore</B><B></B>
+causes N-best lists to be simply reformatted from one of the Decipher formats
+into the SRILM N-best format, separating acoustic and LM scores, without
+replacing the existing LM scores.
+In this case only the 
+<A HREF="ngram.html">ngram(1)</A>
+options
+<B>-decipher-lmw</B><B></B>
+and 
+<B>-decipher-wtw</B><B></B>
+are relevant, and others are ignored.
+<P>
+<B> rescore-acoustic </B>
+replaces the acoustic scores in a set of N-best lists by a weighted 
+combination of new scores.
+The old N-best lists are given by either a directory
+<I> old-score-dir </I>
+or a filelist
+<I>old-file-list</I>;<I></I>
+<I> old-ac-weight </I>
+is the weight given to the old scores.
+Directories containing the new scores are listed alternating with the
+corresponding weights; each score directory must contain one 
+file per waveform segment, each having the same file basenames as 
+the original N-best lists.
+The new scores should appear in a single column per file, one per line.
+The N-best lists containing the new combined acoustic scores are written to 
+<I>new-nbest-dir</I>.<I></I>
+The optional
+<I> max-nbest </I>
+argument can be used to limit the length of the N-best lists output.
+Also, When a new score file is encountered containing fewer than
+<I> max-nbest </I>
+lines, the missing scores are set to the lowest score encountered so far.
+<P>
+<B> rescore-reweight </B>
+combines the scores in N-best lists with a set of weights and outputs
+the 1-best hypotheses.
+The N-best files are found in directory
+<I> score-dir </I>
+or listed in
+<I>file-list</I>.<I></I>
+They must have been produced with a prior run of
+<B>rescore-decipher</B>.<B></B>
+Optional arguments set the language model weight
+<I> lmw </I>
+(default 8),
+the word transition weight
+<I> wtw </I>
+(default 0),
+and the maximum number
+<I> max-nbest </I>
+of hypotheses to consider (default all).
+<B> -multiwords </B>
+indicates that multi-words are to be split into their components.
+The output format for 1-best hypotheses is
+<BR>
+	<I>sentid</I> <I>w1</I> <I>w2</I> ...
+<BR>
+where
+<I> sentid </I>
+is the sentence ID derived from the N-best filename, followed by 
+the words.
+<P>
+<B> rescore-minimize-wer </B>
+is similar to 
+<B> rescore-reweight </B>
+but picks hypotheses using the word error minimization algorithm
+of 
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>.
+<P>
+<B> nbest2-to-nbest1 </B>
+converts an N-best list in ``NBestList2.0'' format to ``NBestlist1.0'',
+for the benefit of programs that have not yet been updated to deal with 
+the new format.
+<P>
+<B> nbest-rover </B>
+combines hypotheses from multiple N-best lists at the word level,
+by performing the same kind of word error minimization as 
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>,
+in a generalization of the ROVER algorithm.
+<I> sentid-list </I>
+is a file listing sentence IDs.
+These must match the filenames in a set of N-best directories,
+which are specified in a
+<I>control-file</I>.<I></I>
+The format for the latter is
+<BR>
+	<I>dir1</I> <I>lmw1</I> <I>wtw1</I> <I>w1</I> [<I>n1</I> [<I>s1</I>]]
+<BR>
+	<I>dir2</I> <I>lmw2</I> <I>wtw2</I> <I>w2</I> [<I>n2</I> <I>s2</I>]]
+<BR>
+	...
+<BR>
+Each line specifies an N-best directory, the language model and word transition
+weights to be used in score combination, and a weight to be applied to the
+posterior probabilities.
+An optional next-to-last parameter for each N-best list allows the lists to be 
+truncated to the top <I>n1</I>, <I>n2</I>, etc., hypotheses.
+The final optional parameter sets the posterior distribution scaling factor,
+which defaults to the language model weight.
+Optionally,
+<I> control-file </I>
+can also contain lines of the form
+<BR>
+	<I>dir</I> <I>w</I> <B>+</B>
+<BR>
+These indicate that additional score files can be found in directory
+<I> dir </I>
+and that the scores found therein should be added to the following 
+N-best list set with weight
+<I>w</I>.<I></I>
+Several lines of this form may occur preceding a regular N-best
+directory specification; the corresponding additive combination of multiple
+scores is performed.
+<BR>
+If ``-'' is specified for
+<I>sentid-list</I>,<I></I>
+the sentence IDs are inferred from
+the contents of the first directory <I>dir1</I> specified in
+<I>control-file</I>.<I></I>
+If
+<I> posterior-file </I>
+is specified on the command line, posterior word probability estimates are
+written to that file.
+Any additional arguments are passed as options to the underlying
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+invocation.
+<P>
+<B> nbest-posteriors </B>
+rescales the scores in an N-best list to reflect (weighted) posterior
+probabilities.
+The input
+<I> nbest-file </I>
+must be in rescored SRILM N-best format.
+The output is the same N-best list with acoustic scores set to
+the log (base 10) of the posterior hyp probabilities and LM scores set to zero.
+<B>postscale=</B><I>S</I><B></B>
+attenuates the posterior distribution by dividing combined log 
+scores by
+<I> S </I>
+(the default is
+<I>S</I>=<I>lmw</I>
+If
+<B>weight=</B><I>W</I><B></B>
+is specified the posteriors are multiplied by
+<I>W</I>.<I></I>
+<B>max_nbest=</B><I>M</I><B></B>
+limits the number of hypotheses used to the top 
+<I>M</I>.<I></I>
+This script is used mostly as a helper in
+<B>nbest-rover</B>.<B></B>
+<P>
+<B> nbest-error </B>
+computes the overall oracle word error rate of a set of N-best lists
+in directory
+<I> score-dir </I>
+or listed in
+<I>file-list</I>.<I></I>
+The reference answers are given in
+<I> refs </I>
+in the format output by 
+<B> rescore-reweight </B>
+(see above).
+The optional
+<I> max-nbest </I>
+controls the length of N-best lists considered.
+<P>
+<B> sentid-to-sclite </B>
+converts 1-best hypotheses and references in the format used here to
+the ``trn'' format expected by the NIST
+<A HREF="sclite.html">sclite(1)</A>
+scoring software.
+<P>
+<B> compute-sclite </B>
+is a wrapper around 
+<A HREF="sclite.html">sclite(1)</A>.
+<I> refs </I>
+and
+<I> hyps </I>
+are the reference and hypothesized transcripts, respectively. 
+Optionally, 
+<I> subset </I>
+specifies a sorted list of sentence IDs to score.
+Any additional options are passed to
+<B>sclite</B>,<B></B>
+e.g., to control its output actions or alignment mode.
+<B> -multiwords </B>
+or
+<B> -M </B>
+splits ``multiwords'' joined by underscores into their component words
+prior to scoring.
+<B> -v </B>
+displays the complete command used to invoke
+<B>sclite</B>.<B></B>
+<P>
+<B> compare-sclite </B>
+scores two sets of hypotheses 
+<I> hyps1 </I>
+and
+<I> hyps2 </I>
+for the same test set and computes in
+how many cases the first or second set had lower word error.
+The remaining options are as for
+<B>compute-sclite</B>.<B></B>
+The script ignores hypotheses for sentence that do not appear in both
+hypothesis files, to ensure comparable scoring results.
+<H2> SEE ALSO </H2>
+<A HREF="nbest-format.html">nbest-format(5)</A>, <A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-lattice.html">nbest-lattice(1)</A>, <A HREF="sclite.html">sclite(1)</A>.
+<BR>
+J.G. Fiscus, A Post-Processing System to Yield Reduced Word Error Rates:
+Recognizer Output Voting Error Reduction (ROVER),
+<I>Proc. IEEE Automatic Speech Recognition and Understanding Workshop</I>,
+Santa Barbara, CA, 347-352, 1997.
+<BR>
+A. Stolcke et al., "The SRI March 2000 Hub-5 Conversational Speech
+Transcription System",
+<I>Proc. NIST Speech Transcription Workshop</I>, College Park, MD, 2000.
+<H2> BUGS </H2>
+<B> sentid-to-sclite </B>
+has some assumptions about the structure of sentence IDs built-in and
+may need to be modified for 
+<B> compute-sclite </B>
+and 
+<B> compare-sclite </B>
+to work.
+<H2> AUTHOR </H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<BR>
+Copyright 1995-1999 SRI International
+</BODY>
+</HTML>

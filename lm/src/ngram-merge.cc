@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-merge.cc,v 1.8 1999/08/01 09:33:14 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-merge.cc,v 1.10 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -21,17 +21,27 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-merge.cc,
 #include "Vocab.h"
 #include "NgramStats.h"
 
+typedef double FloatCount;	// fractional count type
+typedef union {
+	NgramCount i;
+	FloatCount f;
+} MergeCount;			// integer or fractional count
+
 static char *outName = "-";
+static int floatCounts = 0;
+static int optRest;
 
 static Option options[] = {
+    { OPT_TRUE, "float-counts", &floatCounts, "use fractional counts" },
     { OPT_STRING, "write", &outName, "counts file to write" },
-    { OPT_DOC, 0, 0, "following option, specify 2 or more files to merge" }
+    { OPT_REST, "-", &optRest, "indicate end of option list" },
+    { OPT_DOC, 0, 0, "following options, specify 2 or more files to merge" },
 };
 
 typedef struct {
     VocabString ngram[maxNgramOrder + 1];
     unsigned int howmany;
-    NgramCount count;
+    MergeCount count;
     Boolean isNext;
 } PerFile;
 
@@ -47,9 +57,13 @@ getInput(unsigned int nfiles, PerFile *perfile, File *files)
 	    perfile[i].isNext = false;
 
 	    perfile[i].howmany = 
-		NgramStats::readNgram(files[i],
-			perfile[i].ngram, maxNgramOrder + 1, 
-			perfile[i].count);
+		floatCounts ?
+		    NgramCounts<FloatCount>::readNgram(files[i],
+			    perfile[i].ngram, maxNgramOrder + 1, 
+			    perfile[i].count.f) : 
+		    NgramCounts<NgramCount>::readNgram(files[i],
+			    perfile[i].ngram, maxNgramOrder + 1, 
+			    perfile[i].count.i);
 	}
 	if (perfile[i].howmany > 0) {
 	    haveInput = true;
@@ -62,10 +76,16 @@ getInput(unsigned int nfiles, PerFile *perfile, File *files)
 // and come before all others as 'next'.
 // Return the next (minimal) Ngram, and its aggregate count.
 VocabString *
-findNext(unsigned int nfiles, PerFile *perfile, NgramCount &count)
+findNext(unsigned int nfiles, PerFile *perfile, MergeCount &count)
 {
     VocabString *minNgram = 0;
-    NgramCount minCount = 0;
+    MergeCount minCount;
+    
+    if (floatCounts) {
+	minCount.f = 0.0;
+    } else {
+	minCount.i = 0;
+    }
 
     for (unsigned int i = 0; i < nfiles; i++) {
 	if (perfile[i].howmany == 0) {
@@ -89,7 +109,12 @@ findNext(unsigned int nfiles, PerFile *perfile, NgramCount &count)
 		 * Another file that shares the minimal ngram
 		 */
 		perfile[i].isNext = true;
-	        minCount += perfile[i].count;
+			
+		if (floatCounts) {
+		    minCount.f += perfile[i].count.f;
+		} else {
+		    minCount.i += perfile[i].count.i;
+		}
 	    } else if (comp > 0) {
 		/*
 		 * A new minimal ngram.  Invalidate all the previous
@@ -112,8 +137,7 @@ static
 void
 merge_counts(unsigned int nfiles, File *files, File &out)
 {
-    PerFile *perfile = new PerFile[nfiles];
-    assert(perfile != 0);
+    PerFile perfile[nfiles];
 
     /*
      * Get input from all files
@@ -123,13 +147,15 @@ merge_counts(unsigned int nfiles, File *files, File &out)
     }
 
     while (getInput(nfiles, perfile, files)) {
-	NgramCount count;
+	MergeCount count;
 	VocabString *nextNgram = findNext(nfiles, perfile, count);
 
-	NgramStats::writeNgram(out, nextNgram, count);
+	if (floatCounts) {
+	    NgramCounts<FloatCount>::writeNgram(out, nextNgram, count.f);
+	} else {
+	    NgramCounts<NgramCount>::writeNgram(out, nextNgram, count.i);
+	}
     }
-
-    delete [] perfile;
 }
 
 int
@@ -138,7 +164,8 @@ main(int argc, char **argv)
     setlocale(LC_CTYPE, "");
     setlocale(LC_COLLATE, "");
 
-    argc = Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+    argc = Opt_Parse(argc, argv, options, Opt_Number(options),
+							OPT_OPTIONS_FIRST);
     int i;
 
     if (argc < 3) {
@@ -147,8 +174,7 @@ main(int argc, char **argv)
     }
 
     int nfiles = argc - 1;
-    File *files = new File[nfiles];
-    assert(files != 0);
+    File files[nfiles];
 
     for (i = 0; i < nfiles; i++) {
 	new (&files[i]) File(argv[i + 1], "r");
@@ -156,8 +182,6 @@ main(int argc, char **argv)
 
     File outfile(outName, "w");
     merge_counts(nfiles, files, outfile);
-
-    delete [] files;
 
     exit(0);
 }

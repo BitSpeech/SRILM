@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.h,v 1.7 1998/01/18 07:17:00 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.h,v 1.10 1999/10/16 17:03:36 stolcke Exp $
  *
  */
 
@@ -15,6 +15,7 @@
 
 #include "Ngram.h"
 #include "Trellis.h"
+#include "Array.h"
 
 /*
  * The disfluencies are modeled as hidden (unobservable) events
@@ -53,6 +54,7 @@ public:
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
     LogP wordProbRecompute(VocabIndex word, const VocabIndex *context);
+    void *contextID(const VocabIndex *context, unsigned &length);
     Boolean isNonWord(VocabIndex word);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
@@ -66,10 +68,12 @@ public:
 
 protected:
     Trellis<DFstate> trellis;		/* for DP on hidden events */
-    unsigned contextLength;		/* length of last DP context */
     const VocabIndex *prevContext;	/* context from last DP */
+    unsigned prevPos;			/* position from last DP */
     LogP prefixProb(VocabIndex word, const VocabIndex *context,
 			LogP &contextProb); /* prefix probability */
+    Array<VocabIndex> savedContext;	/* saved, rev'd copy of last context */
+    unsigned savedLength;		/* length of saved context above */
 };
 
 #endif /* _DFNgram_h_ */

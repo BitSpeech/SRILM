@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/StopNgram.cc,v 1.1 1996/12/10 09:28:49 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.cc,v 1.2 1999/10/14 04:10:25 stolcke Exp $";
 #endif
 
 #include "StopNgram.h"
@@ -22,26 +22,48 @@ StopNgram::StopNgram(Vocab &vocab, SubVocab &stopWords, unsigned neworder)
 }
 
 /*
+ * Remove stop-words from a string, and return the number of words removed
+ */
+unsigned
+StopNgram::removeStopWords(const VocabIndex *context,
+			VocabIndex *usedContext, unsigned usedLength)
+{
+    unsigned i, j = 0;
+    for (i = 0; i < usedLength - 1 && context[i] != Vocab_None ; i++) {
+	if (!stopWords.getWord(context[i])) {
+	    usedContext[j ++] = context[i];
+	}
+    }
+    usedContext[j] = Vocab_None;
+    return i - j;
+}
+
+/*
  * The only difference to a standard Ngram model is that stop words are
  * removed from the context before conditional probabilities are computed.
  */
 LogP
 StopNgram::wordProb(VocabIndex word, const VocabIndex *context)
 {
-    LogP result;
     VocabIndex usedContext[maxNgramOrder + 1];
-
-    /*
-     * Extract the non-stop words from the context
-     */
-    unsigned i, j = 0;
-    for (i = 0; i < maxNgramOrder && context[i] != Vocab_None ; i++) {
-	if (!stopWords.getWord(context[i])) {
-	    usedContext[j ++] = context[i];
-	}
-    }
-    usedContext[j] = Vocab_None;
+    removeStopWords(context, usedContext, sizeof(usedContext));
 
     return Ngram::wordProb(word, usedContext);
 }
 
+void *
+StopNgram::contextID(const VocabIndex *context, unsigned &length)
+{
+    VocabIndex usedContext[maxNgramOrder + 1];
+    unsigned deleted =
+		removeStopWords(context, usedContext, sizeof(usedContext));
+
+    void *result = Ngram::contextID(usedContext, length);
+
+    /*
+     * To be safe, add the number of deleted stop words to the used context
+     * length (this may be an overestimate).
+     */
+    length += deleted;
+    return result;
+}

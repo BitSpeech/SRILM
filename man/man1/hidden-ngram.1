@@ -1,5 +1,5 @@
-.\" $Id: hidden-ngram.1,v 1.8 1999/07/15 02:32:19 stolcke Exp $
-.TH hidden-ngram 1 "$Date: 1999/07/15 02:32:19 $"
+.\" $Id: hidden-ngram.1,v 1.11 2000/06/09 00:27:04 stolcke Exp $
+.TH hidden-ngram 1 "$Date: 2000/06/09 00:27:04 $" "SRILM Tools"
 .SH NAME
 hidden-ngram \- tag hidden events between words
 .SH SYNOPSIS
@@ -65,7 +65,8 @@ than probabilities.
 .TP
 .BI \-lm " file"
 Specifies the word/tag language model as a standard ARPA N-gram backoff model
-file.
+file in
+.BR ngram-format (5).
 .TP
 .BI \-order " n"
 Set the effective N-gram order used by the language model to
@@ -146,7 +147,7 @@ Specifies that unknown words and other words having zero probability in
 the language model be assigned a log probability of 
 .IR L .
 This is -100 by default but might be set to 0, e.g., to compute 
-perplexities exlcuding unknown words.
+perplexities excluding unknown words.
 .TP
 .B \-debug
 Sets debugging output level.
@@ -165,11 +166,12 @@ Also,
 doesn't preserve the positions of escaped input lines relative to
 the input.
 .SH "SEE ALSO"
-ngram-count(1), disambig(1), segment(1).
+ngram-count(1), disambig(1), segment(1), ngram-format(5).
 .br
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
-Disfluencies based on Recognized Words, '' Proc. ICSLP, 2247-2250, Sydney.
+Disfluencies based on Recognized Words,''
+\fIProc. ICSLP\fP, 2247\-2250, Sydney.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1998, 1999 SRI International
+Copyright 1998\-1999 SRI International

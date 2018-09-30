@@ -1,4 +1,4 @@
-SRILM
+!SRILM
 -debug 1
 -order 3
 -tolower

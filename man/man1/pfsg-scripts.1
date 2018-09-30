@@ -1,0 +1,305 @@
+.\" $Id: pfsg-scripts.1,v 1.5 2000/05/26 01:25:10 stolcke Exp $
+.TH pfsg-scripts 1 "$Date: 2000/05/26 01:25:10 $" "SRILM Tools"
+.SH NAME
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
+.SH SYNOPSIS
+.B make-ngram-pfsg
+[\c
+.BR check_bows= 0|1\c
+]
+.RI [ lm-file ]
+.BI > pfsg-file
+.br
+.B add-pauses-to-pfsg
+.RB [ pauselast=1 ]
+.RB [ wordwrap=0 ]
+.RI [ pfsg-file ]
+.br
+.B add-classes-to-pfsg
+.BI classes= classes
+.RI [ pfsg-file ]
+.br
+.B pfsg-from-ngram
+.RI [ lm-file ]
+.BI > pfsg-file
+.br
+.B make-nbest-pfsg 
+[\c
+.BR notree= 0|1
+.BI scale= S
+.BI amw= A
+.BI lmw= L
+.BI wtw= W
+]
+.RI [ nbest-file ]
+.br
+.B pfsg-to-dot
+[\c
+.BR show_probs= 0|1
+.BR show_logs= 0|1
+.BR show_nums= 0|1\c
+]
+.RI [ pfsg-file ]
+.br
+.B pfsg-to-fsm
+[\c
+.BI symbolfile= symbols
+.BR symbolic= 0|1
+.BI scale= S
+.BI final_output= E\c
+]
+.RI [ pfsg-file ]
+.br
+.B fsm-to-pfsg
+[\c
+.BI pfsg_name= name
+.BR transducer= 0|1
+.BI scale= S\c
+]
+.RI [ fsm-file ]
+.br
+.B classes-to-fsm
+.BI vocab= vocab
+[\c
+.BI isymbolfile= isymbols
+.BI osymbolfile= osymbols
+.BR symbolic= 0|1\c
+]
+.RI [ classes ]
+.br
+.B wlat-to-pfsg
+.RI [ wlat-file ]
+.br
+.B wlat-to-dot
+[\c
+.BR show_probs= 0|1\c
+]
+.RI [ wlat-file ]
+.SH DESCRIPTION
+These scripts create and manipulate various forms of finite-state networks.
+Note that they take options with the 
+.BR gawk (1)
+syntax
+.IB option = value
+instead of the more common
+.BI - option
+.IR value .
+.PP
+Also, since these tools are implemented as scripts they don't automatically
+input or output compressed model files correctly, unlike the main
+SRILM tools.
+However, since most scripts work with data from standard input or
+to standard output (by leaving out the file argument, or specifying it 
+as ``-'') it is easy to combine them with 
+.BR gunzip (1)
+or
+.BR gzip (1)
+on the command line.
+.PP
+.B make-ngram-pfsg
+encodes a backoff N-gram model in
+.BR ngram-format (5)
+as a finite-state network in
+.BR pfsg-format (5).
+.B check_bows=0
+disables a check for conditional probabilities that are smaller than the
+corresponding backoff probabilities.
+Such transitions should first be removed from the model with 
+.BR "ngram \-prune-lowprobs" .
+.PP
+.B add-pauses-to-pfsg
+replaces the word nodes in an input PFSG with sub-PFSGs that 
+allow an optional pause before each word.
+It also inserts an optional pause following the last word in the sentence.
+A typical usage is 
+.br
+	make-ngram-pfsg \fIclass-ngram\fP | \\
+.br
+	add-pauses-to-pfsg >\fIfinal-pfsg\fP
+.br
+The result is a PFSG suitable for use in a speech recognizer.
+The option
+.B pauselast=1
+switches the order of words and pause nodes in the sub-PFSGSs;
+.B wordwrap=0
+disables the insertion of sub-PFSGs altogether.
+.PP
+.B add-classes-to-pfsg
+extends an input PFSG with expansions for word classes, defined in
+.IR classes .
+.IR pfsg-file
+should contain a PFSG generated from the N-gram portion of a class N-gram
+model.
+A typical usage is thus
+.br
+	make-ngram-pfsg \fIclass-ngram\fP | \\
+.br
+	add-classes-to-pfsg classes=\fIclasses\fP | \\
+.br
+	add-pauses-to-pfsg >\fIfinal-pfsg\fP
+.br
+.PP
+.B pfsg-from-ngram
+is a wrapper script that combines removal of low-probability N-grams,
+conversion to PFSG, and adding of optional pauses to create a PFSG
+for recognition.
+.PP
+.B make-nbest-pfsg
+converts an N-best list in 
+.BR nbest-format (5)
+into a PFSG which, when used in recognition,
+allows exactly the hypotheses contained in the N-best list.
+.B notree=1
+creates separate PFSG nodes for all word instances; the default is to
+construct a prefix-tree structured PFSG.
+.BI scale= S
+multiplies the total hypothesis scores by 
+.IR S ;
+the default is 0, meaning that all hypotheses have identical probability
+in the PFSG.
+Three options,
+.BR amw=\fIA\fP ,
+.BR lmw=\fIL\fP ,
+and
+.BR wtw=\fIW\fP ,
+control the score weighting in N-best lists that contain
+separate acoustic and language model scores, setting the 
+acoustic model weight to
+.IR A,
+the language model weight to
+.IR L ,
+and the word transition weight to
+.IR W .
+.PP
+.B pfsg-to-dot
+renders a PFSG in
+.BR dot (1)
+format for subsequent layout, printing, etc.
+.B show_probs=1
+includes transition probabilities in the output.
+.B show_logs=1
+includes log (base 10) transition probabilities in the output.
+.B show_nums=1
+includes node numbers in the output.
+.PP
+.B pfsg-to-fsm
+converts a finite-state network in 
+.BR pfsg-format (5)
+into an equivalent network in AT&T
+.BR fsm (5)
+format.
+This involves moving output actions from nodes to transitions.
+If 
+.BI symbolfile= symbols
+is specified, the mapping from FSM output symbols is written to
+.IR symbols 
+for later use with the
+.B \-i
+or 
+.B \-o
+options of 
+.BR fsm (1)
+tools.
+.B symbolic=1
+preserves the word strings in the resulting FSA.
+.BI scale= S
+scales the transition weights by a factor
+.IR S ;
+the default is -1 (to conform to the default FSM semiring).
+.BI final_output= E
+forces the final FSA node to have output label
+.IR S ;
+this also forces creation of a unique final FSA node, which is
+otherwise unnecessary if the final node has a null output.
+.PP
+.B fsm-to-pfsg
+conversely transforms 
+.BR fsm (5)
+format into
+.BR pfsg-format (5).
+This involves moving output actions from transitions to nodes, and
+generally requires an increase in the number of nodes.
+(The conversion is done such that
+.B pfsg-to-fsm
+and
+.B fsm-to-pfsg
+are exact inverses of each other.)
+The
+.I name
+parameter sets the name field of the output PFSG.
+.B transducer=1
+indicates that the input is a transducer and that input:output pairs should
+be preserved in the PFSG.
+.BI scale= S
+scales the transition weights by a factor
+.IR S ;
+the default is -1 (to conform to the default FSM semiring).
+.PP
+.B classes-to-fsm
+converts a
+.BR classes-format (5)
+file into a transducer in
+.BR fsm (5)
+format, such that composing the transducer with
+an FSA encoding a class language model results in an FSA for the
+word language model.
+The word vocabulary needs to be given in file
+.IR vocab .
+.BI isymbolfile= isymbols
+and
+.BI osymbolfile= osymbols
+allow saving the input and output symbol tables of the transducer for
+later use.
+.B symbolic=1
+preserves the word strings in the resulting FSA.
+.PP
+The following commands show the creation of an FSA encoding the class N-gram
+grammar ``test.bo'' with vocabulary ``test.vocab'' and class expansions
+``test.classes'':
+.br
+	classes-to-fsm vocab=test.vocab symbolic=1 \\
+.br
+        	isymbolfile=CLASSES.inputs \\
+.br
+		osymbolfile=CLASSES.outputs \\
+.br
+		test.classes >CLASSES.fsm
+.br
+	make-ngram-pfsg test.bo | \\
+.br
+	pfsg-to-fsm symbolic=1 >test.fsm
+.br
+	fsmcompile -i CLASSES.inputs test.fsm  >test.fsmc
+.br
+	fsmcompile -t -i CLASSES.inputs -o CLASSES.outputs \\
+.br
+		CLASSES.fsm >CLASSES.fsmc
+.br
+	fsmcompose test.fsmc CLASSES.fsmc >result.fsmc
+.br
+.PP
+.B wlat-to-pfsg
+converts a word lattice in the format output by 
+.BR nbest-lattice (1)
+into 
+.BR pfsg-format (5).
+.PP
+.B wlat-to-dot
+renders a
+.BR nbest-lattice (1)
+word lattice in 
+in
+.BR dot (1)
+format for subsequent layout, printing, etc.
+.B show_probs=1
+includes node posterior probabilities in the output.
+.SH "SEE ALSO"
+ngram(1), nbest-lattice(1), ngram-format(5), pfsg-format(5), nbest-format(5),
+classes-format(5), fsm(5), dot(1).
+.SH BUGS
+.B make-ngram-pfsg
+currently handles only bigram and trigram models.
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1995-1999 SRI International

@@ -4,12 +4,71 @@ Prob		Prob (3)	- Probabilities for SRILM
 Vocab		Vocab (3)	- Vocabulary indexing for SRILM
 XXX		XXX (1) 	- XXX
 XXX		XXX (3) 	- XXX
+XXX		XXX (5) 	- XXX
+add-classes-to-pfsg		pfsg-scripts (1)    - create and manipulate finite-state networks
+add-dummy-bows	lm-scripts (1)	- manipulate N-gram language models
+add-pauses-to-pfsg		pfsg-scripts (1)    - create and manipulate finite-state networks
+add-ppls	ppl-scripts (1) - manipulate perplexities
+anti-ngram	anti-ngram (1)	- count posterior-weighted N-grams in N-best lists
+change-lm-vocab lm-scripts (1)	- manipulate N-gram language models
+classes-format	classes-format (5)  - File format for word class definitions
+classes-to-fsm	pfsg-scripts (1)    - create and manipulate finite-state networks
+compare-ppls	ppl-scripts (1) - manipulate perplexities
+compare-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
+compute-best-mix		ppl-scripts (1) - manipulate perplexities
+compute-oov-rate		training-scripts (1)	- miscellaneous conveniences for language model training
+compute-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
+continuous-ngram-count		training-scripts (1)	- miscellaneous conveniences for language model training
 disambig	disambig (1)	- disambiguate text tokens using an N-gram model
+fsm-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks
+get-gt-counts	training-scripts (1)	- miscellaneous conveniences for language model training
 hidden-ngram	hidden-ngram (1)    - tag hidden events between words
+hits-from-log	ppl-scripts (1) - manipulate perplexities
+lm-scripts	lm-scripts (1)	- manipulate N-gram language models
+make-abs-discount		training-scripts (1)	- miscellaneous conveniences for language model training
+make-batch-counts		training-scripts (1)	- miscellaneous conveniences for language model training
+make-big-lm	training-scripts (1)	- miscellaneous conveniences for language model training
+make-diacritic-map		training-scripts (1)	- miscellaneous conveniences for language model training
+make-gt-discounts		training-scripts (1)	- miscellaneous conveniences for language model training
+make-hiddens-lm lm-scripts (1)	- manipulate N-gram language models
+make-lm-subset	lm-scripts (1)	- manipulate N-gram language models
+make-nbest-pfsg pfsg-scripts (1)    - create and manipulate finite-state networks
+make-ngram-pfsg pfsg-scripts (1)    - create and manipulate finite-state networks
+make-sub-lm	lm-scripts (1)	- manipulate N-gram language models
+merge-batch-counts		training-scripts (1)	- miscellaneous conveniences for language model training
+nbest-error	nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest-format	nbest-format (5)    - File formats for N-best hypotheses lists
 nbest-lattice	nbest-lattice (1)   - rescore N-best lists and lattices
 nbest-mix	nbest-mix (1)	- interpolate N-best posterior probabilities
+nbest-optimize	nbest-optimize (1)  - optimize score combination for N-best word error minimization
+nbest-posteriors		nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest-rover	nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest-scripts	nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest2-to-nbest1		nbest-scripts (1)   - rescore and evaluate N-best lists
 ngram		ngram (1)	- apply N-gram language models
+ngram-class	ngram-class (1) - induce word classes from N-gram statistics
 ngram-count	ngram-count (1) - count N-grams and estimate language models
+ngram-format	ngram-format (5)    - File format for ARPA backoff N-gram models
 ngram-merge	ngram-merge (1) - merge N-gram counts
+pfsg-format	pfsg-format (5) - File format for Decipher(TM) probabilistic finite-state grammars
+pfsg-from-ngram pfsg-scripts (1)    - create and manipulate finite-state networks
+pfsg-scripts	pfsg-scripts (1)    - create and manipulate finite-state networks
+pfsg-to-dot	pfsg-scripts (1)    - create and manipulate finite-state networks
+pfsg-to-fsm	pfsg-scripts (1)    - create and manipulate finite-state networks
+ppl-from-log	ppl-scripts (1) - manipulate perplexities
+ppl-scripts	ppl-scripts (1) - manipulate perplexities
+remove-lowprob-ngrams		lm-scripts (1)	- manipulate N-gram language models
+replace-words-with-classes	training-scripts (1)	- miscellaneous conveniences for language model training
+rescore-acoustic		nbest-scripts (1)   - rescore and evaluate N-best lists
+rescore-decipher		nbest-scripts (1)   - rescore and evaluate N-best lists
+rescore-reweight		nbest-scripts (1)   - rescore and evaluate N-best lists
+reverse-ngram-counts		training-scripts (1)	- miscellaneous conveniences for language model training
 segment 	segment (1)	- segment text using N-gram language model
 segment-nbest	segment-nbest (1)   - rescore and segment N-best lists using N-gram language models
+sentid-to-sclite		nbest-scripts (1)   - rescore and evaluate N-best lists
+subtract-ppls	ppl-scripts (1) - manipulate perplexities
+training-scripts		training-scripts (1)	- miscellaneous conveniences for language model training
+uniform-classes training-scripts (1)	- miscellaneous conveniences for language model training
+vp2text 	training-scripts (1)	- miscellaneous conveniences for language model training
+wlat-to-dot	pfsg-scripts (1)    - create and manipulate finite-state networks
+wlat-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks

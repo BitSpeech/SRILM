@@ -1,23 +1,23 @@
-<! $Id: nbest-mix.1,v 1.1 1998/12/24 09:48:25 stolcke Exp $>
+<! $Id: nbest-mix.1,v 1.3 1999/10/18 15:14:10 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-mix</TITLE>
 <BODY>
 <H1>nbest-mix</H1>
-<H2>NAME</H2>
+<H2> NAME </H2>
 nbest-mix - interpolate N-best posterior probabilities
-<H2>SYNOPSIS</H2>
-<B>nbest-mix</B>
-[<B>-help</B>]
+<H2> SYNOPSIS </H2>
+<B> nbest-mix </B>
+[<B>-help</B>]<B></B>
 option
 ...
-<I>weight1</I>
-<I>nbest1</I>
-<I>weight2</I>
-<I>nbest2</I>
+<I> weight1 </I>
+<I> nbest1 </I>
+<I> weight2 </I>
+<I> nbest2 </I>
 ...
-<H2>DESCRIPTION</H2>
-<B>nbest-mix</B>
+<H2> DESCRIPTION </H2>
+<B> nbest-mix </B>
 reads a number of N-best lists (which must contain identical
 hypotheses), computes the hypothesis posterior probabilities for each,
 and computes a new posterior distribution that is a
@@ -27,52 +27,52 @@ printed.
 <P>
 The command line arguments form an alternating list of 
 weight values and N-best file names.
-<H2>OPTIONS</H2>
+<H2> OPTIONS </H2>
 <DL>
-<DT><B>-help</B>
+<DT><B> -help </B>
 <DD>
 Print option summary.
-<DT><B>-debug</B><I> level</I>
+<DT><B>-debug</B><I> level</I><B></B>
 <DD>
 Controls the amount of output (the higher the
-<I>level</I>,
+<I>level</I>,<I></I>
 the more).
-<DT><B>-write-nbest</B><I> file</I>
+<DT><B>-write-nbest</B><I> file</I><B></B>
 <DD>
 Outputs the N-best list corresponding to the interpolated 
 posterior distribution to a file.
 This suppresses the printing of the best hyp.
-<DT><B>-max-nbest</B><I> n</I>
+<DT><B>-max-nbest</B><I> n</I><B></B>
 <DD>
 Limits the number of hypotheses read from each N-best list to the first
-<I>n</I>.
-<DT><B>-rescore-lmw</B><I> lmw</I>
+<I>n</I>.<I></I>
+<DT><B>-rescore-lmw</B><I> lmw</I><B></B>
 <DD>
 Sets the language model weight used in combining the language model log
 probabilities with acoustic log probabilities
 (only relevant if separate scores are given in the N-best input).
-<DT><B>-rescore-wtw</B><I> wtw</I>
+<DT><B>-rescore-wtw</B><I> wtw</I><B></B>
 <DD>
 Sets the word transition weight used to weight the number of words relative to
 the acoustic log probabilities
 (only relevant if separate scores are given in the N-best input).
-<DT><B>-posterior-scale</B><I> scale</I>
+<DT><B>-posterior-scale</B><I> scale</I><B></B>
 <DD>
 Divide the total weighted log score by 
-<I>scale</I>
+<I> scale </I>
 when computing normalized posterior probabilities.
 This controls the peakedness of the posterior distribution. 
 The default value is whatever was chosen for 
-<I>lmw</I>,
+<I>lmw</I>,<I></I>
 so that language model scores are scaled to have weight 1,
 and acoustic scores have weight 1/<I>lmw</I>.
 </DD>
 </DL>
-<H2>SEE ALSO</H2>
-<A HREF="nbest-lattice.html">nbest-lattice(1)</A>.
-<H2>BUGS</H2>
+<H2> SEE ALSO </H2>
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>.
+<H2> BUGS </H2>
 Probably.
-<H2>AUTHOR</H2>
+<H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
 Copyright 1998 SRI International

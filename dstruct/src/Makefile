@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.18 1999/02/20 07:26:42 stolcke Exp $
+#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.19 1999/10/03 01:52:36 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -35,7 +35,7 @@ CXX += -Wreturn-type -DINSTANTIATE_TEMPLATES
 endif
 
 # Use SArray to save space, LHash for speed
-ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE
+ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Define variables.
 
@@ -44,6 +44,7 @@ TEMPLATE_SOURCES =	\
 	$(SRCDIR)/Map.cc \
 	$(SRCDIR)/SArray.cc \
 	$(SRCDIR)/LHash.cc \
+	$(SRCDIR)/Map2.cc \
 	$(SRCDIR)/Trie.cc
 
 # Example Library declarations files.
@@ -54,6 +55,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Map.h			\
 	$(SRCDIR)/SArray.h		\
 	$(SRCDIR)/LHash.h		\
+	$(SRCDIR)/Map2.h		\
 	$(SRCDIR)/Trie.h		\
 	$(TEMPLATE_SOURCES)
 
@@ -85,6 +87,7 @@ ADDITIONAL_LIBRARIES += \
 PROGRAM_NAMES = \
 		testArray \
 		testMap \
+		testMap2 \
 		testTrie \
 		benchHash
 

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/Discount.cc,v 1.9 1996/09/25 17:59:55 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.10 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include "Discount.h"
@@ -135,8 +135,7 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
      * Note we need GT count for up to maxCount + 1 inclusive, to apply
      * the GT formula for counts up to maxCount.
      */
-    VocabIndex *wids = new VocabIndex[order + 1];
-    assert(wids);
+    VocabIndex wids[order + 1];
 
     NgramsIter iter(counts, wids, order);
     Count *count, i;
@@ -199,7 +198,6 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
 	}
     }
 
-    delete [] wids;
     return true;
 }
 

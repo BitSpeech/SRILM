@@ -2,9 +2,9 @@
  * SubVocab.h --
  *	Vocabulary subset class
  *
- * Copyright (c) 1996, SRI International.  All Rights Reserved.
+ * Copyright (c) 1996,1999 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.h,v 1.2 1999/05/12 22:15:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.h,v 1.3 1999/10/12 23:06:44 stolcke Exp $
  *
  */
 
@@ -25,6 +25,7 @@ public:
     ~SubVocab() { };			/* works around g++ 2.7.2 bug */
 
     virtual VocabIndex addWord(VocabString name);
+    virtual VocabIndex addWord(VocabIndex wid);
 
     inline Vocab &baseVocab() { return _baseVocab; };
 

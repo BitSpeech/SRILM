@@ -3,12 +3,15 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.16 1998/11/12 08:50:12 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.18 2000/03/16 05:46:38 stolcke Exp $
 #
 
 bytelog=0
 nodecipherlm=0
 multiwords=0
+norescore=0
+decipher_lmw=8
+decipher_wtw=0
 
 while [ $# -gt 0 ]
 do
@@ -22,6 +25,9 @@ do
     -multiwords)
 	    multiwords=1
 	    ;;
+    -norescore)
+	    norescore=1
+	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
     *)	    break
@@ -33,11 +39,12 @@ done
 
 if [ $# -lt 3  ]; then
     {
-	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] nbest-file-list score-dir lm-options ..." >&2
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] nbest-file-list score-dir lm-options ..." >&2
 	echo "where"
 	echo "	-bytelog	produces bytelog scaled scores"
 	echo "	-nodecipherlm	avoids Decipher LM score computation"
 	echo "	-multiwords	expand multiwords into constituent words"
+	echo "	-norescore	don't rescore LM, just extract scores"
     } >&2
     exit 1
 fi
@@ -45,6 +52,25 @@ fi
 filelist="$1"
 scoredir="$2"
 shift; shift
+
+# when not rescoring need to get decipher lmw and wtw from remaining options
+if [ $norescore -gt 0 ]; then
+    while [ $# -gt 0 ]
+    do
+	case "$1" in
+	-decipher-lmw)	
+		decipher_lmw=$2
+		shift
+		;;
+	-decipher-wtw)
+		decipher_wtw=$2
+		shift
+		;;
+	*)	shift
+		;;
+	esac
+    done
+fi
 
 #
 # STRATEGY:
@@ -72,13 +98,25 @@ BEGIN {
 	filename = "";
 	numhyps = 0;
 	nbestformat = 0;
+
+	# constants
+	bytelogscale = 2.30258509299404568402 * 10000.5 / 1024.0;
+	pause = "-pau-";
 }
+
+function bytelog2log10(x) {
+	return x / bytelogscale;
+}
+
 NR == 1 {
 	sentid = filename;
 	sub("^.*/", "", sentid);
 	sub("\\.gz$", "", sentid);
 	sub("\\.Z$", "", sentid);
 	sub("\\.score$", "", sentid);
+	sub("\\.wv$", "", sentid);
+	sub("\\.wav$", "", sentid);
+	sub("\\.wav_cep$", "", sentid);
 	print escape, sentid ".score" ;
 }
 /^NBestList1\.0/ {
@@ -94,32 +132,61 @@ NR == 1 {
 }
 {
 	numhyps ++;
-	if (nbestformat <= 1) {
+	if (nbestformat == 0) {
 	    if (multiwords) {
 		gsub("_", " ", $0);
 	    }
 	    print;
-	} else if (nbestformat == 2) {
-	    if (nodecipherlm) {
-		line = "";
-		ac_score = 0;
-		for (i = 2; i <= NF; i += 11) {
-		    line = line " " $i;
-		    ac_score += $(i + 9);
-		}
-		if (multiwords) {
-		    gsub("_", " ", line);
-		}
-		print "(" ac_score ")" line;
+	} else if (nbestformat == 1) {
+	    if (multiwords) {
+		gsub("_", " ", $0);
+	    }
+	    if (norescore) {
+		# convert to SRILM format
+		score = substr($1,2,length($1)-2);
+		$1 = "";
+	    	print bytelog2log10(score), 0, 0, $0;
 	    } else {
-		line = $1;
-		for (i = 2; i <= NF; i += 11) {
-			line = line " " $i;
-		}
-		if (multiwords) {
-		    gsub("_", " ", line);
-		}
-		print line;
+		# keep Decipher format
+		print;
+	    }
+	} else if (nbestformat == 2) {
+	    # compute total AC and LM scores 
+	    ac_score = 0;
+	    lm_score = 0;
+	    num_words = 0;
+	    num_pauses = 0;
+
+	    words = "";
+	    for (i = 2; i <= NF; i += 11) {
+		words = words " " $i;
+
+		num_words ++;
+		if ($i == pause) num_pauses ++;
+
+		ac_score += $(i + 9);
+		lm_score += $(i + 7);
+	    }
+
+	    if (multiwords) {
+		gsub("_", " ", words);
+	    }
+
+	    if (norescore) {
+		# convert to SRILM nbest format
+		# NOTES:
+		# - subtract Decipher WTW (including for pauses!)
+		# - compute number of words WITHOUT pauses for output
+		print bytelog2log10(ac_score), \
+			bytelog2log10(lm_score/decipher_lmw) - \
+				numwords * decipher_wtw,  \
+			split(words, dummy) - num_pauses, words;
+	    } else if (nodecipherlm) {
+		# output only acoustic score in Decipher format
+		print "(" ac_score ")" words;
+	    } else {
+		# output combined score in Decipher format
+		print $1, words;
 	    }
 	}
 }
@@ -130,11 +197,16 @@ END {
 	}
 }
 ' filename=$filename escape="$escape" \
-  nodecipherlm=$nodecipherlm multiwords=$multiwords
+  nodecipherlm=$nodecipherlm multiwords=$multiwords \
+  norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw
 done
 ) | \
-ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 -escape "$escape " \
-		"$@" | \
+if [ $norescore -gt 0 ]; then
+    cat
+else
+    ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
+		-escape "$escape " "$@" 
+fi | \
 gawk -v bytelog=$bytelog '
 BEGIN {
 	currentfile = "";

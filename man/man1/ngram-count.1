@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.10 1999/07/17 11:08:26 stolcke Exp $
-.TH ngram-count 1 "$Date: 1999/07/17 11:08:26 $" SRILM
+.\" $Id: ngram-count.1,v 1.14 2000/05/04 15:23:30 stolcke Exp $
+.TH ngram-count 1 "$Date: 2000/05/04 15:23:30 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -15,7 +15,8 @@ models from them.
 The program first builds an internal N-gram count set, either
 by reading counts from a file, or by scanning text input.
 Following that, the resulting counts can be output back to a file
-or used for building an N-gram language model in ARPA format.
+or used for building an N-gram language model in ARPA
+.BR ngram-format (5).
 Each of these actions is triggered by corresponding options, as
 described below.
 .PP
@@ -97,7 +98,7 @@ separately in a single pass.
 .TP
 .B \-sort
 Output counts in lexicographic order, as required for
-.BR ngram-merge .
+.BR ngram-merge (1).
 .TP
 .B \-recompute
 Regenerate lower-order counts by summing the highest-order counts for 
@@ -105,9 +106,11 @@ each N-gram prefix.
 .SS LM Options
 .TP
 .BI \-lm " lmfile"
-Estimate an ARPA backoff N-gram model from the total counts, and write it
+Estimate a backoff N-gram model from the total counts, and write it
 to
-.IR lmfile .
+.I lmfile 
+in 
+.BR ngram-format (5).
 .TP
 .B \-float-counts
 Enable manipulation of fractional counts.
@@ -229,18 +232,19 @@ is 1, 2, 3, 4, 5, or 6.
 Use Ristad's natural discounting law for N-grams of order
 .IR n .
 .SH "SEE ALSO"
-ngram-merge(1), ngram(1).
+ngram-merge(1), ngram(1), ngram-class(1), training-scripts(1), lm-scripts(1),
+ngram-format(5).
 .br
 S. M. Katz, ``Estimation of Probabilities from Sparse Data for the
-Language Model Component of a Speech Recognizer,'' IEEE Trans. ASSP 35(3),
-400-401, 1987.
+Language Model Component of a Speech Recognizer,'' \fIIEEE Trans. ASSP\fP 35(3),
+400\-401, 1987.
 .br
 H. Ney and U. Essen, ``On Smoothing Techniques for Bigram-based Natural
-Language Modelling,'' Proc. ICASSP, 825-828, 1991.
+Language Modelling,'' \fIProc. ICASSP\fP, 825\-828, 1991.
 .br
 I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
 Probabilities of Novel Events in Adaptive Text Compression,''
-IEEE Trans. Information Theory 37(4), 1085-1094, 1991.
+\fIIEEE Trans. Information Theory\fP 37(4), 1085\-1094, 1991.
 .br
 E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
 Comp. Sci. Dept., Princeton Univ., 1995.
@@ -254,8 +258,8 @@ followed by standard ngram model estimation.
 .br
 LM support for tagged words is incomplete.
 .br
-Only Witten-Bell smoothing currently supports fractional counts.
+Only absolute and Witten-Bell discounting currently supports fractional counts.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-1999 SRI International
+Copyright 1995\-1999 SRI International

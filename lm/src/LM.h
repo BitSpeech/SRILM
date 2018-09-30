@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.26 1999/07/17 10:38:06 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.29 2000/05/07 01:23:53 stolcke Exp $
  *
  */
 
@@ -20,6 +20,8 @@
 #include "Prob.h"
 #include "File.h"
 #include "Vocab.h"
+#include "SubVocab.h"
+#include "TextStats.h"
 #include "Debug.h"
 #include "MemStats.h"
 
@@ -27,7 +29,7 @@ typedef unsigned int Count;		/* a count of something */
 typedef double FloatCount;		/* a fractional count */
 
 class LM;		/* forward declaration */
-class TextStats;	/* forward declaration */
+class NgramStats;	/* forward declaration */
 
 /*
  * This is the iter class from which more specialized iters can be
@@ -66,6 +68,14 @@ public:
 
     virtual LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
     virtual LogP sentenceProb(const VocabString *sentence, TextStats &stats);
+
+    virtual LogP contextProb(const VocabIndex *context,
+					unsigned clength = maxWordsPerLine);
+		    /* joint probability of a reversed word string */
+
+    virtual LogP countsProb(NgramStats &counts, TextStats &stats,
+							unsigned order);
+						/* probability from counts */
 
     virtual unsigned pplFile(File &file, TextStats &stats,
 				const char *escapeString = 0);
@@ -106,7 +116,7 @@ public:
 
     Vocab &vocab;			/* vocabulary */
 
-    VocabIndex noiseIndex;		/* [noise] tag */
+    SubVocab noiseVocab;		/* noise tag set */
 
     virtual VocabIndex *removeNoise(VocabIndex *words);
 					/* strip noise and pause tags */
@@ -148,29 +158,5 @@ public:
 private:
     _LM_FollowIter *realIter;		/* LM-specific iterator */
 };
-
-
-/*
- * TextStats objects are used to pass and accumulate various 
- * statistics of text sources (training or test).
- */
-class TextStats
-{
-public:
-    TextStats() : prob(0.0), zeroProbs(0),
-	numSentences(0), numWords(0), numOOVs(0) {};
-
-    void reset() { prob = 0.0, zeroProbs = 0,
-	numSentences = numWords = numOOVs = 0; };
-    TextStats &increment(TextStats &stats);
-
-    LogP prob;
-    unsigned zeroProbs;
-    unsigned numSentences;
-    unsigned numWords;
-    unsigned numOOVs;
-};
-
-ostream &operator<<(ostream &, TextStats &stats);
 
 #endif /* _LM_h_ */

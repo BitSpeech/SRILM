@@ -3,24 +3,37 @@
 # fsm-to-pfsg --
 #	convert AT&T FSM acceptor to Decipher PFSG format
 #
-# usage: fsm-to-pfsg [pfsg_name=NAME] file.fsm > file.pfsg
+# usage: fsm-to-pfsg [pfsg_name=NAME] [transducer=1] [scale=S] file.fsm > file.pfsg
+# pfsg_name=NAME	sets PFSG name to NAME
+# transducer=1		indicates input is a transducer
+# scale=S		sets transition weight scaling factor to S
+#			(default -1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg,v 1.2 1998/08/12 23:34:10 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg,v 1.5 2000/02/11 06:22:47 stolcke Exp $
 #
 BEGIN {
 	pfsg_name = "from_fsm";
+	transducer = 0;		# input is transducer
 
 	getline pid < "/dev/pid";
 	tmpfile = "/tmp/fsm.tmp" pid;
 	num_newnodes = 0;
 	initial_node = -1;
 	empty_output = "NULL";
+	scale = -1;		# scaling of transition weights
 }
 
 # transition description
 NF >= 3 {
 	from_node = $1;
 	to_node = $2;
+
+	if (transducer) {
+		# collapse input and output into a single symbol
+		$3 = $3 ":" $4;	
+		$4 = "";
+	}
+
 	output = $3;
 
 	if (initial_node < 0) {
@@ -105,7 +118,7 @@ END {
 		    printf "%d %d %d\n", \
 			  newnode_table[a[i] " " from_node], \
 			  newnode_table[output " " to_node], \
-			  cost;
+			  scale * cost;
 		}
 	    } else {
 		from_node = $1;
@@ -117,7 +130,7 @@ END {
 		    printf "%d %d %d\n", \
 			  newnode_table[a[i] " " from_node], \
 			  final_newnode, \
-			  cost;
+			  scale * cost;
 		}
 	    }
 	}

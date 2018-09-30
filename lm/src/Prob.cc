@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.11 1998/04/18 22:07:36 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.12 1999/10/07 06:24:18 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -24,7 +24,7 @@ const LogP LogP_Inf = 1.0/0.0;			/* log(Inf) */
 
 const int LogP_Precision = 7;	/* number of significant decimals in a LogP */
 
-const Prob Prob_Epsilon = 1e-06;/* probability sums less than this in
+const Prob Prob_Epsilon = 3e-06;/* probability sums less than this in
 				 * magnitude are effectively considered 0
 				 * (assuming they were obtained by summing
 				 * LogP's) */

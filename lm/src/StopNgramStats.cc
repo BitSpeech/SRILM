@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char TaggedNgramStats_Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.1 1996/12/10 09:28:59 stolcke Exp $";
+static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.2 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -33,8 +33,7 @@ StopNgramStats::countSentence(const VocabIndex *words)
 {
     unsigned sentLength = Vocab::length(words);
 
-    VocabIndex *countWords = new VocabIndex[sentLength + 1];
-    assert(countWords != 0);
+    VocabIndex countWords[sentLength + 1];
 
     unsigned countPos = 0;
     for (unsigned nextPos = 0; nextPos < sentLength; nextPos++) {
@@ -72,7 +71,6 @@ StopNgramStats::countSentence(const VocabIndex *words)
 
     stats.numSentences ++;
 
-    delete [] countWords;
     return sentLength;
 }
 

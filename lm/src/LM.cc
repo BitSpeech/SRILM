@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LM.cc,v 1.35 1998/12/24 20:13:42 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LM.cc,v 1.39 2000/05/07 01:23:53 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -20,6 +20,7 @@ extern "C" {
 }
 
 #include "LM.h"
+#include "NgramStats.h"
 #include "NBest.h"
 
 /*
@@ -38,12 +39,11 @@ const char *defaultStateTag = "<LMstate>";
  *	add words to the Vocab as needed.
  */
 LM::LM(Vocab &vocab)
-    : vocab(vocab)
+    : vocab(vocab), noiseVocab(vocab)
 {
     _running = false;
     reverseWords = false;
     stateTag = defaultStateTag;
-    noiseIndex = Vocab_None;
 }
 
 LM::~LM()
@@ -60,12 +60,11 @@ LogP
 LM::wordProb(VocabString word, const VocabString *context)
 {
     unsigned int len = vocab.length(context);
-    VocabIndex *cids = new VocabIndex[len + 1];
+    VocabIndex cids[len + 1];
     vocab.getIndices(context, cids, len + 1, vocab.unkIndex);
 
     LogP prob = wordProb(vocab.getIndex(word, vocab.unkIndex), cids);
 
-    delete [] cids;
     return prob;
 }
 
@@ -132,12 +131,11 @@ LogP
 LM::sentenceProb(const VocabString *sentence, TextStats &stats)
 {
     unsigned int len = vocab.length(sentence);
-    VocabIndex *wids = new VocabIndex[len + 1];
+    VocabIndex wids[len + 1];
     vocab.getIndices(sentence, wids, len + 1, vocab.unkIndex);
 
     LogP prob = sentenceProb(wids, stats);
 
-    delete [] wids;
     return prob;
 }
 
@@ -162,7 +160,7 @@ LM::prepareSentence(const VocabIndex *sentence, VocabIndex *reversed,
     for (i = 1; i <= len; i++) {
 	VocabIndex word = sentence[reverseWords ? i - 1 : len - i];
 
-	if (word == vocab.pauseIndex || word == noiseIndex) {
+	if (word == vocab.pauseIndex || noiseVocab.getWord(word)) {
 	    continue;
 	}
 
@@ -181,8 +179,7 @@ LM::prepareSentence(const VocabIndex *sentence, VocabIndex *reversed,
 }
 
 /*
- * Convenience functions that strips noise and pause tags from a
- * words string
+ * Convenience functions that strips noise and pause tags from a words string
  */
 VocabIndex *
 LM::removeNoise(VocabIndex *words)
@@ -190,7 +187,9 @@ LM::removeNoise(VocabIndex *words)
     unsigned from, to;
 
     for (from = 0, to = 0; words[from] != Vocab_None; from ++) {
-	if (words[from] != vocab.pauseIndex && words[from] != noiseIndex) {
+	if (words[from] != vocab.pauseIndex &&
+	    !noiseVocab.getWord(words[from]))
+	{
 	    words[to++] = words[from];
 	}
     }
@@ -208,7 +207,7 @@ LogP
 LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 {
     unsigned int len = vocab.length(sentence);
-    VocabIndex *reversed = new VocabIndex[len + 2 + 1];
+    VocabIndex reversed[len + 2 + 1];
     int i;
 
     /*
@@ -222,7 +221,6 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
      * Also, we have to prepend the sentence-begin token,
      * and append the sentence-end token.
      */
-    assert(reversed != 0);
     len = prepareSentence(sentence, reversed, len);
 
     LogP totalProb = 0.0;
@@ -281,7 +279,6 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	}
     }
 
-    delete [] reversed;
     running(wasRunning);
 
     /*
@@ -292,6 +289,172 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     stats.numOOVs += totalOOVs;
     stats.zeroProbs += totalZeros;
     stats.prob += totalProb;
+
+    return totalProb;
+}
+
+/*
+ * Compute joint probability of a word context (a reversed word sequence)
+ */
+LogP
+LM::contextProb(const VocabIndex *context, unsigned clength)
+{
+    unsigned useLength = Vocab::length(context);
+    LogP jointProb = LogP_One;
+
+    if (clength < useLength) {
+	useLength = clength;
+    }
+
+    /*
+     * If the context is empty there is nothing left to do: return LogP_One 
+     */
+    if (useLength > 0) {
+	/*
+	 * Turn off debugging for contextProb computation
+	 */
+	Boolean wasRunning = running(false);
+
+	/*
+	 * The usual hack: truncate the context temporarily
+	 */
+	VocabIndex saved = context[useLength];
+	((VocabIndex *)context)[useLength] = Vocab_None;
+
+	/*
+	 * If the context starts with <s>, we compute a prefix prob
+	 * for it.  Otherwise initialize the jointProb with the
+	 * unigram probability of the first word.
+	 */
+	if (context[useLength - 1] != vocab.ssIndex) {
+	    jointProb =
+		wordProb(context[useLength - 1], &context[useLength]);
+	}
+
+	/*
+	 * Accumulate conditional word probs for the remaining context
+	 */
+	for (unsigned i = useLength - 1; i > 0; i--) {
+	    jointProb += wordProb(context[i - 1], &context[i]);
+	}
+
+	((VocabIndex *)context)[useLength] = saved;
+
+	running(wasRunning);
+    }
+
+    return jointProb;
+}
+
+/*
+ * Compute an aggregate log probability, perplexity, etc., much like
+ * sentenceProb, except that it uses counts instead of actual 
+ * sentences.
+ */
+LogP
+LM::countsProb(NgramStats &counts, TextStats &stats, unsigned countorder)
+{
+    VocabIndex ngram[countorder + 1];
+
+    LogP totalProb = 0.0;
+
+    /*
+     * Indicate to lm methods that we're in sequential processing
+     * mode.
+     */
+    Boolean wasRunning = running(true);
+
+    /*
+     * Enumerate all counts up the order indicated
+     */
+    for (unsigned i = 1; i <= countorder; i++ ) {
+	NgramsIter ngramIter(counts, ngram, i, vocab.compareIndex());
+
+	NgramCount *count;
+
+	/*
+	 * This enumerates all ngrams of the given order
+	 */
+	while (count = ngramIter.next()) {
+	    TextStats ngramStats;
+
+	    /*
+	     * Skip zero counts since they don't contribute anything to
+	     * the probability
+	     */
+	    if (*count == 0) {
+		continue;
+	    }
+
+	    /*
+	     * reverse ngram for lookup
+	     */
+	    Vocab::reverse(ngram);
+
+	    /*
+	     * The rest of this loop is patterned after LM::sentenceProb()
+	     */
+
+	    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+		dout() << "\tp( " << vocab.getWord(ngram[0]) << " | "
+		       << (vocab.use(), &ngram[1])
+		       << ") \t= " ;
+	    }
+	    LogP prob = wordProb(ngram[0], &ngram[1]);
+
+	    if (debug(DEBUG_PRINT_WORD_PROBS)) {
+		dout() << " " << LogPtoProb(prob) << " [ " << prob << " ]";
+		if (debug(DEBUG_PRINT_PROB_SUMS)) {
+		    Prob probSum = wordProbSum(&ngram[1]);
+		    dout() << " / " << probSum;
+		    if (fabs(probSum - 1.0) > 0.0001) {
+			cerr << "\nwarning: word probs for this context sum to "
+			     << probSum << " != 1 : " 
+			     << (vocab.use(), &ngram[1]) << endl;
+		    }
+		}
+		dout() << endl;
+	    }
+
+	    /*
+	     * ngrams ending in </s> are counted as sentences, all others
+	     * as words.  This keeps the output compatible with that of
+	     * LM::pplFile().
+	     */
+	    if (ngram[0] == vocab.seIndex) {
+		ngramStats.numSentences = *count;
+	    } else {
+		ngramStats.numWords = *count;
+	    }
+
+	    /*
+	     * If the probability returned is zero but the
+	     * word in question is <unk> we assume this is closed-vocab
+	     * model and count it as an OOV.  (This allows open-vocab
+	     * models to return regular probabilties for <unk>.)
+	     * If this happens and the word is not <unk> then we are
+	     * dealing with a broken language model that return
+	     * zero probabilities for known words, and we count them
+	     * as a "zeroProb".
+	     */
+	    if (prob == LogP_Zero) {
+		if (ngram[0] == vocab.unkIndex) {
+		    ngramStats.numOOVs = *count;
+		} else {
+		    ngramStats.zeroProbs = *count;
+		}
+	    } else {
+		totalProb +=
+		    (ngramStats.prob = *count * prob);
+	    }
+
+	    stats.increment(ngramStats);
+
+	    Vocab::reverse(ngram);
+	}
+    }
+
+    running(wasRunning);
 
     return totalProb;
 }
@@ -459,7 +622,7 @@ LM::generateSentence(unsigned maxWords, VocabIndex *sentence)
 		delete defaultResult;
 	    }
 	    defaultResult = new VocabIndex[defaultResultSize];
-	    assert(defaultResult);
+	    assert(defaultResult != 0);
 	}
 	sentence = defaultResult;
     }
@@ -469,8 +632,7 @@ LM::generateSentence(unsigned maxWords, VocabIndex *sentence)
      * partial contexts are represented in reverse we use a second
      * buffer for partial sentences.
      */
-    VocabIndex *genBuffer = new VocabIndex[maxWords + 3];
-    assert(genBuffer != 0);
+    VocabIndex genBuffer[maxWords + 3];
 
     unsigned last = maxWords + 2;
     genBuffer[last] = Vocab_None;
@@ -493,7 +655,6 @@ LM::generateSentence(unsigned maxWords, VocabIndex *sentence)
     }
     sentence[i] = Vocab_None;
 
-    delete [] genBuffer;
     return sentence;
 }
 
@@ -610,50 +771,5 @@ _LM_FollowIter::next(LogP &prob)
     }
 
     return index;
-}
-
-/*
- * TextStats
- */
-
-/*
- * Increments from other source
- */
-TextStats &
-TextStats::increment(TextStats &stats)
-{
-    numSentences += stats.numSentences;
-    numWords += stats.numWords;
-    numOOVs += stats.numOOVs;
-    prob += stats.prob;
-    zeroProbs += stats.zeroProbs;
-
-    return *this;
-}
-
-/*
- * Format stats for stream output
- */
-ostream &
-operator<< (ostream &stream, TextStats &stats)
-{
-
-    stream << stats.numSentences << " sentences, " 
-           << stats.numWords << " words, "
-	   << stats.numOOVs << " OOVs" << endl;
-    if (stats.numWords + stats.numSentences > 0) {
-	double ppl = LogPtoPPL(stats.prob / (stats.numWords
-					     - stats.numOOVs
-					     - stats.zeroProbs
-					     + stats.numSentences));
-	double ppl1 = LogPtoPPL(stats.prob / (stats.numWords
-					     - stats.numOOVs
-					     - stats.zeroProbs));
-	stream << stats.zeroProbs << " zeroprobs, "
-	       << "logprob= " << stats.prob << " "
-	       << "ppl= " << ppl << " "
-	       << "ppl1= " << ppl1 << endl;
-    }
-    return stream;
 }
 

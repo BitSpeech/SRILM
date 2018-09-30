@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.23 1998/12/24 19:11:00 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.26 2000/07/13 06:18:06 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -282,6 +282,33 @@ Vocab::length(const VocabString *words)
 }
 
 /*
+ * Copying (a la strcpy())
+ */
+VocabIndex *
+Vocab::copy(VocabIndex *to, const VocabIndex *from)
+{
+    unsigned i;
+    for (i = 0; from[i] != Vocab_None; i ++) {
+	to[i] = from[i];
+    }
+    to[i] = Vocab_None;
+
+    return to;
+}
+
+VocabString *
+Vocab::copy(VocabString *to, const VocabString *from)
+{
+    unsigned i;
+    for (i = 0; from[i] != 0; i ++) {
+	to[i] = from[i];
+    }
+    to[i] = 0;
+
+    return to;
+}
+
+/*
  * Word containment
  */
 Boolean
@@ -414,14 +441,14 @@ Vocab::compare(const VocabIndex *words1, const VocabIndex *words2)
     unsigned int i = 0;
 
     for (i = 0; ; i++) {
-	if (words1[i] == 0) {
-	    if (words2[i] == 0) {
+	if (words1[i] == Vocab_None) {
+	    if (words2[i] == Vocab_None) {
 		return 0;
 	    } else {
 		return -1;	/* words1 is shorter */
 	    }
 	} else {
-	    if (words2[i] == 0) {
+	    if (words2[i] == Vocab_None) {
 		return 1;	/* words2 is shorted */
 	    } else {
 		int comp = compare(words1[i], words2[i]);
@@ -443,14 +470,14 @@ VocabIndexComparator
 Vocab::compareIndex() const
 {
     compareVocab = (Vocab *)this;	// discard const
-    return compare;
+    return &Vocab::compare;
 }
 
 VocabIndicesComparator
 Vocab::compareIndices() const
 {
     compareVocab = (Vocab *)this;	// discard const
-    return compare;
+    return &Vocab::compare;
 }
 
 // Write vocabulary to file

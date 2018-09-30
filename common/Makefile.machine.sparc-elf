@@ -9,9 +9,18 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc-elf,v 1.13 1999/02/20 07:18:48 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.sparc-elf,v 1.16 2000/07/13 06:14:01 stolcke Exp $
 #
 #    $Log: Makefile.machine.sparc-elf,v $
+#    Revision 1.16  2000/07/13 06:14:01  stolcke
+#    ld -z muldefs no longer needed
+#
+#    Revision 1.15  2000/06/08 23:59:55  stolcke
+#    back to gcc 2.8.1
+#
+#    Revision 1.14  1999/10/13 07:07:23  stolcke
+#    use gcc 2.95
+#
 #    Revision 1.13  1999/02/20 07:18:48  stolcke
 #    added -ldl
 #
@@ -101,7 +110,7 @@ endif
    ADDITIONAL_INCLUDES = 
 
    # Other useful linking flags.
-   ADDITIONAL_LDFLAGS =
+   ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl

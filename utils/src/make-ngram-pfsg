@@ -5,7 +5,7 @@
 #
 # usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg,v 1.14 1998/07/10 04:40:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg,v 1.19 2000/07/11 06:12:13 stolcke Exp $
 #
 
 #########################################
@@ -19,7 +19,9 @@ BEGIN {
 	start_tag = "<s>";
 	end_tag = "</s>";
 
-	tmpfile = "tmp.pfsg.trans";
+	getline pid < "/dev/pid";
+	close("/dev/pid");
+	tmpfile = "tmp.pfsg.trans." pid;
 	debug = 0;
 }
 
@@ -52,6 +54,10 @@ function output_for_node(name) {
 	}
 }
 
+function node_exists(name) {
+	return (name in node_num);
+}
+
 function node_index(name) {
 	i = node_num[name];
 	if (i == "") {
@@ -74,6 +80,14 @@ function start_grammar(name) {
 }
 
 function end_grammar(name) {
+	if (!node_exists(start_tag)) {
+		print start_tag " tag undefined in LM" > "/dev/stderr";
+		exit(1);
+	} else if (!node_exists(end_tag)) {
+		print end_tag " tag undefined in LM" > "/dev/stderr";
+		exit(1);
+	}
+
 	printf "%d pfsg nodes\n", num_nodes > "/dev/stderr";
 	printf "%d pfsg transitions\n", num_trans > "/dev/stderr";
 
@@ -188,6 +202,12 @@ currorder == 2 {
 	word2 = $3;
 	bow = $4;
 
+	if (word2 == start_tag) {
+	    printf "warning: ignoring bigram into start tag %s -> %s\n", \
+			word1, word2 > "/dev/stderr";
+	    next;
+	}
+
 	word12 = $2 " " $3;
 
 	if (check_bows && order > 2) {
@@ -207,7 +227,8 @@ currorder == 2 {
 	    }
 	}
 
-	if (uni_prob[word2] != "" && \
+	if (check_bows && \
+	    word2 in uni_prob && \
 	    uni_prob[word2] + uni_bows[word1] - biprob > epsilon)
 	{
 	    printf "warning: bigram loses to backoff %s -> %s\n", \
@@ -224,18 +245,24 @@ currorder == 3 {
 	word2 = $3;
 	word3 = $4;
 
+	if (word3 == start_tag) {
+	    printf "warning: ignoring trigram into start tag %s %s -> %s\n", \
+			word1, word2, word3 > "/dev/stderr";
+	    next;
+	}
+
 	word12 = word1 " " word2;
 	word23 = word2 " " word3;
 
-	if (bi_bows[word12] != 0) {
-	    if (bi_bows[word23]) {
+	if (word12 in bi_bows) {
+	    if (word23 in bi_bows) {
 		add_trans(word12, word23, triprob);
 	    } else {
 		add_trans(word12, word3, triprob);
 	    } 
 
 	    if (check_bows && \
-		bi_prob[word23] != "" && \
+		word23 in bi_prob && \
 		bi_prob[word23] + bi_bows[word12] - triprob > epsilon)
 	    {
 		printf "warning: trigram loses to backoff %s %s -> %s\n", \

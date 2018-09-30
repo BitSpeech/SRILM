@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Header: /home/spot71/srilm/devel/misc/src/RCS/option.c,v 1.12 1997/05/22 02:11:44 stolcke Exp $ SPRITE (Berkeley)";
+static char rcsid[] = "$Header: /home/srilm/devel/misc/src/RCS/option.c,v 1.13 1999/08/07 22:15:36 stolcke Exp $ SPRITE (Berkeley)";
 #endif
 
 #include <option.h>
@@ -164,17 +164,26 @@ Opt_Parse(argc, argv, optionArray, numOptions, flags)
 			    }
 			    break;
 			case OPT_INT:
+			case OPT_UINT:
 			    if (argc == 0) {
 				OptNoArg(argv[0], optionPtr->key);
 			    } else {
 				char *endPtr;
 
-				*((int *) optionPtr->address) =
-					strtol(*curArg, &endPtr, 0);
+				int value = strtol(*curArg, &endPtr, 0);
+
 				if (endPtr == *curArg) {
 				    fprintf(stderr,
-      "Warning: option \"-%s\" got a non-numeric argument \"%s\".  Setting to 0.\n",
-					    optionPtr->key, *curArg);
+ "Warning: option \"-%s\" got a non-numeric argument \"%s\".  Using default: %d\n",
+ optionPtr->key, *curArg, *((int *) optionPtr->address));
+				} else if (optionPtr->type == OPT_UINT &&
+								   value < 0)
+				{
+				    fprintf(stderr,
+ "Warning: option \"-%s\" got a negative argument \"%s\".  Using default: %u.\n",
+ optionPtr->key, *curArg, *((unsigned *) optionPtr->address));
+				} else {
+				    *((int *) optionPtr->address) = value;
 				}
 				curArg++;
 				argc--;
@@ -196,12 +205,14 @@ Opt_Parse(argc, argv, optionArray, numOptions, flags)
 			    } else {
 				char *endPtr;
 
-				*((double *) optionPtr->address) =
-					strtod(*curArg, &endPtr);
+				double value = strtod(*curArg, &endPtr);
+
 				if (endPtr == *curArg) {
 				    fprintf(stderr,
-      "Warning: option \"-%s\" got non-floating-point argument \"%s\".  Setting to 0.\n",
-					    optionPtr->key, *curArg);
+ "Warning: option \"-%s\" got non-floating-point argument \"%s\".  Using default: %lg.\n",
+ optionPtr->key, *curArg, *((double *) optionPtr->address));
+				} else {
+				    *((double *) optionPtr->address) = value;
 				}
 				curArg++;
 				argc--;
@@ -334,6 +345,11 @@ Opt_PrintUsage(commandName, optionArray, numOptions)
 		case OPT_INT: {
 		    fprintf(stderr, "\t\tDefault value: %d\n",
 			    *((int *) optionArray[i].address));
+		    break;
+		}
+		case OPT_UINT: {
+		    fprintf(stderr, "\t\tDefault value: %u\n",
+			    *((unsigned *) optionArray[i].address));
 		    break;
 		}
 		case OPT_FLOAT: {

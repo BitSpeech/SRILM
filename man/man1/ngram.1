@@ -1,5 +1,5 @@
-.\" $Id: ngram.1,v 1.19 1999/05/13 07:40:47 stolcke Exp $
-.TH ngram 1 "$Date: 1999/05/13 07:40:47 $" SRILM
+.\" $Id: ngram.1,v 1.28 2000/06/09 00:35:25 stolcke Exp $
+.TH ngram 1 "$Date: 2000/06/09 00:35:25 $" "SRILM Tools"
 .SH NAME
 ngram \- apply N-gram language models
 .SH SYNOPSIS
@@ -10,10 +10,13 @@ option
 \&...
 .SH DESCRIPTION
 .B ngram
-performs various operations with N-gram-based language models,
+performs various operations with N-gram-based and related language models,
 including sentence scoring, perplexity computation, sentences generation,
 and various types of model interpolation.
-The N-gram language models are read from files in ARPA format.
+The N-gram language models are read from files in ARPA
+.BR ngram-format (5);
+various extended language model formats are described with the options
+below.
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
@@ -70,6 +73,48 @@ The list of hidden event tags is read from
 Modifies processing of hidden event N-grams for the case that 
 the event tags are embedded in the word stream, as opposed to inferred 
 through dynamic programming.
+.TP
+.BI \-classes " file"
+Interpret the LM as an N-gram over word classes.
+The expansions of the classes are given in
+.IR file 
+in 
+.BR classes-format (5).
+Tokens in the LM that are not defined as classes in
+.I file 
+are assumed to be plain words, so that the LM can contain mixed N-grams over
+both words and word classes.
+.br
+Class definitions may also follow the N-gram definitions in the 
+LM file (the argument to 
+.BR \-lm ).
+In that case 
+.BR "\-classes /dev/null"
+should be specified to trigger interpretation of the LM as a class-based model.
+.TP
+.BI \-expand-classes " k"
+Replace the read class-N-gram model with an (approximately) equivalent
+word-based N-gram.
+The argument
+.I k
+limits the length of the N-grams included in the new model
+(\c
+.IR k =0
+allows N-grams of arbitrary length).
+.TP
+.BI \-expand-exact " k"
+Use a more exact (but also more expensive) algorithm to compute the 
+conditional probabilities of N-grams expanded from classes, for
+N-grams of length
+.I k
+or longer
+(\c
+.IR k =0
+is a special case and the default, it disables the exact algorithm for all
+N-grams).
+The exact algorithm is recommended for class-N-gram models that contain
+multi-word class expansions, for N-gram lengths exceeding the order of 
+the underlying class N-grams.
 .TP
 .B \-decipher
 Use the N-gram model exactly as the Decipher(TM) recognizer would,
@@ -141,7 +186,28 @@ Map all vocabulary to lowercase.
 Useful if case conventions for text/counts and language model differ.
 .TP
 .BI \-mix-lm " file"
-Read a second, standard N-gram model for interpolation purposes.
+Read a second N-gram model for interpolation purposes.
+The second and any additional interpolated models can also be class N-grams
+(using the same
+.B \-classes 
+definitions), but are otherwise constrained to be standard N-grams, i.e.,
+the options
+.BR \-df ,
+.BR \-tagged ,
+.BR \-skip ,
+and
+.B \-hidden-vocab 
+do not apply to then.
+.br
+.B NOTE:
+Unless 
+.B \-bayes
+(see below) is specified,
+.B \-mix-lm
+triggers a static interpolation of the models in memory.
+In most cases a more efficient, dynamic interpolation is sufficient, requested
+by 
+.BR "\-bayes 0" .
 .TP
 .BI \-lambda " weight"
 Set the weight of the main model when interpolating with
@@ -237,7 +303,7 @@ converted into probabilistic finite-state networks.
 .BI \-minprune " n"
 Only prune N-grams of length at least
 .IR n .
-The default (and minimim allowed value) is 2, i.e., only unigrams are excluded
+The default (and minimum allowed value) is 2, i.e., only unigrams are excluded
 from pruning.
 This option applies to both
 .B \-prune
@@ -247,8 +313,15 @@ and
 .BI \-write-lm " file"
 Write a model back to
 .IR file .
-The output will be a single N-gram backoff model that is equivalent
-to the operations previously performed on the LM(s).
+The output will be in the same format as read by
+.BR \-lm ,
+except if operations such as 
+.B \-mix-lm
+or 
+.B \-expand-classes 
+were applied, in which case the output will contain the generated
+single N-gram backoff model in ARPA
+.BR ngram-format (5).
 .TP
 .BI \-write-vocab " file"
 Write the LM's vocabulary to
@@ -268,8 +341,8 @@ The
 .B \-debug
 option controls the level of detail printed, even though output is
 to stdout (not stderr).
-At level 0, only summary stats for the entire corpus are printed.
-At level 1, stats for individual sentences are printed.
+At level 0, only summary statistics for the entire corpus are printed.
+At level 1, statistics for individual sentences are printed.
 At level 2, probabilities for each word, plus LM-dependent details about backoff
 used etc., are printed.
 At level 3, the probabilities for all words are summed in each context, and
@@ -277,22 +350,13 @@ the sum is printed.  If this differs significantly from 1, a warning message
 to stderr will be issued.
 .TP
 .BI \-nbest " file"
-Read a Decipher(TM) N-best list and rerank the hypotheses using the 
-specified LM.
+Read an N-best list in
+.BR nbest-format (5)
+and rerank the hypotheses using the specified LM.
 The reordered N-best list is written to stdout.
-An N-best list consists of the header
-.br
-	NBestList1.0
-.br
-followed by one or more lines of the form
-.br
-	(\fIscore\fP) \fIw1 w2 w3\fP ...
-.br
-where
-.I score
-is either an acoustic score or a composite acoustic/language model score
-from the recognizer on the bytelog scale.
-If composite scores are given, then
+If the N-best list is given in
+``NBestList1.0'' format and contains 
+composite acoustic/language model scores, then
 .B \-decipher-lm
 and the recognizer language model and word transition weights (see below)
 need to be specified so the original acoustic scores can be recovered.
@@ -307,14 +371,9 @@ hypotheses are processed.
 Similar to
 .BR \-nbest ,
 but the input is processed as a stream of N-best hypotheses (without header).
-The output is not in N-best format.
-Instead, for each input line, the hypothesis is rescored and output as
-.br
-	\fIascore\fP \fIlscore\fP \fInwords\fP \fIw1 w2 w3\fP ...
-.br
-where the first three columns contain the
-acoustic model log probability, the language model log probability,
-and the number of words in the hypothesis string, respectively.
+The output consists of the rescored hypotheses in
+SRILM format (the third of the formats described in
+.BR nbest-format (5)).
 .TP
 .BI \-decipher-lm " model-file"
 Designates the N-gram backoff model (typically a bigram) that was used by the
@@ -381,6 +440,12 @@ does NOT ignore this
 .I noise-tag
 since the DECIPHER recognizer treats noise as a regular word.
 .TP
+.BI \-noise-vocab " file"
+Read several noise tags from
+.IR file ,
+instead of, or in addition to, the single noise tag specified by
+.BR \-noise .
+.TP
 .B \-reverse
 Reverse the words in a sentence for LM scoring purposes.
 (This assumes the LM used is a ``right-to-left'' model.)
@@ -388,27 +453,29 @@ Note that the LM specified by
 .B \-decipher-lm
 is always applied to the original, left-to-right word sequence.
 .SH "SEE ALSO"
-ngram-count(1).
+ngram-count(1), ngram-class(1), lm-scripts(1), ppl-scripts(1),
+pfsg-scripts(1), nbest-scripts(1),
+ngram-format(5), nbest-format(5), classes-format(5).
 .br
 M. Weintraub et al., ``Fast Training and Portability,''
 in Research Note No. 1, Center for Language and Speech Processing,
 Johns Hopkins University, Baltimore, Feb. 1996.
 .br
 A. Stolcke,`` Entropy-based Pruning of Backoff Language Models,''
-Proc. DARPA Broadcast News Transcription and Understanding Workshop, 270-274,
-Lansdowne, VA, 1998.
+\fIProc. DARPA Broadcast News Transcription and Understanding Workshop\fP,
+270\-274, Lansdowne, VA, 1998.
 .br
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
-Disfluencies based on Recognized Words, '' Proc. ICSLP, 2247-2250, Sydney.
+Disfluencies based on Recognized Words, '' \fIProc. ICSLP\fP, 2247\-2250,
+Sydney.
 .SH BUGS
-The
-.BI \-write-lm
-function is currently supported only for single N-gram LMs, N-grams obtained
-by simple fixed-weight interpolation, and HMMs of N-grams.
+Some LM types (such as Bayes-interpolated LMs) currently do not support the 
+.B \-write-lm 
+function.
 .br
 Sentence generation is slow and takes time proportional to the vocabulary
 size.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-1999 SRI International
+Copyright 1995\-2000 SRI International

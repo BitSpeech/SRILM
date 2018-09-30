@@ -6,12 +6,13 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.31 1999/08/01 09:33:14 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.36 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
 #include <iostream.h>
 #include <locale.h>
+#include <assert.h>
 
 #include "option.h"
 #include "File.h"
@@ -30,12 +31,12 @@ const unsigned maxorder = 6;		/* this is only relevant to the
 					 * the -gt<n> and -write<n> flags */
 
 static char *filetag = 0;
-static int order = 3;
+static unsigned order = 3;
 static unsigned debug = 0;
 static char *textFile = 0;
 static char *readFile = 0;
 
-static int writeOrder = 0;		/* default is all ngram orders */
+static unsigned writeOrder = 0;		/* default is all ngram orders */
 static char *writeFile[maxorder+1];
 
 static unsigned gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2};
@@ -59,26 +60,26 @@ static int tagged = 0;
 static int tolower = 0;
 static int trustTotals = 0;
 static double prune = 0.0;
-static int minprune = 2;
+static unsigned minprune = 2;
 static int useFloatCounts = 0;
 
 static double varPrune = 0.0;
 
 static int skipNgram = 0;
 static double skipInit = 0.5;
-static int maxEMiters = 100;
+static unsigned maxEMiters = 100;
 static double minEMdelta = 0.001;
 
 static char *stopWordFile = 0;
 static char *dummyTag = 0;
 
 static Option options[] = {
-    { OPT_INT, "order", &order, "max ngram order" },
+    { OPT_UINT, "order", &order, "max ngram order" },
     { OPT_FLOAT, "varprune", &varPrune, "pruning threshold for variable order ngrams" },
-    { OPT_INT, "debug", &debug, "debugging level for LM" },
+    { OPT_UINT, "debug", &debug, "debugging level for LM" },
     { OPT_TRUE, "recompute", &recompute, "recompute lower-order counts by summation" },
     { OPT_TRUE, "sort", &sort, "sort ngrams output" },
-    { OPT_INT, "write-order", &writeOrder, "output ngram counts order" },
+    { OPT_UINT, "write-order", &writeOrder, "output ngram counts order" },
     { OPT_STRING, "tag", &filetag, "file tag to use in messages" },
     { OPT_STRING, "text", &textFile, "text file to read" },
     { OPT_STRING, "read", &readFile, "counts file to read" },
@@ -91,20 +92,20 @@ static Option options[] = {
     { OPT_STRING, "write5", &writeFile[5], "5gram counts file to write" },
     { OPT_STRING, "write6", &writeFile[6], "6gram counts file to write" },
 
-    { OPT_INT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
-    { OPT_INT, "gtmax", &gtmax[0], "upper GT discounting cutoff" },
-    { OPT_INT, "gt1min", &gtmin[1], "lower 1gram discounting cutoff" },
-    { OPT_INT, "gt1max", &gtmax[1], "upper 1gram discounting cutoff" },
-    { OPT_INT, "gt2min", &gtmin[2], "lower 2gram discounting cutoff" },
-    { OPT_INT, "gt2max", &gtmax[2], "upper 2gram discounting cutoff" },
-    { OPT_INT, "gt3min", &gtmin[3], "lower 3gram discounting cutoff" },
-    { OPT_INT, "gt3max", &gtmax[3], "upper 3gram discounting cutoff" },
-    { OPT_INT, "gt4min", &gtmin[4], "lower 4gram discounting cutoff" },
-    { OPT_INT, "gt4max", &gtmax[4], "upper 4gram discounting cutoff" },
-    { OPT_INT, "gt5min", &gtmin[5], "lower 5gram discounting cutoff" },
-    { OPT_INT, "gt5max", &gtmax[5], "upper 5gram discounting cutoff" },
-    { OPT_INT, "gt6min", &gtmin[6], "lower 6gram discounting cutoff" },
-    { OPT_INT, "gt6max", &gtmax[6], "upper 6gram discounting cutoff" },
+    { OPT_UINT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
+    { OPT_UINT, "gtmax", &gtmax[0], "upper GT discounting cutoff" },
+    { OPT_UINT, "gt1min", &gtmin[1], "lower 1gram discounting cutoff" },
+    { OPT_UINT, "gt1max", &gtmax[1], "upper 1gram discounting cutoff" },
+    { OPT_UINT, "gt2min", &gtmin[2], "lower 2gram discounting cutoff" },
+    { OPT_UINT, "gt2max", &gtmax[2], "upper 2gram discounting cutoff" },
+    { OPT_UINT, "gt3min", &gtmin[3], "lower 3gram discounting cutoff" },
+    { OPT_UINT, "gt3max", &gtmax[3], "upper 3gram discounting cutoff" },
+    { OPT_UINT, "gt4min", &gtmin[4], "lower 4gram discounting cutoff" },
+    { OPT_UINT, "gt4max", &gtmax[4], "upper 4gram discounting cutoff" },
+    { OPT_UINT, "gt5min", &gtmin[5], "lower 5gram discounting cutoff" },
+    { OPT_UINT, "gt5max", &gtmax[5], "upper 5gram discounting cutoff" },
+    { OPT_UINT, "gt6min", &gtmin[6], "lower 6gram discounting cutoff" },
+    { OPT_UINT, "gt6max", &gtmax[6], "upper 6gram discounting cutoff" },
 
     { OPT_STRING, "gt", &gtFile[0], "Good-Turing discount parameter file" },
     { OPT_STRING, "gt1", &gtFile[1], "Good-Turing 1gram discounts" },
@@ -145,14 +146,14 @@ static Option options[] = {
     { OPT_TRUE, "tagged", &tagged, "build a tagged LM" },
     { OPT_TRUE, "skip", &skipNgram, "build a skip N-gram LM" },
     { OPT_FLOAT, "skip-init", &skipInit, "default initial skip probability" },
-    { OPT_INT, "em-iters", &maxEMiters, "max number of EM iterations" },
+    { OPT_UINT, "em-iters", &maxEMiters, "max number of EM iterations" },
     { OPT_FLOAT, "em-delta", &minEMdelta, "min log likelihood delta for EM" },
     { OPT_STRING, "stop-words", &stopWordFile, "stop-word vocabulary for stop-Ngram LM" },
 
     { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
     { OPT_TRUE, "trust-totals", &trustTotals, "trust lower-order counts for estimation" },
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
-    { OPT_INT, "minprune", &minprune, "prune only ngrams at least this long" },
+    { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
     { OPT_STRING, "write-vocab", &writeVocab, "write vocab to file" },
     { OPT_TRUE, "memuse", &memuse, "show memory usage" },
@@ -209,10 +210,13 @@ main(int argc, char **argv)
 	      !useFloatCounts ? 0 :
 		 new NgramCounts<FloatCount>(*vocab, order);
 
-#define STATS (useFloatCounts ? floatStats : intStats)
 #define USE_STATS(what) (useFloatCounts ? floatStats->what : intStats->what)
 
-    assert(STATS);
+    if (useFloatCounts) {
+	assert(floatStats != 0);
+    } else {
+	assert(intStats != 0);
+    }
 
     USE_STATS(debugme(debug));
 
@@ -260,8 +264,8 @@ main(int argc, char **argv)
      * This stores the discounting parameters for the various orders
      * Note this is only needed when estimating an LM
      */
-    Discount **discounts = new Discount*[order];
-    assert(discounts != 0);
+    Discount *discounts[order];
+
     for (i = 0; i < order; i ++) {
 	discounts[i] = 0;
     }
@@ -281,91 +285,62 @@ main(int argc, char **argv)
     for (i = 1; i <= maxorder || i <= order; i++) {
 	unsigned useorder = (i > maxorder) ? 0 : i;
 
+	Discount *discount = 0;
+
 	/*
-	 * use natural or Witten-Bell discounting if requested, otherwise
-	 * constant discounting, if that was specified,
-	 * otherwise GoodTuring.
+	 * Choose discounting method to use
 	 */
 	if (ndiscount[useorder]) {
-	    NaturalDiscount *nd = new NaturalDiscount(gtmin[useorder]);
-
-	    assert(nd);
-	    nd->debugme(debug);
-
-	    if (!(useFloatCounts ? nd->estimate(*floatStats, i) :
-				   nd->estimate(*intStats, i)))
-	    {
-		cerr << "error in Natural Discounting estimator for order "
-		     << i << endl;
-		exit(1);
-	    }
-
-	    if (i <= order) {
-		discounts[i-1] = nd;
-	    }
+	    discount = new NaturalDiscount(gtmin[useorder]);
+	    assert(discount);
 	} else if (wbdiscount[useorder]) {
-	    WittenBell *wb = new WittenBell(gtmin[useorder]);
-
-	    assert(wb);
-	    wb->debugme(debug);
-
-	    if (!(useFloatCounts ? wb->estimate(*floatStats, i) :
-				   wb->estimate(*intStats, i)))
-	    {
-		cerr << "error in Witten-Bell Discounting estimator for order "
-		     << i << endl;
-		exit(1);
-	    }
-
-	    if (i <= order) {
-		discounts[i-1] = wb;
-	    }
+	    discount = new WittenBell(gtmin[useorder]);
+	    assert(discount);
 	} else if (cdiscount[useorder] != -1.0) {
-	    ConstDiscount *cd =
-		new ConstDiscount(cdiscount[useorder], gtmin[useorder]);
-
-	    assert(cd);
-	    cd->debugme(debug);
-
-	    if (i <= order) {
-		discounts[i-1] = cd;
-	    }
+	    discount = new ConstDiscount(cdiscount[useorder], gtmin[useorder]);
+	    assert(discount);
 	} else if (gtFile[useorder] || (i <= order && lmFile)) {
-	    GoodTuring *gt =
-		new GoodTuring(gtmin[useorder], gtmax[useorder]);
-	    assert(gt);
-	    gt->debugme(debug);
+	    discount = new GoodTuring(gtmin[useorder], gtmax[useorder]);
+	    assert(discount);
+	}
+
+	/*
+	 * Now read in, or estimate the discounting parameters.
+	 * Also write them out if no language model is being created.
+	 */
+	if (discount) {
+	    discount->debugme(debug);
 
 	    if (gtFile[useorder] && lmFile) {
 		File file(gtFile[useorder], "r");
 
-		if (!gt->read(file)) {
-		    cerr << "error in reading Good Turing parameter file "
+		if (!discount->read(file)) {
+		    cerr << "error in reading discount parameter file "
 			 << gtFile[useorder] << endl;
 		    exit(1);
 		}
 	    } else {
 		/*
-		 * Estimate GT params, and write them only if 
+		 * Estimate discount params, and write them only if 
 		 * a file was specified, but no language model is
-		 * being estimated
+		 * being estimated.
 		 */
-		if (!(useFloatCounts ? gt->estimate(*floatStats, i) :
-				       gt->estimate(*intStats, i)))
+		if (!(useFloatCounts ? discount->estimate(*floatStats, i) :
+				       discount->estimate(*intStats, i)))
 		{
-		    cerr << "error in Good Turing estimator for order "
+		    cerr << "error in discount estimator for order "
 			 << i << endl;
 		    exit(1);
 		}
 		if (gtFile[useorder]) {
 		    File file(gtFile[useorder], "w");
-		    gt->write(file);
+		    discount->write(file);
 		    written = true;
 		}
 	    }
 
 	    if (i <= order) {
-		discounts[i-1] = gt;
+		discounts[i-1] = discount;
 	    }
 	}
     }
@@ -472,9 +447,9 @@ main(int argc, char **argv)
 	delete discounts[i];
 	discounts[i] = 0;
     }
-    delete [] discounts;
 
-    delete STATS;
+    delete intStats;
+    delete floatStats;
 
     if (stopWords != 0) {
 	delete stopWords;

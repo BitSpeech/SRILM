@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.14 1999/08/01 09:22:47 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.17 2000/05/07 02:04:43 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -46,6 +46,7 @@ static double rescoreWTW = 0.0;
 static int noReorder = 0;
 static int fbRescore = 0;
 static char *noiseTag = 0;
+static char *noiseVocabFile = 0;
 
 static char *mixFile  = 0;
 static int bayesLength = -1;
@@ -56,15 +57,15 @@ const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
-    { OPT_INT, "order", &order, "ngram order to use for lm" },
-    { OPT_INT, "debug", &debug, "debugging level for lm" },
+    { OPT_UINT, "order", &order, "ngram order to use for lm" },
+    { OPT_UINT, "debug", &debug, "debugging level for lm" },
     { OPT_STRING, "stag", &sTag, "segment tag to use in output" },
     { OPT_FLOAT, "bias", &bias, "bias for segment model" },
     { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
 
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
-    { OPT_INT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
-    { OPT_INT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
+    { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
+    { OPT_UINT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before rescoring" },
     { OPT_STRING, "decipher-lm", &decipherLM, "DECIPHER(TM) LM for nbest list generation" },
     { OPT_FLOAT, "decipher-lmw", &decipherLMW, "DECIPHER(TM) LM weight" },
@@ -72,8 +73,9 @@ static Option options[] = {
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
+    { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "fb-rescore", &fbRescore, "rescore N-best lists with forward-backward algorithm" },
-    { OPT_INT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
+    { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
     { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
     { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
     { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -mix-lm" },
@@ -203,8 +205,7 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
      * the hyp with their segmentation.
      */
     if (lastState != NOSTATE) {
-	SegmentState *segs = new SegmentState[len];
-	assert(segs != 0);
+	SegmentState segs[len];
 
 	if (trellis.viterbi(segs, len, lastState) != len) {
 	    cerr << "trellis.viterbi failed\n";
@@ -220,7 +221,6 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
 	    }
 	    cout << endl;
 	}
-	delete [] segs;
     }
 }
 
@@ -574,12 +574,10 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     Trellis<unsigned> *nbestTrellis =
 			forwardNbest(nbestLists, numLists, lm, lmw, wtw);
 
-    unsigned *bestStates = new unsigned[numLists];
-    assert(bestStates != 0);
+    unsigned bestStates[numLists];
 
     if (nbestTrellis->viterbi(bestStates, numLists) != numLists) {
 	cerr << "nbestTrellis->viterbi failed\n";
-	delete [] bestStates;
 	delete nbestTrellis;
 	return;
     }
@@ -654,7 +652,6 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 	}
     }
 	    
-    delete [] bestStates;
     delete nbestTrellis;
 }
 
@@ -825,8 +822,12 @@ main(int argc, char **argv)
     /*
      * Skip noise tags in scoring
      */
-    if (noiseTag) {
-	useLM->noiseIndex = vocab.addWord(noiseTag);
+    if (noiseVocabFile) {
+	File file(noiseVocabFile, "r");
+	useLM->noiseVocab.read(file);
+    }
+    if (noiseTag) {				/* backward compatibility */
+	useLM->noiseVocab.addWord(noiseTag);
     }
 
     /*

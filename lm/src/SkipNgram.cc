@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.5 1999/07/17 10:38:06 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.6 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -288,10 +288,8 @@ SkipNgram::estimateEstep(NgramStats &stats,
 			 LHash<VocabIndex, double> &skipExps)
 {
     LogP totalLikelihood = 0.0;
-    VocabIndex *ngram = new VocabIndex[order + 2];
-    assert (ngram != 0);
-    VocabIndex *context = new VocabIndex[order];
-    assert(context != 0);
+    VocabIndex ngram[order + 2];
+    VocabIndex context[order];
 
     /*
      * Enumerate all n+1 grams
@@ -321,9 +319,6 @@ SkipNgram::estimateEstep(NgramStats &stats,
 						   stats, ngramExps, skipExps);
 	}
     }
-
-    delete [] ngram;
-    delete [] context;
 
     return totalLikelihood;
 }

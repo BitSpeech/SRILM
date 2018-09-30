@@ -1,15 +1,15 @@
 /*
  * NgramStatsFloat.cc --
- *	Instantiation of NgramCounts<double>
+ *	Instantiation of NgramCounts<float>
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/NgramStatsFloat.cc,v 1.3 1996/09/08 21:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStatsFloat.cc,v 1.4 1999/10/23 06:15:46 stolcke Exp $";
 #endif
 
 #include "NgramStats.cc"
 #ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_NGRAMCOUNTS(double);
+INSTANTIATE_NGRAMCOUNTS(float);
 #endif
 

@@ -9,11 +9,14 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/misc/src/RCS/zio.c,v 1.13 1997/06/07 15:58:47 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.14 1999/10/13 09:07:13 stolcke Exp $";
 #endif
 
 /*
  * $Log: zio.c,v $
+ * Revision 1.14  1999/10/13 09:07:13  stolcke
+ * make filename checking functions public
+ *
  * Revision 1.13  1997/06/07 15:58:47  stolcke
  * fixed some gcc warnings
  *
@@ -89,7 +92,7 @@ extern int errno;
 /*
  * Does the filename refer to stdin/stdout ?
  */
-static int
+int
 stdio_filename_p (const char *name)
 {
     return (strcmp(name, STDIO_NAME) == 0);
@@ -98,7 +101,7 @@ stdio_filename_p (const char *name)
 /*
  * Does the filename refer to a compressed file ?
  */
-static int
+int
 compressed_filename_p (const char *name)
 {
     unsigned len = strlen(name);
@@ -112,7 +115,7 @@ compressed_filename_p (const char *name)
 /*
  * Does the filename refer to a gzipped file ?
  */
-static int
+int
 gzipped_filename_p (const char *name)
 {
     unsigned len = strlen(name);

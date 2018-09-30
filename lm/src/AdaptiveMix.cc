@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.8 1998/11/10 00:02:06 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.9 1999/10/23 05:00:32 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -125,7 +125,6 @@ AdaptiveMix::computePosteriors()
      */
 
     LogP oldLikelihood, newLikelihood;
-    unsigned iter;
 
     for (unsigned iter = 0; iter < maxIters; iter ++) {
 	Array<Prob> counts;

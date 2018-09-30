@@ -12,7 +12,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/spot71/srilm/devel/misc/src/RCS/option.h,v 1.9 1995/06/21 03:12:33 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.10 1999/08/07 19:35:46 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _OPTION
@@ -50,9 +50,13 @@ typedef struct Option {
  *	OPT_FALSE -		if the flag is present then set the
  *				associated (integer) variable to FALSE (0).
  *	OPT_INT -		if the flag is present then the next argument
+ *				on the command line is interpreted as a
+ *				signed integer and that value is assigned to
+ *				the options associated variable.
+ *	OPT_UINT -		if the flag is present then the next argument
  *				on the command line is interpreted as an
- *				integer and that value is assigned to the
- *				options associated variable.
+ *				unsigned integer and that value is assigned to
+ *				the options associated variable.
  *	OPT_STRING -		if the flag is present then the next argument
  *				on the command line is copied into the string
  *				variable associated with the option.
@@ -109,13 +113,14 @@ typedef struct Option {
 #define OPT_FALSE		0
 #define OPT_TRUE		1
 #define OPT_INT			-1
-#define OPT_STRING		-2
-#define OPT_REST		-3
-#define OPT_FLOAT		-4
-#define OPT_FUNC		-5
-#define OPT_GENFUNC		-6
-#define OPT_DOC			-7
-#define OPT_TIME		-8
+#define OPT_UINT		-2
+#define OPT_STRING		-3
+#define OPT_REST		-4
+#define OPT_FLOAT		-5
+#define OPT_FUNC		-6
+#define OPT_GENFUNC		-7
+#define OPT_DOC			-8
+#define OPT_TIME		-9
 
 /*
  * Flag values for Opt_Parse:

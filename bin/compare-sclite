@@ -3,13 +3,13 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.6 1998/01/13 02:20:30 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.10 2000/06/26 20:48:33 stolcke Exp $
 #
 
 basedir=`dirname $0`
 
 if [ $# -lt 3 ]; then
-	echo "usage: $0 [-v] -h1 hyps1 -h2 hyps2 -r refs [-S id-subset] [sclite-options ...]" >&2
+	echo "usage: $0 [-v] -h1 hyps1 -h2 hyps2 -r refs [-S id-subset] [-M|-multiwords] [sclite-options ...]" >&2
 	echo "   or  $0 hyps1 hyps2 refs" >&2
 	exit 2
 elif [ $# -eq 3 ]; then
@@ -24,7 +24,7 @@ else
 		-r)	refs=$2; shift ;;
 		-h1)	hypsA=$2; shift ;;
 		-h2)	hypsB=$2; shift ;;
-		-S)	options="$options -S $2"; shift ;;
+		-S)	use_subset="$2"; shift ;;
 		*)	options="$options $1" ;;
 		esac
 		shift
@@ -34,16 +34,29 @@ fi
 tmpdir=/tmp
 pralignA=pralignA$$
 pralignB=pralignB$$
+subset=/tmp/subset$$
 
-trap '/bin/rm -f $tmpdir/$pralignA.pra $tmpdir/$pralignB.pra' 0 1 2 13 15
+trap '/bin/rm -f $tmpdir/$pralignA.pra $tmpdir/$pralignB.pra $subset.*' 0 1 2 13 15
 
 set -e
 
 #
+# use the intersection of the too hyp sets and (if specified) the -S set
+#
+gawk '{ print $1 }' "$hypsA" | sort -u > $subset.A
+gawk '{ print $1 }' "$hypsB" | sort -u > $subset.B
+if [ -n "$use_subset" ]; then
+	comm -12 $subset.A $subset.B | comm -12 - "$use_subset" > $subset.AB
+else
+	comm -12 $subset.A $subset.B  > $subset.AB
+fi
+options="$options -S $subset.AB"
+
+#
 # generate alignments for the two hyp sets
 #
-compute-sclite -h $hypsA -r $refs $options -O $tmpdir -n $pralignA -o pralign
-compute-sclite -h $hypsB -r $refs $options -O $tmpdir -n $pralignB -o pralign
+compute-sclite -h "$hypsA" -r "$refs" $options -O $tmpdir -n $pralignA -o pralign
+compute-sclite -h "$hypsB" -r "$refs" $options -O $tmpdir -n $pralignB -o pralign
 
 #
 # compute error totals by utterance and compare
@@ -71,20 +84,24 @@ $1 == "Scores:" {
 		errors[sentid] = errs;
 		total_wordsA += words;
 		total_errsA += errs
+		total_sentsA ++;
 	} else {
 		if (errs > errors[sentid]) greater++;
 		else if (errs < errors[sentid]) less++;
 		else equal++;
 		total_wordsB += words;
 		total_errsB += errs;
+		total_sentsB ++;
 	}
         next;
 }
 END {
-	printf "result 1: %d errors (%.2f%%), %d words\n", \
-		    total_errsA, total_errsA/total_wordsA * 100, total_wordsA;
-	printf "result 2: %d errors (%.2f%%), %d words\n", \
-		    total_errsB, total_errsB/total_wordsB * 100, total_wordsB;
+	printf "result 1: %d errors (%.2f%%), %d words, %d sentences\n", \
+		    total_errsA, total_errsA/total_wordsA * 100, \
+		    total_wordsA, total_sentsA;
+	printf "result 2: %d errors (%.2f%%), %d words, %d sentences\n", \
+		    total_errsB, total_errsB/total_wordsB * 100, \
+		    total_wordsB, total_sentsB;
         printf "less %d, greater %d, equal %d, different %d\n", \
                  less, greater, equal, less + greater;
 }

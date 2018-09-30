@@ -61,7 +61,7 @@ OOPPTTIIOONNSS
 
 
 
-                   $Date: 1998/12/24 19:58:23 $                 1
+SRILM Tools        $Date: 1999/10/18 15:14:10 $                 1
 
 
 
@@ -76,9 +76,10 @@ disambig(1)                                           disambig(1)
 
        --llmm _f_i_l_e
               Specifies  the V2 language model as a standard ARPA
-              N-gram backoff model file.  The default is  not  to
-              use  a language model, i.e., choose V2 tokens based
-              only on the probabilities in the map file.
+              N-gram backoff  model  file  nnggrraamm--ffoorrmmaatt(5).   The
+              default  is  not  to  use  a  language model, i.e.,
+              choose V2 tokens based only on the probabilities in
+              the map file.
 
        --oorrddeerr _n
               Set the effective N-gram order used by the language
@@ -88,46 +89,45 @@ disambig(1)                                           disambig(1)
               _W.  Default language model weight is 1.
 
        --mmaappww _W
-              Scales the likelihood map probability by  a  factor
-              _W.   Default  map  weight  is 1.  Note: For Viterbi
+              Scales  the  likelihood map probability by a factor
+              _W.  Default map weight is  1.   Note:  For  Viterbi
               decoding (the default) it is equivalent to use --llmmww
               _W or --mmaappww _1_/_W,, but not for forward-backward compu-
               tation.
 
        --ttoolloowweerr11
-              Map input vocabulary (V1)  to  lowercase,  removing
+              Map  input  vocabulary  (V1) to lowercase, removing
               case distinctions.
 
        --ttoolloowweerr22
-              Map  output  vocabulary (V2) to lowercase, removing
+              Map output vocabulary (V2) to  lowercase,  removing
               case distinctions.
 
        --kkeeeepp--uunnkk
-              Do not map unknown input words to the <unk>  token.
-              Instead,  output the input word unchanged.  This is
+              Do  not map unknown input words to the <unk> token.
+              Instead, output the input word unchanged.  This  is
               like having an implicit default mapping for unknown
-              words  to  themselves,  except  that  the word will
+              words to themselves,  except  that  the  word  will
               still be treated as <unk> by the language model.
 
        --nnoo--eeooss
-              Do no assume that each input line contains  a  com-
-              plete   sentence.   This  prevents  end-of-sentence
+              Do  no  assume that each input line contains a com-
+              plete  sentence.   This  prevents   end-of-sentence
               tokens </s> from being appended automatically.
 
        --ccoonnttiinnuuoouuss
-              Process all words in the input as one  sequence  of
-              words,  irrespective of line breaks.  Normally each
-              line is processed separately  as  a  sentence.   V2
-              tokens  are  output one-per-line.  This option also
-              prevents sentence start/end tokens (<s>  and  </s>)
+              Process  all  words in the input as one sequence of
+              words, irrespective of line breaks.  Normally  each
+              line  is  processed  separately  as a sentence.  V2
+              tokens are output one-per-line.  This  option  also
+              prevents  sentence  start/end tokens (<s> and </s>)
               from being added to the input.
 
        --ffbb    Perform forward-backward decoding of the input (V1)
-              token sequence.  Outputs the V2  tokens  that  have
 
 
 
-                   $Date: 1998/12/24 19:58:23 $                 2
+SRILM Tools        $Date: 1999/10/18 15:14:10 $                 2
 
 
 
@@ -136,46 +136,48 @@ disambig(1)                                           disambig(1)
 disambig(1)                                           disambig(1)
 
 
-              the  highest  posterior probability, for each posi-
-              tion.  The default  is  to  use  Viterbi  decoding,
+              token  sequence.   Outputs  the V2 tokens that have
+              the highest posterior probability, for  each  posi-
+              tion.   The  default  is  to  use Viterbi decoding,
               i.e., the output is the V2 sequence with the higher
               joint posterior probability.
 
        --ppoosstteerriioorrss
-              Output the table  of  posterior  probabilities  for
-              each  input  (V1)  token  and each V2 token, in the
-              same format as required for the --mmaapp file.  If  --ffbb
-              is  also specified the posterior probabilities will
-              be computed using  forward-backward  probabilities;
-              otherwise  an  approximation  will  be used that is
-              based on the probability of the  most  likely  path
+              Output  the  table  of  posterior probabilities for
+              each input (V1) token and each  V2  token,  in  the
+              same  format as required for the --mmaapp file.  If --ffbb
+              is also specified the posterior probabilities  will
+              be  computed  using forward-backward probabilities;
+              otherwise an approximation will  be  used  that  is
+              based  on  the  probability of the most likely path
               containing a given V2 token at given position.
 
        --wwrriittee--vvooccaabb11 _f_i_l_e
-              Writes  the  input  vocabulary from the map (V1) to
+              Writes the input vocabulary from the  map  (V1)  to
               _f_i_l_e.
 
        --wwrriittee--vvooccaabb22 _f_i_l_e
-              Writes the output vocabulary from the map  (V2)  to
-              _f_i_l_e.   The  vocabulary will also include the words
+              Writes  the  output vocabulary from the map (V2) to
+              _f_i_l_e.  The vocabulary will also include  the  words
               specified in the language model.
 
        --wwrriittee--mmaapp _f_i_l_e
-              Writes the map back to a file for  validation  pur-
+              Writes  the  map back to a file for validation pur-
               poses.
 
        --ddeebbuugg Sets debugging output level.
 
-       Each  filename  argument  can  be an ASCII file, or a com-
-       pressed file  (name  ending  in  .Z  or  .gz),   or  ``-''
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed  file   (name  ending  in  .Z  or  .gz),  or ``-''
        to indicate stdin/stdout.
 
 BBUUGGSS
-       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
+       The --ccoonnttiinnuuoouuss  option  effectively  disables  --kkeeeepp--uunnkk,
        i.e., unknown input words are always mapped to <unk>.
 
 SSEEEE AALLSSOO
-       ngram-count(1), hidden-ngram(1).
+       ngram-count(1),    hidden-ngram(1),   training-scripts(1),
+       ngram-format(5).
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
@@ -191,8 +193,6 @@ AAUUTTHHOORR
 
 
 
-
-
-                   $Date: 1998/12/24 19:58:23 $                 3
+SRILM Tools        $Date: 1999/10/18 15:14:10 $                 3
 
 

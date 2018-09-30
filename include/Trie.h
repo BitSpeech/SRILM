@@ -17,7 +17,7 @@
  * DataT *find(const KeyT *keys, Boolean &foundP)
  * DataT *find(KeyT key, Boolean &foundP)
  *	Returns a pointer to the data item found under key, or null if
- *	the key is not in the Map.
+ *	the key is not in the trie.
  *	With this and the other functions, the foundP argument is optional
  *	and returns whether the key was found.
  *
@@ -29,13 +29,13 @@
  *
  * DataT *remove(const KeyT *keys, Boolean &foundP)
  * DataT *remove(KeyT key, Boolean &foundP)
- *	Deletes the entry associated with key from the Map, returning
+ *	Deletes the entry associated with key from the trie, returning
  *	a pointer to the previously stored value, if any.
  *
  * Trie *findTrie(const KeyT *keys, Boolean &foundP)
  * Trie *findTrie(KeyT key, Boolean &foundP)
  *	Returns a pointer to the trie node found under key, or null if
- *	the key is no in the Map.
+ *	the key is no in the trie.
  *
  * Trie *insertTrie(const KeyT *keys, Boolean &foundP)
  * Trie *insertTrie(KeyT key, Boolean &foundP)
@@ -45,13 +45,13 @@
  *	child nodes.
  *
  * unsigned int numEntries()
- *	Returns the current number of keys (i.e., entries) at the the Map.
+ *	Returns the current number of keys (i.e., entries) in the trie.
  *
  * DataT &value()
  *	Return the current data item (by reference, not pointer!).
  *
  * The DataT * pointers returned by find(), insert() and remove() are
- * valid only until the next operation on the Map object.  It is left
+ * valid only until the next operation on the Trie object.  It is left
  * to the user to assign actual values by dereferencing the pointers 
  * returned.  The main benefit is that only one key lookup is needed
  * for a find-and-change operation.
@@ -75,7 +75,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/spot71/srilm/devel/dstruct/src/RCS/Trie.h,v 1.13 1996/12/08 09:09:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.14 1999/10/02 17:03:54 stolcke Exp $
  *
  */
 

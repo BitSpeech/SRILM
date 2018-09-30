@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /export/di/ws97/tools/srilm-0.97beta/lm/src/RCS/BayesMix.cc,v 1.7 1997/07/22 15:06:08 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.9 1999/10/06 02:47:38 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -31,61 +31,6 @@ BayesMix::BayesMix(Vocab &vocab, LM &lm1, LM &lm2,
     }
 }
 
-
-/*
- * compute context joint probability for context according to one LM
- */
-LogP
-BayesMix::contextProb(LM &lm, const VocabIndex *context)
-{
-    unsigned useLength = Vocab::length(context);
-    LogP jointProb = 0.0;
-
-    if (clength < useLength) {
-	useLength = clength;
-    }
-
-    /*
-     * If the context is empty there is nothing left to do:
-     * we return 0.0 and the mixture will just by the priors
-     */
-    if (useLength > 0) {
-	/*
-	 * Turn off debugging for contextProb computation
-	 */
-	Boolean wasRunning = lm.running(false);
-
-	/*
-	 * The usual hack: truncate the context temporarily
-	 */
-	VocabIndex saved = context[useLength];
-	((VocabIndex *)context)[useLength] = Vocab_None;
-
-	/*
-	 * If the context starts with <s>, we compute a prefix prob
-	 * for it.  Otherwise initialize the jointProb with the
-	 * unigram probability of the first word.
-	 */
-	if (context[useLength - 1] != vocab.ssIndex) {
-	    jointProb =
-		lm.wordProb(context[useLength - 1], &context[useLength]);
-	}
-
-	/*
-	 * Accumulate conditional word probs for the remaining context
-	 */
-	for (unsigned i = useLength - 1; i > 0; i--) {
-	    jointProb += lm.wordProb(context[i - 1], &context[i]);
-	}
-
-	((VocabIndex *)context)[useLength] = saved;
-
-	lm.running(wasRunning);
-    }
-
-    return jointProb;
-}
-
 LogP
 BayesMix::wordProb(VocabIndex word, const VocabIndex *context)
 {
@@ -93,9 +38,9 @@ BayesMix::wordProb(VocabIndex word, const VocabIndex *context)
     Prob lm2Prob = LogPtoProb(lm2.wordProb(word, context));
 
     Prob lm1Weight = prior *
-			LogPtoProb(llscale * contextProb(lm1, context));
+			LogPtoProb(llscale * lm1.contextProb(context, clength));
     Prob lm2Weight = (1.0 - prior) *
-			LogPtoProb(llscale * contextProb(lm2, context));
+			LogPtoProb(llscale * lm2.contextProb(context, clength));
 
     /*
      * If both LMs don't know this context revert to the prior
@@ -134,6 +79,17 @@ BayesMix::contextID(const VocabIndex *context, unsigned &length)
 	length = len1;
 	return cid1;
     }
+}
+
+Boolean
+BayesMix::isNonWord(VocabIndex word)
+{
+    /*
+     * A non-word in either of our component models is a non-word.
+     * This ensures that state names, hidden vocabulary, etc. are not
+     * treated as regular words in the respectively other component.
+     */
+    return lm1.isNonWord(word) || lm2.isNonWord(word);
 }
 
 void

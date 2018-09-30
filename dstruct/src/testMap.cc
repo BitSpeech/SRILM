@@ -8,6 +8,11 @@
 #define srandom	srand48
 #define random	lrand48
 
+extern "C" {
+extern void srandom(long);
+extern long random(void);
+}
+
 #include "SArray.h"
 #include "LHash.h"
 

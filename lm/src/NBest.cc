@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.34 1999/01/13 19:24:33 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2000 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.38 2000/05/10 00:24:58 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -73,15 +73,17 @@ NBestHyp::operator= (const NBestHyp &other)
  * N-Best Hyoptheses
  */
 
+const char multiwordSeparator = '_';
+
 Boolean
 NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
-							    LogP acousticOffset)
+				    LogP acousticOffset, Boolean multiwords)
 {
     const unsigned maxFieldsPerLine = 11 * maxWordsPerLine + 4;
 			    /* NBestList2.0 format uses 11 fields per word */
 
     static VocabString wstrings[maxFieldsPerLine];
-    static VocabIndex wids[maxWordsPerLine + 1];
+    static VocabString justWords[maxFieldsPerLine + 1];
 
     unsigned actualNumWords =
 		Vocab::parseWords(line, wstrings, maxFieldsPerLine);
@@ -129,10 +131,8 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	totalScore = acousticScore = BytelogToLogP(score);
 	languageScore = 0.0;
 
-	/* 
-	 * Map words to indices
-	 */
-	vocab.addWords(wstrings + 1, wids, maxWordsPerLine + 1);
+	Vocab::copy(justWords, &wstrings[1]);
+
     } else if (decipherFormat == 2) {
 	if ((actualNumWords - 1) % 11) {
 	    cerr << "badly formatted hyp\n";
@@ -164,12 +164,12 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	double lmScore = 0.0;
 
 	for (unsigned i = 0; i < actualNumWords; i ++) {
-	    wids[i] = vocab.addWord(wstrings[1 + 11 * i]);
+	    justWords[i] = wstrings[1 + 11 * i];
 
 	    acScore += atof(wstrings[1 + 11 * i + 9]);
 	    lmScore += atof(wstrings[1 + 11 * i + 7]);
 	}
-	wids[actualNumWords] = Vocab_None;
+	justWords[actualNumWords] = 0;
 
 	/*
 	 * Save scores
@@ -217,10 +217,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	 */
 	totalScore = acousticScore;
 
-	/* 
-	 * Map words to indices
-	 */
-	vocab.addWords(wstrings + 3, wids, maxWordsPerLine + 1);
+	Vocab::copy(justWords, &wstrings[3]);
     }
 
     /*
@@ -230,13 +227,48 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
     totalScore -= acousticOffset;
 
     /*
-     * Copy words to nbest list, including end marker
+     * Adjust number of words for multiwords if appropriate
+     */
+    if (multiwords) {
+	for (unsigned j = 0; justWords[j] != 0; j ++) {
+	    const char *cp = justWords[j];
+
+	    for (cp = strchr(cp, multiwordSeparator);
+		 cp != 0;
+		 cp = strchr(cp + 1, multiwordSeparator))
+	    {
+		actualNumWords ++;
+	    }
+	}
+    }
+
+    /*
+     * Copy words to nbest list
      */
     words = new VocabIndex[actualNumWords + 1];
     assert(words != 0);
 
-    for (unsigned i = 0; i <= actualNumWords; i++) {
-	words[i] = wids[i];
+    /*
+     * Map word strings to indices
+     */
+    if (!multiwords) {
+	vocab.addWords(justWords, words, actualNumWords + 1);
+    } else {
+	unsigned i = 0;
+	for (unsigned j = 0; justWords[j] != 0; j ++) {
+	    char *start = (char *)justWords[j];
+	    char *cp;
+
+	    while (cp = strchr(start, multiwordSeparator)) {
+		*cp = '\0';
+		words[i++] = vocab.addWord(start);
+		*cp = multiwordSeparator;
+		start = cp + 1;
+	    }
+
+	    words[i++] = vocab.addWord(start);
+	}
+	words[i] = Vocab_None;
     }
 
     return true;
@@ -296,9 +328,9 @@ NBestHyp::rescore(LM &lm, double lmScale, double wtScale)
 }
 
 void
-NBestHyp::reweight(double lmScale, double wtScale)
+NBestHyp::reweight(double lmScale, double wtScale, double amScale)
 {
-    totalScore = acousticScore +
+    totalScore = amScale * acousticScore +
 			    lmScale * languageScore +
 			    wtScale * numWords;
 }
@@ -346,9 +378,9 @@ NBestHyp::decipherFix(LM &lm, double lmScale, double wtScale)
 
 unsigned NBestList::initialSize = 100;
 
-NBestList::NBestList(Vocab &vocab, unsigned maxSize)
+NBestList::NBestList(Vocab &vocab, unsigned maxSize, Boolean multiwords)
     : vocab(vocab), _numHyps(0),
-      hypList(0, initialSize), maxSize(maxSize),
+      hypList(0, initialSize), maxSize(maxSize), multiwords(multiwords),
       acousticOffset(0.0)
 {
 }
@@ -389,9 +421,6 @@ NBestList::sortHyps()
     qsort(hypList.data(), _numHyps, sizeof(NBestHyp), compareHyps);
 }
 
-static const char fileMagic[] = "NBestList1.0";
-static const char fileMagic2[] = "NBestList2.0";
-
 Boolean
 NBestList::read(File &file)
 {
@@ -403,10 +432,10 @@ NBestList::read(File &file)
      * we enforce Decipher format for the entire N-best list.
      */
     if (line != 0) {
-	if (strncmp(line, fileMagic, sizeof(fileMagic) - 1) == 0) {
+	if (strncmp(line, nbest1Magic, sizeof(nbest1Magic) - 1) == 0) {
 	    decipherFormat = 1;
 	    line = file.getline();
-	} else if (strncmp(line, fileMagic2, sizeof(fileMagic2) - 1) == 0) {
+	} else if (strncmp(line, nbest2Magic, sizeof(nbest2Magic) - 1) == 0) {
 	    decipherFormat = 2;
 	    line = file.getline();
 	}
@@ -416,7 +445,8 @@ NBestList::read(File &file)
 
     while (line && (maxSize == 0 || howmany < maxSize)) {
 	if (! hypList[howmany++].parse(line, vocab, decipherFormat,
-						    acousticOffset)) {
+						acousticOffset, multiwords))
+	{
 	    file.position() << "bad n-best hyp\n";
 	    return false;
 	}
@@ -433,7 +463,7 @@ Boolean
 NBestList::write(File &file, Boolean decipherFormat, unsigned numHyps)
 {
     if (decipherFormat) {
-	fprintf(file, "%s\n", fileMagic);
+	fprintf(file, "%s\n", nbest1Magic);
     }
 
     for (unsigned h = 0;
@@ -462,10 +492,10 @@ NBestList::rescoreHyps(LM &lm, double lmScale, double wtScale)
  * Recompute total hyp scores using new scaling constants.
  */
 void
-NBestList::reweightHyps(double lmScale, double wtScale)
+NBestList::reweightHyps(double lmScale, double wtScale, double amScale)
 {
     for (unsigned h = 0; h < _numHyps; h++) {
-	hypList[h].reweight(lmScale, wtScale);
+	hypList[h].reweight(lmScale, wtScale, amScale);
     }
 }
 
@@ -473,7 +503,8 @@ NBestList::reweightHyps(double lmScale, double wtScale)
  * Compute posterior probabilities
  */
 void
-NBestList::computePosteriors(double lmScale, double wtScale, double postScale)
+NBestList::computePosteriors(double lmScale, double wtScale,
+					    double postScale, double amScale)
 {
     /*
      * First compute the numerators for the posteriors
@@ -496,7 +527,7 @@ NBestList::computePosteriors(double lmScale, double wtScale, double postScale)
 	 * The posterior weight is a parameter that controls the
 	 * peakedness of the posterior distribution.
 	 */
-	LogP totalScore = (hyp.acousticScore +
+	LogP totalScore = (amScale * hyp.acousticScore +
 			    lmScale * hyp.languageScore +
 			    wtScale * hyp.numWords) /
 			 postScale;

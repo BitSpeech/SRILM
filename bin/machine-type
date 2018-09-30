@@ -13,9 +13,14 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: machine-type,v 1.2 1999/02/20 07:15:40 stolcke Exp $
+#    RCS ID: $Id: machine-type,v 1.3 1999/10/22 08:29:18 stolcke Exp $
 #
 #    $Log: machine-type,v $
+#    Revision 1.3  1999/10/22 08:29:18  stolcke
+#    fixed syntax errors
+#    removed reference to DECIPHER
+#    recognizer IRIX6 systems
+#
 #    Revision 1.2  1999/02/20 07:15:40  stolcke
 #    added support for linux/i686
 #
@@ -41,27 +46,16 @@
 ##	  and leaves the MACHINE_TYPE variable defined as a null string.
 
 
-## Maintain backward compatibility for old versions of decipher, which
-## relied on the mach command.
-
-if ($?DECIPHER) then
-    if ($DECIPHER =~ /home/decipher/frozen/0.[012]*) then
-	mach
-	exit
-    endif
-endif
-
 set RESULT = (`uname -a`)
 
 if ($#RESULT > 0) then
     if ($RESULT[5] =~ IP*) then	# "IP" is an irix processor
 	if ($RESULT[3] =~ 4.*) then
 	    set MACHINE_TYPE = mips
-	else if ($RESULT[3] =~ 5.*) then
+	else if ($RESULT[3] =~ [56].*) then
             set MACHINE_TYPE = mips-elf
 	else
-	    ## Generate an error by doing nothing.  (Used to be the line below:
-)
+	    ## Generate an error by doing nothing.  (Used to be the line below:)
 	    ## echo "ERROR: Unsupported machine type: "$RESULT  
 	endif
     else if ($RESULT[5] =~ sun4*) then
@@ -73,8 +67,7 @@ if ($#RESULT > 0) then
 	else if ($RESULT[3] =~ 5.*) then
 	    set MACHINE_TYPE = sparc-elf
 	else
-	    ## Generate an error by doing nothing.  (Used to be the line below:
-)
+	    ## Generate an error by doing nothing.  (Used to be the line below:)
 	    ## echo "ERROR: Unsupported machine type: "$RESULT
 	endif
 

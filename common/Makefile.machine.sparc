@@ -9,9 +9,15 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.sparc,v 1.7 1998/04/18 17:51:25 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.sparc,v 1.9 2000/06/08 23:59:16 stolcke Exp $
 #
 #    $Log: Makefile.machine.sparc,v $
+#    Revision 1.9  2000/06/08 23:59:16  stolcke
+#    back to gcc 2.8.1
+#
+#    Revision 1.8  1999/10/13 07:07:04  stolcke
+#    use gcc 2.95
+#
 #    Revision 1.7  1998/04/18 17:51:25  stolcke
 #    use gcc 2.8.1
 #

@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.46 1999/05/13 07:27:55 stolcke Exp $
+#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.54 2000/07/13 06:16:50 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -38,8 +38,8 @@ endif
 # (it will slow things down somewhat).
 #ADDITIONAL_CXXFLAGS = -Dstrcmp=strcoll
 
-# Use SArray to save space, LHash for speed
-ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY
+# Use SArray to save space (default is LHash for speed)
+#ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY
 #LIBSUFFIX=-fast
 
 # Define variables.
@@ -56,12 +56,16 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Vocab.h \
 	$(SRCDIR)/VocabMap.h \
 	$(SRCDIR)/SubVocab.h \
+	$(SRCDIR)/TextStats.h \
 	$(SRCDIR)/LM.h \
 	$(SRCDIR)/LMStats.h \
+	$(SRCDIR)/RefList.h \
 	$(SRCDIR)/NBest.h \
+	$(SRCDIR)/NBestSet.h \
 	$(SRCDIR)/Ngram.h \
 	$(SRCDIR)/NgramStats.h \
 	$(SRCDIR)/Discount.h \
+	$(SRCDIR)/ClassNgram.h \
 	$(SRCDIR)/DFNgram.h \
 	$(SRCDIR)/SkipNgram.h \
 	$(SRCDIR)/HiddenNgram.h \
@@ -96,13 +100,18 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/Vocab.cc \
 	$(SRCDIR)/VocabMap.cc \
 	$(SRCDIR)/SubVocab.cc \
+	$(SRCDIR)/TextStats.cc \
 	$(SRCDIR)/LM.cc \
 	$(SRCDIR)/LMStats.cc \
+	$(SRCDIR)/RefList.cc \
 	$(SRCDIR)/NBest.cc \
+	$(SRCDIR)/NBestSet.cc \
 	$(SRCDIR)/Ngram.cc \
 	$(SRCDIR)/NgramStatsInt.cc \
 	$(SRCDIR)/NgramStatsFloat.cc \
+	$(SRCDIR)/NgramStatsDouble.cc \
 	$(SRCDIR)/Discount.cc \
+	$(SRCDIR)/ClassNgram.cc \
 	$(SRCDIR)/DFNgram.cc \
 	$(SRCDIR)/SkipNgram.cc \
 	$(SRCDIR)/HiddenNgram.cc \
@@ -135,7 +144,7 @@ LIBRARY = $(OBJDIR)/liboolm$(LIBSUFFIX).a
 ADDITIONAL_INCLUDES += \
 	-I/usr/local/include 
 
-ADDITIONAL_LDFLAGS = \
+ADDITIONAL_LDFLAGS += \
 	-u matherr
 
 OTHER_LIBRARIES = \
@@ -149,6 +158,7 @@ ADDITIONAL_LIBRARIES += \
 # Example programs.
 
 TEST_PROGRAM_NAMES = \
+	testProb \
 	testParseFloat \
 	testVocab  \
 	testTaggedVocab \
@@ -163,9 +173,12 @@ REAL_PROGRAM_NAMES = \
 	ngram \
 	ngram-count \
 	ngram-merge \
+	ngram-class \
 	disambig \
+	anti-ngram \
 	nbest-lattice \
 	nbest-mix \
+	nbest-optimize \
 	segment \
 	segment-nbest \
 	hidden-ngram

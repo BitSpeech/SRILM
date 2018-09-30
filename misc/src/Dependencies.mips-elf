@@ -1,0 +1,12 @@
+../obj/mips-elf$(OBJ_OPTION)/option.o: ./option.c
+../obj/mips-elf$(OBJ_OPTION)/zio.o: ./zio.c zio.h
+../obj/mips-elf$(OBJ_OPTION)/fcheck.o: ./fcheck.c zio.h fcheck.h
+../obj/mips-elf$(OBJ_OPTION)/ztest.o: ./ztest.c zio.h option.h
+../obj/mips-elf$(OBJ_OPTION)/tclmain.o: ./tclmain.cc
+../obj/mips-elf$(OBJ_OPTION)/Debug.o: ./Debug.cc Debug.h
+../obj/mips-elf$(OBJ_OPTION)/File.o: ./File.cc Boolean.h File.h zio.h
+../obj/mips-elf$(OBJ_OPTION)/testFile.o: ./testFile.cc File.h
+../bin/mips-elf$(BIN_OPTION)/ztest: ../obj/mips-elf$(OBJ_OPTION)/ztest.o
+ztest: ../bin/mips-elf$(BIN_OPTION)/ztest
+../bin/mips-elf$(BIN_OPTION)/testFile: ../obj/mips-elf$(OBJ_OPTION)/testFile.o
+testFile: ../bin/mips-elf$(BIN_OPTION)/testFile

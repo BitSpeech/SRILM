@@ -138,5 +138,72 @@ Version History
 	* Added ngram-count -float-counts option.
 	* Added build support for Linux/i686 platform.
 
-$Date: 1999/07/31 18:56:17 $
+1.00 	8 June 2000
+	* Added ClassNgram class and ngram -classes option.
+	* Capability to convert class ngrams into word ngrams.
+	* New program ngram-class for automatic word class induction.
+	* Fixed interaction of ngram -mix-lm -bayes with non-standard n-grams:
+	  can now build an interpolation of the non-standard (hidden-event,
+	  class-based, etc.) n-gram with the additional, standard n-grams.
+	* Replaced LM.noiseTag with LM.noiseVocab (list of noise tags to
+	  be ignored).  Tools now take -noise-vocab option (as well as -noise
+	  for backward compatibility).
+	* Made ngram -counts work for non-n-gram models.
+	* Added nbest-lattice -posterior-{amw,lmw,wtw} options to compute
+	  word posteriors with different weightings from the one used in
+	  hypothesis ranking.  Also added -deletion-bias flag for explicit
+	  control of del/ins errors (-use-mesh mode only).
+	* NBest rescoring methods now have optional acoustic model weight
+	  (defaulting to 1 as before).
+	* New class RefList (list of reference transcripts).
+	* New class NBestSet (set of N-Best lists).
+	* NBest, NBestSet, and nbest-lattice optionally split multiwords into
+	  their components on reading (-multiwords option).
+	* New nbest-optimize tool for finding near-optimal score combination
+	  weights for word error minimizing N-best rescoring.
+	* New anti-ngram program, for computing posterior-weighted N-gram
+	  counts from N-best lists.
+	* New nbest-rover script allows ROVER-style combination of hypotheses
+	  from multiple N-best lists.
+	* New rescore-decipher -norescore option, to reformat N-best lists
+	  without LM rescoring.
+	* Fixed bugs related to missing <s> and </s> in change-lm-vocab and
+	  make-ngram-pfsg.
+	* Significant speedups in LMs involving dynamic programming
+	  (HiddenNgram, DFNgram, HMMofNgrams) when interpolating with other 
+	  models or running in "ngram -debug 2" mode.
+	* Allow absolute discounting on fractional counts, for more
+	  effective construction of models from fractional counts.
+	* Added ngram-merge -float-counts option, and allow "-" (stdin) as
+	  input file.
+	* ngram-count ensures <s> unigram (with prob 0) is defined to avoid
+	  breaking other programs.
+	* Added make-abs-discount script to compute absolute discounting 
+	  constants from Good-Turing statistics.
+	* compute-sclite and compare-sclite now take -multiwords option to
+	  split compound words prior to scoring.
+	* Changed option handling so that unsigned option arguments are forced
+	  to be non-negative.
+	* Added Map2 (2D Map) class to libdstruct.
+	* Much better string hash function (borrowed from Tcl).
+	* New man pages: training-scripts(1), lm-scripts(1), ppl-scripts(1),
+	  pfsg-scripts(1), nbest-scripts(1), lm-format(5), classes-format(5),
+	  pfsg-format(5), nbest-format(5).
+
+1.0.1	12 July 2000
+
+	Functionality:
+
+	* wordError() and nbest-lattice -dump-errors now also output the
+	  location of deletions in the alignment (NOTE: possible code
+	  incompatibility).
+	* New reverse-ngram-counts script.
+
+	Bug fixes:
+
+	* Workarounds for shortcomings in Linux gcc, math library, and linker.
+	* make-ngram-pfsg: don't ignore bigram states with zero BOW (bugfix).
+	* nbest-rover: fixed problem with handling of + lines.
+
+$Date: 2000/07/13 21:02:25 $
 

@@ -1,18 +1,18 @@
-<! $Id: disambig.1,v 1.15 1998/12/24 19:58:23 stolcke Exp $>
+<! $Id: disambig.1,v 1.17 1999/10/18 15:14:10 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>disambig</TITLE>
 <BODY>
 <H1>disambig</H1>
-<H2>NAME</H2>
+<H2> NAME </H2>
 disambig - disambiguate text tokens using an N-gram model
-<H2>SYNOPSIS</H2>
-<B>disambig</B>
-[<B>-help</B>]
-<I>option</I>
+<H2> SYNOPSIS </H2>
+<B> disambig </B>
+[<B>-help</B>]<B></B>
+<I> option </I>
 ...
-<H2>DESCRIPTION</H2>
-<B>disambig</B>
+<H2> DESCRIPTION </H2>
+<B> disambig </B>
 translates a stream of tokens from a vocabulary V1 to a corresponding stream
 of tokens from a vocabulary V2, 
 according to a probabilistic, 1-to-many mapping.
@@ -20,50 +20,50 @@ Ambiguities in the mapping are resolved by finding the V2 sequence with
 the highest posterior probability given the V1 sequence.
 This probability is computed from pairwise conditional probabilities P(V1|V2),
 as well as a language model for sequences over V2.
-<H2>OPTIONS</H2>
+<H2> OPTIONS </H2>
 <DL>
-<DT><B>-help</B>
+<DT><B> -help </B>
 <DD>
 Print option summary.
-<DT><B>-text</B><I> file</I>
+<DT><B>-text</B><I> file</I><B></B>
 <DD>
 Specifies the file containing the V1 sentences.
-<DT><B>-map</B><I> file</I>
+<DT><B>-map</B><I> file</I><B></B>
 <DD>
 Specifies the file containing the V1-to-V2 mapping information.
 Each line of
-<I>file</I>
+<I> file </I>
 contains the mapping for a single word in V1:
 <BR>
 	w1	w21 [p21] w22 [p22] ...
 <BR>
 where
-<I>w1</I>
+<I> w1 </I>
 is a word from V1, which has possible mappings
-<I>w21</I>,
-<I>w22</I>,
+<I>w21</I>,<I></I>
+<I>w22</I>,<I></I>
 ... from V2.
 Optionally, each of these can be followed by a numeric string for the
 probability
-<I>p21</I>,
+<I>p21</I>,<I></I>
 which defaults to 1.
 The number is used as the conditional probability P(<I>w1</I>|<I>w21</I>),
 but the program does not depend on these numbers being properly normalized.
-<DT><B>-text-map</B><I> file</I>
+<DT><B>-text-map</B><I> file</I><B></B>
 <DD>
 Processes a combined text/map file.
 The format of
-<I>file</I>
+<I> file </I>
 is the same as for
-<B>-map</B>,
+<B>-map</B>,<B></B>
 except that the 
-<I>w1</I>
+<I> w1 </I>
 field on each line is interpreted as a word 
-<I>token</I>
+<I> token </I>
 rather than a word 
-<I>type</I>.
+<I>type</I>.<I></I>
 Hence, the V1 text input consists of all words in column 1 of
-<I>file</I>
+<I> file </I>
 in order of appearance.
 This is convenient if different instances of a word have different mappings.
 There is no implicit insertion of begin/end sentence tokens in this 
@@ -74,58 +74,59 @@ lines of the form
 <BR>
 	&lt;s&gt;	&lt;s&gt;
 <BR>
-<DT><B>-scale</B>
+<DT><B> -scale </B>
 <DD>
 Interpret the numbers in the mapping as P(<I>w21</I>|<I>w1</I>).
 This is done by dividing probabilities by the unigram probabilities of
-<I>w21</I>,
+<I>w21</I>,<I></I>
 obtained from the V2 language model.
-<DT><B>-logmap</B>
+<DT><B> -logmap </B>
 <DD>
 Interpret numeric values in map file as log probabilities, not probabilities.
-<DT><B>-lm</B><I> file</I>
+<DT><B>-lm</B><I> file</I><B></B>
 <DD>
-Specifies the V2 language model as a standard ARPA N-gram backoff model file.
+Specifies the V2 language model as a standard ARPA N-gram backoff model file
+<A HREF="ngram-format.html">ngram-format(5)</A>.
 The default is not to use a language model, i.e., choose V2 tokens
 based only on the probabilities in the map file.
-<DT><B>-order</B><I> n</I>
+<DT><B>-order</B><I> n</I><B></B>
 <DD>
 Set the effective N-gram order used by the language model to
-<I>n</I>.
+<I>n</I>.<I></I>
 Default is 2 (use a bigram model).
-<DT><B>-lmw</B><I> W</I>
+<DT><B>-lmw</B><I> W</I><B></B>
 <DD>
 Scales the language model probabilities by a factor 
-<I>W</I>.
+<I>W</I>.<I></I>
 Default language model weight is 1.
-<DT><B>-mapw</B><I> W</I>
+<DT><B>-mapw</B><I> W</I><B></B>
 <DD>
 Scales the likelihood map probability by a factor
-<I>W</I>.
+<I>W</I>.<I></I>
 Default map weight is 1.
 Note: For Viterbi decoding (the default) it is equivalent to use
-<B>-lmw</B><I> W</I>
+<B>-lmw</B><I> W</I><B></B>
 or 
-<B>-mapw</B><I> 1/W",</I>
+<B>-mapw</B><I> 1/W",</I><B></B>
 but not for forward-backward computation.
-<DT><B>-tolower1</B>
+<DT><B> -tolower1 </B>
 <DD>
 Map input vocabulary (V1) to lowercase, removing case distinctions.
-<DT><B>-tolower2</B>
+<DT><B> -tolower2 </B>
 <DD>
 Map output vocabulary (V2) to lowercase, removing case distinctions.
-<DT><B>-keep-unk</B>
+<DT><B> -keep-unk </B>
 <DD>
 Do not map unknown input words to the &lt;unk&gt; token.
 Instead, output the input word unchanged.
 This is like having an implicit default mapping for unknown words to
 themselves, except that the word will still be treated as &lt;unk&gt; by the language
 model.
-<DT><B>-no-eos</B>
+<DT><B> -no-eos </B>
 <DD>
 Do no assume that each input line contains a complete sentence.
 This prevents end-of-sentence tokens &lt;/s&gt; from being appended automatically.
-<DT><B>-continuous</B>
+<DT><B> -continuous </B>
 <DD>
 Process all words in the input as one sequence of words, irrespective of
 line breaks.
@@ -133,39 +134,39 @@ Normally each line is processed separately as a sentence.
 V2 tokens are output one-per-line.
 This option also prevents sentence start/end tokens (&lt;s&gt; and &lt;/s&gt;)
 from being added to the input.
-<DT><B>-fb</B>
+<DT><B> -fb </B>
 <DD>
 Perform forward-backward decoding of the input (V1) token sequence.
 Outputs the V2 tokens that have the highest posterior probability,
 for each position.
 The default is to use Viterbi decoding, i.e., the output is the
 V2 sequence with the higher joint posterior probability.
-<DT><B>-posteriors</B>
+<DT><B> -posteriors </B>
 <DD>
 Output the table of posterior probabilities for each 
 input (V1) token and each V2 token, in the same format as
 required for the
-<B>-map</B>
+<B> -map </B>
 file.
 If
-<B>-fb</B>
+<B> -fb </B>
 is also specified the posterior probabilities will be computed using
 forward-backward probabilities; otherwise an approximation will be used
 that is based on the probability of the most likely path containing 
 a given V2 token at given position.
-<DT><B>-write-vocab1</B><I> file</I>
+<DT><B>-write-vocab1</B><I> file</I><B></B>
 <DD>
 Writes the input vocabulary from the map (V1) to
-<I>file</I>.
-<DT><B>-write-vocab2</B><I> file</I>
+<I>file</I>.<I></I>
+<DT><B>-write-vocab2</B><I> file</I><B></B>
 <DD>
 Writes the output vocabulary from the map (V2) to
-<I>file</I>.
+<I>file</I>.<I></I>
 The vocabulary will also include the words specified in the language model.
-<DT><B>-write-map</B><I> file</I>
+<DT><B>-write-map</B><I> file</I><B></B>
 <DD>
 Writes the map back to a file for validation purposes.
-<DT><B>-debug</B>
+<DT><B> -debug </B>
 <DD>
 Sets debugging output level.
 </DD>
@@ -174,15 +175,15 @@ Sets debugging output level.
 Each filename argument can be an ASCII file, or a compressed
 file  (name  ending  in  .Z  or  .gz),  or ``-'' to indicate
 stdin/stdout.
-<H2>BUGS</H2>
+<H2> BUGS </H2>
 The
-<B>-continuous</B>
+<B> -continuous </B>
 option effectively disables
-<B>-keep-unk</B>,
+<B>-keep-unk</B>,<B></B>
 i.e., unknown input words are always mapped to &lt;unk&gt;.
-<H2>SEE ALSO</H2>
-<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="hidden-ngram.html">hidden-ngram(1)</A>.
-<H2>AUTHOR</H2>
+<H2> SEE ALSO </H2>
+<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="hidden-ngram.html">hidden-ngram(1)</A>, <A HREF="training-scripts.html">training-scripts(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>.
+<H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
 Copyright 1995-1998 SRI International

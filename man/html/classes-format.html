@@ -1,0 +1,40 @@
+<! $Id: classes-format.5,v 1.1 1999/10/18 21:09:32 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>classes-format</TITLE>
+<BODY>
+<H1>classes-format</H1>
+<H2> NAME </H2>
+classes-format - File format for word class definitions
+<H2> SYNOPSIS </H2>
+<I>class</I> [<I>p</I>] <I>word1</I> <I>word2</I> ...
+<H2> DESCRIPTION </H2>
+Various programs dealing with word classes use this format to define
+the posssible expansions of classes and their respective probabilities.
+Each expansion appears on a separate line as in 
+the synopsis, where
+<I> class </I>
+names a word class,
+<I> p </I>
+gives the probability for the class expansion, and
+<I> word1 word2 ... </I>
+defines the word string that the class expands to.
+If 
+<I> p </I>
+is omitted it is assumed to be 1.
+(All expansion probabilities for a given class should sum to one,
+although this is not necessarily enforced by the software and would
+lead to improper models.)
+<P>
+Note that the concept of word class here is generalized to include
+``multi-words'', or phrases consisting of more than one word.
+All expansions must have at least one word.
+Certain models might impose more restrictive formats.
+<H2> SEE ALSO </H2>
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-class.html">ngram-class(1)</A>, <A HREF="training-scripts.html">training-scripts(1)</A>, <A HREF="pfsg-scripts.html">pfsg-scripts(5)</A>.
+<H2> AUTHOR </H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<BR>
+Copyright 1999 SRI International
+</BODY>
+</HTML>

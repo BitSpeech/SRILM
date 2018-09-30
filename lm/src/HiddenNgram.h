@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1999, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.2 1999/05/13 07:28:23 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.5 1999/10/16 17:01:10 stolcke Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #include "Ngram.h"
 #include "Trellis.h"
 #include "SubVocab.h"
+#include "Array.h"
 
 /* 
  * We use strings over VocabIndex as keys into the trellis.
@@ -41,16 +42,19 @@ public:
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
     LogP wordProbRecompute(VocabIndex word, const VocabIndex *context);
+    void *contextID(const VocabIndex *context, unsigned &length);
     Boolean isNonWord(VocabIndex word);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
 protected:
     Trellis<VocabContext> trellis;	/* for DP on hidden events */
-    unsigned contextLength;		/* length of last DP context */
     const VocabIndex *prevContext;	/* context from last DP */
+    unsigned prevPos;			/* position from last DP */
     LogP prefixProb(VocabIndex word, const VocabIndex *context,
 				LogP &contextProb, TextStats &stats);
 					/* prefix probability */
+    Array<VocabIndex> savedContext;	/* saved, rev'd copy of last context */
+    unsigned savedLength;		/* length of saved context above */
 
     SubVocab &hiddenVocab;		/* the hidden event vocabulary */
     VocabIndex noEventIndex;		/* the "no-event" event */

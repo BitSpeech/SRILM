@@ -5,13 +5,14 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.37 1999/08/01 09:35:25 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.47 2000/06/12 06:00:27 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <assert.h>
 
 #include "option.h"
 #include "File.h"
@@ -21,19 +22,27 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.c
 #include "NullLM.h"
 #include "WordLattice.h"
 #include "WordMesh.h"
+#include "WordAlign.h"
 
-#define DEBUG_ERRORS	1
+#define DEBUG_ERRORS		1
+#define DEBUG_POSTERIORS	2
 
 /*
  * Pseudo-posterior used to prime lattice with centroid hyp
  */
 const Prob primePosterior = 100.0;
 
-static int debug = 0;
+/*
+ * default value for posterior* weights to indicate they haven't been set
+ */
+const double undefinedWeight =	(1.0/0.0);
+
+static unsigned debug = 0;
 static int werRescore = 0;
-static int maxRescore = 0;
+static unsigned maxRescore = 0;
 static char *vocabFile = 0;
 static int tolower = 0;
+static int multiwords = 0;
 static char *readFile = 0;
 static char *writeFile = 0;
 static char *rescoreFile = 0;
@@ -45,19 +54,28 @@ static unsigned maxNbest = 0;
 static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
+static double posteriorAMW = 1.0;
+static double posteriorLMW = undefinedWeight;
+static double posteriorWTW = undefinedWeight;
 static char *noiseTag = 0;
+static char *noiseVocabFile = 0;
 static int noMerge = 0;
 static int noReorder = 0;
 static double postPrune = 0.0;
 static int primeLattice = 0;
+static int primeWith1best = 0;
 static int noViterbi = 0;
 static int useMesh = 0;
+static double deletionBias = 1.0;
 static int dumpPosteriors = 0;
+static char *refString = 0;
+static int dumpErrors = 0;
 
 static Option options[] = {
-    { OPT_INT, "debug", &debug, "debugging level" },
+    { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
     { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_TRUE, "wer", &werRescore, "optimize expected WER using N-best list" },
     { OPT_FALSE, "lattice-wer", &werRescore, "optimize expected WER using lattice" },
     { OPT_STRING, "read", &readFile, "lattice file to read" },
@@ -69,20 +87,27 @@ static Option options[] = {
     { OPT_STRING, "nbest", &rescoreFile, "same as -rescore" },
     { OPT_STRING, "write-nbest", &writeNbestFile, "output n-best list" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
-    { OPT_INT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
-    { OPT_INT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
+    { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
+    { OPT_UINT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
     { OPT_FLOAT, "posterior-prune", &postPrune, "ignore n-best hyps whose cumulative posterior mass is below threshold" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
+    { OPT_FLOAT, "posterior-amw", &posteriorAMW, "posterior AM weight" },
+    { OPT_FLOAT, "posterior-lmw", &posteriorLMW, "posterior LM weight" },
+    { OPT_FLOAT, "posterior-wtw", &posteriorWTW, "posterior word transition weight" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
+    { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "no-merge", &noMerge, "don't merge hyps for lattice building" },
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before rescoring" },
     { OPT_TRUE, "prime-lattice", &primeLattice, "initialize word lattice with WE-minimized hyp" },
+    { OPT_TRUE, "prime-with-1best", &primeWith1best, "initialize word lattice with 1-best hyp" },
     { OPT_TRUE, "no-viterbi", &noViterbi, "minimize lattice WE without Viterbi search" },
     { OPT_TRUE, "use-mesh", &useMesh, "align using word mesh (not lattice)" },
-    { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" }
-
+    { OPT_FLOAT, "deletion-bias", &deletionBias, "bias factor in favor of deletions" },
+    { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" },
+    { OPT_TRUE, "dump-errors", &dumpErrors, "output word error labels" },
+    { OPT_STRING, "reference", &refString, "reference words for word error computation" }
 };
 
 void
@@ -96,7 +121,8 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 	nbestList.sortHyps();
     }
 
-    nbestList.computePosteriors(rescoreLMW, rescoreWTW, posteriorScale);
+    nbestList.computePosteriors(posteriorLMW, posteriorWTW, posteriorScale,
+								posteriorAMW);
 
     unsigned howmany = (maxRescore > 0) ? maxRescore : numHyps;
     if (howmany > numHyps) {
@@ -104,26 +130,52 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
     }
 
     Prob totalPost = 0.0;
-    VocabIndex *bestWords = 0;
+    VocabIndex *primeWords = 0;
 
     /* 
-     * Prime lattice with the minimal WE hyp from the nbest list
+     * Prime lattice with a "good hyp" to improve alignments
      */
     if (primeLattice && !noMerge && lat.isEmpty()) {
-	bestWords = new VocabIndex[maxWordsPerLine + 1];
-	assert(bestWords != 0);
+	primeWords = new VocabIndex[maxWordsPerLine + 1];
+	assert(primeWords != 0);
 
-	double subs, inss, dels;
-	(void)nbestList.minimizeWordError(bestWords, maxWordsPerLine,
+	if (primeWith1best) {
+	    /*
+	     * prime with 1-best hyp
+	     */
+	    nbestList.reweightHyps(rescoreLMW, rescoreWTW);
+
+	    /*
+	     * locate best hyp
+	     */
+	    VocabIndex *bestHyp;
+	    LogP bestScore;
+	    for (unsigned i = 0; i < numHyps; i ++) {
+		NBestHyp &hyp = nbestList.getHyp(i);
+
+		if (i == 0 || hyp.totalScore > bestScore) {
+		    bestHyp = hyp.words;
+		    bestScore = hyp.totalScore;
+		}
+	    }
+
+	    Vocab::copy(primeWords, bestHyp);
+	} else {
+	    /*
+	     * prime with WE-minimized hyp -- slow!
+	     */
+	    double subs, inss, dels;
+	    (void)nbestList.minimizeWordError(primeWords, maxWordsPerLine,
 				    subs, inss, dels, maxRescore, postPrune);
+	}
 
-	lat.addWords(bestWords, primePosterior);
+	lat.addWords(primeWords, primePosterior);
     }
 
     /*
      * Incorporate hyps into lattice
      */
-    for (unsigned i = 0; i < howmany; i ++) {
+    for (unsigned i = 0; i < numHyps; i ++) {
 	NBestHyp &hyp = nbestList.getHyp(i);
 
 	totalWords += Vocab::length(hyp.words);
@@ -151,9 +203,9 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
     /*
      * Remove posterior mass due to priming
      */
-    if (bestWords) {
-	lat.addWords(bestWords, - primePosterior);
-	delete [] bestWords;
+    if (primeWords) {
+	lat.addWords(primeWords, - primePosterior);
+	delete [] primeWords;
     }
 
     if (dumpPosteriors) {
@@ -165,8 +217,7 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 
 	    unsigned hypLength = Vocab::length(hyp.words);
 
-	    Prob *posteriors = new Prob[hypLength];
-	    assert(posteriors != 0);
+	    Prob posteriors[hypLength];
 
 	    lat.alignWords(hyp.words, 0.0, posteriors);
 
@@ -175,15 +226,12 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 		cout << " " << posteriors[j];
 	    }
 	    cout << endl;
-
-	    delete [] posteriors;
 	}
-    } else {
+    } else if (!dumpErrors) {
 	/*
 	 * Recover best hyp from lattice
 	 */
-	bestWords = new VocabIndex[maxWordsPerLine + 1];
-	assert(bestWords != 0);
+	VocabIndex bestWords[maxWordsPerLine + 1];
 
 	double subs, inss, dels;
 
@@ -192,8 +240,9 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 	    flags |= WORDLATTICE_NOVITERBI;
 	}
 	 
-	double errors = lat.minimizeWordError(bestWords, maxWordsPerLine,
-						    subs, inss, dels, flags);
+	double errors =
+		lat.minimizeWordError(bestWords, maxWordsPerLine,
+				      subs, inss, dels, flags, deletionBias);
 
 	cout << (lat.vocab.use(), bestWords) << endl;
 
@@ -202,30 +251,47 @@ latticeRescore(MultiAlign &lat, NBestList &nbestList)
 		 << " ins " << inss << " del " << dels << endl;
 	}
 
-	delete [] bestWords;
+	if (debug >= DEBUG_POSTERIORS) {
+	    unsigned numWords = Vocab::length(bestWords);
+	    Prob posteriors[numWords];
+
+	    lat.alignWords(bestWords, 0.0, posteriors);
+
+	    cerr << "post";
+	    for (unsigned j = 0; j < numWords; j ++) {
+		cerr << " " << posteriors[j];
+	    }
+	    cerr << endl;
+	}
     }
 }
 
 void
 wordErrorRescore(NBestList &nbestList)
 {
+    unsigned numHyps = nbestList.numHyps();
+    unsigned howmany = (maxRescore > 0) ? maxRescore : numHyps;
+    if (howmany > numHyps) {
+	howmany = numHyps;
+    }
+
     if (!noReorder) {
 	nbestList.reweightHyps(rescoreLMW, rescoreWTW);
 	nbestList.sortHyps();
     }
 
-    nbestList.computePosteriors(rescoreLMW, rescoreWTW, posteriorScale);
+    nbestList.computePosteriors(posteriorLMW, posteriorWTW, posteriorScale,
+								posteriorAMW);
 
     if (dumpPosteriors) {
 	/*
 	 * Dump hyp posteriors
 	 */
-	for (unsigned i = 0; i < nbestList.numHyps(); i ++) {
+	for (unsigned i = 0; i < howmany; i ++) {
 	    cout << nbestList.getHyp(i).posterior << endl;
 	}
-    } else {
-	VocabIndex *bestWords = new VocabIndex[maxWordsPerLine + 1];
-	assert(bestWords != 0);
+    } else if (!dumpErrors) {
+	VocabIndex bestWords[maxWordsPerLine + 1];
 
 	double subs, inss, dels;
 	double errors = nbestList.minimizeWordError(bestWords, maxWordsPerLine,
@@ -237,8 +303,33 @@ wordErrorRescore(NBestList &nbestList)
 	    cerr << "err " << errors << " sub " << subs
 		 << " ins " << inss << " dels " << dels << endl;
 	}
+    }
+}
 
-	delete [] bestWords;
+void
+computeWordErrors(NBestList &nbestList, VocabIndex *reference)
+{
+    unsigned numHyps = nbestList.numHyps();
+    unsigned howmany = (maxRescore > 0) ? maxRescore : numHyps;
+    if (howmany > numHyps) {
+	howmany = numHyps;
+    }
+
+    for (unsigned i = 0; i < howmany; i ++) {
+	unsigned sub, ins, del;
+	WordAlignType alignment[Vocab::length(nbestList.getHyp(i).words) +
+				Vocab::length(reference) + 1];
+
+	unsigned numErrors = wordError(reference, nbestList.getHyp(i).words,
+						    sub, ins, del, alignment);
+
+	cout << numErrors;
+	for (unsigned j = 0; alignment[j] != END_ALIGN; j ++) {
+	    cout << " " << ((alignment[j] == INS_ALIGN) ? "INS" :
+	    			(alignment[j] == DEL_ALIGN) ? "DEL" :
+				(alignment[j] == SUB_ALIGN) ? "SUB" : "CORR");
+	}
+	cout << endl;
     }
 }
 
@@ -249,6 +340,10 @@ main (int argc, char *argv[])
     setlocale(LC_COLLATE, "");
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (primeWith1best) {
+	primeLattice = 1;
+    }
 
     Vocab vocab;
     NullLM nullLM(vocab);
@@ -263,8 +358,12 @@ main (int argc, char *argv[])
     /*
      * Skip noise tags in scoring
      */
-    if (noiseTag) {
-	nullLM.noiseIndex = vocab.addWord(noiseTag);
+    if (noiseVocabFile) {
+	File file(noiseVocabFile, "r");
+	nullLM.noiseVocab.read(file);
+    }
+    if (noiseTag) {				/* backward compatibility */
+	nullLM.noiseVocab.addWord(noiseTag);
     }
 
     /*
@@ -273,6 +372,16 @@ main (int argc, char *argv[])
      */
     if (posteriorScale == 0.0) {
 	posteriorScale = (rescoreLMW == 0.0) ? 1.0 : rescoreLMW;
+    }
+
+    /*
+     * Default weights for posterior computation are same as for rescoring
+     */
+    if (posteriorLMW == undefinedWeight) {
+	posteriorLMW = rescoreLMW;
+    }
+    if (posteriorWTW == undefinedWeight) {
+	posteriorWTW = rescoreWTW;
     }
 
     MultiAlign *lat;
@@ -294,9 +403,31 @@ main (int argc, char *argv[])
     }
 
     /*
+     * Read reference words
+     */
+    VocabIndex reference[maxWordsPerLine + 1];
+
+    if (refString) {
+	VocabString refWords[maxWordsPerLine + 1];
+	unsigned numWords =
+		    Vocab::parseWords(refString, refWords, maxWordsPerLine);
+        if (numWords == maxWordsPerLine) {
+	    cerr << "more than " << maxWordsPerLine << " reference words\n";
+	    exit(1);
+	}
+
+	vocab.addWords(refWords, reference, maxWordsPerLine + 1);
+    } else {
+	if (dumpErrors) {
+	    cerr << "cannot compute word errors without reference\n";
+	    exit(1);
+	}
+    }
+
+    /*
      * Read single nbest list
      */
-    NBestList nbestList(vocab, maxNbest);
+    NBestList nbestList(vocab, maxNbest, multiwords);
     nbestList.debugme(debug);
 
     if (rescoreFile) {
@@ -351,6 +482,10 @@ main (int argc, char *argv[])
 	     * Lattice building (and rescoring)
 	     */
 	    latticeRescore(*lat, nbestList);
+	}
+
+	if (dumpErrors) {
+	    computeWordErrors(nbestList, reference);
 	}
 
 	if (writeNbestFile) {
@@ -415,7 +550,7 @@ main (int argc, char *argv[])
 		}
 		assert(lat != 0);
 
-		NBestList nbestList(vocab, maxNbest);
+		NBestList nbestList(vocab, maxNbest, multiwords);
 		nbestList.debugme(debug);
 
 		File input(fname, "r");
@@ -435,6 +570,10 @@ main (int argc, char *argv[])
 		    wordErrorRescore(nbestList);
 		} else {
 		    latticeRescore(*lat, nbestList);
+		}
+
+		if (dumpErrors) {
+		    computeWordErrors(nbestList, reference);
 		}
 
 		delete lat;

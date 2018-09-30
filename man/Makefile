@@ -1,7 +1,7 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.5 1998/12/24 09:48:53 stolcke Exp $
+# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.10 2000/05/10 08:26:55 stolcke Exp $
 #
 
 GROFF = groff -Tascii -mgan
@@ -9,25 +9,41 @@ GROFF = groff -Tascii -mgan
 MAN1PAGES = \
 	ngram \
 	ngram-count \
+	ngram-class \
 	ngram-merge \
 	disambig \
 	nbest-lattice \
+	nbest-optimize \
 	nbest-mix \
 	segment \
 	segment-nbest \
-	hidden-ngram
+	hidden-ngram \
+	anti-ngram \
+	training-scripts \
+	lm-scripts \
+	ppl-scripts \
+	pfsg-scripts \
+	nbest-scripts
 
 MAN3PAGES = \
 	Prob \
 	Vocab \
 	LM \
 	File
-	
+
+MAN5PAGES = \
+	ngram-format \
+	nbest-format \
+	classes-format \
+	pfsg-format
+
 CATS = $(MAN1PAGES:%=cat1/%.1) \
-	$(MAN3PAGES:%=cat3/%.3)
+	$(MAN3PAGES:%=cat3/%.3)\
+	$(MAN5PAGES:%=cat5/%.5)
 
 HTMLS = $(MAN1PAGES:%=html/%.html) \
-	$(MAN3PAGES:%=html/%.html)
+	$(MAN3PAGES:%=html/%.html) \
+	$(MAN5PAGES:%=html/%.html)
 
 all:	cats htmls index
 
@@ -35,8 +51,11 @@ cats:	$(CATS)
 
 index:	whatis windex
 
-windex whatis:	$(CATS)
-	catman -w -M .
+windex: $(CATS)
+	scripts/makewhatis .
+
+whatis:	$(CATS)
+	scripts/makewhatis.bsd .
 
 htmls:	$(HTMLS)
 
@@ -44,12 +63,16 @@ cat1/%.1:	man1/%.1
 	$(GROFF) $< >$@
 cat3/%.3:	man3/%.3
 	$(GROFF) $< >$@
+cat5/%.5:	man5/%.5
+	$(GROFF) $< >$@
 	
 #html/%.html:	cat1/%.1
 #	rman -f HTML -r '%s.html' $< >$@ 
 html/%.html:	man1/%.1
 	scripts/man2html $< >$@ 
 html/%.html:	man3/%.3
+	scripts/man2html $< >$@ 
+html/%.html:	man5/%.5
 	scripts/man2html $< >$@ 
 
 clean:

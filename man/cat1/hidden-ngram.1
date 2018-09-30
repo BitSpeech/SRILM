@@ -57,11 +57,11 @@ OOPPTTIIOONNSS
 
        --llmm _f_i_l_e
               Specifies the word/tag language model as a standard
-              ARPA N-gram backoff model file.
+              ARPA  N-gram backoff model file in nnggrraamm--ffoorrmmaatt(5).
 
 
 
-                   $Date: 1999/07/15 02:32:19 $                 1
+SRILM Tools        $Date: 2000/06/09 00:27:04 $                 1
 
 
 
@@ -78,7 +78,7 @@ hidden-ngram(1)                                   hidden-ngram(1)
               _W.  Default language model weight is 1.
 
        --mmaappww _W
-              Scales  the  likelihood map probability by a factor
+              Scales the likelihood map probability by  a  factor
               _W.  Default map weight is 1.
 
        --ttoolloowweerr
@@ -91,43 +91,43 @@ hidden-ngram(1)                                   hidden-ngram(1)
               guage model.
 
        --ffoorrccee--eevveenntt
-              Forces  a non-default event after every word.  This
-              is useful for language models  that  represent  the
-              default  event  explicitly  with a tag, rather than
-              implicitly by the absence of a  tag  between  words
+              Forces a non-default event after every word.   This
+              is  useful  for  language models that represent the
+              default event explicitly with a  tag,  rather  than
+              implicitly  by  the  absence of a tag between words
               (which is the default).
 
        --kkeeeepp--uunnkk
-              Do  not map unknown input words to the <unk> token.
+              Do not map unknown input words to the <unk>  token.
               Instead, output the input word unchanged.
 
        --ffbb    Perform  forward-backward  decoding  of  the  input
-              token  sequence.   Outputs  the  tags that have the
-              highest posterior probability, for  each  position.
-              The  default  is to use Viterbi decoding, i.e., the
-              output is the tag sequence with the  highest  joint
+              token sequence.  Outputs the  tags  that  have  the
+              highest  posterior  probability, for each position.
+              The default is to use Viterbi decoding,  i.e.,  the
+              output  is  the tag sequence with the highest joint
               posterior probability.
 
        --ccoonnttiinnuuoouuss
-              Process  all  words in the input as one sequence of
-              words, irrespective of line breaks.  Normally  each
-              line  is processed separately as a sentence.  Input
-              tokens are output one-per-line, followed  by  event
+              Process all words in the input as one  sequence  of
+              words,  irrespective of line breaks.  Normally each
+              line is processed separately as a sentence.   Input
+              tokens  are  output one-per-line, followed by event
               tokens.
 
        --ppoosstteerriioorrss
-              Output  the  table  of  posterior probabilities for
-              each tag position.  If --ffbb is  also  specified  the
+              Output the table  of  posterior  probabilities  for
+              each  tag  position.   If --ffbb is also specified the
               posterior probabilities will be computed using for-
-              ward-backward probabilities; otherwise an  approxi-
-              mation  will be used that is based on the probabil-
-              ity of the most likely path containing a given  tag
+              ward-backward  probabilities; otherwise an approxi-
+              mation will be used that is based on the  probabil-
+              ity  of the most likely path containing a given tag
               at given position.
 
 
 
 
-                   $Date: 1999/07/15 02:32:19 $                 2
+SRILM Tools        $Date: 2000/06/09 00:27:04 $                 2
 
 
 
@@ -137,51 +137,51 @@ hidden-ngram(1)                                   hidden-ngram(1)
 
 
        --ttoottaallss
-              Output  the total string probability for each input
-              sentence.  If --ffbb is also specified this  probabil-
-              ity  is  obtained  by summing over all hidden event
+              Output the total string probability for each  input
+              sentence.   If --ffbb is also specified this probabil-
+              ity is obtained by summing over  all  hidden  event
               sequences; otherwise it is calculated (i.e., under-
-              estimated)  using  the  most  probably hidden event
+              estimated) using the  most  probably  hidden  event
               sequence.
 
        --wwrriittee--ccoouunnttss _f_i_l_e
-              Write the posterior  weighted  counts  of  n-grams,
-              including  those  with hidden tags, summed over the
-              entire input data, to _f_i_l_e.  The  posterior  proba-
-              bilities  should normally be computed with the for-
-              ward-backward algorithm (instead  of  Viterbi),  so
-              the  --ffbb option is usually also specified.  Only n-
-              grams whose contexts occur in  the  language  model
+              Write  the  posterior  weighted  counts of n-grams,
+              including those with hidden tags, summed  over  the
+              entire  input  data, to _f_i_l_e.  The posterior proba-
+              bilities should normally be computed with the  for-
+              ward-backward  algorithm  (instead  of Viterbi), so
+              the --ffbb option is usually also specified.  Only  n-
+              grams  whose  contexts  occur in the language model
               are output.
 
        --uunnkk--pprroobb _L
               Specifies that unknown words and other words having
-              zero probability in the language model be  assigned
-              a  log  probability  of _L.  This is -100 by default
-              but might be set to 0, e.g., to  compute  perplexi-
-              ties exlcuding unknown words.
+              zero  probability in the language model be assigned
+              a log probability of _L.  This is  -100  by  default
+              but  might  be set to 0, e.g., to compute perplexi-
+              ties excluding unknown words.
 
        --ddeebbuugg Sets debugging output level.
 
-       Each  filename  argument  can  be an ASCII file, or a com-
-       pressed file  (name  ending  in  .Z  or  .gz),   or  ``-''
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed  file   (name  ending  in  .Z  or  .gz),  or ``-''
        to indicate stdin/stdout.
 
 BBUUGGSS
-       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
-       i.e., unknown input words  are  always  mapped  to  <unk>.
-       Also,   --ccoonnttiinnuuoouuss  doesn't  preserve  the  positions  of
+       The --ccoonnttiinnuuoouuss  option  effectively  disables  --kkeeeepp--uunnkk,
+       i.e.,  unknown  input  words  are  always mapped to <unk>.
+       Also,  --ccoonnttiinnuuoouuss  doesn't  preserve  the  positions   of
        escaped input lines relative to the input.
 
 SSEEEE AALLSSOO
-       ngram-count(1), disambig(1), segment(1).
+       ngram-count(1),  disambig(1), segment(1), ngram-format(5).
        A. Stolcke  et  al.,  ``Automatic  Detection  of  Sentence
-       Boundaries  and Disfluencies based on Recognized Words, ''
-       Proc. ICSLP, 2247-2250, Sydney.
+       Boundaries  and  Disfluencies based on Recognized Words,''
+       _P_r_o_c_. _I_C_S_L_P, 2247-2250, Sydney.
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1998, 1999 SRI International
+       Copyright 1998-1999 SRI International
 
 
 
@@ -193,6 +193,6 @@ AAUUTTHHOORR
 
 
 
-                   $Date: 1999/07/15 02:32:19 $                 3
+SRILM Tools        $Date: 2000/06/09 00:27:04 $                 3
 
 

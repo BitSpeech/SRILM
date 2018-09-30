@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for SRILM
 #
-# $Header: /home/srilm/devel/RCS/Makefile,v 1.13 1999/08/02 00:47:59 stolcke Exp $
+# $Header: /home/srilm/1.1/RCS/Makefile,v 1.13 1999/08/02 00:47:59 stolcke Exp stolcke $
 #
 
 # SRILM = /home/speech/stolcke/project/srilm/devel
@@ -58,6 +58,7 @@ package:	EXCLUDE
 EXCLUDE:	force
 	(find $(EXCLUDE) bin/* lib/* */bin/* */obj/* \
 		-type d -print -prune ; \
+	find . -name "*.~[0-9]*" -print; \
 	find . -name RCS -print) | \
 	sed 's,^\./,,' > $@
 

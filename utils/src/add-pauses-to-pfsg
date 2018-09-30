@@ -3,13 +3,14 @@
 # add-pauses-to-pfsg --
 #	Modify Decipher PFSG to allow pauses between words
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg,v 1.4 1998/03/17 22:52:34 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg,v 1.6 2000/05/26 01:20:20 stolcke Exp $
 #
 BEGIN {
 	top_level_name = "TOP_LEVEL";
 	pause_filler_name = "PAUSE_FILLER";
 
 	wordwrap = 1;		# wrap pause filler around words
+	pauselast = 0;		# make pauses follow wrapped words
 }
 
 #
@@ -17,13 +18,21 @@ BEGIN {
 #	oldname is the name of the original pfsg
 function print_top_level(oldname) {
 	print "name " top_level_name;
-	print "nodes 4 NULL " pause_filler_name " " oldname " NULL";
+	if (pauselast) {
+	    print "nodes 4 NULL " pause_filler_name " " oldname " NULL";
+	} else {
+	    print "nodes 4 NULL " oldname " " pause_filler_name " NULL";
+	}
 	print "initial 0"
 	print "final 3"
 	print "transitions 4"
 	print "0 1 0"
-	print "0 2 0"
 	print "1 2 0"
+	if (pauselast) {
+	    print "0 2 0"
+	} else {
+	    print "1 3 0"
+	}
 	print "2 3 0"
 	print "";
 }
@@ -33,7 +42,11 @@ function print_top_level(oldname) {
 #
 function print_word_wrapper(word) {
 	print "name " toupper(word) "_P";
-	print "nodes 3 " word " " pause_filler_name " NULL";
+	if (pauselast) {
+	    print "nodes 3 " word " " pause_filler_name " NULL";
+	} else {
+	    print "nodes 3 NULL " pause_filler_name " " word;
+	}
 	print "initial 0";
 	print "final 2";
 	print "transitions 3";

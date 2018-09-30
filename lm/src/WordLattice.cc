@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.25 1998/02/21 00:31:24 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.29 2000/03/18 23:01:07 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -321,8 +321,7 @@ WordLattice::read(File &file)
 unsigned
 WordLattice::sortNodes(unsigned *sortedNodes)
 {
-    Boolean *visitedNodes = new Boolean[numNodes];
-    assert(visitedNodes);
+    Boolean visitedNodes[numNodes];
 
     for (unsigned i = 0; i < numNodes; i ++) {
 	visitedNodes[i] = false;
@@ -332,8 +331,6 @@ WordLattice::sortNodes(unsigned *sortedNodes)
 
     sortNodesRecursive(initial, numVisited, sortedNodes, visitedNodes);
     
-    delete [] visitedNodes;
-
     /*
      * reverse the node order from the way we generated it
      */
@@ -510,8 +507,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
      */
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
-    unsigned *sortedNodes = new unsigned[numNodes];
-    assert(sortedNodes != 0);
+    unsigned sortedNodes[numNodes];
 
     unsigned numReachable = sortAlignedNodes(sortedNodes);
     if (numReachable != numNodes) {
@@ -548,8 +544,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 	ErrorType errType;	// error type
     } ChartEntry;
 
-    ChartEntry **chart = new ChartEntry*[numWords + 2];
-    assert(chart != 0);
+    ChartEntry *chart[numWords + 2];
 
     unsigned i;
     for (i = 0; i <= numWords + 1; i ++) {
@@ -735,7 +730,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 		    nodes[thisState].align = numAligns++;
 		}
 
-		if (wordScores) {
+		if (wordScores && i > 0 && i <= numWords) {
 		    wordScores[i - 1] = score;
 		}
 	    } else {
@@ -745,7 +740,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 		thisState = bestPred;
 		nodes[thisState].score += score;
 
-		if (wordScores) {
+		if (wordScores && i > 0 && i <= numWords) {
 		    wordScores[i - 1] = nodes[thisState].score;
 		}
 	    }
@@ -782,8 +777,6 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
     for (i = 0; i <= numWords + 1; i ++) {
 	delete [] chart[i];
     }
-    delete [] chart;
-    delete [] sortedNodes;
 }
 
 /*
@@ -806,7 +799,8 @@ typedef struct {
 double
 WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 				    double &sub, double &ins, double &del,
-				    unsigned flags)
+				    unsigned flags, double delBias)
+				// delBias is ignored, unimplemented
 {
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
@@ -1060,8 +1054,7 @@ WordLattice::wordError(const VocabIndex *words,
      */
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
-    unsigned *sortedNodes = new unsigned[numNodes];
-    assert(sortedNodes != 0);
+    unsigned sortedNodes[numNodes];
 
     unsigned numReachable = sortNodes(sortedNodes);
     if (numReachable != numNodes) {
@@ -1081,8 +1074,7 @@ WordLattice::wordError(const VocabIndex *words,
 	ErrorType errType;	// error type
     } ChartEntry;
 
-    ChartEntry **chart = new ChartEntry*[numWords + 2];
-    assert(chart != 0);
+    ChartEntry *chart[numWords + 2];
 
     unsigned i;
     for (i = 0; i <= numWords + 1; i ++) {
@@ -1209,15 +1201,21 @@ WordLattice::wordError(const VocabIndex *words,
 	}
     }
 
-    sub = chart[numWords + 1][final].sub;
-    ins = chart[numWords + 1][final].ins;
-    del = chart[numWords + 1][final].del;
+    if (chart[numWords + 1][final].predNode == NO_PRED) {
+	/*
+	 * Final node is unreachable
+	 */
+	sub = ins = 0;
+	del = numWords;
+    } else {
+	sub = chart[numWords + 1][final].sub;
+	ins = chart[numWords + 1][final].ins;
+	del = chart[numWords + 1][final].del;
+    }
 
     for (i = 0; i <= numWords + 1; i ++) {
 	delete [] chart[i];
     }
-    delete [] chart;
-    delete [] sortedNodes;
 
     return sub + ins + del;
 }

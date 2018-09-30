@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/StopNgram.h,v 1.1 1996/12/10 09:28:49 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.h,v 1.2 1999/10/14 04:10:25 stolcke Exp $
  *
  */
 
@@ -19,10 +19,17 @@ class StopNgram: public Ngram
 public:
     StopNgram(Vocab &vocab, SubVocab &stopWords, unsigned int order);
 
+    /*
+     * LM interface
+     */
+    LogP wordProb(VocabIndex word, const VocabIndex *context);
+    void *contextID(const VocabIndex *context, unsigned &length);
+
     SubVocab &stopWords;			/* stop word set */
 
 protected:
-    virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
+    unsigned removeStopWords(const VocabIndex *context,
+			    VocabIndex *usedContext, unsigned usedLength);
 };
 
 #endif /* _StopNgram_h_ */

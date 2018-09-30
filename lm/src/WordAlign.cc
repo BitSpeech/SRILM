@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.7 1998/02/21 01:16:38 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,1997,2000 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.9 2000/06/12 05:59:55 stolcke Exp $";
 #endif
 
 #include "WordAlign.h"
@@ -21,21 +21,22 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 
  * Side effect:
  *	sub, ins, del are set to the number of substitution, insertion and
  *	deletion errors, respectively.
+ *	If alignment != 0 the array is filled in with the error/alignment
+ *	type of each hyp word (CORR_ALIGN, SUB_ALIGN, INS_ALIGN).  Deleted
+ *	words are indicated by DEL_ALIGN.  The alignment is terminated by
+ *	END_ALIGN.
  */
 unsigned
 wordError(const VocabIndex *ref, const VocabIndex *hyp,
-			unsigned &sub, unsigned &ins, unsigned &del)
+			unsigned &sub, unsigned &ins, unsigned &del,
+			WordAlignType *alignment = 0)
 {
     unsigned hypLength = Vocab::length(hyp);
     unsigned refLength = Vocab::length(ref);
 
-    typedef enum {
-	CORR, SUB, INS, DEL
-    } ErrorType;
-
     typedef struct {
 	unsigned cost;			// minimal cost of partial alignment
-	ErrorType error;		// best predecessor
+	WordAlignType error;		// best predecessor
     } ChartEntry;
 
     /* 
@@ -76,7 +77,7 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
 	 * Initialize the 0'th row and column, which never change
 	 */
 	chart[0][0].cost = 0;
-	chart[0][0].error = CORR;
+	chart[0][0].error = CORR_ALIGN;
 
 	/*
 	 * Initialize the top-most row in the alignment chart
@@ -84,12 +85,12 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
 	 */
 	for (j = 1; j <= maxHypLength; j ++) {
 	    chart[0][j].cost = chart[0][j-1].cost + INS_COST;
-	    chart[0][j].error = INS;
+	    chart[0][j].error = INS_ALIGN;
 	}
 
 	for (i = 1; i <= maxRefLength; i ++) {
 	    chart[i][0].cost = chart[i-1][0].cost + DEL_COST;
-	    chart[i][0].error = DEL;
+	    chart[i][0].error = DEL_ALIGN;
 	}
     }
 
@@ -100,26 +101,26 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
 	    unsigned minCost;
-	    ErrorType minError;
+	    WordAlignType minError;
 
 	    if (hyp[j-1] == ref[i-1]) {
 		minCost = chart[i-1][j-1].cost;
-		minError = CORR;
+		minError = CORR_ALIGN;
 	    } else {
 		minCost = chart[i-1][j-1].cost + SUB_COST;
-		minError = SUB;
+		minError = SUB_ALIGN;
 	    }
 
 	    unsigned delCost = chart[i-1][j].cost + DEL_COST;
 	    if (delCost < minCost) {
 		minCost = delCost;
-		minError = DEL;
+		minError = DEL_ALIGN;
 	    }
 
 	    unsigned insCost = chart[i][j-1].cost + INS_COST;
 	    if (insCost < minCost) {
 		minCost = insCost;
-		minError = INS;
+		minError = INS_ALIGN;
 	    }
 
 	    chart[i][j].cost = minCost;
@@ -135,30 +136,60 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
     {
 	unsigned i = refLength;
 	unsigned j = hypLength;
+	unsigned k = 0;
 
 	sub = del = ins = 0;
 
 	while (i > 0 || j > 0) {
 
 	    switch (chart[i][j].error) {
-	    case CORR:
+	    case CORR_ALIGN:
 		i --; j --;
+		if (alignment != 0) {
+		    alignment[k] = CORR_ALIGN;
+		}
 		break;
-	    case SUB:
+	    case SUB_ALIGN:
 		i --; j --;
 		sub ++;
+		if (alignment != 0) {
+		    alignment[k] = SUB_ALIGN;
+		}
 		break;
-	    case DEL:
+	    case DEL_ALIGN:
 		i --;
 		del ++;
+		if (alignment != 0) {
+		    alignment[k] = DEL_ALIGN;
+		}
 		break;
-	    case INS:
+	    case INS_ALIGN:
 		j --;
 		ins ++;
+		if (alignment != 0) {
+		    alignment[k] = INS_ALIGN;
+		}
 		break;
 	    }
+
+	    k ++;
 	}
 
+	/*
+	 * Now reverse the alignment to make the order correspond to words
+	 */
+	if (alignment) {
+	    int k1, k2;	/* k2 can get negative ! */
+
+	    for (k1 = 0, k2 = k - 1; k1 < k2; k1++, k2--) {
+		WordAlignType x = alignment[k1];
+		alignment[k1] = alignment[k2];
+		alignment[k2] = x;
+	    }
+
+	    alignment[k] = END_ALIGN;
+	}
+	
 	totalErrors = sub + del + ins;
     }
 

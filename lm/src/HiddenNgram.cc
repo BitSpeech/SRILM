@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.3 1999/05/13 07:28:23 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.8 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -22,59 +22,6 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,
 
 const VocabString noHiddenEvent = "*noevent*";
 
-/* 
- * We use strings over VocabIndex as keys into the trellis.
- * Define the necessary support functions (see Map.h and LHash.cc).
- */
-
-static inline unsigned
-LHash_hashKey(VocabContext key, unsigned maxBits)
-{
-    unsigned i = 0;
-
-    for (; *key != Vocab_None; key ++) {
-	i += *key;
-    }
-    return LHash_hashKey(i, maxBits);
-}
-
-static inline VocabContext
-Map_copyKey(VocabContext key)
-{
-    VocabIndex *copy = new VocabIndex[Vocab::length(key) + 1];
-    assert(copy != 0);
-
-    unsigned i;
-    for (i = 0; key[i] != Vocab_None; i ++) {
-	copy[i] = key[i];
-    }
-    copy[i] = Vocab_None;
-
-    return copy;
-}
-
-static inline void
-Map_freeKey(VocabContext key)
-{
-    delete [] (VocabIndex *)key;
-}
-
-static inline Boolean
-LHash_equalKey(VocabContext key1, VocabContext key2)
-{
-    unsigned i;
-    for (i = 0; key1[i] != Vocab_None && key2[i] != Vocab_None; i ++) {
-	if (key1[i] != key2[i]) {
-	    return false;
-	}
-    }
-    if (key1[i] == Vocab_None && key2[i] == Vocab_None) {
-	return true;
-    } else {
-	return false;
-    }
-}
-
 /*
  * LM code 
  */
@@ -82,7 +29,7 @@ LHash_equalKey(VocabContext key1, VocabContext key2)
 HiddenNgram::HiddenNgram(Vocab &vocab, SubVocab &hiddenVocab, unsigned order,
 							    Boolean notHidden)
     : Ngram(vocab, order), hiddenVocab(hiddenVocab),
-      trellis(maxWordsPerLine + 2 + 1), notHidden(notHidden)
+      trellis(maxWordsPerLine + 2 + 1), notHidden(notHidden), savedLength(0)
 {
     /*
      * Make sure the hidden events are subset of base vocabulary 
@@ -99,6 +46,16 @@ HiddenNgram::HiddenNgram(Vocab &vocab, SubVocab &hiddenVocab, unsigned order,
 
 HiddenNgram::~HiddenNgram()
 {
+}
+
+void *
+HiddenNgram::contextID(const VocabIndex *context, unsigned &length)
+{
+    /*
+     * Due to the DP algorithm, we always use the full context
+     * (don't inherit Ngram::contextID()).
+     */
+    return LM::contextID(context, length);
 }
 
 Boolean
@@ -133,8 +90,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
      *     the current word.
      */
     unsigned pos;
-    unsigned prefix;
-    unsigned len;
+    int prefix;
 
     Boolean wasRunning = running(false);
 
@@ -142,22 +98,21 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	/*
 	 * Reset the computation to the last iteration in the loop below
 	 */
-	pos = contextLength;
+	pos = prevPos;
 	prefix = 0;
 	context = prevContext;
-	len = contextLength;
 
 	trellis.init(pos);
     } else {
-	len = Vocab::length(context);
+	unsigned len = Vocab::length(context);
 	assert(len <= maxWordsPerLine);
 
 	/*
 	 * Save these for possible recomputation with different
 	 * word argument, using same context
 	 */
-	contextLength = len;
 	prevContext = context;
+	prevPos = 0;
 
 	/*
 	 * Initialization:
@@ -165,28 +120,74 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * no-event state.
 	 */
 	VocabIndex initialContext[2];
-	initialContext[0] = len > 0 ? context[len - 1] : Vocab_None;
-	initialContext[1] = Vocab_None;
+	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	    initialContext[0] = context[len - 1];
+	    initialContext[1] = Vocab_None;
+	    prefix = len - 1;
+	} else {
+	    initialContext[0] = Vocab_None;
+	    prefix = len;
+	}
 
-	trellis.clear();
-	trellis.setProb(initialContext, LogP_One);
-	trellis.step();
+	/*
+	 * Start the DP from scratch if the context has less than two items
+	 * (including <s>).  This prevents the trellis from accumulating states
+	 * over multiple sentences (which computes the right thing, but
+	 * slowly).
+	 */
+	if (len > 1 &&
+	    savedLength > 0 && savedContext[0] == initialContext[0])
+	{
+	    /*
+	     * Skip to the position where the saved
+	     * context diverges from the new context.
+	     */
+	    for (pos = 1;
+		 pos < savedLength && prefix > 0 &&
+		     context[prefix - 1] == savedContext[pos];
+		 pos ++, prefix --)
+	    {
+		prevPos = pos;
+	    }
 
-	pos = 1;
-	prefix = len - 1;
+	    savedLength = pos;
+	    trellis.init(pos);
+	} else {
+	    /*
+	     * Start a DP from scratch
+	     */
+	    trellis.clear();
+	    trellis.setProb(initialContext, LogP_One);
+	    trellis.step();
+
+	    savedContext[0] = initialContext[0];
+	    savedLength = 1;
+	    pos = 1;
+	}
     }
 
     LogP logSum = LogP_Zero;
 
-    for ( ; pos <= len; pos++, prefix--) {
+    for ( ; prefix >= 0; pos++, prefix--) {
 	/*
 	 * Keep track of the fact that at least one state has positive
 	 * probability, needed for handling of OOVs below.
 	 */
 	Boolean havePosProb = false;
 
-        VocabIndex currWord = (pos == len) ?
-				word : context[prefix - 1];
+        VocabIndex currWord;
+	
+	if (prefix == 0) {
+	    currWord = word;
+	} else {
+	    currWord = context[prefix - 1];
+
+	    /*
+	     * Cache the context words for later shortcut processing
+	     */
+	    savedContext[savedLength ++] = currWord;
+	}
+
 	const VocabIndex *currContext = &context[prefix];
 
         /*
@@ -246,12 +247,12 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * Put underlying Ngram in "running" state (for debugging etc.)
 		 * only when processing a "no-event" context.
 		 */
-		if (pos == len && currEvent == noEventIndex) {
+		if (prefix == 0 && currEvent == noEventIndex) {
 		    running(wasRunning);
 		}
 		LogP wordProb = Ngram::wordProb(currWord, &startNewContext[1]);
 
-		if (pos == len && currEvent == noEventIndex) {
+		if (prefix == 0 && currEvent == noEventIndex) {
 		    running(false);
 		}
 
@@ -287,7 +288,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * when at the final word.  In that case we just record
 		 * the total probability.
 		 */
-		if (pos < len) {
+		if (prefix > 0) {
 		    trellis.update(prevContext, startNewContext,
 							eventProb + wordProb);
 		} else {
@@ -309,7 +310,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * truncated contexts, and to compute the total sentence probability
 	 * leaving out the OOVs, as required by sentenceProb().
 	 */
-	if (pos < len && !havePosProb) {
+	if (prefix > 0 && !havePosProb) {
 	    VocabIndex emptyContext[3];
 	    emptyContext[0] = noEventIndex;
 	    emptyContext[1] = currWord;
@@ -326,12 +327,13 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	}
 	
 	trellis.step();
+	prevPos = pos;
     }
 
     running(wasRunning);
     
-    if (len > 0) {
-	contextProb = trellis.sumLogP(len - 1);
+    if (prevPos > 0) {
+	contextProb = trellis.sumLogP(prevPos - 1);
     } else { 
 	contextProb = LogP_One;
     }
@@ -415,20 +417,22 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (notHidden || debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = Ngram::sentenceProb(sentence, stats);
     } else {
-	VocabIndex *reversed = new VocabIndex[len + 2 + 1];
+	VocabIndex reversed[len + 2 + 1];
 
 	/*
 	 * Contexts are represented most-recent-word-first.
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
-	assert(reversed != 0);
 	len = prepareSentence(sentence, reversed, len);
+
+	/*
+	 * Invalidate cache (for efficiency only)
+	 */
+	savedLength = 0;
 
 	LogP contextProb;
 	totalProb = prefixProb(reversed[0], reversed + 1, contextProb, stats);
-
-	delete [] reversed;
 
 	/* 
 	 * OOVs and zeroProbs are updated by prefixProb()

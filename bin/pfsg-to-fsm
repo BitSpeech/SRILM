@@ -3,13 +3,16 @@
 # pfsg-to-fsm --
 #	convert a Decipher PFSG to AT&T FSM format
 #
-# usage: pfsg-to-fsm [symbolfile=SYMFILE] [symbolic=1] file.pfsg > file.fsm
+# usage: pfsg-to-fsm [symbolfile=SYMFILE] [symbolic=1] [scale=S] file.pfsg > file.fsm
 #
 # symbolic=1		retains output word strings in the fsm file.
 # symbolfile=SYMFILE 	dump output symbol table to SYMFILE
 #			(to be used with fsmcompile|fsmdraw|fsmprint -i SYMFILE)
+# scale=S		set transition weight scaling factor to S
+#			(default -1)
+# 
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm,v 1.5 1998/07/15 04:34:05 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm,v 1.11 2000/02/12 00:31:11 stolcke Exp $
 #
 BEGIN {
 	empty_output = "NULL";
@@ -21,6 +24,10 @@ BEGIN {
 
 	symbolfile = "";
 	symbolic = 0;
+
+	scale = -1;	# scaling of transition weights
+	nofinal = 0;	# do output final node definition
+	final_output = "";
 }
 $1 == "nodes" {
 	numnodes = $2;
@@ -32,6 +39,7 @@ $1 == "nodes" {
 			output_symbols[node_output[i]] = numoutputs++;
 		}
 	}
+
 	next;
 }
 $1 == "initial" {
@@ -45,17 +53,33 @@ $1 == "initial" {
 }
 $1 == "final" {
 	final_node = $2;
+
+	if (final_output) {
+		node_output[final_node] = final_output;
+		if (!(final_output in output_symbols)) {
+			output_symbols[final_output] = numoutputs++;
+		}
+	}
 	next;
 }
 
 function print_trans(from_node, to_node, cost) {
 	if (to_node == final_node && node_output[final_node] == empty_output) {
-		print from_node, cost;
+		print from_node, scale * cost;
 	} else {
+		# PFSG bytelogs have to be negated to FSM default semiring
 		print from_node, to_node, \
 			(symbolic ? node_output[to_node] : \
 			 output_symbols[node_output[to_node]]), \
-			cost;
+			scale * cost;
+	}
+}
+
+function print_final() {
+	# if the final node is non-emitting, we don't need to output it
+	# at all (see print_trans above)
+	if (!nofinal && node_output[final_node] != empty_output) {
+		print final_node, 0;
 	}
 }
 
@@ -82,6 +106,9 @@ $1 == "transitions" {
 		}
 	}
 	close(tmpfile);
+
+	# output definition of the final node
+	print_final();
 
 	# now process all the non-initial transitions
 	while (getline < tmpfile) {

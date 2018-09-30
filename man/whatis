@@ -2,13 +2,27 @@ File (3)		-  Wrapper for stdio streams
 LM (3)			- Generic language model
 Prob (3)		- Probabilities for SRILM
 Vocab (3)		- Vocabulary indexing for SRILM
-XXX (1)			- XXX
-XXX (3)			- XXX
+XXX (1) 		- XXX
+XXX (3) 		- XXX
+XXX (5) 		- XXX
+anti-ngram (1)		- count posterior-weighted N-grams in N-best lists
+classes-format (5)	- File format for word class definitions
 disambig (1)		- disambiguate text tokens using an N-gram model
 hidden-ngram (1)	- tag hidden events between words
+lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams (1) - manipulate N-gram language models
+nbest-format (5)	- File formats for N-best hypotheses lists
 nbest-lattice (1)	- rescore N-best lists and lattices
+nbest-mix (1)		- interpolate N-best posterior probabilities
+nbest-optimize (1)	- optimize score combination for N-best word error minimization
+nbest-scripts, compare-sclite, compute-sclite, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite (1) - rescore and evaluate N-best lists
 ngram (1)		- apply N-gram language models
-ngram-count (1)		- count N-grams and estimate language models
-ngram-merge (1)		- merge ngram counts
+ngram-class (1) 	- induce word classes from N-gram statistics
+ngram-count (1) 	- count N-grams and estimate language models
+ngram-format (5)	- File format for ARPA backoff N-gram models
+ngram-merge (1) 	- merge N-gram counts
+pfsg-format (5) 	- File format for Decipher(TM) probabilistic finite-state grammars
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-to-dot, wlat-to-pfsg (1) - create and manipulate finite-state networks
+ppl-scripts, add-ppls, compare-ppls, compute-best-mix, hits-from-log, ppl-from-log, subtract-ppls (1) - manipulate perplexities
 segment (1)		- segment text using N-gram language model
 segment-nbest (1)	- rescore and segment N-best lists using N-gram language models
+training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, uniform-classes, vp2text (1) - miscellaneous conveniences for language model training

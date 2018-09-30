@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.11 1999/08/01 09:35:25 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.12 1999/08/07 22:25:02 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -37,12 +37,12 @@ const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
-    { OPT_INT, "order", &order, "ngram order to use for lm" },
+    { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "text", &textFile, "text file to disambiguate" },
     { OPT_TRUE, "continuous", &continuous, "read input without line breaks" },
     { OPT_TRUE, "posteriors", &usePosteriors, "use posterior probabilities instead of Viterbi" },
     { OPT_TRUE, "unk", &useUnknown, "use <unk> tag for unknown words" },
-    { OPT_INT, "debug", &debug, "debugging level for lm" },
+    { OPT_UINT, "debug", &debug, "debugging level for lm" },
     { OPT_STRING, "stag", &sTag, "segment tag to use in output" },
     { OPT_FLOAT, "bias", &bias, "bias for segment model" },
 };

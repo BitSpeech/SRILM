@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.7 1998/02/21 01:16:38 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.12 2000/05/06 19:34:02 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -34,6 +34,15 @@ WordMesh::~WordMesh()
 {
     for (unsigned i = 0; i < numAligns; i ++) {
 	delete aligns[i];
+
+	LHashIter<VocabIndex,Array<int> > myIter(*hypMap[i]);
+	Array<int> *hyps;
+	VocabIndex word;
+	while (hyps = myIter.next(word)) {
+	    hyps->~Array();
+	}
+
+	delete hypMap[i];
     }
 }
    
@@ -84,6 +93,9 @@ WordMesh::read(File &file)
 	    for (unsigned i = 0; i < numAligns; i ++) {
 		aligns[i] = new LHash<VocabIndex,Prob>;
 		assert(aligns[i] != 0);
+
+		hypMap[i] = new LHash<VocabIndex,Array<int> >;
+		assert(hypMap[i] != 0);
 	    }
 	} else if (sscanf(line, "align %u%n", &index, &parsed) == 1)
 	{
@@ -109,20 +121,19 @@ WordMesh::read(File &file)
 /*
  * Align new words to existing alignment columns, expanding them as required
  * (derived from WordAlign())
+ * If hypID != 0, then *hypID will be recored a sentence hyp ID for the 
+ * aligned words.
  */
 void
-WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
+WordMesh::alignWords(const VocabIndex *words, Prob score,
+			    Prob *wordScores, const int *hypID)
 {
     unsigned hypLength = Vocab::length(words);
     unsigned refLength = numAligns;
 
-    typedef enum {
-	CORR, SUB, INS, DEL
-    } ErrorType;
-
     typedef struct {
 	double cost;			// minimal cost of partial alignment
-	ErrorType error;		// best predecessor
+	WordAlignType error;		// best predecessor
     } ChartEntry;
 
     /* 
@@ -163,12 +174,12 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
      * Initialize the 0'th row
      */
     chart[0][0].cost = 0.0;
-    chart[0][0].error = CORR;
+    chart[0][0].error = CORR_ALIGN;
 
     for (unsigned j = 1; j <= hypLength; j ++) {
 	/* insert error prob = totalPosterior */
 	chart[0][j].cost = chart[0][j-1].cost + totalPosterior;
-	chart[0][j].error = INS;
+	chart[0][j].error = INS_ALIGN;
     }
 
     /*
@@ -182,31 +193,31 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 			    totalPosterior - (deleteProb ? *deleteProb : 0.0);
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
-	chart[i][0].error = DEL;
+	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
 	    double minCost;
-	    ErrorType minError;
+	    WordAlignType minError;
 
 	    Prob *wordProb = aligns[sortedAligns[i-1]]->find(words[j-1]);
 	    if (wordProb) {
 		minCost = chart[i-1][j-1].cost + totalPosterior - *wordProb;
-		minError = CORR;
+		minError = CORR_ALIGN;
 	    } else {
 		minCost = chart[i-1][j-1].cost + totalPosterior;
-		minError = SUB;
+		minError = SUB_ALIGN;
 	    }
 
 	    double delCost = chart[i-1][j].cost + deletePenalty;
 	    if (delCost < minCost) {
 		minCost = delCost;
-		minError = DEL;
+		minError = DEL_ALIGN;
 	    }
 
 	    double insCost = chart[i][j-1].cost + totalPosterior;
 	    if (insCost < minCost) {
 		minCost = insCost;
-		minError = INS;
+		minError = INS_ALIGN;
 	    }
 
 	    chart[i][j].cost = minCost;
@@ -225,9 +236,18 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 	while (i > 0 || j > 0) {
 
 	    switch (chart[i][j].error) {
-	    case CORR:
-	    case SUB:
+	    case CORR_ALIGN:
+	    case SUB_ALIGN:
 		*aligns[sortedAligns[i-1]]->insert(words[j-1]) += score;
+
+		if (hypID) {
+		    /*
+		     * Add hyp ID to the hyp list for this word 
+		     */
+		    Array<int> &hypList = 
+			*hypMap[sortedAligns[i-1]]->insert(words[j-1]);
+		    hypList[hypList.size()] = *hypID;
+		}
 
 		if (wordScores) {
 		    wordScores[j-1] =
@@ -236,11 +256,21 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 
 		i --; j --;
 		break;
-	    case DEL:
+	    case DEL_ALIGN:
 		*aligns[sortedAligns[i-1]]->insert(deleteIndex) += score;
+
+		if (hypID) {
+		    /*
+		     * Add hyp ID to the hyp list for this word 
+		     */
+		    Array<int> &hypList = 
+			*hypMap[sortedAligns[i-1]]->insert(deleteIndex);
+		    hypList[hypList.size()] = *hypID;
+		}
+
 		i --;
 		break;
-	    case INS:
+	    case INS_ALIGN:
 		/*
 		 * Make room for new alignment column in sortedAligns
 		 * and position new column
@@ -253,10 +283,40 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 		aligns[numAligns] = new LHash<VocabIndex,Prob>;
 		assert(aligns[numAligns] != 0);
 
+		hypMap[numAligns] = new LHash<VocabIndex,Array<int> >;
+		assert(hypMap[numAligns] != 0);
+
 		if (totalPosterior != 0.0) {
 		    *aligns[numAligns]->insert(deleteIndex) = totalPosterior;
 		}
 		*aligns[numAligns]->insert(words[j-1]) = score;
+
+		/*
+		 * Add all hypIDs previously recorded to the *DELETE*
+		 * hypothesis at the newly created position.
+		 */
+		{
+		    Array<int> *hypList = 0;
+
+		    for (unsigned h = 0; h < allHyps.size(); h ++) {
+			/*
+			 * Avoid inserting *DELETE* in hypMap unless needed
+			 */
+			if (hypList == 0) {
+			    hypList = hypMap[numAligns]->insert(deleteIndex);
+			}
+			(*hypList)[hypList->size()] = allHyps[h];
+		    }
+		}
+
+		if (hypID) {
+		    /*
+		     * Add hyp ID to the hyp list for this word 
+		     */
+		    Array<int> &hypList = 
+			*hypMap[numAligns]->insert(words[j-1]);
+		    hypList[hypList.size()] = *hypID;
+		}
 
 		if (wordScores) {
 		    wordScores[j-1] = score;
@@ -267,6 +327,13 @@ WordMesh::alignWords(const VocabIndex *words, Prob score, Prob *wordScores)
 		break;
 	    }
 	}
+    }
+
+    /*
+     * Add hyp to global list of IDs
+     */
+    if (hypID) {
+	allHyps[allHyps.size()] = *hypID;
     }
 
     totalPosterior += score;
@@ -283,13 +350,9 @@ WordMesh::wordError(const VocabIndex *words,
     unsigned hypLength = Vocab::length(words);
     unsigned refLength = numAligns;
 
-    typedef enum {
-	CORR, SUB, INS, DEL
-    } ErrorType;
-
     typedef struct {
 	unsigned cost;			// minimal cost of partial alignment
-	ErrorType error;		// best predecessor
+	WordAlignType error;		// best predecessor
     } ChartEntry;
 
     /* 
@@ -328,11 +391,11 @@ WordMesh::wordError(const VocabIndex *words,
 	 * Initialize the 0'th row, which never changes
 	 */
 	chart[0][0].cost = 0;
-	chart[0][0].error = CORR;
+	chart[0][0].error = CORR_ALIGN;
 
 	for (unsigned j = 1; j <= maxHypLength; j ++) {
 	    chart[0][j].cost = chart[0][j-1].cost + INS_COST;
-	    chart[0][j].error = INS;
+	    chart[0][j].error = INS_ALIGN;
 	}
     }
 
@@ -348,30 +411,30 @@ WordMesh::wordError(const VocabIndex *words,
 	unsigned THIS_DEL_COST = delProb && *delProb > 0.0 ? 0 : DEL_COST;
 	
 	chart[i][0].cost = chart[i-1][0].cost + THIS_DEL_COST;
-	chart[i][0].error = DEL;
+	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
 	    unsigned minCost;
-	    ErrorType minError;
+	    WordAlignType minError;
 	
 	    if (aligns[sortedAligns[i-1]]->find(words[j-1])) {
 		minCost = chart[i-1][j-1].cost;
-		minError = CORR;
+		minError = CORR_ALIGN;
 	    } else {
 		minCost = chart[i-1][j-1].cost + SUB_COST;
-		minError = SUB;
+		minError = SUB_ALIGN;
 	    }
 
 	    unsigned delCost = chart[i-1][j].cost + THIS_DEL_COST;
 	    if (delCost < minCost) {
 		minCost = delCost;
-		minError = DEL;
+		minError = DEL_ALIGN;
 	    }
 
 	    unsigned insCost = chart[i][j-1].cost + INS_COST;
 	    if (insCost < minCost) {
 		minCost = insCost;
-		minError = INS;
+		minError = INS_ALIGN;
 	    }
 
 	    chart[i][j].cost = minCost;
@@ -391,14 +454,14 @@ WordMesh::wordError(const VocabIndex *words,
 	while (i > 0 || j > 0) {
 
 	    switch (chart[i][j].error) {
-	    case CORR:
+	    case CORR_ALIGN:
 		i --; j--;
 		break;
-	    case SUB:
+	    case SUB_ALIGN:
 		sub ++;
 		i --; j --;
 		break;
-	    case DEL:
+	    case DEL_ALIGN:
 		/*
 		 * deletion error only if alignment column doesn't 
 		 * have *DELETE*
@@ -412,7 +475,7 @@ WordMesh::wordError(const VocabIndex *words,
 		}
 		i --;
 		break;
-	    case INS:
+	    case INS_ALIGN:
 		ins ++;
 		j --;
 		break;
@@ -426,7 +489,7 @@ WordMesh::wordError(const VocabIndex *words,
 double
 WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags)
+				unsigned flags, double delBias)
 {
     unsigned numWords = 0;
     sub = ins = del = 0.0;
@@ -442,12 +505,15 @@ WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 	Prob *prob;
 	VocabIndex word;
 	while (prob = alignIter.next(word)) {
-	    if (bestWord == Vocab_None || *prob > bestProb) {
-		bestWord = word;
-		bestProb = *prob;
-	    }
+	    Prob effectiveProb = *prob; // prob adjusted for deletion bias
+
 	    if (word == deleteIndex) {
-		deleteProb = *prob;
+		effectiveProb *= delBias;
+		deleteProb = effectiveProb;
+	    }
+	    if (bestWord == Vocab_None || effectiveProb > bestProb) {
+		bestWord = word;
+		bestProb = effectiveProb;
 	    }
 	}
 

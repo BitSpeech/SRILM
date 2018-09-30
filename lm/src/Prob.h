@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.15 1998/11/07 04:52:28 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.16 2000/07/13 06:19:23 stolcke Exp $
  *
  */
 
@@ -49,7 +49,11 @@ Boolean parseLogP(const char *string, LogP &prob);
 
 inline Prob LogPtoProb(LogP prob)
 {
-    return exp(prob * M_LN10);
+    if (prob == LogP_Zero) {
+    	return 0;
+    } else {
+	return exp(prob * M_LN10);
+    }
 }
 
 inline Prob LogPtoPPL(LogP prob)
@@ -86,6 +90,8 @@ inline LogP2 SubLogP(LogP2 x, LogP2 y)
     assert(x >= y);
     if (x == y) {
 	return LogP_Zero;
+    } else if (y == LogP_Zero) {
+    	return x;
     } else {
 	LogP2 diff = y - x;
 	return x + log10(1.0 - exp(diff * M_LN10));

@@ -14,9 +14,15 @@
 #
 #    Copyright (c) 1994, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: decipher-install,v 1.4 1995/02/22 01:46:58 tmk Exp ho $
+#    RCS ID: $Id: decipher-install,v 1.3 2000/06/08 18:30:31 stolcke Exp $
 #
 #    $Log: decipher-install,v $
+#    Revision 1.3  2000/06/08 18:30:31  stolcke
+#    backup recently used executables before installing new version
+#
+#    Revision 1.2  2000/06/08 17:51:18  stolcke
+#    avoid ginstall and decipher-specific stuff
+#
 #    Revision 1.4  1995/02/22 01:46:58  tmk
 #    Updates from Andreas' Solaris port
 #
@@ -128,6 +134,19 @@ if ($?error) goto USAGE
 #ginstall -p -m ${MODE} ${FILES} ${DIR} 
 foreach file (${FILES})
 	set base = `basename $file`
+
+	# remove executable backups not accessed in one day
+	foreach file2 ( `find ${DIR} -name "$base.~[0-9]*" -perm -0500 -atime +1 -print` )
+		echo "removing old backup $file2"
+		rm -f $file2
+	end
+
+	# backup executables accessed within the last day
+	foreach file2 ( `find ${DIR} -name $base -perm -0500 -atime -1 -print` )
+		echo "$file2 is in use; backing up to $file2.~$$"
+		mv $file2 $file2.~$$
+	end
+
 	rm -f ${DIR}/$base
 	cp -p $file ${DIR}
 	chmod ${MODE} ${DIR}/$base

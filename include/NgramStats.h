@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.16 1998/02/16 04:46:11 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.17 1999/10/11 09:56:40 stolcke Exp $
  *
  */
 
@@ -50,6 +50,11 @@ public:
     CountT *insertCount(const VocabIndex *words, VocabIndex word1)
 	{ NgramNode *node = counts.insertTrie(words);
 	  return node->insert(word1); };
+    CountT *removeCount(const VocabIndex *words)
+	{ return counts.remove(words); };
+    CountT *removeCount(const VocabIndex *words, VocabIndex word1)
+	{ NgramNode *node = counts.findTrie(words);
+	  return node ? node->remove(word1) : 0; };
 
     virtual unsigned countSentence(const VocabString *word)
 	{ return countSentence(word, (CountT)1); };

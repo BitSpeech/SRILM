@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.3 1998/02/21 00:31:24 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.4 2000/03/18 23:01:07 stolcke Exp $
  *
  */
 
@@ -51,7 +51,7 @@ public:
      */
     virtual double minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags = 0) = 0;
+				unsigned flags = 0, double delBias = 1.0) = 0;
 
     virtual Boolean isEmpty() = 0;
 };

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/speech/stolcke/project/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.9 1996/05/31 05:25:44 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.11 2000/02/18 05:09:11 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -35,8 +35,17 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
      * For all ngrams, compute probabilities and apply the discount
      * coefficients.
      */
-    VocabIndex *context = new VocabIndex[order];
-    assert(context);
+    VocabIndex context[order];
+
+    /*
+     * Ensure <s> unigram exists (being a non-event, it is not inserted
+     * in distributeProb(), yet is assumed by much other software).
+     */
+    if (vocab.ssIndex != Vocab_None) {
+	context[0] = Vocab_None;
+
+	*insertProb(vocab.ssIndex, context) = LogP_Zero;
+    }
 
     for (unsigned i = 1; i <= order; i++) {
 	NgramCount *contextCount;
@@ -193,8 +202,6 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	}
     }
 
-    delete [] context;
-    
     /*
      * With all the probs in place, BOWs are obtained simply by the usual
      * normalization.

@@ -1,0 +1,232 @@
+<! $Id: nbest-optimize.1,v 1.3 2000/06/09 00:25:02 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>nbest-optimize</TITLE>
+<BODY>
+<H1>nbest-optimize</H1>
+<H2> NAME </H2>
+nbest-optimize - optimize score combination for N-best word error minimization
+<H2> SYNOPSIS </H2>
+<B> nbest-optimize </B>
+[<B>-help</B>]<B></B>
+option
+...
+[
+<I> scoredir </I>
+...
+]
+<H2> DESCRIPTION </H2>
+<B> nbest-optimize </B>
+reads a set of N-best lists, additional score files, and corresponding 
+reference transcripts and optimizes the score combination weights
+so as to minimize the word error of a classifier that performs
+word-level posterior probability maximization.
+The optimized weights are meant to be used with
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+and the
+<B> -use-mesh </B>
+option.
+<B> nbest-optimize </B>
+determines both the best relative weighting of knowledge source scores
+and the optimal 
+<B> -posterior-scale </B>
+parameter that controls the peakedness of the posterior distribution.
+<P>
+The optimization is performed by gradient descent on a smoothed (sigmoidal)
+approximation of the true 0/1 word error function (Katagiri et al. 1990).
+Therefore, the result can only be expected to be a
+<I> local </I>
+minimum of the error surface.
+(A more global search can be attempted by specifying different starting
+points.)
+Another approximation is that the error function is computed assuming a fixed
+multiple alignment of all N-best hypotheses and the reference string,
+which tends to slightly overestimate the true pairwise error between any 
+single hypothesis and the reference.
+<P>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+<H2> OPTIONS </H2>
+<DL>
+<DT><B> -help </B>
+<DD>
+Print option summary.
+<DT><B>-debug</B><I> level</I><B></B>
+<DD>
+Controls the amount of output (the higher the
+<I>level</I>,<I></I>
+the more).
+At level 1, error statistics at each iteration are printed.
+At level 2, word alignments are printed.
+At level 3, full score matrix is printed.
+At level 4, detailed information about word hypothesis ranking is printed
+for each training iteration and sample.
+<DT><B>-nbest-files</B><I> file-list</I><B></B>
+<DD>
+Specifies the set of N-best files as a list of filenames.
+Three sets of standard scores are extracted from the N-best files:
+the acoustic model score, the language model score, and the number of 
+words (for insertion penalty computation).
+See 
+<A HREF="nbest-format.html">nbest-format(5)</A>
+for details.
+<DT><B>-refs</B><I> references</I><B></B>
+<DD>
+Specifies the reference transcripts.
+Each line in 
+<I> references </I>
+must contain the sentence ID (the last component in the N-best filename
+path, minus any suffixes) followed by zero or more reference words.
+<DT><B>-max-nbest</B><I> n</I><B></B>
+<DD>
+Limits the number of hypotheses read from each N-best list to the first
+<I>n</I>.<I></I>
+<DT><B>-rescore-lmw</B><I> lmw</I><B></B>
+<DD>
+Sets the language model weight used in combining the language model log
+probabilities with acoustic log probabilities.
+This is used to compute initial aggregate hypotheses scores.
+<DT><B>-rescore-wtw</B><I> wtw</I><B></B>
+<DD>
+Sets the word transition weight used to weight the number of words relative to
+the acoustic log probabilities.
+This is used to compute initial aggregate hypotheses scores.
+<DT><B>-posterior-scale</B><I> scale</I><B></B>
+<DD>
+Initial value for scaling log posteriors.
+The total weighted log score is divided by 
+<I> scale </I>
+when computing normalized posterior probabilities.
+This controls the peakedness of the posterior distribution. 
+The default value is whatever was chosen for 
+<B>-rescore-lmw</B>,<B></B>
+so that language model scores are scaled to have weight 1,
+and acoustic scores have weight 1/<I>lmw</I>.
+<DT><B>-vocab</B><I> file</I><B></B>
+<DD>
+Read the N-best list vocabulary from 
+<I>file</I>.<I></I>
+This option is mostly redundant since words found in the N-best input
+are implicitly added to the vocabulary.
+<DT><B> -tolower </B>
+<DD>
+Map vocabulary to lowercase, eliminating case distinctions.
+<DT><B> -multiwords </B>
+<DD>
+Split multiwords (words joined by '_') into their components when reading
+N-best lists.
+<DT><B>-noise</B><I> noise-tag</I><B></B>
+<DD>
+Designate
+<I> noise-tag </I>
+as a vocabulary item that is to be ignored in aligning hypotheses with
+each other (the same as the -pau- word).
+This is typically used to identify a noise marker.
+<DT><B>-noise-vocab</B><I> file</I><B></B>
+<DD>
+Read several noise tags from
+<I>file</I>,<I></I>
+instead of, or in addition to, the single noise tag specified by
+<B>-noise</B>.<B></B>
+<DT><B>-init-lambdas</B><I> 'w1 w2 ...'</I><B></B>
+<DD>
+Initialize the score weights to the values specified
+(zeros are filled in for missing values).
+The default is to set the initial acoustic model weight to 1,
+the language model weight from
+<B>-rescore-lmw</B>,<B></B>
+the word transition weight from
+<B>-rescore-wtw</B>,<B></B>
+and all remaining weights to zero initially.
+Prefixing a value with an equal sign (`=')
+holds the value constant during optimization.
+(All values should be enclosed in quotes to form a single command-line
+argument.)
+<DT><B>-alpha</B><I> a</I><B></B>
+<DD>
+Controls the error function smoothness; 
+the sigmoid slope parameter is set to
+<I>a</I>.<I></I>
+<DT><B>-epsilon</B><I> e</I><B></B>
+<DD>
+The step-size used in gradient descent (the multiple of the gradient vector).
+<DT><B>-min-loss</B><I> x</I><B></B>
+<DD>
+Sets the loss function for a sample effectively to zero when its value falls
+below 
+<I>x</I>.<I></I>
+<DT><B>-max-delta</B><I> d</I><B></B>
+<DD>
+Ignores the contribution of a sample to the gradient if the derivative
+exceeds
+<I>d</I>.<I></I>
+This helps avoid numerical problems.
+<DT><B>-max-bad-iters</B> n<B></B>
+<DD>
+Stops optimization after 
+<I> n </I>
+iterations during which the actual (non-smoothed) error has not decreased.
+<DT><B>-epsilon-stepdown</B><I> s</I><B></B>
+<DD>
+<DT><B>-min-epsilon</B><I> m</I><B></B>
+<DD>
+If 
+<I> s </I>
+is a value greater than zero, the learning rate will be multiplied by 
+<I> s </I>
+every time the error does not decrease after a number of iterations
+specified by
+<B>-max-bad-iters</B>.<B></B>
+Training stops when the learning rate falls below
+<I> m </I>
+in this manner.
+<DT><B>-converge</B><I> x</I><B></B>
+<DD>
+Stops optimization when the smoothed loss function changes relatively by less 
+than 
+<I> x </I>
+from one iteration to the next.
+<DT><B> -quickprop </B>
+<DD>
+Use the approximate second-order method known as "QuickProp" (Fahlman 1989).
+<DT><B>-print-hyps</B><I> file</I><B></B>
+<DD>
+Write the best word hypotheses to 
+<I> file </I>
+after optimization.
+<DT><B> -- </B>
+<DD>
+Signals the end of options, such that following command-line arguments are 
+interpreted as additional scorefiles even if they start with `-'.
+<DT><I>scoredir</I>...<I></I>
+<DD>
+Any additional arguments name directories containing further score files.
+In each directory, there must exist one file named after the sentence 
+ID it corresponds to (the file may also end in ``.gz'' and contain compressed
+data).
+The total number of score dimensions is thus 3 (for the standard scores from
+the N-best list) plus the number of additional score directories specified.
+</DD>
+</DL>
+<H2> SEE ALSO </H2>
+<A HREF="ngram-lattice.html">ngram-lattice(1)</A>, <A HREF="nbest-scripts.html">nbest-scripts(1)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>.
+<BR>
+S. Katagiri, C.H. Lee, &amp; B.-H. Juang, "A Generalized Probabilistic Descent
+Method", in
+<I>Proceedings of the Acoustical Society of Japan, Fall Meeting</I>,
+pp. 141-142, 1990.
+<BR>
+S. E. Fahlman, "Faster-Learning Variations on Back-Propagation: An
+Empirical Study", in D. Touretzky, G. Hinton, &amp; T. Sejnowski (eds.), 
+<I>Proceedings of the 1988 Connectionist Models Summer School</I>, pp. 38-51,
+Morgan Kaufmann, 1989.
+<BR>
+<H2> BUGS </H2>
+Likely.
+<H2> AUTHOR </H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<BR>
+Copyright 2000 SRI International
+</BODY>
+</HTML>

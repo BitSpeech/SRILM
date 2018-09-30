@@ -4,11 +4,12 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/testFile.cc,v 1.1 1998/07/10 07:35:47 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/testFile.cc,v 1.2 1999/10/13 09:16:47 stolcke Exp $";
 #endif
 
 #include "File.h"
 
+int
 main()
 {
 	File file(stdin);

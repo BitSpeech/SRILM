@@ -14,12 +14,12 @@ DDEESSCCRRIIPPTTIIOONN
        sseeggmmeenntt  infers  a  most  likely segmentation (location of
        segment boundaries) from a text, based on a  segment  lan-
        guage  model.  The language model is a standard backoff N-
-       gram model in ARPA format (as created  by  nnggrraamm--ccoouunntt(1))
-       modeling  segmentation  using  the  boundary  tags <s> and
-       </s>.  The program reads in a  word  sequence,  finds  the
-       most  likely  locations of segment boundaries according to
-       the language model, and outputs  the  word  sequence  with
-       segment boundaries marked by <s> tags.
+       gram model in ARPA nnggrraamm--ffoorrmmaatt(5), modeling  segmentation
+       using  the  boundary tags <s> and </s>.  The program reads
+       in a word sequence, finds the  most  likely  locations  of
+       segment  boundaries  according  to the language model, and
+       outputs the word sequence with segment  boundaries  marked
+       by <s> tags.
 
        Each  filename  argument  can  be an ASCII file, or a com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
@@ -61,7 +61,7 @@ OOPPTTIIOONNSS
 
 
 
-SRILM              $Date: 1998/07/10 08:28:51 $                 1
+SRILM Tools        $Date: 1999/10/17 01:01:55 $                 1
 
 
 
@@ -91,14 +91,15 @@ segment(1)                                             segment(1)
               tion/rejection errors.  The default is 1.
 
 SSEEEE AALLSSOO
-       ngram-count(1).
+       ngram-count(1), ngram-format(5).
        A. Stolcke and E. Shriberg, ``Automatic Linguistic Segmen-
-       tation  of  Spontaneous  Speech,'' Proc. ICSLP, 1005-1008,
+       tation  of  Spontaneous  Speech,'' _P_r_o_c_. _I_C_S_L_P, 1005-1008,
        1996.
 
 BBUUGGSS
        Only N-grams models up to trigram  order  are  used  accu-
-       rately.
+       rately.  For higher-order models use the more general hhiidd--
+       ddeenn--nnggrraamm(1).
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
@@ -126,7 +127,6 @@ AAUUTTHHOORR
 
 
 
-
-SRILM              $Date: 1998/07/10 08:28:51 $                 2
+SRILM Tools        $Date: 1999/10/17 01:01:55 $                 2
 
 

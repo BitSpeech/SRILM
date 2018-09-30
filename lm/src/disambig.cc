@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-8 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.23 1999/08/01 09:33:14 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.26 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -23,61 +23,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1
 #include "LHash.cc"
 #include "Array.cc"
 
-/* 
- * We use strings over VocabIndex as keys into the trellis.
- * Define the necessary support functions (see Map.h and LHash.cc).
- */
-
 typedef const VocabIndex *VocabContext;
 
-static inline unsigned
-LHash_hashKey(VocabContext key, unsigned maxBits)
-{
-    unsigned i = 0;
-
-    for (; *key != Vocab_None; key ++) {
-	i += *key;
-    }
-    return LHash_hashKey(i, maxBits);
-}
-
-static inline VocabContext
-Map_copyKey(VocabContext key)
-{
-    VocabIndex *copy = new VocabIndex[Vocab::length(key) + 1];
-    assert(copy != 0);
-
-    unsigned i;
-    for (i = 0; key[i] != Vocab_None; i ++) {
-	copy[i] = key[i];
-    }
-    copy[i] = Vocab_None;
-
-    return copy;
-}
-
-static inline void
-Map_freeKey(VocabContext key)
-{
-    delete [] (VocabIndex *)key;
-}
-
-static inline Boolean
-LHash_equalKey(VocabContext key1, VocabContext key2)
-{
-    unsigned i;
-    for (i = 0; key1[i] != Vocab_None && key2[i] != Vocab_None; i ++) {
-	if (key1[i] != key2[i]) {
-	    return false;
-	}
-    }
-    if (key1[i] == Vocab_None && key2[i] == Vocab_None) {
-	return true;
-    } else {
-	return false;
-    }
-}
-     
 #define DEBUG_ZEROPROBS		1
 #define DEBUG_TRANSITIONS	2
 
@@ -106,7 +53,7 @@ const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
-    { OPT_INT, "order", &order, "ngram order to use for lm" },
+    { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "write-vocab1", &vocab1File, "output observable vocabulary" },
     { OPT_STRING, "write-vocab2", &vocab2File, "output hidden vocabulary" },
     { OPT_STRING, "map", &mapFile, "mapping from observable to hidden tokens" },
@@ -124,7 +71,7 @@ static Option options[] = {
     { OPT_TRUE, "posteriors", &posteriors, "output posterior probabilities" },
     { OPT_TRUE, "no-eos", &noEOS, "don't assume end-of-sentence token" },
     { OPT_TRUE, "continuous", &continuous, "read input without line breaks" },
-    { OPT_INT, "debug", &debug, "debugging level for lm" },
+    { OPT_UINT, "debug", &debug, "debugging level for lm" },
 };
 
 /*
@@ -438,14 +385,12 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	    }
 	}
     } else {
-	VocabContext *hiddenContexts = new VocabContext[len + 1];
-	assert(hiddenContexts != 0);
+	VocabContext hiddenContexts[len + 1];
 
 	/*
 	 * Run Viterbi to get most likely state sequence
 	 */
 	if (trellis.viterbi(hiddenContexts, len) != len) {
-	    delete [] hiddenContexts;
 	    return false;
 	}
 
@@ -456,8 +401,6 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	for (unsigned i = 0; i < len; i ++) {
 	    hiddenWids[i] = hiddenContexts[i][0];
 	}
-
-	delete [] hiddenContexts;
     }
 
     hiddenWids[len] = Vocab_None;

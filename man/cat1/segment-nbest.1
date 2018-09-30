@@ -15,12 +15,12 @@ DDEESSCCRRIIPPTTIIOONN
        sseeggmmeenntt--nnbbeesstt processes a  series  of  consecutive  N-best
        lists  from  a speech recognizer and applies a hidden seg-
        ment N-gram language model to them.  The language model is
-       a standard backoff N-gram model in ARPA format (as created
-       by nnggrraamm--ccoouunntt(1)) modeling segmentation using the  bound-
-       ary  tags  <s>  and </s>.  The program reads in all N-best
-       lists and outputs the hypotheses  that  have  the  highest
-       aggregate   score  (both  acoustic  and  language  model).
-       Hypothesized segment boundaries are marked by <s> tags.
+       a  standard  backoff  N-gram model in ARPA nnggrraamm--ffoorrmmaatt(5)
+       modeling segmentation using  the  boundary  tags  <s>  and
+       </s>.   The  program reads in all N-best lists and outputs
+       the hypotheses that have the highest aggregate score (both
+       acoustic and language model).  Hypothesized segment bound-
+       aries are marked by <s> tags.
 
        Each filename argument can be an ASCII  file,  or  a  com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
@@ -61,7 +61,7 @@ OOPPTTIIOONNSS
 
 
 
-SRILM              $Date: 1998/07/10 08:27:54 $                 1
+SRILM Tools        $Date: 2000/05/07 02:04:15 $                 1
 
 
 
@@ -83,9 +83,9 @@ segment-nbest(1)                                 segment-nbest(1)
               Specifies a list of N-best files.   The  file  _l_i_s_t
               should  contain  a list of filenames, one per line,
               each corresponding to an N-best file in one of  the
-              formats  supported  by  nnggrraamm(1).  The N-best files
-              should correspond to consecutive  speech  waveforms
-              in the order listed.
+              formats  described  in nnbbeesstt--ffoorrmmaatt(5).  The N-best
+              files should correspond to consecutive speech wave-
+              forms in the order listed.
 
        --ffbb--rreessccoorree
               Perform Forward-backward rescoring.  This generates
@@ -127,7 +127,7 @@ segment-nbest(1)                                 segment-nbest(1)
 
 
 
-SRILM              $Date: 1998/07/10 08:27:54 $                 2
+SRILM Tools        $Date: 2000/05/07 02:04:15 $                 2
 
 
 
@@ -137,6 +137,11 @@ segment-nbest(1)                                 segment-nbest(1)
 
 
               identify a noise marker.)
+
+       --nnooiissee--vvooccaabb _f_i_l_e
+              Read  several  noise tags from _f_i_l_e, instead of, or
+              in addition to, the single noise tag  specified  by
+              --nnooiissee.
 
        --ddeecciipphheerr--llmm _m_o_d_e_l_-_f_i_l_e
               Designates  the  N-gram  backoff model (typically a
@@ -172,13 +177,14 @@ segment-nbest(1)                                 segment-nbest(1)
             <nbestfile _n_b_e_s_t_-_f_i_l_e_-_l_i_s_t>
 
 SSEEEE AALLSSOO
-       ngram-count(1), ngram(1), segment(1).
-       A. Stolcke, ``Modeling Linguistic Segment and Turn  Bound-
-       aries  for N-best Rescoring of Spontaneous Speech,'' Proc.
-       Eurospeech, 1997.
+       ngram-count(1),  segment(1),  ngram-format(5),  nbest-for-
+       mat(5).
+       A.  Stolcke, ``Modeling Linguistic Segment and Turn Bound-
+       aries for N-best Rescoring of Spontaneous Speech,''  _P_r_o_c_.
+       _E_u_r_o_s_p_e_e_c_h, 2779-2782, 1997.
 
 BBUUGGSS
-       Only N-grams models up to trigram  order  are  used  accu-
+       Only  N-gram  models  up  to  trigram order are used accu-
        rately.
 
 AAUUTTHHOORR
@@ -187,12 +193,6 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-SRILM              $Date: 1998/07/10 08:27:54 $                 3
+SRILM Tools        $Date: 2000/05/07 02:04:15 $                 3
 
 

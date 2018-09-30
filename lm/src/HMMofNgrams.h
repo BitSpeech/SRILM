@@ -9,7 +9,7 @@
  *
  * Copyright (c) 1997, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/di/ws97/tools/srilm-0.97beta/lm/src/RCS/HMMofNgrams.h,v 1.2 1997/08/15 23:09:16 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.h,v 1.5 1999/10/16 17:04:51 stolcke Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 #include "Ngram.h"
 #include "LHash.h"
 #include "Trellis.h"
+#include "Array.h"
 
 typedef VocabIndex HMMIndex;
 
@@ -69,10 +70,12 @@ protected:
     LHash<HMMIndex,HMMState> states;
 
     Trellis<HMMIndex> trellis;		/* for DP over HMM states */
-    unsigned contextLength;		/* length of last DP context */
     const VocabIndex *prevContext;	/* context from last DP */
+    unsigned prevPos;			/* position from last DP */
     LogP prefixProb(VocabIndex word, const VocabIndex *context,
 		LogP &contextProb, TextStats &stats); /* prefix probability */
+    Array<VocabIndex> savedContext;	/* saved, rev'd copy of last context */
+    unsigned savedLength;		/* length of saved context above */
 };
 
 #endif /* _HMMofNgrams_h_ */

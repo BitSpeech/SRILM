@@ -12,9 +12,18 @@
 #
 #    Copyright (c) 1992, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.common.targets,v 1.19 1998/11/12 01:48:04 stolcke Exp $
+#    RCS ID: $Id: Makefile.common.targets,v 1.21 2000/06/12 22:35:47 stolcke Exp $
 #
 #    $Log: Makefile.common.targets,v $
+#    Revision 1.21  2000/06/12 22:35:47  stolcke
+#    workaround for gnumake failure to track dependencies unless directory exists
+#
+#    Revision 1.20  2000/06/08 23:36:53  stolcke
+#    rewrote release-* targets to avoid unnecessary work when files are uptodate
+#
+#    Revision 1.20  2000/06/08 17:49:36  stolcke
+#    rewrote release-* targets to avoid unnecessary work when files are uptodate
+#
 #    Revision 1.19  1998/11/12 01:48:04  stolcke
 #    pass OPTION_FLAGS to linker
 #
@@ -87,6 +96,7 @@
 # Create the initial directory structure (assumes "src" exists).
 init:
 	-cd ..; $(DECIPHER)/bin/make-standard-directories
+	$(MAKE) $(OBJDIR_STAMP) $(BINDIR_STAMP)
 
 # Delete all of the files which can be automatically regenerated.
 pristine:
@@ -173,10 +183,12 @@ endif
 
 .PHONY : release release-headers release-libraries release-programs release-scripts
 
-release-headers:	$(EXPORTED_HEADERS)
-ifneq ($(EXPORTED_HEADERS), )
+RELEASED_HEADERS = $(EXPORTED_HEADERS:$(SRCDIR)/%=$(DECIPHER_INCDIR)/%)
+
+release-headers:	$(RELEASED_HEADERS)
+
+$(DECIPHER_INCDIR)/%: $(SRCDIR)/%
 	-$(INSTALL) 0444 $^ $(DECIPHER_INCDIR)
-endif
 
 RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(DECIPHER_LIBDIR)/%.a)
 
@@ -188,30 +200,21 @@ RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(DECIPHER_LIBDIR)/%.a)
 # And take care not to run $(MAKE) without arguments.
 # Same applies to $(RELEASED_PROGRAMS) and $(RELEASED_SCRIPTS) below.
 
-release-libraries:	libraries
-ifneq ($(RELEASED_LIBRARIES), )
-	$(MAKE)	$(RELEASED_LIBRARIES)
-endif
+release-libraries:	$(RELEASED_LIBRARIES)
 
 $(DECIPHER_LIBDIR)/%.a:	$(OBJDIR)/%.a
 	-$(INSTALL) 0644 $^ $(DECIPHER_LIBDIR)
 
 RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(DECIPHER_BINDIR)/%)
 
-release-programs:	programs
-ifneq ($(RELEASED_PROGRAMS), )
-	$(MAKE)	programs $(RELEASED_PROGRAMS)
-endif
+release-programs:	$(RELEASED_PROGRAMS)
 
 $(DECIPHER_BINDIR)/%:	$(BINDIR)/%
 	-$(INSTALL) 0555 $^ $(DECIPHER_BINDIR)
 
 RELEASED_SCRIPTS = $(EXPORTED_SCRIPTS:%=$(DECIPHER_BIN)/%)
 
-release-scripts:	$(EXPORTED_SCRIPTS)
-ifneq ($(RELEASED_SCRIPTS), )
-	$(MAKE) $(RELEASED_SCRIPTS)
-endif
+release-scripts:	$(RELEASED_SCRIPTS)
 
 $(DECIPHER_BIN)/%:	%
 	-$(INSTALL) 0555 $^ $(DECIPHER_BIN)

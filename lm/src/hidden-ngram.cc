@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-1999 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.17 1999/08/01 09:22:47 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.20 2000/01/13 04:15:54 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -26,61 +26,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc
 #include "LHash.cc"
 #include "Array.cc"
 
-/* 
- * We use strings over VocabIndex as keys into the trellis.
- * Define the necessary support functions (see Map.h and LHash.cc).
- */
-
 typedef const VocabIndex *VocabContext;
 
-static inline unsigned
-LHash_hashKey(VocabContext key, unsigned maxBits)
-{
-    unsigned i = 0;
-
-    for (; *key != Vocab_None; key ++) {
-	i += *key;
-    }
-    return LHash_hashKey(i, maxBits);
-}
-
-static inline VocabContext
-Map_copyKey(VocabContext key)
-{
-    VocabIndex *copy = new VocabIndex[Vocab::length(key) + 1];
-    assert(copy != 0);
-
-    unsigned i;
-    for (i = 0; key[i] != Vocab_None; i ++) {
-	copy[i] = key[i];
-    }
-    copy[i] = Vocab_None;
-
-    return copy;
-}
-
-static inline void
-Map_freeKey(VocabContext key)
-{
-    delete [] (VocabIndex *)key;
-}
-
-static inline Boolean
-LHash_equalKey(VocabContext key1, VocabContext key2)
-{
-    unsigned i;
-    for (i = 0; key1[i] != Vocab_None && key2[i] != Vocab_None; i ++) {
-	if (key1[i] != key2[i]) {
-	    return false;
-	}
-    }
-    if (key1[i] == Vocab_None && key2[i] == Vocab_None) {
-	return true;
-    } else {
-	return false;
-    }
-}
-     
 #define DEBUG_ZEROPROBS		1
 #define DEBUG_TRANSITIONS	2
 
@@ -114,7 +61,7 @@ VocabIndex noEventIndex;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
-    { OPT_INT, "order", &order, "ngram order to use for lm" },
+    { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden vocabulary" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
     { OPT_TRUE, "tolower", &tolower, "map vocabulary to lowercase" },
@@ -131,7 +78,7 @@ static Option options[] = {
     { OPT_FLOAT, "unk-prob", &unkProb, "log probability assigned to <unk>" },
     { OPT_TRUE, "force-event", &forceEvent, "disallow default event" },
     { OPT_STRING, "write-counts", &countsFile, "write posterior counts to file" },
-    { OPT_INT, "debug", &debug, "debugging level for lm" },
+    { OPT_UINT, "debug", &debug, "debugging level for lm" },
 };
 
 /*
@@ -612,14 +559,12 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	totalProb = trellis.sumLogP(len);
     } else {
 	/* one extra state for the initial */
-	VocabContext *hiddenContexts = new VocabContext[len + 2];
-	assert(hiddenContexts != 0);
+	VocabContext hiddenContexts[len + 2];
 
 	/*
 	 * Run Viterbi to get most likely state sequence
 	 */
 	if (trellis.viterbi(hiddenContexts, len + 1) != len + 1) {
-	    delete [] hiddenContexts;
 	    return false;
 	}
 
@@ -630,8 +575,6 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	for (unsigned i = 0; i < len; i ++) {
 	    hiddenWids[i] = hiddenContexts[i + 1][0];
 	}
-
-	delete [] hiddenContexts;
 
 	/*
 	 * return total string probability using only best path

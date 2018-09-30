@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.24 1998/09/03 07:27:56 stolcke Exp $
+#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.30 2000/06/22 20:39:05 stolcke Exp $
 #
 
 DECIPHER = $(SRILM)
@@ -30,16 +30,13 @@ include $(DECIPHER)/common/Makefile.common.variables
 
 SCRIPTS = \
 	rescore-nbest \
-	rescore-nbest-pass1 \
-	rescore-nbest-pass2 \
-	rescore-nbest-pass3 \
-	wordlat-to-boogie \
+	wordlat-to-lisp \
 	extract-skip-probs \
 	$(EXPORTED_SCRIPTS)
 
 EXPORTED_SCRIPTS = \
-	bo-subset \
 	add-dummy-bows \
+	make-lm-subset \
 	make-sub-lm \
 	change-lm-vocab \
 	add-ppls \
@@ -54,6 +51,7 @@ EXPORTED_SCRIPTS = \
 	nbest2-to-nbest1 \
 	get-gt-counts \
 	make-gt-discounts \
+	make-abs-discount \
 	vp2text \
 	compute-oov-rate \
 	pfsg-to-dot \
@@ -61,10 +59,12 @@ EXPORTED_SCRIPTS = \
 	wlat-to-dot \
 	pfsg-to-fsm \
 	fsm-to-pfsg \
+	classes-to-fsm \
 	make-hiddens-lm \
 	make-batch-counts \
 	merge-batch-counts \
 	continuous-ngram-count \
+	reverse-ngram-counts \
 	make-big-lm \
 	compare-ppls \
 	compute-best-mix \
@@ -76,8 +76,11 @@ EXPORTED_SCRIPTS = \
 	add-pauses-to-pfsg \
 	add-classes-to-pfsg \
 	replace-words-with-classes \
+	uniform-classes \
 	pfsg-from-ngram \
 	nbest-error \
+	nbest-posteriors \
+	nbest-rover \
 	make-nbest-pfsg \
 	sentid-to-sclite \
 	compute-sclite \

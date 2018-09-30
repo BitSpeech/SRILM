@@ -3,9 +3,9 @@
 # filter a backoff model with a count file, so that only ngrams
 # in the countfile are represented in the output
 #
-# usage: bo-subset count-file bo-file
+# usage: make-lm-subset count-file bo-file
 #
-# $Header: /export/d/stolcke/project/srilm/src/scripts/RCS/bo-subset,v 1.2 1995/08/12 23:54:14 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-lm-subset,v 1.3 1999/10/17 06:10:10 stolcke Exp $
 #
 ARGIND==1 {
 	ngram = $0;

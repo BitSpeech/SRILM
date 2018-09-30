@@ -3,7 +3,7 @@
 # nbest2pfsg --
 #	convert Decipher N-best list to PFSG lattice
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-nbest-pfsg,v 1.1 1997/11/15 05:50:35 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-nbest-pfsg,v 1.3 1999/11/10 22:54:10 stolcke Exp $
 #
 BEGIN {
 	initial = 0;
@@ -11,10 +11,19 @@ BEGIN {
 	nodecount = 2;
 	transcount = 0;
 
-	outputs[initial] = outputs[final] = "NULL";
+	null = "NULL";
+
+	outputs[initial] = outputs[final] = null;
 
 	format = 0;
 	name = "";
+
+	notree = 0;	# do build prefix tree
+
+	scale = 0;	# scaling factor for log posteriors
+	amw = 1;	# acoustic model weight
+	lmw = 8;	# language model weight
+	wtw = 0;	# word transition weight
 }
 
 function start_hyp() {
@@ -23,32 +32,38 @@ function start_hyp() {
 
 function add_word(word, weight) {
 
-	nextnode = trans[lastnode " " word];
-	if (nextnode) {
-		#if (weights[lastnode " " nextnode] != weight) {
-		#	printf "inconsistent weight for transition %s -> %s\n",\
-		#		lastnode, nextnode > "/dev/stderr";
-		#	exit 1;
-		#}
+	nextnode = tree[lastnode " " word];
+	if (nextnode && !notree) {
+		if (weights[lastnode " " nextnode] != weight) {
+			printf "inconsistent weight for transition %s -> %s\n",\
+				lastnode, nextnode > "/dev/stderr";
+			exit 1;
+		}
 
 		lastnode = nextnode;
 	} else {
 		newnode = nodecount ++;
 		outputs[newnode] = word;
 
-		trans[lastnode " " word] = newnode;
-		#weights[lastnode " " newnode] = weight;
+		tree[lastnode " " word] = newnode;
+		weights[lastnode " " newnode] = weight;
 		transcount ++;
 
 		lastnode = newnode;
 	}
 }
 
-function end_hyp() {
-	nextnode = trans[lastnode " NULL"];
-	if (!nextnode) {
-		trans[lastnode " NULL"] = final;
-		#weights[lastnode " " final] = 0;
+function end_hyp(weight) {
+	nextnode = tree[lastnode " " null];
+	if (nextnode && !notree) {
+		if (weights[lastnode " " null] != weight) {
+			printf "inconsistent final weight for %s\n",\
+						lastnode > "/dev/stderr";
+			exit 1;
+		}
+	} else {
+		tree[lastnode " " null] = final;
+		weights[lastnode " " final] = weight;
 		transcount ++;
 	}
 }
@@ -67,13 +82,13 @@ function print_pfsg(name) {
 
 	printf "transitions %d\n", transcount;
 
-	for (from_word in trans) {
-		split(from_word, a);
+	for (trans in weights) {
+		split(trans, a);
 		fromnode = a[1];
-		tonode = trans[from_word]
+		tonode = a[2];
 
-		printf "%d %d %d\n", fromnode, tonode, 0;
-		#	weights[fromnode " " tonode];
+		printf "%d %d %g\n", fromnode, tonode, \
+					weights[fromnode " " tonode];
 	}
 	printf "\n";
 }
@@ -87,27 +102,29 @@ function print_pfsg(name) {
 	next;
 }
 format == 0 {
+	totalscore = scale * (amw * $1 + lmw * $2 + wtw * $3);
 	start_hyp();
 	for (i = 4; i <= NF; i ++) {
 		add_word($i, 0);
 	}
-	end_hyp();
+	end_hyp(totalscore);
 	next;
 }
 format == 1 {
+	totalscore = scale * substr($1, 2, length($1)-2);
 	start_hyp();
 	for (i = 2; i <= NF; i ++) {
 		add_word($i, 0);
 	}
-	end_hyp();
+	end_hyp(totalscore);
 	next;
 }
 format == 2 {
 	start_hyp();
 	for (i = 2; i <= NF; i += 11) {
-		add_word($i, $(i + 7));
+		add_word($i, scale * ($(i + 7) + $(i + 9)));
 	}
-	end_hyp();
+	end_hyp(0);
 	next;
 }
 END {

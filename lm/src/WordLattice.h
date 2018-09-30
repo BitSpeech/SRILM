@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.11 1998/02/21 00:31:24 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.12 2000/03/18 23:01:07 stolcke Exp $
  *
  */
 
@@ -58,7 +58,7 @@ public:
 
     double minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags = 0);
+				unsigned flags = 0, double delBias = 1.0);
 #define WORDLATTICE_NOVITERBI	0x01		/* flag value */
     
     Boolean isEmpty();

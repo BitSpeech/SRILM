@@ -1,5 +1,5 @@
-.\" $Id: disambig.1,v 1.15 1998/12/24 19:58:23 stolcke Exp $
-.TH disambig 1 "$Date: 1998/12/24 19:58:23 $"
+.\" $Id: disambig.1,v 1.17 1999/10/18 15:14:10 stolcke Exp $
+.TH disambig 1 "$Date: 1999/10/18 15:14:10 $" "SRILM Tools"
 .SH NAME
 disambig \- disambiguate text tokens using an N-gram model
 .SH SYNOPSIS
@@ -81,7 +81,8 @@ obtained from the V2 language model.
 Interpret numeric values in map file as log probabilities, not probabilities.
 .TP
 .BI \-lm " file"
-Specifies the V2 language model as a standard ARPA N-gram backoff model file.
+Specifies the V2 language model as a standard ARPA N-gram backoff model file
+.BR ngram-format (5).
 The default is not to use a language model, i.e., choose V2 tokens
 based only on the probabilities in the map file.
 .TP
@@ -175,7 +176,7 @@ option effectively disables
 .BR \-keep-unk ,
 i.e., unknown input words are always mapped to <unk>.
 .SH "SEE ALSO"
-ngram-count(1), hidden-ngram(1).
+ngram-count(1), hidden-ngram(1), training-scripts(1), ngram-format(5).
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br

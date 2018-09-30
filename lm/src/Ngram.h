@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.28 1999/07/17 10:38:06 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.29 1999/10/07 08:22:47 stolcke Exp $
  *
  */
 
@@ -85,10 +85,6 @@ public:
      */
     virtual unsigned int numNgrams(unsigned int n);
     virtual void memStats(MemStats &stats);
-
-    virtual LogP countsProb(NgramStats &counts, TextStats &stats,
-							unsigned order);
-						/* probability from counts */
 
     VocabIndex dummyIndex;			/* <dummy> tag */
 

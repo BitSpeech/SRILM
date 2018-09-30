@@ -1,0 +1,36 @@
+../obj/i386-solaris$(OBJ_OPTION)/qsort.o: ./qsort.c
+../obj/i386-solaris$(OBJ_OPTION)/MemStats.o: ./MemStats.cc MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/LHashTrie.o: ./LHashTrie.cc Trie.cc Trie.h MemStats.h LHash.h Map.h \
+ /home/srilm/devel/include/Boolean.h LHash.cc
+../obj/i386-solaris$(OBJ_OPTION)/SArrayTrie.o: ./SArrayTrie.cc
+../obj/i386-solaris$(OBJ_OPTION)/Array.o: ./Array.cc Array.h MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/Map.o: ./Map.cc Map.h /home/srilm/devel/include/Boolean.h MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/SArray.o: ./SArray.cc SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/LHash.o: ./LHash.cc LHash.h Map.h /home/srilm/devel/include/Boolean.h \
+ MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/Map2.o: ./Map2.cc Map2.h SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h MemStats.h SArray.cc
+../obj/i386-solaris$(OBJ_OPTION)/Trie.o: ./Trie.cc Trie.h MemStats.h SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h SArray.cc
+../obj/i386-solaris$(OBJ_OPTION)/testArray.o: ./testArray.cc Array.cc Array.h MemStats.h
+../obj/i386-solaris$(OBJ_OPTION)/testMap.o: ./testMap.cc SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h MemStats.h LHash.h SArray.cc \
+ LHash.cc
+../obj/i386-solaris$(OBJ_OPTION)/testMap2.o: ./testMap2.cc Map2.cc Map2.h SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h MemStats.h SArray.cc
+../obj/i386-solaris$(OBJ_OPTION)/testTrie.o: ./testTrie.cc Trie.cc Trie.h MemStats.h SArray.h Map.h \
+ /home/srilm/devel/include/Boolean.h SArray.cc
+../obj/i386-solaris$(OBJ_OPTION)/benchHash.o: ./benchHash.cc /home/srilm/devel/include/option.h \
+ LHash.cc LHash.h Map.h /home/srilm/devel/include/Boolean.h MemStats.h \
+ Trie.cc Trie.h SArray.h SArray.cc
+../bin/i386-solaris$(BIN_OPTION)/testArray: ../obj/i386-solaris$(OBJ_OPTION)/testArray.o
+testArray: ../bin/i386-solaris$(BIN_OPTION)/testArray
+../bin/i386-solaris$(BIN_OPTION)/testMap: ../obj/i386-solaris$(OBJ_OPTION)/testMap.o
+testMap: ../bin/i386-solaris$(BIN_OPTION)/testMap
+../bin/i386-solaris$(BIN_OPTION)/testMap2: ../obj/i386-solaris$(OBJ_OPTION)/testMap2.o
+testMap2: ../bin/i386-solaris$(BIN_OPTION)/testMap2
+../bin/i386-solaris$(BIN_OPTION)/testTrie: ../obj/i386-solaris$(OBJ_OPTION)/testTrie.o
+testTrie: ../bin/i386-solaris$(BIN_OPTION)/testTrie
+../bin/i386-solaris$(BIN_OPTION)/benchHash: ../obj/i386-solaris$(OBJ_OPTION)/benchHash.o
+benchHash: ../bin/i386-solaris$(BIN_OPTION)/benchHash

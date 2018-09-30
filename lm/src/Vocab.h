@@ -78,7 +78,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.22 1997/07/18 02:13:12 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.24 2000/05/10 00:24:31 stolcke Exp $
  *
  */
 
@@ -164,8 +164,10 @@ public:
 
     static unsigned int length(const VocabIndex *words);
     static unsigned int length(const VocabString *words);
-    static Boolean contains(const VocabIndex *words, VocabIndex word);
+    static VocabIndex *copy(VocabIndex *to, const VocabIndex *from);
+    static VocabString *copy(VocabString *to, const VocabString *from);
     static VocabIndex *reverse(VocabIndex *words);
+    static Boolean contains(const VocabIndex *words, VocabIndex word);
     static VocabString *reverse(VocabString *words);
     static void write(File &file, const VocabString *words);
 
@@ -217,4 +219,56 @@ private:
     LHashIter<VocabString,VocabIndex> myIter;
 };
 
+/* 
+ * We sometimes use strings over VocabIndex as keys into hash tables.
+ * Define the necessary support functions (see Map.h and LHash.cc).
+ */
+static inline unsigned
+LHash_hashKey(const VocabIndex *key, unsigned maxBits)
+{
+    unsigned i = 0;
+
+    for (; *key != Vocab_None; key ++) {
+	i += *key;
+    }
+    return LHash_hashKey(i, maxBits);
+}
+
+static inline const VocabIndex *
+Map_copyKey(const VocabIndex *key)
+{
+    VocabIndex *copy = new VocabIndex[Vocab::length(key) + 1];
+    assert(copy != 0);
+
+    unsigned i;
+    for (i = 0; key[i] != Vocab_None; i ++) {
+	copy[i] = key[i];
+    }
+    copy[i] = Vocab_None;
+
+    return copy;
+}
+
+static inline void
+Map_freeKey(const VocabIndex *key)
+{
+    delete [] (VocabIndex *)key;
+}
+
+static inline Boolean
+LHash_equalKey(const VocabIndex *key1, const VocabIndex *key2)
+{
+    unsigned i;
+    for (i = 0; key1[i] != Vocab_None && key2[i] != Vocab_None; i ++) {
+	if (key1[i] != key2[i]) {
+	    return false;
+	}
+    }
+    if (key1[i] == Vocab_None && key2[i] == Vocab_None) {
+	return true;
+    } else {
+	return false;
+    }
+}
+     
 #endif /* _Vocab_h_ */

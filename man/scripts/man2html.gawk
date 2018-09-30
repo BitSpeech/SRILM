@@ -1,6 +1,6 @@
 #!/usr/local/bin/gawk -f
 #
-# $Header: /home/speech/stolcke/project/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.3 1996/07/13 01:34:05 stolcke Exp $
+# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.5 1999/11/22 16:35:29 stolcke Exp $
 #
 
 function getargs() {
@@ -23,6 +23,12 @@ function getargs() {
 	    j++;
 	}
 	$1 = "";
+	allargs = "";
+	if (j >= 1) {
+	    for (k = 1; k <= j; k ++) {
+		allargs = allargs " " args[k];
+	    }
+	}
 	return j - 1;
 }
 function finishitem() {
@@ -76,13 +82,13 @@ $1 == "\.TH" {
 $1 == "\.SH" {
 	finishlist();
 	getargs();
-	print "<H2>" args[1] "</H2>";
+	print "<H2>" allargs "</H2>";
 	next;
 }
 $1 == "\.SS" {
 	finishlist();
 	getargs();
-	print "<H3>" args[1] "</H3>";
+	print "<H3>" allargs "</H3>";
 	next;
 }
 $1 == "\.PP"  || $1 == "\".LP" {
@@ -105,7 +111,7 @@ $1 == "\.TP" {
 }
 $1 == "\.B" {
 	if (getargs() > 0) {
-		text = "<B>" args[1] "</B>";
+		text = "<B>" allargs "</B>";
 	} else {
 		text = "<B>";
 		newfont="B";
@@ -115,7 +121,7 @@ $1 == "\.B" {
 }
 $1 == "\.I" {
 	if (getargs() > 0) {
-		text = "<I>" args[1] "</I>";
+		text = "<I>" allargs "</I>";
 	} else {
 		text = "<I>";
 		newfont="I";
@@ -130,19 +136,37 @@ $1 == "\.P" {
 }
 $1 == "\.BR" {
 	getargs();
-	text = "<B>" args[1] "</B>" args[2];
+	text = "<B>" args[1] "</B>" args[2] "<B>" args[3] "</B>";
 	printline();
 	next;
 }
 $1 == "\.BI" {
 	getargs();
-	text = "<B>" args[1] "</B><I>" args[2] "</I>";
+	text = "<B>" args[1] "</B><I>" args[2] "</I><B>" args[3] "</B>";
 	printline();
 	next;
 }
 $1 == "\.IR" {
 	getargs();
-	text = "<I>" args[1] "</I>" args[2];
+	text = "<I>" args[1] "</I>" args[2] "<I>" args[3] "</I>";
+	printline();
+	next;
+}
+$1 == "\.IB" {
+	getargs();
+	text = "<I>" args[1] "</I><B>" args[2] "</B><I>" args[3] "</I>";
+	printline();
+	next;
+}
+$1 == "\.RB" {
+	getargs();
+	text = args[1] "<B>" args[2] "</B>" args[3];
+	printline();
+	next;
+}
+$1 == "\.RI" {
+	getargs();
+	text = args[1] "<I>" args[2] "</I>" args[3];
 	printline();
 	next;
 }

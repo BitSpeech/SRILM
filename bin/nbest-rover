@@ -1,0 +1,156 @@
+#!/bin/sh
+#
+# nbest-rover --
+#	Combine multiple nbest lists ROVER-style
+#
+# usage: nbest-rover SENTIDS CONTROL-FILE [POSTERIORS]
+#
+# where SENTIDS is list of sentence ids (filenames of nbest lists)
+#		if SENTIDS is "-" the list is inferred from the contents of
+#		the first N-best directory
+#       CONTROL-FILE describes the nbest list sets to be processed
+#	POSTERIORS is an an optional file to which word posterior probabilities
+#			are written.
+#
+# The format for CONTROL-FILE is
+#
+#	DIR1 LMW1 WTW1 W1 [ N1 [ S1 ] ]
+#	DIR2 LMW2 WTW2 W2 [ N2 [ S2 ] ]
+#	...
+#
+# Each DIRi names a directory in which nbest lists are to be found.
+# LMWi and WTWi are the rescoring weights to be used for the corresponding
+# directory.  Wi is the weight to be given to the posteriors compute from
+# the respective list. Ni are optional limits on the number N-best hyps used.
+# Si are optional posterior scaling parameters.
+#
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.11 2000/07/09 17:56:13 stolcke Exp $
+#
+
+if [ $# -lt 2 ]; then
+	echo "usage: $0 [ sentid-list | - ] control-file [posteriors [nbest-lattice-options]]"  >&2
+	exit 2
+fi
+
+scriptdir=`dirname $0`
+
+sentids=$1
+control=$2
+shift; shift
+
+default_lmw=8
+default_wtw=0
+default_scale=0
+default_max_nbest=0
+default_weight=1
+
+if [ $# -gt 0 ]; then
+    posteriors=$1
+    shift
+else 
+    posteriors=/dev/null
+fi
+
+lattice_dir=
+
+# collect remaining options (mostly to pass them to nbest-lattice)
+while [ $# -gt 0 ]; do
+    case "$1" in
+    -write-dir)	lattice_dir=$2;
+		shift; shift ;;
+    *)		options="$options $1"
+		shift ;;
+    esac
+done
+
+> $posteriors
+
+tmp_post=/tmp/post$$
+tmp_sentids=/tmp/sentids$$
+
+trap "rm -f $tmp_pos $tmp_sentids; exit" 0 1 2 15
+
+#
+# make sentid list if none was specified
+#
+if [ "$sentids" = "-" ]; then
+	gawk '{ print $1; exit }' $control | xargs ls | \
+	sed -e 's,.*/,,' -e 's,\.gz$,,' -e 's,\.score$,,' > $tmp_sentids
+	sentids=$tmp_sentids
+fi
+
+set -e
+
+#
+# create lattice output directory if needed
+#
+if [ -n "$lattice_dir" ]; then
+    mkdir -p "$lattice_dir"
+fi
+
+cat $sentids | \
+while read sentid
+do
+	echo "$sentid \c"
+
+	#
+	# output alignment lattice if requested
+	#
+	if [ -n "$lattice_dir" ]; then
+		write_option="-write $lattice_dir/$sentid.gz"
+	fi
+
+	extra_weights=
+	extra_scores=
+
+	cat $control | \
+	while read dir lmw wtw weight max_nbest scale rest 
+	do
+		if [ "$wtw" = "+" ]; then
+		    if [ -f $dir/$sentid.gz ]; then
+			    extra_scores="$extra_scores $dir/$sentid.gz"
+		    elif [ -f $dir/$sentid ]; then
+			    extra_scores="$extra_scores $dir/$sentid"
+		    else
+			    echo "$dir/$sentid" is missing >&2
+			    continue
+		    fi
+
+		    extra_weights="$extra_weights $lmw"
+		    continue
+		else
+		    if [ ! -f $dir/$sentid.score.gz ]; then
+			    echo "$dir/$sentid.score.gz is missing" >&2
+			    extra_weights=
+			    extra_scores=
+			    continue
+		    fi
+
+		    if [ -n "$extra_weights" ]; then
+			$scriptdir/combine-acoustic-scores \
+				-v "weights=1 $extra_weights" \
+				-v max_nbest=${max_nbest:-$default_max_nbest} \
+				$dir/$sentid.score.gz $extra_scores
+		    else
+			zcat $dir/$sentid.score.gz
+		    fi | \
+		    $scriptdir/nbest-posteriors lmw=${lmw:-$default_lmw} \
+				    wtw=${wtw:-$default_wtw} \
+				    weight=${weight:-$default_weight} \
+				    max_nbest=${max_nbest:-$default_max_nbest} \
+				    postscale=${scale:-$default_scale}
+		    
+		    extra_weights=
+		    extra_scores=
+		fi
+	done | \
+	nbest-lattice -rescore - -use-mesh \
+		-rescore-lmw 0 -rescore-wtw 0 \
+		-debug 2 $write_option $options \
+		2>$tmp_post
+
+	gawk -v sentid=$sentid '$1 == "post" { $1 = sentid; print }' \
+				$tmp_post >> $posteriors
+
+done
+

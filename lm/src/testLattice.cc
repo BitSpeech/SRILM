@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.3 1999/08/01 09:22:47 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.4 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -51,14 +51,13 @@ main (int argc, char *argv[])
     }
 
     {
-	unsigned *sorted = new unsigned[lat.numNodes];
+	unsigned sorted[lat.numNodes];
 	unsigned reachable = lat.sortNodes(sorted);
 	cerr << "sorted nodes: ";
 	for (unsigned i = 0; i < reachable; i ++) {
 	    cerr << " " << sorted[i];
 	}
 	cerr << endl;
-	delete [] sorted;
     }
 
     exit(0);

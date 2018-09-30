@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.15 1998/01/18 07:17:00 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.19 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -14,6 +14,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.
 
 #include "DFNgram.h"
 #include "Trellis.cc"
+#include "Array.cc"
 
 /*
  * Define null key for DF state trellis
@@ -35,8 +36,8 @@ INSTANTIATE_TRELLIS(DFstate);
 #endif
 
 #define DEBUG_PRINT_WORD_PROBS          2	/* from LM.cc */
-#define DEBUG_PRINT_VITERBI 2
-#define DEBUG_STATE_PROBS 4
+#define DEBUG_PRINT_VITERBI		2
+#define DEBUG_STATE_PROBS		4
 
 /*
  * Compile-time flags to disable certain types of disfluency models
@@ -47,7 +48,7 @@ INSTANTIATE_TRELLIS(DFstate);
 #define NO_FP		/* we know FP modeling is bad idea */
 
 DFNgram::DFNgram(Vocab &vocab, unsigned int order)
-    : Ngram(vocab, order), trellis(maxWordsPerLine + 2 + 1)
+    : Ngram(vocab, order), trellis(maxWordsPerLine + 2 + 1), savedLength(0)
 {
     /*
      * Initialize special disfluency tokens
@@ -63,6 +64,16 @@ DFNgram::DFNgram(Vocab &vocab, unsigned int order)
 
 DFNgram::~DFNgram()
 {
+}
+
+void *
+DFNgram::contextID(const VocabIndex *context, unsigned &length)
+{
+    /*
+     * Due to the DP algorithm, we alway use the full context
+     * (don't inherit Ngram::contextID()).
+     */
+    return LM::contextID(context, length);
 }
 
 Boolean
@@ -99,8 +110,7 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
      *     the current word.
      */
     unsigned pos;
-    unsigned prefix;
-    unsigned len;
+    int prefix;
 
     Boolean wasRunning = running(false);
 
@@ -108,37 +118,72 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	/*
 	 * Reset the computation to the last iteration in the loop below
 	 */
-	pos = contextLength;
+	pos = prevPos;
 	prefix = 0;
 	context = prevContext;
-	len = contextLength;
 
 	trellis.init(pos);
     } else {
-	len = Vocab::length(context);
+	unsigned len = Vocab::length(context);
 	assert(len <= maxWordsPerLine);
 
 	/*
 	 * Save these for possible recomputation with different
 	 * word argument, using same context
 	 */
-	contextLength = len;
 	prevContext = context;
+	prevPos = 0;
 
 	/*
 	 * Initialization:
 	 * The 0 column corresponds to the <s> prefix, and we are in the
 	 * NODF state.
 	 */
-	trellis.init();
-	trellis.setProb(NODF, LogP_One);
-	trellis.step();
 
-	pos = 1;
-	prefix = len - 1;
+	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	    prefix = len - 1;
+	} else {
+	    prefix = len;
+	}
+
+	/*
+	 * Start the DP from scratch if the context has less than two items
+	 * (including <s>).  This prevents the trellis from accumulating states
+	 * over multiple sentences (which computes the right thing, but
+	 * slowly).
+	 */
+ 	if (len > 1 &&
+	    savedLength > 0 && savedContext[0] == context[prefix])
+	{
+	    /*
+	     * Skip to the position where the saved
+	     * context diverges from the new context.
+	     */
+	    for (pos = 1;
+		 pos < savedLength && prefix > 0 &&
+		     context[prefix - 1] == savedContext[pos];
+		 pos ++, prefix --)
+	    {
+ 		prevPos = pos;
+	    }
+  
+	    savedLength = pos;
+	    trellis.init(pos);
+	} else {
+	    /*
+	     * Start a DP from scratch
+	     */
+	    trellis.init();
+	    trellis.setProb(NODF, LogP_One);
+	    trellis.step();
+
+	    savedContext[0] = context[prefix];
+	    savedLength = 1;
+	    pos = 1;
+	}
     }
 
-    for ( ; pos <= len; pos++, prefix--) {
+    for ( ; prefix >= 0; pos++, prefix--) {
 	/*
 	 * Reinitialize the DP probs if the previous iteration has yielded
 	 * prob zero.  This allows us to compute conditional probs based on
@@ -150,8 +195,19 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    trellis.step();
 	}
 
-        VocabIndex currWord = (pos == len) ?
-				word : context[prefix - 1];
+        VocabIndex currWord;
+	
+	if (prefix == 0) {
+	    currWord = word;
+	} else {
+	    currWord = context[prefix - 1];
+
+	    /*
+	     * Cache the context words for later shortcut processing
+	     */
+	    savedContext[savedLength ++] = currWord;
+	}
+
 	const VocabIndex *currContext = &context[prefix];
 
 	/*
@@ -199,7 +255,7 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 *	switch off debugging after the standard transition,
 	 *	to avoid lots of output
 	 */
-	if (pos == len) {
+	if (prefix == 0) {
 	    running(wasRunning);
 	}
 	trellis.update(NODF, next, Ngram::wordProb(currWord, currContext));
@@ -377,6 +433,7 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 #endif /* !NO_REP */
 
 	trellis.step();
+	prevPos = pos;
     }
 
     running(wasRunning);
@@ -393,12 +450,12 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	       << endl;
     }
     
-    if (len > 0) {
-	contextProb = trellis.sumLogP(len - 1);
+    if (prevPos > 0) {
+	contextProb = trellis.sumLogP(prevPos - 1);
     } else { 
 	contextProb = LogP_One;
     }
-    return trellis.sumLogP(len);
+    return trellis.sumLogP(prevPos);
 }
 
 /*
@@ -441,20 +498,22 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = Ngram::sentenceProb(sentence, stats);
     } else {
-	VocabIndex *reversed = new VocabIndex[len + 2 + 1];
+	VocabIndex reversed[len + 2 + 1];
 
 	/*
 	 * Contexts are represented most-recent-word-first.
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
-	assert(reversed != 0);
 	len = prepareSentence(sentence, reversed, len);
+
+	/*
+	 * Invalidate cache (for efficiency only)
+	 */
+	savedLength = 0;
 
 	LogP contextProb;
 	totalProb = prefixProb(reversed[0], reversed + 1, contextProb);
-
-	delete [] reversed;
 
 	/*
 	 * XXX: Cannot handle OOVs and zeroProbs yet.
@@ -465,8 +524,7 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     if (debug(DEBUG_PRINT_VITERBI)) {
-	DFstate *bestStates = new DFstate[len + 2];
-	assert(bestStates != 0);
+	DFstate bestStates[len + 2];
 
 	if (trellis.viterbi(bestStates, len + 2) == 0) {
 	    dout() << "Viterbi backtrace failed\n";
@@ -479,7 +537,6 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 
 	    dout() << endl;
 	}
-	delete [] bestStates;
     }
 
     return totalProb;

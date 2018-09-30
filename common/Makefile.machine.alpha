@@ -9,11 +9,14 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: Makefile.machine.alpha,v 1.4 1998/04/18 17:51:25 stolcke Exp $
+#    RCS ID: $Id: Makefile.machine.alpha,v 1.5 2000/06/08 23:58:48 stolcke Exp $
 #
 #    $Log: Makefile.machine.alpha,v $
-#    Revision 1.4  1998/04/18 17:51:25  stolcke
-#    use gcc 2.8.1
+#    Revision 1.5  2000/06/08 23:58:48  stolcke
+#    use gcc even for .c file
+#
+# Revision 1.4  1998/04/18  17:51:25  stolcke
+# use gcc 2.8.1
 #
 #    Revision 1.3  1995/08/29 20:26:42  stolcke
 #    reshuffled cflags to avoid conflict with g++
@@ -25,7 +28,7 @@
 #    Initial revision
 #
 #
-   CC = cc
+   CC = gcc -V2.8.1 -mieee-with-inexact
    CXX = g++ -V2.8.1 -mieee-with-inexact
 
    # Optional compilation flags.
@@ -40,7 +43,7 @@
    # Note:  "-ieee_with_inexact" is much too slow for our purposes, but 
    #  "-ieee_with_no_inexact" gives basically the same numerical
    #  behavior without being too slow.  
-   CFLAGS = -std1 -signed -float -ieee_with_no_inexact -Olimit 750 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
    CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.

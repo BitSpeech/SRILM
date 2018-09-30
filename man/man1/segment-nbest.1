@@ -1,5 +1,5 @@
-.\" $Id: segment-nbest.1,v 1.2 1998/07/10 08:27:54 stolcke Exp $
-.TH segment-nbest 1 "$Date: 1998/07/10 08:27:54 $" SRILM
+.\" $Id: segment-nbest.1,v 1.5 2000/05/07 02:04:15 stolcke Exp $
+.TH segment-nbest 1 "$Date: 2000/05/07 02:04:15 $" "SRILM Tools"
 .SH NAME
 segment-nbest \- rescore and segment N-best lists using N-gram language models
 .SH SYNOPSIS
@@ -15,9 +15,8 @@ nbest-file-list
 processes a series of consecutive N-best lists from a speech
 recognizer
 and applies a hidden segment N-gram language model to them.
-The language model is a standard backoff N-gram model in ARPA format
-(as created by 
-.BR ngram-count (1))
+The language model is a standard backoff N-gram model in ARPA
+.BR ngram-format (5)
 modeling segmentation using the boundary tags <s> and </s>.
 The program reads in all N-best lists and outputs the 
 hypotheses that have the highest aggregate score (both acoustic 
@@ -78,8 +77,8 @@ The file
 .I list
 should contain a list of filenames, one per line,
 each corresponding to an N-best file in one of the formats
-supported by 
-.BR ngram (1).
+described in 
+.BR nbest-format (5).
 The N-best files should correspond to consecutive speech waveforms
 in the order listed.
 .TP
@@ -123,6 +122,12 @@ Designate
 as a vocabulary item that is to be ignored by the LM.
 (This is typically used to identify a noise marker.)
 .TP
+.BI \-noise-vocab " file"
+Read several noise tags from
+.IR file ,
+instead of, or in addition to, the single noise tag specified by
+.BR \-noise .
+.TP
 .BI \-decipher-lm " model-file"
 Designates the N-gram backoff model (typically a bigram) that was used by the
 Decipher(TM) recognizer in computing composite scores.
@@ -160,12 +165,12 @@ with individual output delimited by a line of the form
 	<nbestfile \fInbest-file-list\fP>
 .br
 .SH "SEE ALSO"
-ngram-count(1), ngram(1), segment(1).
+ngram-count(1), segment(1), ngram-format(5), nbest-format(5).
 .br
 A. Stolcke, ``Modeling Linguistic Segment and Turn Boundaries for N-best
-Rescoring of Spontaneous Speech,'' Proc. Eurospeech, 1997.
+Rescoring of Spontaneous Speech,'' \fIProc. Eurospeech\fP, 2779\-2782, 1997.
 .SH BUGS
-Only N-grams models up to trigram order are used accurately.
+Only N-gram models up to trigram order are used accurately.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br

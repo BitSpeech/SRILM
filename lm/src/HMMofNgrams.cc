@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1997, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.6 1999/05/13 05:07:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.9 2000/01/13 04:06:34 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -14,6 +14,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,
 
 #include "HMMofNgrams.h"
 #include "Trellis.cc"
+#include "Array.cc"
 
 #define DEBUG_PRINT_WORD_PROBS          2	/* from LM.cc */
 #define DEBUG_READ_STATS 		3
@@ -27,7 +28,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,
 const unsigned maxTransPerState = 1000;
 
 HMMofNgrams::HMMofNgrams(Vocab &vocab, unsigned order)
-    : LM(vocab), order(order), trellis(maxWordsPerLine + 2 + 1)
+    : LM(vocab), order(order), trellis(maxWordsPerLine + 2 + 1), savedLength(0)
 {
     /*
      * Remove standard vocab items not applicable to state space
@@ -305,46 +306,90 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
      *     the current word.
      */
     unsigned pos;
-    unsigned prefix;
-    unsigned len;
+    int prefix;
 
     if (context == 0) {
 	/*
 	 * Reset the computation to the last iteration in the loop below
 	 */
-	pos = contextLength;
+	pos = prevPos;
 	prefix = 0;
 	context = prevContext;
-	len = contextLength;
 
 	trellis.init(pos);
     } else {
-	len = Vocab::length(context);
+	unsigned len = Vocab::length(context);
 	assert(len <= maxWordsPerLine);
 
 	/*
 	 * Save these for possible recomputation with different
 	 * word argument, using same context
 	 */
-	contextLength = len;
 	prevContext = context;
+	prevPos = 0;
 
 	/*
 	 * Initialization:
 	 * The 0 column corresponds to the <s> prefix, and we are in the
 	 * INITIAL state.
 	 */
-	trellis.init();
-	trellis.setProb(initialState, LogP_One);
-	trellis.step();
+	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	    prefix = len - 1;
+	} else {
+	    prefix = len;
+	}
 
-	pos = 1;
-	prefix = len - 1;
+	/*
+	 * Start the DP from scratch if the context has less than two items
+	 * (including <s>).  This prevents the trellis from accumulating states
+	 * over multiple sentences (which computes the right thing, but
+	 * slowly).
+	 */
+	if (len > 1 &&
+	    savedLength > 0 && savedContext[0] == context[prefix])
+	{
+	    /*
+	     * Skip to the position where the saved
+	     * context diverges from the new context.
+	     */
+	    for (pos = 1;
+		 pos < savedLength && prefix > 0 &&
+		     context[prefix - 1] == savedContext[pos];
+		 pos ++, prefix --)
+	    {
+		prevPos = pos;
+	    }
+
+	    savedLength = pos;
+	    trellis.init(pos);
+	} else {
+	    /*
+	     * Start a DP from scratch
+	     */
+	    trellis.init();
+	    trellis.setProb(initialState, LogP_One);
+	    trellis.step();
+
+	    savedContext[0] = context[prefix];
+	    savedLength = 1;
+	    pos = 1;
+	}
     }
 
-    for ( ; pos <= len; pos++, prefix--) {
-        VocabIndex currWord = (pos == len) ?
-				word : context[prefix - 1];
+    for ( ; prefix >= 0; pos++, prefix--) {
+        VocabIndex currWord;
+	
+	if (prefix == 0) {
+	    currWord = word;
+	} else {
+	    currWord = context[prefix - 1];
+
+	    /*
+	     * Cache the context words for later shortcut processing
+	     */
+	    savedContext[savedLength ++] = currWord;
+ 	}
+
 	const VocabIndex *currContext = &context[prefix];
 
 	/*
@@ -479,7 +524,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * truncated contexts, and to compute the total sentence probability
 	 * leaving out the OOVs, as required by sentenceProb().
 	 */
-	if (pos < len && !havePosProb) {
+	if (prefix > 0 && !havePosProb) {
 	    TrellisIter<HMMIndex> sIter(trellis, pos - 1);
 	    HMMIndex index;
 	    LogP prob;
@@ -496,10 +541,11 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	}
 
 	trellis.step();
+	prevPos = pos;
     }
 
     if (debug(DEBUG_STATE_PROBS)) {
-	TrellisIter<HMMIndex> sIter(trellis, len);
+	TrellisIter<HMMIndex> sIter(trellis, prevPos);
 	HMMIndex index;
 	LogP prob;
 
@@ -510,12 +556,12 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	}
     }
     
-    if (len > 0) {
-	contextProb = trellis.sumLogP(len - 1);
+    if (prevPos > 0) {
+	contextProb = trellis.sumLogP(prevPos - 1);
     } else { 
 	contextProb = LogP_One;
     }
-    return trellis.sumLogP(len);
+    return trellis.sumLogP(prevPos);
 }
 
 /*
@@ -558,20 +604,22 @@ HMMofNgrams::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = LM::sentenceProb(sentence, stats);
     } else {
-	VocabIndex *reversed = new VocabIndex[len + 2 + 1];
+	VocabIndex reversed[len + 2 + 1];
 
 	/*
 	 * Contexts are represented most-recent-word-first.
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
-	assert(reversed != 0);
 	len = prepareSentence(sentence, reversed, len);
+
+	/*
+	 * Invalidate cache (for efficiency only)
+	 */
+	savedLength = 0;
 
 	LogP contextProb;
 	totalProb = prefixProb(reversed[0], reversed + 1, contextProb, stats);
-
-	delete [] reversed;
 
 	/* 
 	 * OOVs and zeroProbs are updated by prefixProb()
@@ -582,8 +630,7 @@ HMMofNgrams::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     if (debug(DEBUG_PRINT_VITERBI)) {
-	HMMIndex *bestStates = new HMMIndex[len + 2];
-	assert(bestStates != 0);
+	HMMIndex bestStates[len + 2];
 
 	if (trellis.viterbi(bestStates, len + 2) == 0) {
 	    dout() << "Viterbi backtrace failed\n";
@@ -596,7 +643,6 @@ HMMofNgrams::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 
 	    dout() << endl;
 	}
-	delete [] bestStates;
     }
 
     return totalProb;

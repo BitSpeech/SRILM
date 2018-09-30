@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.2 1999/08/01 09:35:25 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.3 1999/08/07 22:21:34 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -23,7 +23,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 
 
 #define DEBUG_ERRORS	1
 
-static int debug = 0;
+static unsigned debug = 0;
 static int tolower = 0;
 static char *writeNbestFile = 0;
 static unsigned maxNbest = 0;
@@ -32,9 +32,9 @@ static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
 
 static Option options[] = {
-    { OPT_INT, "debug", &debug, "debugging level" },
+    { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "write-nbest", &writeNbestFile, "output n-best list" },
-    { OPT_INT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
+    { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },

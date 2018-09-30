@@ -1,0 +1,103 @@
+#
+#    File:   Makefile.machine.mips-elf-64
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Fri Mar  3 15:29:29 PST 1995
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for SGI workstations running IRIX 6.x and -n32 binaries.
+#
+#    Copyright (c) 1995, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: Makefile.machine.mips-elf,v 1.10 1999/10/13 07:07:04 stolcke Exp stolcke $
+#
+#    $Log: Makefile.machine.mips-elf,v $
+#    Revision 1.10  1999/10/13 07:07:04  stolcke
+#    use gcc 2.95
+#
+#    Revision 1.9  1998/07/30 19:44:04  stolcke
+#    standarddize on USE_CC
+#    added -Olimit option
+#
+#    Revision 1.8  1998/04/18 17:51:25  stolcke
+#    use gcc 2.8.1
+#
+#    Revision 1.7  1996/08/15 14:10:57  stolcke
+#    removed -V2.6.3, code should now work with latest gcc
+#
+#    Revision 1.6  1996/07/18 12:25:10  stolcke
+#    remove -laudio
+#
+#    Revision 1.5  1996/07/18 12:23:57  stolcke
+#    specify gcc version
+#
+#    Revision 1.4  1996/05/31 05:27:32  stolcke
+#    added SGI CC support
+#
+#    Revision 1.3  1995/06/19 02:08:21  stolcke
+#    added C++ support
+#
+#    Revision 1.2  1995/04/10 20:54:32  stolcke
+#    define RLD_FLAGS
+#
+# Revision 1.1  1995/03/08  02:19:51  stolcke
+# Initial revision
+#
+#
+
+ifeq ($(USE_CC), )
+   # all our machines are R4000 (or higher) based, so there is no use
+   # sticking to the mips1 instruction set
+   CC = gcc -bmips-sgi-irix6.2 -V2.95.2
+   CXX = g++ -bmips-sgi-irix6.2 -V2.95.2 
+else
+   # Use the SGI C++ compiler
+   CC = cc -n32
+   CXX = CC -ptused -n32 
+
+   # keep binaries separate from the default
+   OPTIMIZE_OPTION = _CC
+endif
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS = -g3 -O2
+   DEBUG_FLAGS = -g -DDEBUG
+   PROFILE_FLAGS = -p -g3 -O2
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -s
+
+   # Shared compilation flags.
+   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(DECIPHER_LIBDIR)
+
+   # Other useful compilation flags.
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES =
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS =
+
+   # Other useful libraries.
+   ADDITIONAL_LIBRARIES = -lmalloc -lm
+
+   # run-time linker path flag
+   RLD_FLAG = -rpath
+
+   # SGIs do not use "ranlib".
+   RANLIB = echo
+
+   # Generate dependencies from source files.
+   GEN_DEP = $(CC) $(CFLAGS) -M 
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -MM
+
+   # Run lint.
+   LINT = lint
+   LINT_FLAGS = -DDEBUG $(INCLUDES)
+

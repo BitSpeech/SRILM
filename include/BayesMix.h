@@ -16,7 +16,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/di/ws97/tools/srilm-0.97beta/lm/src/RCS/BayesMix.h,v 1.5 1997/07/22 15:06:08 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.7 1999/10/06 02:47:38 stolcke Exp $
  *
  */
 
@@ -41,6 +41,7 @@ public:
      */
     virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
     virtual void *contextID(const VocabIndex *context, unsigned &length);
+    virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
 
     /*
@@ -62,8 +63,6 @@ public:
 
 protected:
     LM &lm1, &lm2;				/* component models */
-
-    LogP contextProb(LM &lm, const VocabIndex *context);
 };
 
 

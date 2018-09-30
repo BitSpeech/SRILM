@@ -1,0 +1,135 @@
+.\" $Id: lm-scripts.1,v 1.3 2000/06/09 00:27:33 stolcke Exp $
+.TH lm-scripts 1 "$Date: 2000/06/09 00:27:33 $" "SRILM Tools"
+.SH NAME
+lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams \- manipulate N-gram language models
+.SH SYNOPSIS
+.B add-dummy-bows
+.RI [ lm-file ]
+.BI > new-lm-file
+.br
+.B change-lm-vocab
+.B \-vocab
+.I vocab
+.B \-lm
+.I lm-file
+.B \-write-lm
+.I new-lm-file
+.RB [ -tolower ] 
+.RB [ -subset ]
+.RI [ ngram-options ...]
+.br
+.B make-hiddens-lm 
+.RI [ lm-file ]
+.BI > hiddens-lm-file
+.br
+.B make-lm-subset 
+.IR count-file |\c
+.B - 
+.RI [ lm-file |\c
+.BR - ]
+.br
+.B make-sub-lm
+.RB [ maxorder=\fIN\fP ]
+.RI [ lm-file ]
+.BI > new-lm-file
+.br
+.B remove-lowprob-ngrams 
+.RI [ lm-file ]
+.BI > new-lm-file
+.SH DESCRIPTION
+These scripts perform various useful manipulations on N-gram models
+in their textual representation.
+Most operate on backoff N-grams in ARPA
+.BR ngram-format (5).
+.PP
+Since these tools are implemented as scripts they don't automatically
+input or output compressed model files correctly, unlike the main
+SRILM tools.
+However, since most scripts work with data from standard input or
+to standard output (by leaving out the file argument, or specifying it 
+as ``-'') it is easy to combine them with 
+.BR gunzip (1)
+or
+.BR gzip (1)
+on the command line.
+.PP
+Also note that many of the scripts take their options with the 
+.BR gawk (1)
+syntax
+.IB option = value
+instead of the more common
+.BI - option
+.IR value .
+.PP
+.B add-dummy-bows
+adds dummy backoff weights to N-grams, even where they 
+are not required, to satisfy some broken software that expects
+backoff weights on all N-grams (except those of highest order).
+.PP
+.B change-lm-vocab
+modifies the vocabulary of an LM to be that in 
+.IR vocab .
+Any N-grams containing out-of-vocabulary words are removed,
+new words receive a unigram probability, and the model
+is renormalized.
+The 
+.B \-tolower 
+option causes case distinctions to be ignored.
+.B \-subset
+only removes words from the LM vocabulary, without adding any.
+Any remaining
+.I ngram-options
+are passes to
+.BR ngram (1),
+and can be used to set debugging level, N-gram order, etc.
+.PP
+.B make-hiddens-lm
+constructs an N-gram model that can be used with the
+.B ngram \-hiddens
+option.
+The new model contains intra-utterance sentence boundary
+tags ``<#s>'' with the same probability as the original model
+had final sentence tags </s>.
+Also, utterance-initial words are not conditioned on <s> and
+there is no penalty associated with utterance-final </s>.
+Such as model might work better it the test corpus is segmented 
+at places other than proper <s> boundaries.
+.PP
+.B make-lm-subset
+forms a new LM containing only the N-grams found in the 
+.IR count-file ,
+in 
+.BR ngram-count (1)
+format.
+The result still needs to be renormalized with
+.B ngram -renorm
+(which will also adjust the N-gram counts in the header).
+.PP
+.B make-sub-lm
+removes N-grams of order exceeding
+.IR N .
+This function is now redundant, since
+all SRILM tools can do this implicitly (without using extra memory 
+and very small time overhead) when reading N-gram models
+with the appropriate
+.B \-order
+parameter.
+.PP
+.B remove-lowprob-ngrams
+eliminates N-grams whose probability is lower than that which they
+would receive through backoff.
+This is useful when building finite-state networks for N-gram
+models.
+However, this function is now performed much faster by 
+.BR ngram (1)
+with the
+.B \-prune-lowprobs
+option.
+.SH "SEE ALSO"
+ngram-format(5), ngram(1).
+.SH BUGS
+These are quick-and-dirty scripts, what do you expect?
+.SH AUTHOR
+Andreas Stolcke <stolcke@speech.sri.com>.
+.br
+Copyright 1995-1999 SRI International
