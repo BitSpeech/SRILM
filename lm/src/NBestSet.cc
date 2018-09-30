@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.4 2001/04/13 03:54:35 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998,2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.6 2002/08/08 19:10:31 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -62,29 +62,16 @@ NBestSet::read(File &file)
 	    return false;
 	}
 	
-	char *filenameCopy = new char[strlen(filename[0]) + 1];
-	assert(filenameCopy != 0);
-	strcpy(filenameCopy, filename[0]);
-
 	/*
 	 * Locate utterance id in filename
 	 */
-	const char *id = strrchr(filename[0], '/');
-	if (id) {
-	    id += 1;
-	} else {
-	    id = filename[0];
-	}
-
-	char *suffix = strchr(id, '.');
-	if (suffix) {
-	    *suffix = '\0';
-	}
-
+	RefString id = idFromFilename(filename[0]);
 	NBestSetElement *elt = lists.insert(id);
 
 	delete [] elt->filename;
-	elt->filename = filenameCopy;
+	elt->filename = new char[strlen(filename[0]) + 1];
+	assert(elt->filename != 0);
+	strcpy((char *)elt->filename, filename[0]);
 
 	delete elt->nbest;
 	if (incremental) {
@@ -181,6 +168,22 @@ NBestSetIter::next(RefString &id)
 	    }
 	}
 	return nextElt->nbest;
+    } else {
+	return 0;
+    }
+}
+
+const char *
+NBestSetIter::nextFile(RefString &id)
+{
+    if (lastElt) {
+	mySet.freeList(*lastElt);
+	lastElt = 0;
+    }
+	
+    NBestSetElement *nextElt = myIter.next(id);
+    if (nextElt) {
+	return nextElt->filename;
     } else {
 	return 0;
     }

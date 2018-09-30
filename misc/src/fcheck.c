@@ -1,7 +1,11 @@
 /*
  * fcheck.c --
  *	stdio file handling with error checking
+ *
+ * $Header: /home/srilm/devel/misc/src/RCS/fcheck.c,v 1.2 2003/02/21 22:01:23 stolcke Exp $
  */
+
+#include <stdlib.h>
 
 #define ZIO_HACK
 #include "zio.h"

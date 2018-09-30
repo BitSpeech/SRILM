@@ -1,0 +1,54 @@
+../obj/i386-solaris$(OBJ_OPTION)/Lattice.o: ./Lattice.cc Lattice.h /home/srilm/devel/include/Prob.h \
+ /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/LHash.h \
+ /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/SArray.h /home/srilm/devel/include/Map2.h \
+ /home/srilm/devel/include/Vocab.h /home/srilm/devel/include/File.h \
+ /home/srilm/devel/include/Array.h \
+ /home/srilm/devel/include/SubVocab.h \
+ /home/srilm/devel/include/Debug.h /home/srilm/devel/include/LM.h \
+ /home/srilm/devel/include/TextStats.h \
+ /home/srilm/devel/include/Ngram.h \
+ /home/srilm/devel/include/NgramStats.h \
+ /home/srilm/devel/include/LMStats.h /home/srilm/devel/include/Trie.h \
+ /home/srilm/devel/include/Discount.h \
+ /home/srilm/devel/include/SArray.cc \
+ /home/srilm/devel/include/LHash.cc /home/srilm/devel/include/Map2.cc \
+ /home/srilm/devel/include/Array.cc \
+ /home/srilm/devel/include/WordAlign.h
+../obj/i386-solaris$(OBJ_OPTION)/testLattice.o: ./testLattice.cc /home/srilm/devel/include/Vocab.h \
+ /home/srilm/devel/include/Boolean.h /home/srilm/devel/include/File.h \
+ /home/srilm/devel/include/LHash.h /home/srilm/devel/include/Map.h \
+ /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/SArray.h /home/srilm/devel/include/Array.h \
+ Lattice.h /home/srilm/devel/include/Prob.h \
+ /home/srilm/devel/include/Map2.h /home/srilm/devel/include/SubVocab.h \
+ /home/srilm/devel/include/Debug.h /home/srilm/devel/include/LM.h \
+ /home/srilm/devel/include/TextStats.h \
+ /home/srilm/devel/include/Ngram.h \
+ /home/srilm/devel/include/NgramStats.h \
+ /home/srilm/devel/include/LMStats.h /home/srilm/devel/include/Trie.h \
+ /home/srilm/devel/include/Discount.h
+../obj/i386-solaris$(OBJ_OPTION)/lattice-tool.o: ./lattice-tool.cc /home/srilm/devel/include/option.h \
+ /home/srilm/devel/include/MultiwordVocab.h \
+ /home/srilm/devel/include/Vocab.h /home/srilm/devel/include/Boolean.h \
+ /home/srilm/devel/include/File.h /home/srilm/devel/include/LHash.h \
+ /home/srilm/devel/include/Map.h /home/srilm/devel/include/MemStats.h \
+ /home/srilm/devel/include/SArray.h /home/srilm/devel/include/Array.h \
+ Lattice.h /home/srilm/devel/include/Prob.h \
+ /home/srilm/devel/include/Map2.h /home/srilm/devel/include/SubVocab.h \
+ /home/srilm/devel/include/Debug.h /home/srilm/devel/include/LM.h \
+ /home/srilm/devel/include/TextStats.h \
+ /home/srilm/devel/include/Ngram.h \
+ /home/srilm/devel/include/NgramStats.h \
+ /home/srilm/devel/include/LMStats.h /home/srilm/devel/include/Trie.h \
+ /home/srilm/devel/include/Discount.h \
+ /home/srilm/devel/include/MultiwordLM.h \
+ /home/srilm/devel/include/ClassNgram.h \
+ /home/srilm/devel/include/Trellis.h \
+ /home/srilm/devel/include/SimpleClassNgram.h \
+ /home/srilm/devel/include/BayesMix.h \
+ /home/srilm/devel/include/RefList.h
+../bin/i386-solaris$(BIN_OPTION)/testLattice: ../obj/i386-solaris$(OBJ_OPTION)/testLattice.o
+testLattice: ../bin/i386-solaris$(BIN_OPTION)/testLattice
+../bin/i386-solaris$(BIN_OPTION)/lattice-tool: ../obj/i386-solaris$(OBJ_OPTION)/lattice-tool.o
+lattice-tool: ../bin/i386-solaris$(BIN_OPTION)/lattice-tool

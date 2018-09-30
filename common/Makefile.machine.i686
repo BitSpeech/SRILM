@@ -9,12 +9,13 @@
 #
 #    Copyright (c) 1999-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.6 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.8 2003/02/21 22:30:00 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   CC = gcc -mcpu=i686
-   CXX = g++ -mcpu=i686
+   GCC_FLAGS = -mcpu=pentium3 -Wreturn-type -Wimplicit
+   CC = /usr/local/bin/gcc $(GCC_FLAGS)
+   CXX = /usr/local/bin/g++ -Wno-deprecated $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O2

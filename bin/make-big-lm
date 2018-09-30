@@ -13,7 +13,7 @@
 #	  into memory.
 #	- ngram-counts loads only those counts exceeding cutoff values.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.4 2000/10/11 01:57:56 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.14 2003/02/27 18:19:07 stolcke Exp $
 #
 
 name=biglm
@@ -24,112 +24,165 @@ gt3min=2
 gt4min=2
 gt5min=2
 gt6min=2
+gt7min=2
+gt8min=2
+gt9min=2
 gt1max=7
 gt2max=7
 gt3max=7
 gt4max=7
 gt5max=7
 gt6max=7
+gt7max=7
+gt8max=7
+gt9max=7
+kndiscount1=0
+kndiscount2=0
+kndiscount3=0
+kndiscount4=0
+kndiscount5=0
+kndiscount6=0
+kndiscount7=0
+kndiscount8=0
+kndiscount9=0
+using_kn=
+max_per_file=10000000
 
 trust_totals=0
-dummytag=_DUMMY_
+metatag=__meta__	# lowercase so it works with ngram-count -tolower
 
 while [ $# -gt 0 ]; do
     case "$1" in
     -name)	name=$2; shift ;;
     -order)	order=$2 ; shift ;;
-    -gt1min)	gt1min=$2; shift ;;
-    -gt2min)	gt2min=$2; shift ;;
-    -gt3min)	gt3min=$2; shift ;;
-    -gt4min)	gt4min=$2; shift ;;
-    -gt5min)	gt5min=$2; shift ;;
-    -gt6min)	gt6min=$2; shift ;;
+    -gt1min)	gt1min=$2; options="$options $1 $2" ; shift ;;
+    -gt2min)	gt2min=$2; options="$options $1 $2" ; shift ;;
+    -gt3min)	gt3min=$2; options="$options $1 $2" ; shift ;;
+    -gt4min)	gt4min=$2; options="$options $1 $2" ; shift ;;
+    -gt5min)	gt5min=$2; options="$options $1 $2" ; shift ;;
+    -gt6min)	gt6min=$2; options="$options $1 $2" ; shift ;;
+    -gt7min)	gt7min=$2; options="$options $1 $2" ; shift ;;
+    -gt8min)	gt8min=$2; options="$options $1 $2" ; shift ;;
+    -gt9min)	gt9min=$2; options="$options $1 $2" ; shift ;;
     -gt1max)	gt1max=$2; shift ;;
     -gt2max)	gt2max=$2; shift ;;
     -gt3max)	gt3max=$2; shift ;;
     -gt4max)	gt4max=$2; shift ;;
     -gt5max)	gt5max=$2; shift ;;
     -gt6max)	gt6max=$2; shift ;;
-    -read)	counts="$counts $2" ; shift ;;
+    -gt7max)	gt7max=$2; shift ;;
+    -gt8max)	gt8max=$2; shift ;;
+    -gt9max)	gt9max=$2; shift ;;
+    -kndiscount1)	kndiscount1=1; using_kn=1 ;;
+    -kndiscount2)	kndiscount2=1; using_kn=1 ;;
+    -kndiscount3)	kndiscount3=1; using_kn=1 ;;
+    -kndiscount4)	kndiscount4=1; using_kn=1 ;;
+    -kndiscount5)	kndiscount5=1; using_kn=1 ;;
+    -kndiscount6)	kndiscount6=1; using_kn=1 ;;
+    -kndiscount7)	kndiscount7=1; using_kn=1 ;;
+    -kndiscount8)	kndiscount8=1; using_kn=1 ;;
+    -kndiscount9)	kndiscount9=1; using_kn=1 ;;
+    -read)	if [ "$2" = - -o "$2" = "/dev/stdin" ]; then
+			echo "$0: cannot read from stdin" >&2
+			exit 2
+		fi
+		counts="$counts $2" ; shift ;;
     -trust-totals) trust_totals=1 ;;
+    -max-per-file) max_per_file=$2 ; shift ;;
     *)		options="$options $1" ;;
     esac
     shift
 done
 
 if [ $trust_totals -eq 0 ]; then
-	options="$options -dummy $dummytag"
+    options="$options -meta-tag $metatag"
 else
+    if [ "$using_kn" ]; then
+	echo "$0: -trust-totals incompatible with KN discounting; ignoring it" >&2
+	options="$options -meta-tag $metatag"
+    else
 	options="$options -trust-totals"
+    fi
 fi
 
 set -e
 
 #
+# if KN smoothing is used, compute the modified lower-order counts 
+#
+if [ "$using_kn" ]; then
+    kncounts=$name.kncounts.gz
+    if [ -f $kncounts ]; then
+	echo "using existing $kncounts" >&2
+    else
+	mkdir -p $name.kndir 
+	gunzip -cf $counts | \
+	(set -x; make-kn-counts \
+		no_max_order=1 max_per_file=$max_per_file \
+		order=$order \
+		kndiscount1=$kndiscount1 kndiscount2=$kndiscount2 \
+		kndiscount3=$kndiscount3 kndiscount4=$kndiscount4 \
+		kndiscount5=$kndiscount5 kndiscount6=$kndiscount6 \
+		kndiscount7=$kndiscount7 kndiscount8=$kndiscount8 \
+		kndiscount9=$kndiscount9 \
+		output=$name.kndir/kncounts)
+	(set -x; merge-batch-counts $name.kndir)
+
+	# this will fail if more than one count file is left in kndir,
+	# i.e., if merging didn't finish successfully
+	mv `find $name.kndir -name \*.ngrams.gz -print ` $kncounts
+    fi
+
+    options="$options -kn-counts-modified"
+fi
+
+#
 # compute counts-of-counts
 #
-if [ -f $name.gt1counts ]; then
-echo "using existing gtcounts" >&2 
+if [ -f $name.gt${order}counts ]; then
+    echo "using existing gtcounts" >&2 
 else
-for file in $counts
-do
-    case $file in
-    *.Z)	uncompress < $file ;;
-    *.gz)	gunzip < $file ;;
-    *)		cat $file ;;
-    esac
-done | get-gt-counts out=$name max=20
+    if [ "$using_kn" ]; then
+	# concatenate KN modified counts with highest-order original counts
+	gunzip -c $kncounts | gawk 'NF < 1+'$order
+	gunzip -cf $counts | gawk 'NF == 1+'$order
+    else 
+        gunzip -cf $counts
+    fi | (set -x; get-gt-counts out=$name max=20 maxorder=$order)
 fi
 
 #
 # compute discount factors
 #
 gtflags=
-for n in 1 2 3 4 5 6
+for n in 1 2 3 4 5 6 7 8 9 
 do
-    if [ $n -le $order -f $name.gt${n}counts ]; then
-	gtflags="$gtflags -gt${n} $name.gt${n}"
-	eval make-gt-discounts \
+    if [ $n -le $order -a -f $name.gt${n}counts ]; then
+	if (set +e; eval [ \"\$kndiscount${n}\" -eq 1 ]); then
+	    gtflags="$gtflags -kn${n} $name.kn${n}"
+	    eval make-kn-discounts \
+			min=\$gt${n}min $name.gt${n}counts > $name.kn${n}
+	else 
+	    gtflags="$gtflags -gt${n} $name.gt${n}"
+	    eval make-gt-discounts \
 			min=\$gt${n}min max=\$gt${n}max \
 			$name.gt${n}counts > $name.gt${n}
+	fi
     fi
 done
 
 #
 # filter counts and build lm
 #
-for file in $counts
-do
-    case $file in
-    *.Z)	uncompress < $file ;;
-    *.gz)	gunzip < $file ;;
-    *)		cat $file ;;
-    esac
-done | \
-gawk '
-NF > order + 1 {
-	next;
-}
-{
-  min = (NF == 2 ? gt1min :
-	 NF == 3 ? gt2min :
-	 NF == 4 ? gt3min :
-	 NF == 5 ? gt4min :
-	 NF == 6 ? gt5min :
-		   gt6min);
-
-   if ($NF < min) {
-	if (!trust_totals) $(NF - 1) = dummytag;
-	else next;
-   }
-   print;
-}
-' gt1min=$gt1min gt2min=$gt2min gt3min=$gt3min \
-  gt4min=$gt4min gt5min=$gt5min gt6min=$gt6min \
-  order=$order \
-  trust_totals=$trust_totals dummytag=$dummytag | \
+if [ "$using_kn" ]; then
+    # concatenate KN modified counts with highest-order original counts
+    gunzip -c $kncounts | gawk 'NF < 1+'$order
+    gunzip -cf $counts | gawk 'NF == 1+'$order
+else 
+    gunzip -cf $counts
+fi | \
 (set -x;  \
-ngram-count -read - -order $order \
+ngram-count -read - -read-with-mincounts -order $order \
 	$gtflags \
 	$options)
 

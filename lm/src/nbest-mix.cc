@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.4 2001/10/31 06:59:52 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.5 2002/02/06 15:33:37 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -29,6 +29,8 @@ static unsigned maxNbest = 0;
 static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
+static int setAMscores = 0;
+static int setLMscores = 0;
 
 static Option options[] = {
     { OPT_UINT, "debug", &debug, "debugging level" },
@@ -37,6 +39,8 @@ static Option options[] = {
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
+    { OPT_TRUE, "set-am-scores", &setAMscores, "set AM scores in output n-best list" },
+    { OPT_TRUE, "set-lm-scores", &setLMscores, "set LM scores in output n-best list" },
     { OPT_DOC, 0, 0, "weight1 nbest1 weight2 nbest2 ..." }
 };
 
@@ -67,6 +71,8 @@ mixNbestFiles(unsigned nlists, Array<Prob> &weights,
 	}
     }
 
+    LogP firstScore;
+
     /*
      * combine hyp posteriors
      */
@@ -79,17 +85,61 @@ mixNbestFiles(unsigned nlists, Array<Prob> &weights,
 
 	NBestHyp &resultHyp = result->getHyp(j);
 
-	/*
-	 * set result scores so that 
-	 * (1) hyps can be sorted by posteriors
-	 * (2) the nbest output reflects only the posteriors
-	 *     (AC and LM scores are meaningless after combination)
-	 */
 	resultHyp.posterior = totalPosterior;
 	resultHyp.totalScore = ProbToLogP(totalPosterior);
-	resultHyp.acousticScore = resultHyp.totalScore;
-	resultHyp.languageScore = 0.0;
-	resultHyp.numWords = 0;
+
+	if (setAMscores) {
+	    assert(nlists > 0);
+
+	    /*
+	     * set LM scores and IP from the first n-best list, and 
+	     * the AM score so that after score combination the posteriors
+	     * correspond to the mixture of all lists
+	     */
+	    resultHyp.numWords = nbestLists[0]->getHyp(j).numWords;
+	    resultHyp.languageScore = nbestLists[0]->getHyp(j).languageScore;
+	    resultHyp.acousticScore = 
+			resultHyp.totalScore * posteriorScale -
+			resultHyp.languageScore * rescoreLMW -
+			resultHyp.numWords * rescoreWTW;
+
+	    /*
+	     * Scale output AM scores to zero offset
+	     */
+	    if (j == 0) {
+		firstScore = resultHyp.acousticScore;
+	    }
+	    resultHyp.acousticScore -= firstScore;
+	} else if (setLMscores) {
+	    assert(nlists > 0);
+
+	    /*
+	     * set acoustic scores and IP from the first n-best list, and 
+	     * the LM score so that after score combination the posteriors
+	     * correspond to the mixture of all lists
+	     */
+	    resultHyp.acousticScore = nbestLists[0]->getHyp(j).acousticScore;
+	    resultHyp.numWords = nbestLists[0]->getHyp(j).numWords;
+	    resultHyp.languageScore = 
+			(resultHyp.totalScore * posteriorScale -
+			resultHyp.acousticScore -
+			resultHyp.numWords * rescoreWTW) / rescoreLMW;
+
+	    /*
+	     * Scale output LM scores to zero offset
+	     */
+	    if (j == 0) {
+		firstScore = resultHyp.languageScore;
+	    }
+	    resultHyp.languageScore -= firstScore;
+	} else {
+	    /*
+	     * set result scores so that acoustic scores reflect log posteriors
+	     */
+	    resultHyp.acousticScore = resultHyp.totalScore;
+	    resultHyp.languageScore = 0.0;
+	    resultHyp.numWords = 0;
+	}
     }
 
     return result;
@@ -102,6 +152,11 @@ main (int argc, char *argv[])
     setlocale(LC_COLLATE, "");
 
     argc = Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (setAMscores && setLMscores) {
+	cerr << "cannot set both AM and LM scores\n";
+	exit(2);
+    }
 
     Vocab vocab;
 

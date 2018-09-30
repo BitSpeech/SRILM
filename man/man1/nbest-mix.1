@@ -1,5 +1,5 @@
-.\" $Id: nbest-mix.1,v 1.3 1999/10/18 15:14:10 stolcke Exp $
-.TH nbest-mix 1 "$Date: 1999/10/18 15:14:10 $" "SRILM Tools"
+.\" $Id: nbest-mix.1,v 1.5 2002/02/06 15:44:22 stolcke Exp $
+.TH nbest-mix 1 "$Date: 2002/02/06 15:44:22 $" "SRILM Tools"
 .SH NAME
 nbest-mix \- interpolate N-best posterior probabilities
 .SH SYNOPSIS
@@ -35,9 +35,11 @@ Controls the amount of output (the higher the
 the more).
 .TP
 .BI \-write-nbest " file"
-Outputs the N-best list corresponding to the interpolated 
-posterior distribution to a file.
-This suppresses the printing of the best hyp.
+Output N-best lists containing scores that correspond to the log of
+the combined posteriors of the input hypotheses.
+The log posterior is assigned as the acoustic score and other scores
+are set to zero.
+This also suppresses the printing of the best hyp.
 .TP
 .BI \-max-nbest " n"
 Limits the number of hypotheses read from each N-best list to the first
@@ -62,11 +64,40 @@ The default value is whatever was chosen for
 .IR lmw ,
 so that language model scores are scaled to have weight 1,
 and acoustic scores have weight 1/\fIlmw\fP.
+.TP
+.B \-set-lm-scores
+In conjunction with
+.BR \-write-nbest ,
+output N-best lists that preserve the acoustic scores and word counts 
+of the (first of the) input N-best lists, and encodes the combined 
+log posteriors via the LM scores.
+The LM scores in the output are calculated so that, when combined with
+the acoustic scores and insertion penalties (using the given LM weight
+and posterior scaling), the result is the weighted, combined posteriors based
+on all input N-best scores.
+This option is useful if input N-best lists were created by rescoring with
+different language models, and the output N-best lists are to be combined
+with other scores or if the score weighting is to be optimized with
+.BR nbest-optimize (1).
+.TP
+.B \-set-am-scores
+Analogous to 
+.BR \-set-lm-scores ,
+except that the acoustic scores are modified to reflect combined log posterior
+probabiltities, and other scores are preserved.
+This option is useful if input N-best lists were created by rescoring with
+different acoustic models.
 .SH "SEE ALSO"
-nbest-lattice(1), nbest-scripts(1).
+nbest-lattice(1), nbest-scripts(1), nbest-optimize(1).
+.br
+A. Stolcke, K. Ries, N. Coccaro, E. Shriberg, R. Bates, D. Jurafsky, P. Taylor,
+R. Martin, C. Van Ess-Dykema, & M. Meteer,
+``Dialogue Act Modeling for Automatic Tagging and Recognition of Conversational
+Speech,''
+\fIComputational Linguistics\fP 26(3), 339-373, 2000.
 .SH BUGS
-Probably.
+Hopefully not.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1998 SRI International
+Copyright 1998,2002 SRI International

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.9 1999/10/23 05:00:32 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.11 2003/02/15 06:56:29 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -39,7 +39,7 @@ AdaptiveMix::AdaptiveMix(Vocab &vocab, double decay, double llscale,
  *		...
  */
 Boolean
-AdaptiveMix::read(File &file)
+AdaptiveMix::read(File &file, Boolean limitVocab)
 {
     /*
      * dispose of old component models
@@ -68,11 +68,11 @@ AdaptiveMix::read(File &file)
 
 	Boolean ok;
 	if (strcmp(filename, "-") == 0) {
-	    ok = compLMs[numComps]->read(file);
+	    ok = compLMs[numComps]->read(file, limitVocab);
 	} else {
 	    File lmFile(filename, "r");
 
-	    ok = compLMs[numComps]->read(lmFile);
+	    ok = compLMs[numComps]->read(lmFile, limitVocab);
 	}
 
 	if (!ok) {
@@ -240,14 +240,16 @@ AdaptiveMix::wordProb(VocabIndex word, const VocabIndex *context)
 }
 
 void *
-AdaptiveMix::contextID(const VocabIndex *context, unsigned &length)
+AdaptiveMix::contextID(VocabIndex word, const VocabIndex *context,
+							    unsigned &length)
 {
     unsigned maxLen;
     void *maxCid;
 
     /*
      * Return the context ID of the component model that uses the longest
-     * context.
+     * context.  We must use longest context regardless of predicted word 
+     * because mixture models don't support contextBOW().
      */
     for (unsigned i = 0; i < numComps; i ++) {
 	unsigned clen;

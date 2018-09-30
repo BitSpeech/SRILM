@@ -4,8 +4,8 @@ lm-scripts(1)                                       lm-scripts(1)
 
 NNAAMMEE
        lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-
-       lm, make-lm-subset, make-sub-lm,  remove-lowprob-ngrams  -
-       manipulate N-gram language models
+       lm,  make-lm-subset,  make-sub-lm,  remove-lowprob-ngrams,
+       reverse-lm, sort-lm - manipulate N-gram language models
 
 SSYYNNOOPPSSIISS
        aadddd--dduummmmyy--bboowwss [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
@@ -15,6 +15,8 @@ SSYYNNOOPPSSIISS
        mmaakkee--llmm--ssuubbsseett _c_o_u_n_t_-_f_i_l_e|-- [_l_m_-_f_i_l_e|--]
        mmaakkee--ssuubb--llmm [mmaaxxoorrddeerr==_N] [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
        rreemmoovvee--lloowwpprroobb--nnggrraammss [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
+       rreevveerrssee--llmm [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
+       ssoorrtt--llmm [_l_m_-_f_i_l_e] >>_s_o_r_t_e_d_-_l_m_-_f_i_l_e
 
 DDEESSCCRRIIPPTTIIOONN
        These scripts perform various useful manipulations  on  N-
@@ -75,16 +77,31 @@ DDEESSCCRRIIPPTTIIOONN
        formed much faster by nnggrraamm(1)  with  the  --pprruunnee--lloowwpprroobbss
        option.
 
+       rreevveerrssee--llmm produces a new LM that generates sentences with
+       probabilities equal to the reversed sentences in the input
+       model.
+
+       ssoorrtt--llmm  sorts the n-grams in an LM in lexicographic order
+       (left-most words being the most significant).  This is not
+       a  requirement  for SRILM, but might be necessary for some
+       other LM software.  (The LMs output by  SRILM  are  sorted
+       somewhat  differently, reflecting the internal data struc-
+       tures used; that is also the order that should  give  best
+       cache utilization when using SRILM to read models.)
+
 SSEEEE AALLSSOO
        ngram-format(5), ngram(1).
 
 BBUUGGSS
        These are quick-and-dirty scripts, what do you expect?
+       rreevveerrssee--llmm  supports  only  bigram  LMs,  and  can produce
+       improper probability estimates as a result of inconsistent
+       marginals in the input model.
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1995-1999 SRI International
+       Copyright 1995-2003 SRI International
 
 
 
-SRILM Tools        $Date: 2000/06/09 00:27:33 $     lm-scripts(1)
+SRILM Tools        $Date: 2003/02/20 16:45:10 $     lm-scripts(1)

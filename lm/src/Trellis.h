@@ -2,52 +2,202 @@
  * Trellis.h --
  *	Trellises for dynamic programming finite state models
  *
- * Copyright (c) 1995,1997 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.11 1999/05/13 02:55:44 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.16 2002/03/01 17:05:32 stolcke Exp $
  *
  */
 
 #ifndef _Trellis_h_
 #define _Trellis_h_
 
+#include <iostream>
+#include <iomanip>
+
+#include "Array.h"
+#include "LHash.h"
+
 #include "Boolean.h"
 #include "Prob.h"
-#include "LHash.h"
 #include "MemStats.h"
 
-template <class StateT> class Trellis;		// forward declaration
-template <class StateT> class TrellisIter;	// forward declaration
-
 /*
- * A node in the trellis
+ * Forward declarations
+ */
+template <class StateT> class Trellis;
+template <class StateT> class TrellisNode;
+template <class StateT> class TrellisSlice;
+template <class StateT> class TrellisNBestList;
+template <class StateT> class TrellisIter;
+
+
+/* ---------------Trellis node class------------------------------------------
+ *
+ * A node in the trellis.  Each node contains an nbestList that is a vector of
+ * hypotheses.  See the next class for a description of the contents of the
+ * hypothesis.
  */
 template <class StateT>
 class TrellisNode
 {
+    friend ostream& operator<< <StateT>(ostream& os,
+					const TrellisNode<StateT>& node);
     friend class Trellis<StateT>;
+    friend class TrellisSlice<StateT>;
     friend class TrellisIter<StateT>;
 
-    LogP lprob;		/* total forward probability */
-    LogP backlpr;	/* total backword probability */
-    LogP max;		/* maximum forward probability */
-    LogP backmax;	/* maximum backward probability */
-    StateT prev;	/* Viterbi backpointer */
+public:
+    unsigned nbestSize() const { return nbest.size(); };
+    void clear() { nbest.init(0); };
+  
+private:
+    LogP lprob;				// total forward probability
+    LogP backlpr;			// total backword probability
+    LogP backmax;			// maximum backward probability
+
+    TrellisNBestList<StateT> nbest;	// list of n-best paths
 };
 
+/*
+ * At the moment, we only print out the node's nbest list when asked to
+ * print out the node contents.
+ */
+template<class StateT>
+inline ostream&
+operator <<(ostream& os, const TrellisNode<StateT>& node) {
+    return os << node.nbest;
+}
+
+/*---------------N-Best Hyp and List classes---------------------------------
+ *
+ * The (N-Best) Hypothesis class.  Each hyp consists of a score (usually
+ * the log prob), a back pointer to the previous state and the index
+ * of the particular nbest hypothesis at this previous state to which
+ * the current one backpoints.
+ */
+template <class StateT>
+struct Hyp {
+    LogP score;				// nbest score
+    StateT prev;			// Viterbi backpointer
+    int whichbest;
+
+    Hyp(): score(LogP_Zero), whichbest(0) { Map_noKey(prev); };
+    Hyp(LogP s, StateT b, int w): score(s), prev(b), whichbest(w) {};
+};
+
+template<class StateT>
+inline ostream&
+operator<<(ostream& os, const Hyp<StateT>& h) {
+    if (Map_noKeyP(h.prev)) {
+	return os << "(" << std::setw(2) << std::setprecision(2) << h.score
+		  << ", ," << h.whichbest << ")";
+    } else {
+	return os << "(" << std::setw(2) << std::setprecision(2) << h.score
+		  << "," << h.prev << "," << h.whichbest << ")";
+    }
+}
+
+/*
+ * The nbest list class is just an array of hypotheses.  The size itself is
+ * not set in the constructor.  So when a node in the trellis is
+ * initialized, we must explicitly set the size of that state's nbest list
+ * to the numNbest member of Trellis.
+ */
+template <class StateT>
+class TrellisNBestList {
+    friend ostream& operator<< <StateT>(ostream& os,
+					const TrellisNBestList<StateT>& nbest);
+
+public:
+    TrellisNBestList(unsigned num = 0);
+    ~TrellisNBestList();
+  
+    unsigned size() const { return numNbest; };
+    void init(unsigned newSize = 1);
+    Hyp<StateT>& operator[](unsigned n) { return nblist[n]; };
+    const Hyp<StateT>& operator[](unsigned n) const { return nblist[n]; };
+    unsigned findrank(const Hyp<StateT>& hyp) const;
+    void insert(const Hyp<StateT>& h);
+
+private:
+    unsigned numNbest;
+    Hyp<StateT> *nblist;
+};
+
+template<class StateT>
+inline ostream&
+operator<< (ostream& os, const TrellisNBestList<StateT>& nbest)
+{
+    for (unsigned n = 0; n < nbest.size(); n++) {
+	os << nbest.nblist[n] << " ";
+    }
+    return os;
+}
+
+/*---------------Trellis time slice class------------------------------------
+ *
+ * The time-slice class.  This consists of a hash-map of nodes keyed by
+ * states and a global N-best list at this time slice.  The global N-best lisT
+ * is necessary for the following reason:  Suppose we required the nbest list
+ * for a particular slice -- this is *NOT* the nbest list of the state that
+ * ends the most likely path at this slice.  The next best path could end
+ * at a different state.  We thus need to compute the n-best of the union
+ * of all the nbest paths from this time slice.  That is what the global list
+ * stores.
+ */
+template <class StateT>
+class TrellisSlice
+{
+    friend class Trellis<StateT>;
+    friend class TrellisIter<StateT>;
+    friend ostream& operator<< <StateT>(ostream& os,
+					const TrellisSlice<StateT>& slice);
+
+public:
+    ~TrellisSlice();
+    void init();
+    unsigned size() const { return nodes.size(); };
+    LogP sum();
+    StateT max();
+    TrellisNode<StateT>& operator[](StateT s) { return nodes[s]; };
+    TrellisNode<StateT>& operator[](StateT s) const { return nodes[s]; };
+    TrellisNBestList<StateT>& nbest(unsigned numNbest);
+
+    TrellisNode<StateT> *insert(StateT s, Boolean& foundP)
+      { return nodes.insert(s, foundP); };
+    TrellisNode<StateT> *find(StateT s) { return nodes.find(s); };
+    TrellisNode<StateT> *find(StateT s) const { return nodes.find(s); };
+
+private:
+    LHash<StateT, TrellisNode<StateT> > nodes;
+    TrellisNBestList<StateT> globalNbest;
+};
+
+/*---------------Trellis Class-----------------------------------------------
+ *
+ * The Trellis class. This is implemented as an array of time slices
+ * stored in the member trellis.
+ */
 template <class StateT>
 class Trellis
 {
     friend class TrellisIter<StateT>;
+    friend ostream& operator<< <StateT> (ostream& os, const Trellis<StateT>& trellis);
+
 public:
-    Trellis(unsigned size);
+    Trellis(unsigned len, unsigned numNbest = 1);
     ~Trellis();
 
     unsigned where() { return currTime; };	/* current time index */
 
+    unsigned size() const { return trellisSize; };
     void clear();				/* remove all states */
-    void init(unsigned time = 0);	/* start DP for time index 0 */
-    void step();	/* step and initialize next time index */
+    void init(unsigned time = 0);		/* start DP for time index 0 */
+    void step();	      /* step and initialize next time index */
+
+    TrellisSlice<StateT>& operator[](unsigned t) { return trellis[t]; };
+    const TrellisSlice<StateT>& operator[](unsigned t) const
+	{ return trellis[t]; };
 
     void setProb(StateT state, LogP prob);
     Prob getProb(StateT state) { return getProb(state, currTime); };
@@ -68,8 +218,15 @@ public:
     Prob sum(unsigned time) { return LogPtoProb(sumLogP(time)); };
     StateT max(unsigned time);		/* maximum prob state */
 
-    unsigned viterbi(StateT *path, unsigned length);
-    unsigned viterbi(StateT *path, unsigned length, StateT lastState);
+    unsigned viterbi(StateT *path, unsigned len);
+    unsigned viterbi(StateT *path, unsigned len, StateT lastState)
+      { LogP dummy; return nbest_viterbi(path, len, 0, dummy, lastState); };
+    unsigned nbest_viterbi(StateT *path, unsigned len, unsigned nth)
+      { LogP dummy; return nbest_viterbi(path, len, nth, dummy); };
+    unsigned nbest_viterbi(StateT *path, unsigned len, unsigned nth,
+						LogP &score);
+    unsigned nbest_viterbi(StateT *path, unsigned len, unsigned nth,
+						LogP &score, StateT lastState);
 
     void setBackProb(StateT state, LogP prob);
     Prob getBackProb(StateT state)
@@ -82,23 +239,28 @@ public:
 
     void initBack() { initBack(currTime); };	/* start backward DP */
     void initBack(unsigned time);		/* start backward DP */
-    void stepBack();	/* step back in time */
+    void stepBack();	                        /* step back in time */
     void updateBack(StateT oldState, StateT newState, LogP trans);
-			/* update backward probs with a transition */
-
-    void memStats(MemStats &stats);
+      /* update backward probs with a transition */
 
 private:
-    LHash<StateT, TrellisNode<StateT> > *trellis;
-    unsigned trellisSize;	/* maximum time index */
+    TrellisSlice<StateT> *trellis;
+    unsigned trellisSize;
 
     unsigned currTime;		/* current time index */
     unsigned backTime;		/* current backward time index */
+    unsigned numNbest;	        /* number of nbest paths */
 
-    void initSlice(LHash<StateT, TrellisNode<StateT> > &slice);
-    LogP sumSlice(LHash<StateT, TrellisNode<StateT> > &slice);
-    StateT maxSlice(LHash<StateT, TrellisNode<StateT> > &slice);
 };
+
+template<class StateT>
+inline ostream&
+operator<<(ostream& os, const Trellis<StateT>& trellis) {
+    for (unsigned i = 0; i < trellis.size(); i++) {
+	os << " Slice " << i << endl << trellis[i];
+    }
+    return os;
+}
 
 /*
  * Iteration over states in a trellis slice
@@ -107,7 +269,7 @@ template <class StateT>
 class TrellisIter
 {
 public:
-    TrellisIter(Trellis<StateT> &trellis, unsigned time);
+    TrellisIter(Trellis<StateT> &trellis, unsigned t);
 
     void init();
     Boolean next(StateT &state, LogP &prob);

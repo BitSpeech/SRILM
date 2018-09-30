@@ -1,0 +1,12 @@
+#!/bin/sh
+
+mkdir -p nbest.scores
+
+rescore-decipher -nodecipherlm -multiwords \
+	nbest.files \
+	nbest.scores \
+	-lm ../ngram-count-gt/swbd.3bo.gz 
+
+rescore-reweight nbest.scores 8 0 
+
+rm -rf nbest.scores

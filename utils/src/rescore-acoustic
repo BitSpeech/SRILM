@@ -4,7 +4,7 @@
 #       Replace acoustic Nbest scores with a weighted combination of
 #       old and new acoustic scores
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-acoustic,v 1.5 2000/10/11 01:57:56 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-acoustic,v 1.6 2003/01/11 01:25:44 stolcke Exp $
 #
 
 if [ $# -lt 5 ]; then
@@ -36,7 +36,7 @@ trap "rm -f $join1 $join2" 0 1 2 15
 
 echo "generating sentids ..." >&2
 if [ -d $old_nbest ]; then
-	find $old_nbest/. -type f -print
+	find $old_nbest/. -follow -type f -print
 else
 	cat $old_nbest 
 fi | \
@@ -48,7 +48,7 @@ echo "`wc -l < $join1` utterances" >&2
 for d in $new_scores
 do
 	echo "joining $d ..." >&2
-	find $d/. -type f -print | \
+	find $d/. -follow -type f -print | \
 	sed -e 's,.*,& &,' -e 's,[^ ]*/,,' -e 's,\.gz , ,' |\
 	sort +0 -1 | \
 	/usr/local/gnu/bin/join $join1 - > $join2

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995,1997,2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.9 2000/06/12 05:59:55 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.10 2002/05/24 19:03:49 stolcke Exp $";
 #endif
 
 #include "WordAlign.h"
@@ -29,7 +29,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 
 unsigned
 wordError(const VocabIndex *ref, const VocabIndex *hyp,
 			unsigned &sub, unsigned &ins, unsigned &del,
-			WordAlignType *alignment = 0)
+			WordAlignType *alignment)
 {
     unsigned hypLength = Vocab::length(hyp);
     unsigned refLength = Vocab::length(ref);

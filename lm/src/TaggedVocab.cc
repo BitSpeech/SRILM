@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/speech/stolcke/project/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.2 1996/05/31 05:25:44 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.3 2002/08/09 08:45:16 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -84,7 +84,7 @@ TaggedVocab::addWord(VocabString name)
 }
 
 VocabString
-TaggedVocab::getWord(VocabIndex index)
+TaggedVocab::getWord(VocabIndex index) const
 {
     /*
      * Check if index contains tag, and if so construct a word/tag string
@@ -196,7 +196,7 @@ TaggedVocab::remove(VocabIndex index)
 
 // Write vocabulary to file
 void
-TaggedVocab::write(File &file, Boolean sorted)
+TaggedVocab::write(File &file, Boolean sorted) const
 {
     Vocab::write(file, sorted);
 

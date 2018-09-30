@@ -1,4 +1,4 @@
-<! $Id: hidden-ngram.1,v 1.13 2001/08/18 03:22:02 stolcke Exp $>
+<! $Id: hidden-ngram.1,v 1.20 2003/01/28 17:36:50 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>hidden-ngram</TITLE>
@@ -32,6 +32,10 @@ Print option summary.
 <DD>
 Specifies the file containing the word sequences to be tagged
 (one sentence per line).
+Start- and end-of-sentence tags are 
+<I> not </I>
+added by the program, but should be included in the input if the 
+language model uses them.
 <DT><B>-escape</B><I> string</I><B></B>
 <DD>
 Set an ``escape string.''
@@ -76,6 +80,79 @@ file in
 Set the effective N-gram order used by the language model to
 <I>n</I>.<I></I>
 Default is 3 (use a trigram model).
+<DT><B>-classes</B><I> file</I><B></B>
+<DD>
+Interpret the LM as an N-gram over word classes.
+The expansions of the classes are given in
+<I>file</I><I></I>
+in 
+<A HREF="classes-format.html">classes-format(5)</A>.
+Tokens in the LM that are not defined as classes in
+<I> file </I>
+are assumed to be plain words, so that the LM can contain mixed N-grams over
+both words and word classes.
+<DT><B>-simple-classes</B><B></B>
+<DD>
+Assume a "simple" class model: each word is member of at most one word class,
+and class expansions are exactly one word long.
+<DT><B>-mix-lm</B><I> file</I><B></B>
+<DD>
+Read a second N-gram model for interpolation purposes.
+The second and any additional interpolated models can also be class N-grams
+(using the same
+<B> -classes </B>
+definitions).
+<DT><B>-lambda</B><I> weight</I><B></B>
+<DD>
+Set the weight of the main model when interpolating with
+<B>-mix-lm</B>.<B></B>
+Default value is 0.5.
+<DT><B>-mix-lm2</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm3</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm4</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm5</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm6</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm7</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm8</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm9</B><I> file</I><B></B>
+<DD>
+Up to 9 more N-gram models can be specified for interpolation.
+<DT><B>-mix-lambda2</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda3</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda4</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda5</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda6</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda7</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda8</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda9</B><I> weight</I><B></B>
+<DD>
+These are the weights for the additional mixture components, corresponding
+to
+<B> -mix-lm2 </B>
+through
+<B>-mix-lm9</B>.<B></B>
+The weight for the
+<B> -mix-lm </B>
+model is 1 minus the sum of 
+<B> -lambda </B>
+and 
+<B> -mix-lambda2 </B>
+through
+<B>-mix-lambda9</B>.<B></B>
 <DT><B>-lmw</B><I> W</I><B></B>
 <DD>
 Scales the language model probabilities by a factor 
@@ -104,6 +181,8 @@ between words (which is the default).
 <DD>
 Do not map unknown input words to the &lt;unk&gt; token.
 Instead, output the input word unchanged.
+Also, with this option the LM is assumed to be open-vocabulary
+(the default is close-vocabulary).
 <DT><B> -fb </B>
 <DD>
 Perform forward-backward decoding of the input token sequence.
@@ -142,6 +221,22 @@ If
 is also specified this probability is obtained by summing over all
 hidden event sequences; otherwise it is calculated (i.e., underestimated)
 using the most probably hidden event sequence.
+<DT><B>-nbest</B><I> N</I><B></B>
+<DD>
+Output the
+<I> N </I>
+best hypotheses instead of just the first best when
+doing Viterbi search.
+If
+<I>N</I>&gt;1,<I></I>
+then each hypothesis is prefixed by the tag
+<B>NBEST_</B><I>n</I><B> </B>
+where
+<I> n </I>
+is the rank of the hypothesis in the N-best list and
+<I> x </I>
+its score, the negative log of the combined probability of transitions
+and observations of the corresponding HMM path.
 <DT><B>-write-counts</B><I> file</I><B></B>
 <DD>
 Write the posterior weighted counts of n-grams, including those
@@ -171,22 +266,35 @@ stdin/stdout.
 <H2> BUGS </H2>
 The
 <B> -continuous </B>
-option effectively disables
+and
+<B> -text-map </B>
+options effectively disable
 <B>-keep-unk</B>,<B></B>
 i.e., unknown input words are always mapped to &lt;unk&gt;.
 Also, 
 <B> -continuous </B>
 doesn't preserve the positions of escaped input lines relative to
 the input.
+<BR>
+The dynamic programming for event decoding is not efficiently interleaved
+with that required to evaluate class N-gram models;
+therefore, the state space generated 
+in decoding with 
+<B>-classes</B><B></B>
+quickly becomes infeasibly large unless 
+<B>-simple-classes</B><B></B>
+is also specified.
 <H2> SEE ALSO </H2>
-<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="disambig.html">disambig(1)</A>, <A HREF="segment.html">segment(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>.
+<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="disambig.html">disambig(1)</A>, <A HREF="segment.html">segment(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>.
 <BR>
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
 Disfluencies based on Recognized Words,''
 <I>Proc. ICSLP</I>, 2247-2250, Sydney.
-<H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+<H2> AUTHORS </H2>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;,
 <BR>
-Copyright 1998-1999 SRI International
+Anand Venkataraman &lt;anand@speech.sri.com&gt;.
+<BR>
+Copyright 1998-2002 SRI International
 </BODY>
 </HTML>

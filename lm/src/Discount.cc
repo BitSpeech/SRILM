@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.11 2001/05/24 03:19:05 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.15 2002/07/27 18:30:56 stolcke Exp $";
 #endif
 
 #include "Discount.h"
@@ -29,7 +29,7 @@ GoodTuring::GoodTuring(unsigned mincount, unsigned maxcount)
 /*
  * Debug levels used here
  */
-#define DEBUG_PRINT_GTCOUNTS	1
+#define DEBUG_ESTIMATE_DISCOUNT	1
 
 /*
  * GT discounting uses the formula
@@ -147,12 +147,22 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
     while (count = iter.next()) {
 	if (counts.vocab.isNonEvent(wids[order - 1])) {
 	    continue;
+	} else if (counts.vocab.isMetaTag(wids[order - 1])) {
+	    unsigned type = counts.vocab.typeOfMetaTag(wids[order - 1]);
+
+	    /*
+	     * process count-of-count
+	     */
+	    if (type > 0 && type <= maxCount + 1) {
+		countOfCounts[type] += *count;
+	    }
 	} else if (*count <= maxCount + 1) {
 	    countOfCounts[*count] ++;
 	}
     }
 
-    if (debug(DEBUG_PRINT_GTCOUNTS)) {
+    if (debug(DEBUG_ESTIMATE_DISCOUNT)) {
+	dout() << "Good-Turing discounting " << order << "-grams\n";
 	for (i = 0; i <= maxCount + 1; i++) {
 	    dout() << "GT-count [" << i << "] = " << countOfCounts[i] << endl;
 	}
@@ -245,5 +255,209 @@ NaturalDiscount::estimate(NgramStats &counts, unsigned order)
 
     vocabSize = total;
     return true;
+}
+
+
+/*
+ * Modified Kneser-Ney discounting
+ *	as described in S. F. Chen & J. Goodman, An Empirical Study of 
+ *	Smoothing Techniques for Language Modeling, TR-10-98, Computer
+ *	Science Group, Harvard University, Cambridge, MA, August 1998.
+ */
+double
+ModKneserNey::discount(Count count, Count totalCount, Count observedVocab)
+{
+    if (count <= 0) {
+	return 1.0;
+    } else if (count < minCount) {
+	return 0.0;
+    } else if (count == 1) {
+	return (count - discount1) / count;
+    } else if (count == 2) {
+	return (count - discount2) / count;
+    } else {
+	return (count - discount3plus) / count;
+    }
+}
+
+double
+ModKneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab)
+{
+    return (discount1 * (observedVocab - min2Vocab) +
+	    discount2 * (min2Vocab - min3Vocab) +
+	    discount3plus * min3Vocab) / totalCount;
+}
+
+void
+ModKneserNey::write(File &file)
+{
+    fprintf(file, "mincount %d\n", minCount);
+    fprintf(file, "discount1 %lf\n", discount1);
+    fprintf(file, "discount2 %lf\n", discount2);
+    fprintf(file, "discount3+ %lf\n", discount3plus);
+}
+
+Boolean
+ModKneserNey::read(File &file)
+{
+    char *line;
+
+    while (line = file.getline()) {
+	unsigned count;
+	double coeff;
+	
+	if (sscanf(line, "mincount %u", &minCount) == 1) {
+	    continue;
+	} else if (sscanf(line, "discount1 %lf", &discount1) == 1) {
+	    continue;
+	} else if (sscanf(line, "discount2 %lf", &discount2) == 1) {
+	    continue;
+	} else if (sscanf(line, "discount3+ %lf", &discount3plus) == 1) {
+	    continue;
+	} else {
+	    file.position() << "unrecognized parameter\n";
+	    return false;
+	}
+    }
+    return true;
+}
+
+Boolean
+ModKneserNey::estimate(NgramStats &counts, unsigned order)
+{
+    prepareCounts(counts, order, counts.getorder());
+
+    /*
+     * First tabulate count-of-counts
+     */
+    Count n1 = 0;
+    Count n2 = 0;
+    Count n3 = 0;
+    Count n4 = 0;
+
+    VocabIndex wids[order + 1];
+    NgramsIter iter(counts, wids, order);
+    Count *count;
+
+    while (count = iter.next()) {
+	if (counts.vocab.isNonEvent(wids[order - 1])) {
+	    continue;
+	} else if (counts.vocab.isMetaTag(wids[order - 1])) {
+	    unsigned type = counts.vocab.typeOfMetaTag(wids[order - 1]);
+
+	    /*
+	     * process count-of-count
+	     */
+	    if (type == 1) {
+		n1 ++;
+	    } else if (type == 2) {
+		n2 ++;
+	    } else if (type == 3) {
+		n3 ++;
+	    } else if (type == 4) {
+		n4 ++;
+	    }
+	} else if (*count == 1) {
+	    n1 ++;
+	} else if (*count == 2) {
+	    n2 ++;
+	} else if (*count == 3) {
+	    n3 ++;
+	} else if (*count == 4) {
+	    n4 ++;
+	}
+    }
+	    
+    if (debug(DEBUG_ESTIMATE_DISCOUNT)) {
+	dout() << "Kneser-Ney smoothing " << order << "-grams\n"
+	       << "n1 = " << n1 << endl
+	       << "n2 = " << n2 << endl
+	       << "n3 = " << n3 << endl
+	       << "n4 = " << n4 << endl;
+    }
+
+    if (n1 == 0 || n2 == 0 || n3 == 0 || n4 ==0) {
+	cerr << "warning: one of required count-of-counts is zero\n";
+	return false;
+    }
+
+    /*
+     * Compute discount constants (Ries 1997, Chen & Goodman 1998)
+     */
+    double Y = (double)n1/(n1 + 2 * n2);
+
+    discount1 = 1 - 2 * Y * n2 / n1;
+    discount2 = 2 - 3 * Y * n3 / n2;
+    discount3plus = 3 - 4 * Y * n4 / n3;
+
+    if (debug(DEBUG_ESTIMATE_DISCOUNT)) {
+	dout() << "D1 = " << discount1 << endl
+	       << "D2 = " << discount2 << endl
+	       << "D3+ = " << discount3plus << endl;
+    }
+
+    return true;
+}
+
+void
+ModKneserNey::prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
+							    unsigned maxOrder)
+{
+    if (countsAreModified || order >= maxOrder) {
+	return;
+    }
+
+    if (debug(DEBUG_ESTIMATE_DISCOUNT)) {
+	dout() << "modifying "
+	       << order << "-gram counts for Kneser-Ney smoothing\n";
+    }
+
+    /*
+     * For the lower-order counts in KN discounting we need to replace the
+     * counts to reflect the number of contexts in which a given N-gram
+     * occurs.  Specifically,
+     *
+     *		c(w2,...,wN) = number of N-grams w1,w2,...wN with count > 0
+     */
+    VocabIndex ngram[order + 2];
+    VocabIndex ssIndex = counts.vocab.ssIndex;
+
+    /*
+     * clear all counts of given order 
+     * Note: exclude N-grams starting with <s> since there usually are no
+     * words preceeding <s>.
+     */
+    {
+	NgramCountsIter<NgramCount> iter(counts, ngram, order);
+	NgramCount *count;
+
+	while (count = iter.next()) {
+	    if (ngram[0] != ssIndex) {
+		*count = 0;
+	    }
+	}
+    }
+
+
+    /*
+     * Now accumulate new counts
+     */
+    {
+	NgramCountsIter<NgramCount> iter(counts, ngram, order + 1);
+	NgramCount *count;
+
+	while (count = iter.next()) {
+	    if (*count > 0 && ngram[1] != ssIndex) {
+		NgramCount *loCount = counts.findCount(&ngram[1]);
+
+		if (loCount) {
+		    (*loCount) ++;
+		}
+	    }
+	}
+    }
+
+    countsAreModified = true;
 }
 

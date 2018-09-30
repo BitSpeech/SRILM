@@ -2,7 +2,7 @@
  * SkipNgram.h --
  *	N-gram backoff language model with context skips
  *
- * Copyright (c) 1996, SRI International.  All Rights Reserved.
+ * Copyright (c) 1996,2003 SRI International.  All Rights Reserved.
  *
  * @(#)$Header: /home/speech/stolcke/project/srilm/devel/lm/src/RCS/DFNgram.h,v 
 1.5 1995/11/07 08:37:12 stolcke Exp $
@@ -25,7 +25,7 @@ public:
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
 
-    Boolean read(File &file);
+    Boolean read(File &file, Boolean limitVocab = false);
     void write(File &file);
 
     /*

@@ -4,12 +4,14 @@ libraries.
 
 1 - Unpack.  This should give a top-level directory with the subdirectories
     listed in README, as well as a few documentation files and a Makefile.
+    For an overview of SRILM, see the paper in doc/paper.ps .
+    For reference information, look in man/html .
 
 2 - Set the SRILM variable in the top-level Makefile to point to this
     top-level directory (an absolute path).
 
-3 - You need a SunOS (Sparc or i386), IRIX 5.x, Alpha OSF, or Linux i686
-    platform to compile out of the box.  For other OS/cpu combinations
+3 - You need a SunOS (Sparc or i386), IRIX 5.x, Alpha OSF, Linux i686, or
+    CYGWIN platform to compile out of the box.  For other OS/cpu combinations
     you will have to modify the bin/machine-type script to detect (and name)
     the platform type, and create a file common/Makefile.machine.<platform>
     that defines platform-dependent makefile variables.
@@ -30,20 +32,28 @@ libraries.
 	  (including the C++ compiler and corresponding libg++ library).
 	- GNU make 
 	- John Ousterhout's Tcl toolkit, version 7.3 or higher
-	  (this is currently used for some test programs, but is needed for
-	  the build to go through without manual invention).
+	  (this is currently used only for some test programs, but is needed
+	  for the build to go through without manual intervention).
 
     The following tools are needed at runtime only:
 
-	- gzip, to read/write compressed files)
+	- gzip, to read/write compressed files
 	- GNU awk (gawk), to interpret many of the utility scripts
+
+    For Windows 9x or NT, you will need the CYGWIN UNIX compatibility 
+    environment, which includes all of the above.  See doc/README.windows
+    for more information.
 
     Links to these packages can be found on the SRILM download page
     (http://www.speech.sri.com/projects/srilm/download.html).
 
 5 - In the top-level directory, run
 
-	gnumake World
+	gnumake World		or 
+	make World		(if the GNU version is the system default)
+
+    For the CYGWIN platform, don't forget to set MAKE_MODE=UNIX in the
+    environment.
 
     This will create the directories
 
@@ -55,19 +65,50 @@ libraries.
     these directories.  Binaries are actually installed in subdirectories
     indicating the platform type.
 
-    Some of the makefiles (*/src/Makefile) contain references to the Tcl
-    library, and -I and -L flags may need to be adjusted if these are
-    installed in non-standard places (other than /usr/local/lib and 
-    /usr/local/include).
-
 6 - The result of the above should be a fair number of .h and .cc files in
-    include/, libraries in lib/$(MACHINE_TYPE), and programs in 
-    bin/$(MACHINE_TYPE).
+    include/, libraries in lib/$MACHINE_TYPE, and programs in 
+    bin/$MACHINE_TYPE.  In your shell, set the following environment
+    variables:
 
-7 - Be sure to let me know if I left something out.
+	PATH		add $SRILM/bin/$MACHINE_TYPE and $SRILM/bin
+	MANPATH		add $SRILM/man
 
+7 - To test the compiled tools, change into the $SRILM/test directory and run
+
+	gnumake all
+
+    This exercises the most important (though not all) functionality in
+    SRILM and compares the results to reference outputs.  If discrepancies are 
+    reported, examine the output files in $SRILM/test/output and compare them
+    to the corresponding files in $SRILM/test/reference.
+
+8 - After a successful build, clean up the source directories of object and 
+    binary files that are no longer needed:
+
+	gnumake cleanest
+
+9 - (Optional) To build versions of the libraries and executables that are 
+    optimized for space rather than speed, run
+
+	gnumake World OPTION=_c
+	gnumake cleanest OPTION=_c
+
+    The libraries will appear in ${SRILM}/lib/${MACHINE_TYPE}_c, with 
+    executables in ${SRILM}/bin/${MACHINE_TYPE}_c .  The data structures
+    used in these versions use sorted arrays rather than hash tables, which
+    wastes less memory, but is also somewhat slower. The directory suffix "_c"
+    stands for "compact".
+
+    Other versions of the binaries can be built in a similar manner.
+    The compile options currently supported are 
+
+	OPTION=_c	"compact" data structures
+	OPTION=_g	debuggable, non-optimized code
+	OPTION=_p	profiling executables
+
+10 - Be sure to let me know if I left something out.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2001/07/24 05:55:28 $
+$Date: 2003/01/03 21:48:36 $
 

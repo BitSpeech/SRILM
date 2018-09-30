@@ -3,7 +3,7 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.13 2001/03/07 23:46:14 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.17 2003/01/04 23:38:33 stolcke Exp $
 #
 
 if [ $# -lt 3 ]; then
@@ -22,7 +22,7 @@ else
 		-r)	refs=$2; shift ;;
 		-h1)	hypsA=$2; shift ;;
 		-h2)	hypsB=$2; shift ;;
-		-S)	use_subset="$2"; shift ;;
+		-S)	options="$options -S $2" shift ;;
 		*)	options="$options $1" ;;
 		esac
 		shift
@@ -41,13 +41,28 @@ set -e
 #
 # use the intersection of the too hyp sets and (if specified) the -S set
 #
-gawk '{ print $1 }' "$hypsA" | sort -u > $subset.A
-gawk '{ print $1 }' "$hypsB" | sort -u > $subset.B
-if [ -n "$use_subset" ]; then
-	comm -12 $subset.A $subset.B | comm -12 - "$use_subset" > $subset.AB
-else
-	comm -12 $subset.A $subset.B  > $subset.AB
-fi
+case "$hypsA" in
+*.ctm)	case "$hypsB" in
+	*.ctm)	gawk '{ print $1 "_" $2 }' "$hypsA" | sort -u > $subset.A
+		gawk '{ print $1 "_" $2 }' "$hypsB" | sort -u > $subset.B
+		;;
+	*)	echo "both hyps must be in same format" >&2
+		exit 2
+		;;
+	esac
+	;;
+*)	case "$hypsB" in
+	*.ctm)	echo "both hyps must be in same format" >&2
+		exit 2
+		;;
+	*)	gawk '{ print $1 }' "$hypsA" | sort -u > $subset.A 
+		gawk '{ print $1 }' "$hypsB" | sort -u > $subset.B
+		;;
+	esac
+	;;
+esac
+
+comm -12 $subset.A $subset.B  > $subset.AB
 options="$options -S $subset.AB"
 
 #
@@ -101,7 +116,7 @@ END {
 		    total_errsA, werA, total_wordsA, total_sentsA;
 	printf "result 2: %d errors (%.2f%%), %d words, %d sentences\n", \
 		    total_errsB, werB, total_wordsB, total_sentsB;
-        printf "less %d, greater %d, equal %d, different %d (%.2f%%)\n", \
+        printf "less %d, greater %d, equal %d, different %d (%+.2f%%)\n", \
                  less, greater, equal, less + greater, werB - werA;
 }
 ' $tmpdir/$pralignA.pra $tmpdir/$pralignB.pra

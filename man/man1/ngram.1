@@ -1,5 +1,5 @@
-.\" $Id: ngram.1,v 1.29 2000/10/04 01:00:09 stolcke Exp $
-.TH ngram 1 "$Date: 2000/10/04 01:00:09 $" "SRILM Tools"
+.\" $Id: ngram.1,v 1.40 2003/03/01 05:33:50 stolcke Exp $
+.TH ngram 1 "$Date: 2003/03/01 05:33:50 $" "SRILM Tools"
 .SH NAME
 ngram \- apply N-gram language models
 .SH SYNOPSIS
@@ -55,9 +55,6 @@ This option is always required, unless
 .B \-null
 was chosen.
 .TP
-.B \-df
-Interpret the LM as containing disfluency events.
-.TP
 .B \-tagged
 Interpret the LM as containing word/tag N-grams.
 .TP
@@ -65,14 +62,74 @@ Interpret the LM as containing word/tag N-grams.
 Interpret the LM as a ``skip'' N-gram model.
 .TP
 .BI \-hidden-vocab " file"
-Interpret the LM as an N-gram containing hidden events between words.
+Interpret the LM as an N-gram model containing hidden events between words.
 The list of hidden event tags is read from
 .IR file .
+.br
+Hidden event definitions may also follow the N-gram definitions in 
+the LM file (the argument to 
+.BR \-lm ).
+The format for such definitions is
+.br
+	\fIevent\fP
+[\fB\-delete\fP \fID\fP]
+[\fB\-repeat\fP \fIR\fP]
+[\fB\-insert\fP \fIw\fP]
+[\fB\-observed\fP]
+[\fB\-omit\fP]
+.br
+The optional flags after the event name modify the default behavior of 
+hidden events in the model.
+By default events are unobserved pseudo-words of which at most one can occur
+between regular words, and which are added to the context to predict
+following words and events.
+(A typical use would be to model hidden sentence boundaries.)
+.B \-delete
+indicates that upon encountering the event,
+.I D 
+words are deleted from the next word's context.
+.B \-repeat
+indicates that after the event the next
+.I R
+words from the context are to be repeated.
+.B \-insert
+specifies that an (unobserved) word 
+.I w
+is to be inserted into the history.
+.B \-observed 
+specifies the event tag is not hidden, but observed in the word stream.
+.B \-omit
+indicates that the event tag itself is not to be added to the history for
+predicting the following words.
+.br
+The hidden event mechanism represents a generalization of the disfluency
+LM enabled by 
+.BR \-df .
 .TP
 .BI \-hidden-not
 Modifies processing of hidden event N-grams for the case that 
 the event tags are embedded in the word stream, as opposed to inferred 
 through dynamic programming.
+.TP
+.B \-df
+Interpret the LM as containing disfluency events.
+This enables an older form of hidden-event LM used in
+Stolcke & Shriberg (1996).
+It is roughly equivalent to a hidden-event LM with
+.br
+	UH -observed -omit		(filled pause)
+.br
+	UM -observed -omit		(filled pause)
+.br
+	@SDEL -insert <s>		(sentence restart)
+.br
+	@DEL1 -delete 1 -omit	(1-word deletion)
+.br
+	@DEL2 -delete 2 -omit	(2-word deletion)
+.br
+	@REP1 -repeat 1 -omit	(1-word repetition)
+.br
+	@REP2 -repeat 2 -omit	(2-word repetition)
 .TP
 .BI \-classes " file"
 Interpret the LM as an N-gram over word classes.
@@ -91,6 +148,12 @@ LM file (the argument to
 In that case 
 .BR "\-classes /dev/null"
 should be specified to trigger interpretation of the LM as a class-based model.
+Otherwise, class definitions specified with this option override any
+definitions found in the LM file itself.
+.TP
+.BR \-simple-classes
+Assume a "simple" class model: each word is member of at most one word class,
+and class expansions are exactly one word long.
 .TP
 .BI \-expand-classes " k"
 Replace the read class-N-gram model with an (approximately) equivalent
@@ -178,12 +241,42 @@ This is especially useful if the LM itself does not specify a complete
 vocabulary, e.g., as with
 .BR \-null .
 .TP
+.BI \-nonevents " file"
+Read a list of words from
+.I file
+that are to be considered non-events, i.e., that
+should only occur in LM contexts, but not as predictions.
+Such words are excluded from sentence generation
+.RB ( \-gen )
+and
+probability summation
+.RB ( "\-ppl \-debug 3" ).
+.TP
+.B \-limit-vocab
+Discard LM parameters on reading that do not pertain to the words 
+specified in the vocabulary.
+The default is that words used in the LM are automatically added to the 
+vocabulary.
+This option can be used to reduce the memory requirements for large LMs 
+that are going to be evaluated only on a small vocabulary subset.
+.TP
 .B \-unk
 Indicates that the LM contains the unknown word, i.e., is an open-class LM.
+.TP
+.BI \-map-unk " word"
+Map out-of-vocabulary words to 
+.IR word ,
+rather than the default
+.B <unk>
+tag.
 .TP
 .B \-tolower
 Map all vocabulary to lowercase.
 Useful if case conventions for text/counts and language model differ.
+.TP
+.B \-multiwords
+Split input words consisting of multiwords joined by underscores
+into their components, before evaluating LM probabilities.
 .TP
 .BI \-mix-lm " file"
 Read a second N-gram model for interpolation purposes.
@@ -197,7 +290,7 @@ the options
 .BR \-skip ,
 and
 .B \-hidden-vocab 
-do not apply to then.
+do not apply to them.
 .br
 .B NOTE:
 Unless 
@@ -221,7 +314,15 @@ Default value is 0.5.
 .BI \-mix-lm4 " file"
 .TP
 .BI \-mix-lm5 " file"
-Up to 4 more N-gram models can be specified for interpolation.
+.TP
+.BI \-mix-lm6 " file"
+.TP
+.BI \-mix-lm7 " file"
+.TP
+.BI \-mix-lm8 " file"
+.TP
+.BI \-mix-lm9 " file"
+Up to 9 more N-gram models can be specified for interpolation.
 .TP
 .BI \-mix-lambda2 " weight"
 .TP
@@ -230,11 +331,19 @@ Up to 4 more N-gram models can be specified for interpolation.
 .BI \-mix-lambda4 " weight"
 .TP
 .BI \-mix-lambda5 " weight"
+.TP
+.BI \-mix-lambda6 " weight"
+.TP
+.BI \-mix-lambda7 " weight"
+.TP
+.BI \-mix-lambda8 " weight"
+.TP
+.BI \-mix-lambda9 " weight"
 These are the weights for the additional mixture components, corresponding
 to
 .B \-mix-lm2
 through
-.BR \-mix-lm5 .
+.BR \-mix-lm9 .
 The weight for the
 .B \-mix-lm 
 model is 1 minus the sum of 
@@ -242,7 +351,7 @@ model is 1 minus the sum of
 and 
 .B \-mix-lambda2
 through
-.BR \-mix-lambda5 .
+.BR \-mix-lambda9 .
 .TP
 .BI \-bayes " length"
 Interpolate the second and the main model using posterior probabilities
@@ -275,6 +384,9 @@ a dynamically changing LM.
 LM changes are indicated by the tag ``<LMstate>'' starting a line in the
 input to
 .BR -ppl ,
+.BR -counts ,
+or
+.BR -rescore ,
 followed by a filename containing the new LM.
 .TP
 .BI \-dynamic-lambda " weight"
@@ -349,6 +461,11 @@ The
 option controls the level of detail printed, even though output is
 to stdout (not stderr).
 At level 0, only summary statistics for the entire corpus are printed.
+These include the number of sentences, words, out-of-vocabulary words
+and zero-probability tokens in the input,
+as well as its total log probability and perplexity.
+Perplexity is given with two different normalizations: counting all
+input tokens (``ppl'') and excluding end-of-sentence tags (``ppl1'').
 At level 1, statistics for individual sentences are printed.
 At level 2, probabilities for each word, plus LM-dependent details about backoff
 used etc., are printed.
@@ -407,7 +524,8 @@ Used to compute acoustic scores from the composite scores.
 .TP
 .BI \-escape " string"
 Set an ``escape string'' for the
-.B \-ppl
+.BR \-ppl ,
+.BR \-counts ,
 and
 .B \-rescore
 computations.
@@ -423,6 +541,8 @@ but based only on the N-gram counts found in
 .IR countsfile .
 Probabilities are computed for the last word of each N-gram, using the
 other words as contexts, and scaling by the associated N-gram count.
+Summary statistics are output at the end, as well as before each
+escaped input line.
 .TP
 .BI \-count-order " n"
 Use only counts of order
@@ -474,15 +594,28 @@ A. Stolcke,`` Entropy-based Pruning of Backoff Language Models,''
 .br
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
 Disfluencies based on Recognized Words, '' \fIProc. ICSLP\fP, 2247\-2250,
-Sydney.
+Sydney, 1998.
+.br
+A. Stolcke and E. Shriberg, ``Statistical language modeling for speech
+disfluencies,''Proc. IEEE ICASSP, pp. 405\-409, Atlanta, GA, 1996.
 .SH BUGS
 Some LM types (such as Bayes-interpolated LMs) currently do not support the 
 .B \-write-lm 
 function.
-.br
+.PP
+For the 
+.B \-limit-vocab
+option to work correctly with hidden event and class N-gram LMs, the
+event/class vocabularies have to be specified by options (\c
+.B \-hidden-vocab 
+and
+.BR \-classes ,
+respectively).
+Embedding event/class definitions in the LM file only will not work correctly.
+.PP
 Sentence generation is slow and takes time proportional to the vocabulary
 size.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-2000 SRI International
+Copyright 1995\-2003 SRI International

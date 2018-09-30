@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.23 2001/08/19 17:48:45 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.26 2003/02/16 16:45:02 stolcke Exp $
 #
 
 bytelog=0
@@ -15,6 +15,8 @@ decipher_wtw=0
 lm_only=0
 pretty_file=
 filter_command=
+limit_vocab=0
+ngram_options=
 
 while [ $# -gt 0 ]
 do
@@ -27,6 +29,7 @@ do
 	    ;;
     -multiwords)
 	    multiwords=1
+	    mw_option=-multiwords
 	    ;;
     -norescore)
 	    norescore=1
@@ -39,6 +42,9 @@ do
 	    ;;
     -filter)
 	    filter_command="$2"; shift
+	    ;;
+    -limit-vocab)
+	    limit_vocab=1
 	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
@@ -91,6 +97,22 @@ if [ $norescore -gt 0 ]; then
     done
 fi
 
+if [ $limit_vocab -gt 0 ]; then
+    #
+    # limit LM vocabulary to words found in the nbest lists
+    #
+
+    nbestvocab=/tmp/$$nbest.vocab
+    trap "rm -f $nbestvocab; exit" 0 1 2 15
+
+    # generate nbest vocabulary
+    nbest-lattice -no-rescore -no-reorder $mw_option -nbest-files "$filelist" \
+		-write-vocab $nbestvocab
+
+    # tell ngram to use this vocab
+    ngram_options="-limit-vocab -vocab $nbestvocab"
+fi
+
 #
 # STRATEGY:
 #	Concatenate hyps for all nbest list, record number of hyps for
@@ -107,11 +129,8 @@ while read filename rest; do
 	# preserve LMstate labels in the file list and pass them to ngram
 	"<LMstate>")	echo $filename $rest
 			continue ;;
-	*.Z)		cat=zcat ;;
-	*.gz)		cat="gunzip -c" ;;
-	*)		cat=cat ;;
 	esac
-	$cat $filename | \
+	gunzip -cf $filename | \
 gawk '
 BEGIN {
 	filename = "";
@@ -190,8 +209,9 @@ function pretty_up() {
 		print;
 	    }
 	} else if (nbestformat == 2) {
+	    score = substr($1,2,length($1)-2);
+
 	    # compute total AC and LM scores 
-	    ac_score = 0;
 	    lm_score = 0;
 	    num_words = 0;
 	    num_pauses = 0;
@@ -210,7 +230,6 @@ function pretty_up() {
 		    num_words ++;
 		    if ($i == pause) num_pauses ++;
 
-		    ac_score += $(i + 9);
 		    lm_score += $(i + 7);
 
 		    prev_end_time = end_time;
@@ -220,6 +239,13 @@ function pretty_up() {
 	    $0 = $1 " " words;
 
 	    pretty_up();
+
+	    # Compute AC score from total and lm scores. This takes into
+	    # account that the recognizer might sum scores of equivalent hyps
+	    # (e.g., those differing only in pauses or pronunciations) and
+	    # reflect the summing in the total score, but not in the word AC
+	    # scores.
+	    ac_score = score - lm_score;
 
 	    if (norescore) {
 		# convert to SRILM nbest format
@@ -261,12 +287,12 @@ elif [ $norescore -gt 0 ]; then
 elif [ -z "$filter_command" ]; then
     # standard rescoring without filtering
     ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
-		-escape "$escape " "$@" 
+		-escape "$escape " $ngram_options "$@" 
 else
     # rescoring with filtering
     eval "$filter_command" | \
     ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
-		-escape "$escape " "$@" 
+		-escape "$escape " $ngram_options "$@" 
 fi | \
 gawk -v bytelog=$bytelog '
 BEGIN {

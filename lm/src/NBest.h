@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2001, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.22 2001/08/07 01:16:32 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.25 2002/05/14 04:29:38 stolcke Exp $
  *
  */
 
@@ -21,6 +21,8 @@
 #include "LM.h"
 #include "MemStats.h"
 #include "Debug.h"
+
+#undef valid		/* avoids conflict with class member on some systems */
 
 /* 
  * Magic string headers identifying Decipher N-best lists
@@ -54,6 +56,8 @@ public:
     char *phoneDurs;
 };
 
+extern const char *phoneSeparator;	 // used for phones & phoneDurs strings
+
 /*
  * A hypothesis in an N-best list with associated info
  */
@@ -81,6 +85,7 @@ public:
     LogP totalScore;
     Prob posterior;
     unsigned numErrors;
+    unsigned rank;
 };
 
 class NBestList: public Debug

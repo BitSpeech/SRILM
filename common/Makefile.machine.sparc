@@ -9,12 +9,13 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc,v 1.11 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc,v 1.13 2003/02/21 22:30:00 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   CC = gcc -V2.8.1
-   CXX = g++ -V2.8.1
+   GCC_FLAGS = -V2.8.1 -Wreturn-type -Wimplicit
+   CC = gcc $(GCC_FLAGS)
+   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O2
@@ -50,6 +51,11 @@
 
    # Suns require ranlib(1) to be run on libraries.
    RANLIB = ranlib
+
+   # prefix of C language symbols in object symbol tables
+   SYMBOL_PREFIX = _
+
+   PURIFY_FLAGS += -collector=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.3/2.8.1/ld
 
    # Generate dependencies from source files.
    GEN_DEP = $(CC) $(INCLUDES) -MM

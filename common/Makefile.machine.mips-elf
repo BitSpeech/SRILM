@@ -9,14 +9,15 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf,v 1.14 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf,v 1.16 2003/02/21 22:30:00 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # all our machines are R4000 (or higher) based, so there is no use
    # sticking to the mips1 instruction set
-   CC = gcc -mips2 -V2.8.1
-   CXX = g++ -mips2 -V2.8.1
+   GCC_FLAGS = mips2 -V2.8.1 -Wreturn-type -Wimplicit
+   CC = gcc $(GCC_FLAGS)
+   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 else
    # Use the SGI C++ compiler
    CC = cc -mips2

@@ -6,13 +6,14 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-1999 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.26 2001/10/31 07:00:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.38 2003/01/28 17:34:25 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream.h>
+#include <locale.h>
 
 #include "option.h"
 #include "File.h"
@@ -21,6 +22,9 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc
 #include "SubVocab.h"
 #include "NullLM.h"
 #include "Ngram.h"
+#include "ClassNgram.h"
+#include "SimpleClassNgram.h"
+#include "BayesMix.h"
 #include "NgramStats.h"
 #include "Trellis.cc"
 #include "LHash.cc"
@@ -30,10 +34,32 @@ typedef const VocabIndex *VocabContext;
 
 #define DEBUG_ZEROPROBS		1
 #define DEBUG_TRANSITIONS	2
+#define DEBUG_TRELLIS	        3
 
+static unsigned numNbest = 1;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
+static char *classesFile = 0;
+static int simpleClasses = 0;
+static char *mixFile  = 0;
+static char *mixFile2 = 0;
+static char *mixFile3 = 0;
+static char *mixFile4 = 0;
+static char *mixFile5 = 0;
+static char *mixFile6 = 0;
+static char *mixFile7 = 0;
+static char *mixFile8 = 0;
+static char *mixFile9 = 0;
+static double mixLambda = 0.5;
+static double mixLambda2 = 0.0;
+static double mixLambda3 = 0.0;
+static double mixLambda4 = 0.0;
+static double mixLambda5 = 0.0;
+static double mixLambda6 = 0.0;
+static double mixLambda7 = 0.0;
+static double mixLambda8 = 0.0;
+static double mixLambda9 = 0.0;
 static char *hiddenVocabFile = 0;
 static char *textFile = 0;
 static char *textMapFile = 0;
@@ -62,6 +88,27 @@ VocabIndex noEventIndex;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
+    { OPT_STRING, "classes", &classesFile, "class definitions" },
+    { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
+    { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
+    { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
+    { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
+    { OPT_FLOAT, "mix-lambda2", &mixLambda2, "mixture weight for -mix-lm2" },
+    { OPT_STRING, "mix-lm3", &mixFile3, "third LM to mix in" },
+    { OPT_FLOAT, "mix-lambda3", &mixLambda3, "mixture weight for -mix-lm3" },
+    { OPT_STRING, "mix-lm4", &mixFile4, "fourth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda4", &mixLambda4, "mixture weight for -mix-lm4" },
+    { OPT_STRING, "mix-lm5", &mixFile5, "fifth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda5", &mixLambda5, "mixture weight for -mix-lm5" },
+    { OPT_STRING, "mix-lm6", &mixFile6, "sixth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda6", &mixLambda6, "mixture weight for -mix-lm6" },
+    { OPT_STRING, "mix-lm7", &mixFile7, "seventh LM to mix in" },
+    { OPT_FLOAT, "mix-lambda7", &mixLambda7, "mixture weight for -mix-lm7" },
+    { OPT_STRING, "mix-lm8", &mixFile8, "eighth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda8", &mixLambda8, "mixture weight for -mix-lm8" },
+    { OPT_STRING, "mix-lm9", &mixFile9, "ninth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
+    { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden vocabulary" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
@@ -164,22 +211,21 @@ findPrevWord(unsigned pos, const VocabIndex *wids, const VocabIndex *context)
  * Disambiguate a sentence by finding the hidden tag sequence compatible with
  * it that has the highest probability
  */
-Boolean
-disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
-		       PosVocabMap &map, LM &lm,
-		       NgramCounts<NgramFractCount> *hiddenCounts,
-		       Boolean positionMapped = false)
+unsigned
+disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids[],
+			LogP totalProb[], PosVocabMap &map, LM &lm,
+			NgramCounts<NgramFractCount> *hiddenCounts,
+			unsigned numNbest, Boolean positionMapped = false)
 {
+
     unsigned len = Vocab::length(wids);
 
-    Trellis<VocabContext> trellis(len + 1);
-
-    VocabIndex emptyContext[1];
-    emptyContext[0] = Vocab_None;
+    Trellis<VocabContext> trellis(len + 1, numNbest);
 
     /*
      * Prime the trellis with empty context as the start state
      */
+    static VocabIndex emptyContext[] = { Vocab_None };
     trellis.setProb(emptyContext, LogP_One);
 
     unsigned pos = 0;
@@ -191,7 +237,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	 * Set up new context to transition to
 	 * (allow enough room for one hidden event per word)
 	 */
-	VocabIndex newContext[2 * maxWordsPerLine + 2];
+	VocabIndex newContext[2 * maxWordsPerLine + 3];
 
 	/*
 	 * Iterate over all contexts for the previous position in trellis
@@ -231,12 +277,14 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	     * Set up the extended context.  Allow room for adding 
 	     * the current word and a new hidden event.
 	     */
+
 	    unsigned i;
 	    for (i = 0; i < 2 * maxWordsPerLine && 
 				    usedPrevContext[i] != Vocab_None; i ++)
 	    {
 		newContext[i + 2] = usedPrevContext[i];
 	    }
+
 	    newContext[i + 2] = Vocab_None;
 	    newContext[1] = wids[pos];	/* prepend current word */
 
@@ -292,7 +340,8 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 		}
 
 		trellis.update(prevContext, newContext,
-			       lmw * (wordProb + eventProb) + mapw * localProb);
+			       weightLogP(lmw, wordProb + eventProb) +
+			       weightLogP(mapw, localProb));
 
 		/*
 		 * Restore newContext
@@ -304,9 +353,39 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	pos ++;
     }
 
-    if (fb || fwOnly || posteriors || hiddenCounts) {
+    if (debug >= DEBUG_TRELLIS) {
+	cerr << "Trellis:\n" << trellis << endl;
+    }
+
+    /*
+     * Check whether viterbi-nbest (default) is asked for.  If so,
+     * do it and return. Otherwise do forward-backward.
+     */
+    if (!fb && !fwOnly && !posteriors && !hiddenCounts) {
+	VocabContext hiddenContexts[numNbest][len + 2];	  
+						// One extra state for initial.
+
+	for (unsigned n = 0; n < numNbest; n ++) {
+	    if (trellis.nbest_viterbi(hiddenContexts[n], len + 1,
+						    n, totalProb[n]) != len + 1)
+	    {
+		return n;
+	    }
+	      
+	    /*
+	     * Transfer the first word of each state (word context) into the
+	     * word index string
+	     */
+	    for (unsigned i = 0; i < len; i ++) {
+		hiddenWids[n][i] = hiddenContexts[n][i + 1][0];
+	    }
+	    hiddenWids[n][len] = Vocab_None;
+	}
+	return numNbest;
+    } else {
 	/*
-	 * Forward-backward algorithm: compute backward scores
+	 * Viterbi-nbest wasn't asked for.  We run the Forward-backward
+	 * algorithm: compute backward scores, but only get the 1st best.
 	 */
 	trellis.initBack(pos);
 
@@ -329,7 +408,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	     * Set up new context to transition to
 	     * (allow enough room for one hidden event per word)
 	     */
-	    VocabIndex newContext[2 * maxWordsPerLine + 1];
+	    VocabIndex newContext[2 * maxWordsPerLine + 3];
 
 	    /*
 	     * Iterate over all contexts for the previous position in trellis
@@ -430,7 +509,8 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 		    }
 
 		    trellis.updateBack(prevContext, newContext,
-			       lmw * (wordProb + eventProb) + mapw * localProb);
+				       weightLogP(lmw, wordProb + eventProb) +
+				       weightLogP(mapw, localProb));
 
 		    /*
 		     * Restore newContext
@@ -503,10 +583,10 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	    if (bestSymbol == Vocab_None) {
 		cerr << "no forward-backward state for position "
 		     << pos << endl;
-		return false;
+		return 0;
 	    }
 
-	    hiddenWids[pos - 1] = bestSymbol;
+	    hiddenWids[0][pos - 1] = bestSymbol;
 
 	    /*
 	     * Print posterior probabilities
@@ -561,36 +641,12 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids, LogP &totalProb,
 	}
 
 	/*
-	 * return total string probability summing over all paths
+	 * Return total string probability summing over all paths
 	 */
-	totalProb = trellis.sumLogP(len);
-    } else {
-	/* one extra state for the initial */
-	VocabContext hiddenContexts[len + 2];
-
-	/*
-	 * Run Viterbi to get most likely state sequence
-	 */
-	if (trellis.viterbi(hiddenContexts, len + 1) != len + 1) {
-	    return false;
-	}
-
-	/*
-	 * Transfer the first word of each state (word context) into the
-	 * word index string
-	 */
-	for (unsigned i = 0; i < len; i ++) {
-	    hiddenWids[i] = hiddenContexts[i + 1][0];
-	}
-
-	/*
-	 * return total string probability using only best path
-	 */
-	totalProb = trellis.getMax(trellis.max(len), len);
+	totalProb[0] = trellis.sumLogP(len);
+	hiddenWids[0][len] = Vocab_None;
+	return 1;
     }
-
-    hiddenWids[len] = Vocab_None;
-    return true;
 }
 
 /*
@@ -612,7 +668,7 @@ makeDummyMap(PosVocabMap &map, Vocab &hiddenVocab)
  */
 void
 disambiguateFile(File &file, SubVocab &hiddenVocab, LM &lm,
-			NgramCounts<NgramFractCount> *hiddenCounts)
+		 NgramCounts<NgramFractCount> *hiddenCounts, unsigned numNbest)
 {
     PosVocabMap dummyMap(hiddenVocab);
     makeDummyMap(dummyMap, hiddenVocab);
@@ -636,30 +692,42 @@ disambiguateFile(File &file, SubVocab &hiddenVocab, LM &lm,
 	    file.position() << "too many words per sentence\n";
 	} else {
 	    VocabIndex wids[maxWordsPerLine + 1];
+	    VocabIndex *hiddenWids[numNbest];
 
-	    VocabIndex hiddenWids[maxWordsPerLine + 1];
+	    for (unsigned n = 0; n < numNbest; n++) {
+		hiddenWids[n] = new VocabIndex[maxWordsPerLine + 1];
+	    }
 
 	    lm.vocab.getIndices(sentence, wids, maxWordsPerLine,
-						    lm.vocab.unkIndex);
+							  lm.vocab.unkIndex);
 
-	    LogP totalProb;
-
-	    if (!disambiguateSentence(wids, hiddenWids, totalProb,
-					    dummyMap, lm, hiddenCounts))
-	    {
-		file.position() << "viterbi failed\n";
+	    LogP totalProb[numNbest];
+	    unsigned numHyps = disambiguateSentence(wids, hiddenWids, totalProb,
+						    dummyMap, lm, hiddenCounts,
+						    numNbest);
+	    if (!numHyps) {
+		file.position() << "Disambiguation failed\n";
 	    } else if (totals) {
-		cout << totalProb << endl;
-	    } else if (!totals && !posteriors) {
-		for (unsigned i = 0; hiddenWids[i] != Vocab_None; i ++) {
-		    cout << (i > 0 ? " " : "")
-			 << (keepUnk ? sentence[i] : lm.vocab.getWord(wids[i]));
-
-		    if (hiddenWids[i] != noEventIndex) {
-			cout << " " << lm.vocab.getWord(hiddenWids[i]);
+		cout << totalProb[0] << endl;
+	    } else if (!posteriors) {
+		for (unsigned n = 0; n < numHyps; n++) {
+		    if (numNbest > 1) {
+			cout << "NBEST_" << n << " " << totalProb[n] << " ";
 		    }
+		    for (unsigned i = 0; hiddenWids[n][i] != Vocab_None; i ++) {
+			cout << (i > 0 ? " " : "")
+			     << (keepUnk ? sentence[i] :
+						lm.vocab.getWord(wids[i]));
+
+			if (hiddenWids[n][i] != noEventIndex) {
+			    cout << " " << lm.vocab.getWord(hiddenWids[n][i]);
+			}
+		    }
+		    cout << endl;
 		}
-		cout << endl;
+	    }
+	    for (unsigned n = 0; n < numNbest; n++) {
+		delete [] hiddenWids[n];
 	    }
 	}
     }
@@ -671,7 +739,8 @@ disambiguateFile(File &file, SubVocab &hiddenVocab, LM &lm,
  */
 void
 disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
-				    NgramCounts<NgramFractCount> *hiddenCounts)
+			   NgramCounts<NgramFractCount> *hiddenCounts,
+			   unsigned numNbest)
 {
     PosVocabMap dummyMap(hiddenVocab);
     makeDummyMap(dummyMap, hiddenVocab);
@@ -683,8 +752,8 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
     unsigned lineStart = 0; // index into the above to mark the offset for the 
 			    // current line's data
 
-    while (line = file.getline()) {
 
+    while (line = file.getline()) {
 	/*
 	 * Pass escaped lines through unprocessed
 	 * (although this is pretty useless in continuous mode)
@@ -715,28 +784,39 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
 	return;
     }
 
-    Array<VocabIndex> hiddenWids;
-    // This implicitly allocates enough space for the posterior vector
-    hiddenWids[lineStart] = Vocab_None;
+    VocabIndex *hiddenWids[numNbest];
+    LogP totalProb[numNbest];
 
-    LogP totalProb;
+    for (unsigned n = 0; n < numNbest; n++) {
+	hiddenWids[n] = new VocabIndex[lineStart + 1];
+    }
 
-    if (!disambiguateSentence(&wids[0], &hiddenWids[0], totalProb,
-						dummyMap, lm, hiddenCounts))
-    {
-	file.position() << "viterbi failed\n";
+    unsigned numHyps =
+		disambiguateSentence(&wids[0], hiddenWids, totalProb,
+				     dummyMap, lm, hiddenCounts, numNbest);
+
+    if (!numHyps) {
+	file.position() << "Disambiguation failed\n";
     } else if (totals) {
 	cout << totalProb << endl;
-    } else if (!totals && !posteriors) {
-	for (unsigned i = 0; hiddenWids[i] != Vocab_None; i ++) {
-	    // XXX: keepUnk not implemented yet.
-	    cout << lm.vocab.getWord(wids[i]);
+    } else if (!posteriors) {
+	for (unsigned n = 0; n < numHyps; n++) {
+	    if (numNbest > 1) {
+		cout << "NBEST_" << n << " " << totalProb[n] << " ";
+	    }
+	    for (unsigned i = 0; hiddenWids[n][i] != Vocab_None; i ++) {
+		// XXX: keepUnk not implemented yet.
+		cout << lm.vocab.getWord(wids[i]) << " ";
 
-	    if (hiddenWids[i] != noEventIndex) {
-		cout << " " << lm.vocab.getWord(hiddenWids[i]);
+		if (hiddenWids[n][i] != noEventIndex) {
+		    cout << lm.vocab.getWord(hiddenWids[n][i]) << " ";
+		}
 	    }
 	    cout << endl;
 	}
+    }
+    for (unsigned n = 0; n < numNbest; n++) {
+	delete [] hiddenWids[n];
     }
 }
 
@@ -746,13 +826,15 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
  */
 void
 disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
-				NgramCounts<NgramFractCount> *hiddenCounts)
+		    NgramCounts<NgramFractCount> *hiddenCounts,
+		    unsigned numNbest)
 {
     char *line;
 
     unsigned escapeLen = escape ? strlen(escape) : 0;
 
     while (line = file.getline()) {
+
 	/*
 	 * Hack alert! We pass the map entries associated with the word
 	 * instances in a VocabMap, but we encode the word position (not
@@ -826,28 +908,37 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
 	if (numWords > 0) {
 	    wids[numWords] = Vocab_None;
 
-	    Array<VocabIndex> hiddenWids;
-	    // This implicitly allocates enough space for the posterior vector
-	    hiddenWids[numWords] = Vocab_None;
+	    VocabIndex *hiddenWids[numNbest];
+	    LogP totalProb[numNbest];
 
-	    LogP totalProb;
+	    for (unsigned n = 0; n < numNbest; n++) {
+		hiddenWids[n] = new VocabIndex[numWords + 1];
+	    }
 
-	    if (!disambiguateSentence(&wids[0], &hiddenWids[0], totalProb,
-						map, lm, hiddenCounts, true))
-	    {
-		file.position() << "viterbi failed\n";
+	    unsigned numHyps =
+		    disambiguateSentence(&wids[0], hiddenWids, totalProb,
+					 map, lm, hiddenCounts, numNbest, true);
+	    if (!numHyps) {
+		file.position() << "Disambiguation failed\n";
 	    } else if (totals) {
-		cout << totalProb << endl;
-	    } else if (!totals && !posteriors) {
-		for (unsigned i = 0; hiddenWids[i] != Vocab_None; i ++) {
-		    // XXX: keepUnk not implemented yet.
-		    cout << lm.vocab.getWord(wids[i]);
-
-		    if (hiddenWids[i] != noEventIndex) {
-			cout << " " << lm.vocab.getWord(hiddenWids[i]);
+		cout << totalProb[0] << endl;
+	    } else if (!posteriors) {
+		for (unsigned n = 0; n < numHyps; n++) {
+		    if (numNbest > 1) {
+		      cout << "NBEST_" << n << " " << totalProb[n] << " ";
+		    }
+		    for (unsigned i = 0; hiddenWids[n][i] != Vocab_None; i ++) {
+			cout << lm.vocab.getWord(wids[i]) << " ";
+			if (hiddenWids[n][i] != noEventIndex) {
+			    cout << lm.vocab.getWord(hiddenWids[n][i]) << " ";
+			}
 		    }
 		    cout << endl;
 		}
+	    }
+
+	    for (unsigned n = 0; n < numNbest; n++) {
+		delete [] hiddenWids[n];
 	    }
 	}
 
@@ -857,19 +948,69 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
     }
 }
 
+LM *
+makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
+			    unsigned order, LM *oldLM, double lambda)
+{
+    File file(filename, "r");
+
+    /*
+     * create class-ngram if -classes were specified, otherwise a regular ngram
+     */
+    Ngram *lm = (classVocab != 0) ?
+		  (simpleClasses ?
+			new SimpleClassNgram(vocab, *classVocab, order) :
+		        new ClassNgram(vocab, *classVocab, order)) :
+		  new Ngram(vocab, order);
+    assert(lm != 0);
+
+    lm->debugme(debug);
+
+    if (!lm->read(file)) {
+	cerr << "format error in mix-lm file " << filename << endl;
+	exit(1);
+    }
+
+    /*
+     * Each class LM needs to read the class definitions
+     */
+    if (classesFile != 0) {
+	File file(classesFile, "r");
+	((ClassNgram *)lm)->readClasses(file);
+    }
+
+    if (oldLM) {
+	LM *newLM = new BayesMix(vocab, *lm, *oldLM, 0, lambda);
+	assert(newLM != 0);
+
+	newLM->debugme(debug);
+
+	return newLM;
+    } else {
+	return lm;
+    }
+}
+
 int
 main(int argc, char **argv)
 {
+    setlocale(LC_CTYPE, "");
+    setlocale(LC_COLLATE, "");
+
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (numNbest <= 0) numNbest = 1;		  
+				// Silent fix.  Ought to say something here.
 
     /*
      * Construct language model
      */
-
     Vocab vocab;
     vocab.toLower = toLower? true : false;
+    vocab.unkIsWord = keepUnk ? true : false;
 
     SubVocab hiddenVocab(vocab);
+    SubVocab *classVocab = 0;
 
     LM    *hiddenLM = 0;
     NgramCounts<NgramFractCount> *hiddenCounts = 0;
@@ -877,15 +1018,88 @@ main(int argc, char **argv)
     if (lmFile) {
 	File file(lmFile, "r");
 
-	hiddenLM = new Ngram(vocab, order);
+	/*
+	 * create base N-gram model (either word or class-based)
+	 */
+	if (classesFile) {
+	    classVocab = new SubVocab(vocab);
+	    assert(classVocab != 0);
+
+	    if (simpleClasses) {
+		hiddenLM = new SimpleClassNgram(vocab, *classVocab, order);
+	    } else {
+		cerr << "warning: state space will get very large; consider using -simple-classes\n";
+		hiddenLM = new ClassNgram(vocab, *classVocab, order);
+	    }
+	} else {
+	    hiddenLM = new Ngram(vocab, order);
+	}
 	assert(hiddenLM != 0);
 
 	hiddenLM->debugme(debug);
 	hiddenLM->read(file);
+
+	if (classesFile) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)hiddenLM)->readClasses(file);
+	}
     } else {
 	hiddenLM = new NullLM(vocab);
 	assert(hiddenLM != 0);
 	hiddenLM->debugme(debug);
+    }
+
+    /*
+     * Build the full LM used for hidden event decoding
+     */
+    LM *useLM = hiddenLM;
+
+    if (mixFile) {
+	/*
+	 * create a Bayes mixture LM 
+	 */
+	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
+				mixLambda4 - mixLambda5 - mixLambda6 -
+				mixLambda7 - mixLambda8 - mixLambda9;
+
+	useLM = makeMixLM(mixFile, vocab, classVocab, order, useLM,
+				mixLambda1/(mixLambda + mixLambda1));
+
+	if (mixFile2) {
+	    useLM = makeMixLM(mixFile2, vocab, classVocab, order, useLM,
+				mixLambda2/(mixLambda + mixLambda1 +
+							mixLambda2));
+	}
+	if (mixFile3) {
+	    useLM = makeMixLM(mixFile3, vocab, classVocab, order, useLM,
+				mixLambda3/(mixLambda + mixLambda1 +
+						mixLambda2 + mixLambda3));
+	}
+	if (mixFile4) {
+	    useLM = makeMixLM(mixFile4, vocab, classVocab, order, useLM,
+				mixLambda4/(mixLambda + mixLambda1 +
+					mixLambda2 + mixLambda3 + mixLambda4));
+	}
+	if (mixFile5) {
+	    useLM = makeMixLM(mixFile5, vocab, classVocab, order, useLM,
+								mixLambda5);
+	}
+	if (mixFile6) {
+	    useLM = makeMixLM(mixFile6, vocab, classVocab, order, useLM,
+								mixLambda6);
+	}
+	if (mixFile7) {
+	    useLM = makeMixLM(mixFile7, vocab, classVocab, order, useLM,
+								mixLambda7);
+	}
+	if (mixFile8) {
+	    useLM = makeMixLM(mixFile8, vocab, classVocab, order, useLM,
+								mixLambda8);
+	}
+	if (mixFile9) {
+	    useLM = makeMixLM(mixFile9, vocab, classVocab, order, useLM,
+								mixLambda9);
+	}
     }
 
     /*
@@ -932,17 +1146,17 @@ main(int argc, char **argv)
 	File file(textFile, "r");
 
 	if (continuous) {
-	    disambiguateFileContinuous(file, hiddenVocab, *hiddenLM,
-								hiddenCounts);
+	    disambiguateFileContinuous(file, hiddenVocab, *useLM,
+							hiddenCounts, numNbest);
 	} else {
-	    disambiguateFile(file, hiddenVocab, *hiddenLM, hiddenCounts);
+	    disambiguateFile(file, hiddenVocab, *useLM, hiddenCounts, numNbest);
 	}
     }
 
     if (textMapFile) {
 	File file(textMapFile, "r");
 
-	disambiguateTextMap(file, hiddenVocab, *hiddenLM, hiddenCounts);
+	disambiguateTextMap(file, hiddenVocab, *useLM, hiddenCounts, numNbest);
     }
 
     if (countsFile) {

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+ngram -debug 1 \
+	-ppl devtest.text \
+	-order 4 \
+	-lm spine2000+2001-gridlabel+spell.4bo.gz \
+	-classes newlabels+spell.classes 

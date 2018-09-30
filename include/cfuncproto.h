@@ -14,7 +14,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/spot71/srilm/devel/misc/src/RCS/cfuncproto.h,v 1.6 1997/01/23 20:08:46 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/devel/misc/src/RCS/cfuncproto.h,v 1.7 2002/02/11 07:40:43 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _CFUNCPROTO
@@ -58,10 +58,12 @@
 #define	_ARGS_(x)	()
 #endif
 
+#ifndef _CONST
 #ifdef _HAS_CONST
 #define _CONST          const
 #else
 #define _CONST
+#endif
 #endif
 
 #ifdef _HAS_VOIDPTR

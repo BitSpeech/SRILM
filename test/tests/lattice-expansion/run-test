@@ -1,0 +1,21 @@
+#!/bin/sh
+
+lm="../class-ngram/spine2000+2001-gridlabel+spell.4bo.gz \
+	-classes ../class-ngram/newlabels+spell.classes \
+	-multiwords "
+
+mkdir -p tmp
+
+lattice-tool -debug 1 \
+                -in-lattice-list lattice-list \
+                -out-lattice-dir tmp \
+                -overwrite \
+                -reduce-iterate 2 \
+		-lm $lm -order 3 \
+		-old-expansion \
+		-compact-pause  
+
+gunzip -c tmp/g07a01_unpr_A_0015080_0015309.gz
+
+rm -rf tmp
+

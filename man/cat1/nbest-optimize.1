@@ -230,16 +230,24 @@ OOPPTTIIOONNSS
               Write  the best word hypotheses to _f_i_l_e after opti-
               mization.
 
-       ----     Signals the end of  options,  such  that  following
-              command-line  arguments  are  interpreted  as addi-
+       --wwrriittee--rroovveerr--ccoonnttrrooll _f_i_l_e
+              Writes a control  file  for  nnbbeesstt--rroovveerr  to  _f_i_l_e,
+              reflecting  the  names of the input directories and
+              the optimized parameter values.  The format of _f_i_l_e
+              is  described  in  nnbbeesstt--ssccrriippttss(1).   The  file is
+              rewritten for each new minimal error weight  combi-
+              nation found.
+
+       ----     Signals  the  end  of  options, such that following
+              command-line arguments  are  interpreted  as  addi-
               tional scorefiles even if they start with `-'.
 
        _s_c_o_r_e_d_i_r...
-              Any additional arguments name directories  contain-
-              ing  further score files.  In each directory, there
-              must exist one file named after the sentence ID  it
-              corresponds  to  (the  file may also end in ``.gz''
-              and contain compressed data).  The total number  of
+              Any  additional arguments name directories contain-
+              ing further score files.  In each directory,  there
+              must  exist one file named after the sentence ID it
+              corresponds to (the file may also  end  in  ``.gz''
+              and  contain compressed data).  The total number of
               score dimensions is thus 3 (for the standard scores
               from the N-best list) plus the number of additional
               score directories specified.
@@ -247,26 +255,29 @@ OOPPTTIIOONNSS
 SSEEEE AALLSSOO
        nbest-lattice(1), nbest-scripts(1), nbest-format(5).
        S. Katagiri, C.H. Lee, & B.-H. Juang, "A Generalized Prob-
-       abilistic Descent Method", in _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e  _A_c_o_u_s_t_i_-
+       abilistic  Descent Method", in _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e _A_c_o_u_s_t_i_-
        _c_a_l _S_o_c_i_e_t_y _o_f _J_a_p_a_n_, _F_a_l_l _M_e_e_t_i_n_g, pp. 141-142, 1990.
-       S.  E. Fahlman, "Faster-Learning Variations on Back-Propa-
+       S. E. Fahlman, "Faster-Learning Variations on  Back-Propa-
        gation: An Empirical Study", in D. Touretzky, G. Hinton, &
        T. Sejnowski (eds.), _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e _1_9_8_8 _C_o_n_n_e_c_t_i_o_n_i_s_t
        _M_o_d_e_l_s _S_u_m_m_e_r _S_c_h_o_o_l, pp. 38-51, Morgan Kaufmann, 1989.
-       W. H. Press, B. P. Flannery, S. A. Teukolsky, & W. T. Vet-
-       terling,  _N_u_m_e_r_i_c_a_l  _R_e_c_i_p_e_s  _i_n  _C_: _T_h_e _A_r_t _o_f _S_c_i_e_n_t_i_f_i_c
+       W.  H.  Press,  B.  P.  Flannery, S. A. Teukolsky, & W. T.
+       Vetterling, _N_u_m_e_r_i_c_a_l _R_e_c_i_p_e_s _i_n _C_: _T_h_e _A_r_t _o_f  _S_c_i_e_n_t_i_f_i_c
        _C_o_m_p_u_t_i_n_g, Cambridge University Press, 1988.
 
 BBUUGGSS
-       Likely.   Gradient-based  optimization  is  not  supported
-       (yet)  in  1-best  mode;  use  simplex-search optimization
-       instead.
+       Gradient-based  optimization  is  not  supported  (yet) in
+       1-best mode; use simplex-search optimization instead.
+       The N-best directory in the control file output by --wwrriittee--
+       rroovveerr--ccoonnttrrooll  is  inferred from the first N-best filename
+       specified with --nnbbeesstt--ffiilleess, and will therefore only  work
+       if all N-best lists are placed in the same directory.
 
 AAUUTTHHOORRSS
        Andreas Stolcke <stolcke@speech.sri.com>
        Dimitra Vergyri <dverg@speech.sri.com>
-       Copyright 2000, 2001 SRI International
+       Copyright 2000-2002 SRI International
 
 
 
-SRILM Tools        $Date: 2001/06/26 18:10:20 $ nbest-optimize(1)
+SRILM Tools        $Date: 2002/02/23 23:12:29 $ nbest-optimize(1)

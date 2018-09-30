@@ -1,0 +1,351 @@
+<! $Id: lattice-tool.1,v 1.6 2003/02/19 07:49:04 stolcke Exp $>
+<HTML>
+<HEADER>
+<TITLE>lattice-tool</TITLE>
+<BODY>
+<H1>lattice-tool</H1>
+<H2> NAME </H2>
+lattice-tool - manipulate word lattices
+<H2> SYNOPSIS </H2>
+<B> lattice-tool </B>
+[<B>-help</B>]<B></B>
+option
+...
+<H2> DESCRIPTION </H2>
+<B> lattice-tool </B>
+performs operations on word lattices in 
+<A HREF="pfsg-format.html">pfsg-format(5)</A>,
+including size reduction, pruning, null-node removal, weight assignment from
+language models, and lattice word error computation.
+<H2> OPTIONS </H2>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+<DL>
+<DT><B> -help </B>
+<DD>
+Print option summary.
+<DT><B>-debug</B><I> level</I><B></B>
+<DD>
+Set the debugging output level (0 means no debugging output).
+Debugging messages are sent to stderr.
+<DT><B>-in-lattice</B><I> file</I><B></B>
+<DD>
+Read input lattice from
+<I>file</I>.<I></I>
+<DT><B>-in-lattice2</B><I> file</I><B></B>
+<DD>
+Read additional input lattice (for binary lattice operations) from
+<I>file</I>.<I></I>
+<DT><B>-in-lattice-list</B><I> file</I><B></B>
+<DD>
+Read list of input lattices from
+<I>file</I>.<I></I>
+Lattice operations are applied to each filename listed in 
+<I>file</I>.<I></I>
+<DT><B>-out-lattice</B><I> file</I><B></B>
+<DD>
+Write result lattice to 
+<I>file</I>.<I></I>
+<DT><B>-out-lattice-dir</B><I> dir</I><B></B>
+<DD>
+Write result lattices from processing of 
+<B> -in-lattice-list </B>
+to directory
+<I>dir</I>.<I></I>
+<DT><B> -write-internal </B>
+<DD>
+Write output lattices with internal node numbering instead of compact,
+consecutive numbering.
+<DT><B> -overwrite </B>
+<DD>
+OVerwrite existing output lattice files.
+<DT><B>-vocab</B><I> file</I><B></B>
+<DD>
+Initialize the vocabulary to words listed in
+<I>file</I>.<I></I>
+This is useful in conjunction with 
+<DT><B> -limit-vocab </B>
+<DD>
+Discard LM parameters on reading that do not pertain to the words 
+specified in the vocabulary.
+The default is that words used in the LM are automatically added to the 
+vocabulary.
+This option can be used to reduce the memory requirements for large LMs;
+to this end,
+<B> -vocab </B>
+option typically specifies the set of words used in the lattices to be 
+processed.
+<DT><B> -tolower </B>
+<DD>
+Map all vocabulary to lowercase.
+<DT><B>-max-time</B><I> T</I><B></B>
+<DD>
+Limit processing time per lattice to
+<I> T </I>
+seconds.
+</DD>
+</DL>
+<P>
+Options controlling lattice operations:
+<DL>
+<DT><B>-operation</B><I> O</I><B></B>
+<DD>
+Perform a lattice algebra operation
+<I> O </I>
+on the two lattices specified by
+<B> -in-lattice </B>
+and
+<B>-in-lattice2</B>,<B></B>
+before any other processing steps.
+Operations currently supported are
+<B> concatenate </B>
+and
+<B>or</B>,<B></B>
+for serial and parallel lattice combination, respectively.
+This option does not apply when multiple input lattices are processed.
+<DT><B>-write-posteriors</B><I> file</I><B></B>
+<DD>
+Compute the posteriors of lattice nodes and transitions (using the
+forward-backward algorithm) and write out a word posterior lattice
+in
+<A HREF="wlat-format.html">wlat-format(5)</A>.
+This and other options based on posterior probabilities make most sense
+if the input lattice contains combined acoustic-language model weights.
+<DT><B>-posterior-prune</B><I> P</I><B></B>
+<DD>
+Prune lattice nodes with posterior less 
+<I> P </I>
+times the highest posterior path.
+<DT><B>-posterior-scale</B><I> S</I><B></B>
+<DD>
+Scale the transition weights by dividing by
+<I> S </I>
+for the purpose of posterior probability computation.
+If the input weights represent combined acoustic-language model scores
+then this should be approximately the language model weight of the 
+recognizer in order to avoid overly peaked posteriors (the default value is 8).
+<DT><B> -reduce </B>
+<DD>
+Reduce lattice size by a single forward node merging pass.
+<DT><B>-reduce-iterate</B><I> I</I><B></B>
+<DD>
+Reduce lattice size by up to
+<I> I </I>
+forward-backward node merging passes.
+<DT><B>-overlap-ratio</B><I> R</I><B></B>
+<DD>
+Perform approximate lattice reduction by merging nodes that share 
+more than a fraction
+<I> R </I>
+of their incoming or outgoing nodes.
+The default is 0, i.e., only exact lattice reduction is performed.
+<DT><B>-overlap-base</B><I> B</I><B></B>
+<DD>
+If 
+<I> B </I>
+is 0 (the default), then the overlap ratio
+<I> R </I>
+is taken relative to the smaller set of transitions being compared.
+If the value is 1, the ratio is relative to the larger of the two sets.
+<DT><B> -reduce-before-pruning </B>
+<DD>
+Perform lattice reduction before posterior-based pruning.
+The default order is to first prune, then reduce.
+<DT><B>-pre-reduce-iterate</B><I> I</I><B></B>
+<DD>
+Perform iterative reduction prior to lattice expansion, but after 
+pause elimination.
+<DT><B>-post-reduce-iterate</B><I> I</I><B></B>
+<DD>
+Perform iterative reduction after lattice expansion and pause node recovery.
+Note: this is not recommended as it changes the weights assigned from
+the specified language model.
+<DT><B> -no-pause </B>
+<DD>
+Do not recover pauses after lattice expansion.
+<DT><B> -compact-pause </B>
+<DD>
+Use compact encoding of pause nodes that saves nodes put allows 
+optional pauses where they might not have been included in the original
+lattice.
+<DT><B> -loop-pause </B>
+<DD>
+Add self-loops on pause nodes.
+<DT><B> -collapse-same-words </B>
+<DD>
+Perform an operation on the final lattices that collapses all nodes 
+with the same words, except null nodes, pause nodes, or nodes with 
+noise words.
+This can reduce the lattice size dramatically, but also introduces new 
+paths.
+<DT><B> -connectivity </B>
+<DD>
+Check the connectedness of lattices.
+<DT><B> -compute-node-entropy </B>
+<DD>
+Compute the node entropy of lattices.
+<DT><B>-ref-list</B><I> file</I><B></B>
+<DD>
+Read reference word strings from 
+<I>file</I>.<I></I>
+Each line starts with a sentence ID (the basename of the lattice file name),
+followed by the words.
+<DT><B>-ref-file</B><I> file</I><B></B>
+<DD>
+Read reference word strings from
+<I>file</I>.<I></I>
+Lines must contain reference words only, and must be matched to input
+lattices in the order processed.
+This and the next option triggers computation of lattice word errors
+(minimum word error counts of any path through a lattice).
+<DT><B>-noise-vocab</B><I> file</I><B></B>
+<DD>
+Read a list of "noise" words from
+<I>file</I>.<I></I>
+These words are ignored when computing lattice word errors,
+or when collapsing nodes with
+<B>-collapse-same-words</B>.<B></B>
+<DT><B>-split-multiwords</B><I></I><B></B>
+<DD>
+Split lattice nodes with multiwords into a sequence of non-multiword
+nodes.
+This option is necessary to compute lattice error of multiword lattices
+against non-multiword references, but may be useful in its own right.
+</DD>
+</DL>
+<P>
+The following options control transition weight assignment:
+<DL>
+<DT><B>-order</B><I> n</I><B></B>
+<DD>
+Set the maximal N-gram order to be used for transition weight assignment
+(the default is 3).
+This also selects the lattice expansion algorithm to be used.
+For unigrams, the original lattice structure is preserved (unless modified
+by other operations).
+For bigram weights, NULL and pause nodes are eliminated, transition weights
+reassigned, and then pause nodes are restored.
+For trigram weights, additional nodes are inserted to create unique
+trigrams histories (lattice expansion).
+<DT><B>-lm</B><I> file</I><B></B>
+<DD>
+Read N-gram language model from 
+<I>file</I>.<I></I>
+This option also triggers weight reassignment and lattice expansion.
+<DT><B> -multiwords </B>
+<DD>
+Resolve multiwords in the lattice without splitting nodes.
+This is useful in rescoring lattices containing multiwords with a
+LM does not use multiwords.
+<DT><B>-classes</B><I> file</I><B></B>
+<DD>
+Interpret the LM as an N-gram over word classes.
+The expansions of the classes are given in
+<I>file</I><I></I>
+in 
+<A HREF="classes-format.html">classes-format(5)</A>.
+Tokens in the LM that are not defined as classes in
+<I> file </I>
+are assumed to be plain words, so that the LM can contain mixed N-grams over
+both words and word classes.
+<DT><B>-simple-classes</B><B></B>
+<DD>
+Assume a "simple" class model: each word is member of at most one word class,
+and class expansions are exactly one word long.
+<DT><B>-mix-lm</B><I> file</I><B></B>
+<DD>
+Read a second N-gram model for interpolation purposes.
+The second and any additional interpolated models can also be class N-grams
+(using the same
+<B> -classes </B>
+definitions).
+<DT><B>-lambda</B><I> weight</I><B></B>
+<DD>
+Set the weight of the main model when interpolating with
+<B>-mix-lm</B>.<B></B>
+Default value is 0.5.
+<DT><B>-mix-lm2</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm3</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm4</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm5</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm6</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm7</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm8</B><I> file</I><B></B>
+<DD>
+<DT><B>-mix-lm9</B><I> file</I><B></B>
+<DD>
+Up to 9 more N-gram models can be specified for interpolation.
+<DT><B>-mix-lambda2</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda3</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda4</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda5</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda6</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda7</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda8</B><I> weight</I><B></B>
+<DD>
+<DT><B>-mix-lambda9</B><I> weight</I><B></B>
+<DD>
+These are the weights for the additional mixture components, corresponding
+to
+<B> -mix-lm2 </B>
+through
+<B>-mix-lm9</B>.<B></B>
+The weight for the
+<B> -mix-lm </B>
+model is 1 minus the sum of 
+<B> -lambda </B>
+and 
+<B> -mix-lambda2 </B>
+through
+<B>-mix-lambda9</B>.<B></B>
+<DT><B>-compact-expansion</B><I></I><B></B>
+<DD>
+Use the compact trigram expansion algorithm that uses backoff nodes
+(see paper reference below).
+This algorithm only applies to simple word-based N-gram models, and
+cannot deal with interpolated or class-based models, or interact with
+the 
+<B> -multiword </B>
+option.
+<DT><B>-max-nodes</B><I> M</I><B></B>
+<DD>
+Abort lattices exansion when the number of nodes exceeds 
+<I>M</I>.<I></I>
+This is another mechanism to avoid spending too much time on very large
+lattices.
+</DD>
+</DL>
+<H2> SEE ALSO </H2>
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="pfsg-scripts.html">pfsg-scripts(1)</A>,
+<A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>.
+<BR>
+F. Weng, A. Stolcke, and A. Sankar,
+``Efficient Lattice Representation and Generation.''
+<I>Proc. Intl. Conf. on Spoken Language Processing</I>, vol. 6, pp. 2531-2534,
+Sydney, 1998.
+<H2> BUGS </H2>
+Not all LM types supported by 
+<A HREF="ngram.html">ngram(1)</A>
+are handled by 
+<B> lattice-tool. </B>
+<H2> AUTHOR </H2>
+Fuliang Weng &lt;fuliang@speech.sri.com&gt;
+<BR>
+Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
+<BR>
+Copyright 1997-2002 SRI International
+</BODY>
+</HTML>

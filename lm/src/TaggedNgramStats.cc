@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char TaggedNgramStats_Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/speech/stolcke/project/srilm/devel/lm/src/RCS/TaggedNgramStats.cc,v 1.2 1996/05/31 05:25:44 stolcke Exp $";
+static char TaggedNgramStats_Copyright[] = "Copyright (c) 1995,2002 SRI International.  All Rights Reserved.";
+static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.cc,v 1.3 2002/08/09 08:46:54 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -20,7 +20,8 @@ TaggedNgramStats::TaggedNgramStats(TaggedVocab &vocab, unsigned int maxOrder)
 }
 
 void
-TaggedNgramStats::incrementTaggedCounts(const VocabIndex *words)
+TaggedNgramStats::incrementTaggedCounts(const VocabIndex *words,
+							NgramCount factor)
 {
     VocabIndex wbuffer[maxWordsPerLine + 1];
 
@@ -30,25 +31,25 @@ TaggedNgramStats::incrementTaggedCounts(const VocabIndex *words)
     }
     wbuffer[i] = Vocab_None;
 
-    incrementCounts(wbuffer);
+    incrementCounts(wbuffer, 1, factor);
 
     for (i = 0; i < order && words[i] != Vocab_None; i++) {
 	VocabIndex tag = TaggedVocab::getTag(words[i]);
 
 	if (tag != Tag_None) {
 	    wbuffer[i] = TaggedVocab::tagWord(Tagged_None, tag);
-	    incrementCounts(wbuffer, i + 1);
+	    incrementCounts(wbuffer, i + 1, factor);
 	}
     }
 }
 
-unsigned int
-TaggedNgramStats::countSentence(const VocabIndex *words)
+unsigned
+TaggedNgramStats::countSentence(const VocabIndex *words, NgramCount factor)
 {
     unsigned int start;
 
     for (start = 0; words[start] != Vocab_None; start++) {
-        incrementTaggedCounts(words + start);
+        incrementTaggedCounts(words + start, factor);
     }
 
     /*

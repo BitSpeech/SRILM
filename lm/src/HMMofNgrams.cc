@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.9 2000/01/13 04:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997,2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.10 2003/02/15 06:56:29 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -106,7 +106,7 @@ HMMofNgrams::dout(ostream &stream)
  *	etc.
  */
 Boolean
-HMMofNgrams::read(File &file)
+HMMofNgrams::read(File &file, Boolean limitVocab)
 {
     char *line;
     VocabString fields[maxTransPerState + 3];
@@ -192,7 +192,7 @@ HMMofNgrams::read(File &file)
 
 		Boolean status;
 		if (strcmp(state->ngramName, INLINE_LM) == 0) {
-		    status = state->ngram->read(file);
+		    status = state->ngram->read(file, limitVocab);
 
 		} else {
 		    File ngramFile(state->ngramName, "r", false);
@@ -203,7 +203,7 @@ HMMofNgrams::read(File &file)
 			return false;
 		    }
 
-		    status = state->ngram->read(ngramFile);
+		    status = state->ngram->read(ngramFile, limitVocab);
 		}
 
 		if (!status) {

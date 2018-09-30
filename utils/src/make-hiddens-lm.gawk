@@ -7,19 +7,21 @@
 #
 # 1 - ngrams involving <s> and </s> are duplicated using the
 #     hidden segment boundary token <#s>.
-# 2 - ngram starting with <s> are eliminated.
-# 3 - the backoff weights of <s> is set to 1.
+# 2 - ngrams starting with <s> are eliminated.
+# 3 - the backoff weight of <s> is set to 1.
 #     this together with the previous change sets all probabilities conditioned
 #     on <s> to the respective marignal probabilities without <s>.
 # 4 - ngrams ending in </s> get probability 1.
-#     this avoid an end-of-sentence penalty in rescoring.
+#     this avoids an end-of-sentence penalty in rescoring.
 #
-# $Header: /home/spot71/srilm/devel/utils/src/RCS/make-hiddens-lm,v 1.3 1996/09/15 17:28:34 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-hiddens-lm.gawk,v 1.6 2003/01/28 08:37:11 stolcke Exp $
 #
 BEGIN {
 	sent_start = "<s>";
 	sent_end = "</s>";
 	hiddens = "<#s>";
+
+	remove_old_ngrams = 0;
 }
 NF==0 {
 	print; next;
@@ -47,15 +49,36 @@ $0 ~ sent_start || $0 ~ sent_end {
 	oldline = $0;
 
 	# modify sentence initial/final ngrams
-	if ($2 == sent_start && currorder == 1) {
+	if ($2 == sent_end && currorder == 1) {
+	    sos_uniprob = $1;
+
+	    if (no_s_end) {
+		# set </s> prob to 1
+		$1 = 0;
+	    }
+	    if (!remove_old_ngrams) {
+		print;
+	    }
+	    next;
+	} else if ($2 == sent_start && currorder == 1) {
 	    if (no_s_start) {
 		# set <s> backoff weight to 1
 		$3 = 0;
 	    }
-	    print;
+	    if (!remove_old_ngrams) {
+		print;
+	    }
+
+	    # use unigram prob from </s>
+	    if (sos_uniprob == "") {
+		print "warning: could not find " sent_end " unigram" \
+							    > "/dev/stderr";
+	    } else {
+		oldline = sos_uniprob "\t" $2 "\t" $3;
+	    }
 	} else if ($2 == sent_start) {
-	    # suppress other ngram starting with <s>
-	    if (!no_s_start) {
+	    # suppress other ngrams starting with <s>
+	    if (!no_s_start && !remove_old_ngrams) {
 		print;
 	    }
 	} else if ($(currorder + 1) == sent_end) {
@@ -63,7 +86,9 @@ $0 ~ sent_start || $0 ~ sent_end {
 		# set </s> prob to 1
 		$1 = 0;
 	    }
-	    print;
+	    if (!remove_old_ngrams) {
+	        print;
+	    }
 	}
 
 	# replace <s> and </s> with <#s> and output result

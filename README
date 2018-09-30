@@ -7,9 +7,13 @@ Subdirectories of srilm
 	misc/		miscellaneous C and C++ convenience library
 	dstruct/	C++ data structures
 	lm/		language model library and tools
+	lattice/	lattice library and tool
 	utils/		miscellaneous utility scripts using the LM tools
 	htk/		SRILM-HTK interface
+	doc/		documentation
+	man/		man pages
+	test/		regression test suite
 
 See INSTALL for build instructions.
 
-$Header: /home/srilm/devel/RCS/README,v 1.2 1999/07/31 18:22:22 stolcke Exp $
+$Header: /home/srilm/devel/RCS/README,v 1.5 2002/04/13 02:57:14 stolcke Exp $

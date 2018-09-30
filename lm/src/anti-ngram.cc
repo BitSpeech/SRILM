@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.8 2001/10/31 07:00:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.10 2002/07/18 21:07:03 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -181,8 +181,8 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
-    if (!nbestFiles || !refFile) {
-	cerr << "cannot proceed without nbest files and references\n";
+    if (!nbestFiles) {
+	cerr << "cannot proceed without nbest files\n";
 	exit(2);
     }
 
@@ -202,6 +202,7 @@ main(int argc, char **argv)
 
     NBestSet trainSet(vocab, refs, maxNbest, true, multiwords);
     trainSet.debugme(debug);
+    trainSet.warn = false;
 
     NgramCounts<DiscNgramCount> trainStats(vocab, order);
     trainStats.debugme(debug);
@@ -227,6 +228,9 @@ main(int argc, char **argv)
 			  new Ngram(vocab, order);
 	assert(ngram != 0);
 
+	ngram->debugme(debug);
+	ngram->read(file);
+
 	/*
 	 * read class vocabulary if specified
 	 */
@@ -234,9 +238,6 @@ main(int argc, char **argv)
 	    File file(classesFile, "r");
 	    ((ClassNgram *)ngram)->readClasses(file);
 	}
-
-	ngram->debugme(debug);
-	ngram->read(file);
     }
 
     /*
@@ -271,7 +272,7 @@ main(int argc, char **argv)
     while (nbest = iter.next(id)) {
 	VocabIndex *ref = refs.findRef(id);
 
-	if (!ref) {
+	if (!ref && !allNgrams) {
 	    cerr << "no reference found for " << id << endl;
 	} else {
 	    countNBestList(*nbest, ref, ngram, trainStats);

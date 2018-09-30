@@ -1,11 +1,11 @@
-<! $Id: lm-scripts.1,v 1.3 2000/06/09 00:27:33 stolcke Exp $>
+<! $Id: lm-scripts.1,v 1.5 2003/02/20 16:45:10 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>lm-scripts</TITLE>
 <BODY>
 <H1>lm-scripts</H1>
 <H2> NAME </H2>
-lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams - manipulate N-gram language models
+lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm - manipulate N-gram language models
 <H2> SYNOPSIS </H2>
 <B> add-dummy-bows </B>
 [<I>lm-file</I>]
@@ -38,6 +38,14 @@ lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, ma
 <B> remove-lowprob-ngrams </B>
 [<I>lm-file</I>]
 <B>&gt;</B><I>new-lm-file</I><B></B>
+<BR>
+<B> reverse-lm </B>
+[<I>lm-file</I>]
+<B>&gt;</B><I>new-lm-file</I><B></B>
+<BR>
+<B> sort-lm </B>
+[<I>lm-file</I>]
+<B>&gt;</B><I>sorted-lm-file</I><B></B>
 <H2> DESCRIPTION </H2>
 These scripts perform various useful manipulations on N-gram models
 in their textual representation.
@@ -127,13 +135,30 @@ However, this function is now performed much faster by
 with the
 <B> -prune-lowprobs </B>
 option.
+<P>
+<B> reverse-lm </B>
+produces a new LM that generates sentences with probabilities equal
+to the reversed sentences in the input model.
+<P>
+<B> sort-lm </B>
+sorts the n-grams in an LM in lexicographic order (left-most words being
+the most significant).
+This is not a requirement for SRILM, but might be necessary for some 
+other LM software.
+(The LMs output by SRILM are sorted somewhat differently, reflecting 
+the internal data structures used; that is also the order that should give
+best cache utilization when using SRILM to read models.)
 <H2> SEE ALSO </H2>
 <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="ngram.html">ngram(1)</A>.
 <H2> BUGS </H2>
 These are quick-and-dirty scripts, what do you expect?
+<BR>
+<B> reverse-lm </B>
+supports only bigram LMs, and can produce improper probability estimates 
+as a result of inconsistent marginals in the input model.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-1999 SRI International
+Copyright 1995-2003 SRI International
 </BODY>
 </HTML>

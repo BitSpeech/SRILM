@@ -3,7 +3,7 @@
 # nbest-error --
 #	compute minimum error of nbest lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-error,v 1.4 2001/08/04 09:39:53 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-error,v 1.5 2003/01/11 01:25:44 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -33,7 +33,8 @@ if [ ! -r $refs ]; then
 fi
 
 if [ -d $scoredir ]; then
-    find $scoredir -type f \( -name \*.score -o \
+    find $scoredir -follow \
+	 	 -type f \( -name \*.score -o \
 			    -name \*.Z -o \
 			    -name \*.gz \) \
 		    -print | sort

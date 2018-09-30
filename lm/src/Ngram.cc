@@ -1,1516 +1,805 @@
 /*
- * Ngram.cc --
- *	N-gram backoff language models
+ * ngram --
+ *	Create and manipulate ngram (and related) models
  *
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.cc,v 1.69 2001/01/19 01:54:33 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram.cc,v 1.69 2003/02/16 16:00:42 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <new.h>
+#include <iostream.h>
+#include <locale.h>
+#include <assert.h>
+#include <unistd.h>
+#include <time.h>
 
-#include "Ngram.h"
+extern "C" {
+    void srand48(long);           /* might be missing from math.h or stdlib.h */
+}
+
+#include "option.h"
 #include "File.h"
+#include "Vocab.h"
+#include "SubVocab.h"
+#include "MultiwordVocab.h"
+#include "MultiwordLM.h"
+#include "NBest.h"
+#include "TaggedVocab.h"
+#include "Ngram.h"
+#include "TaggedNgram.h"
+#include "StopNgram.h"
+#include "ClassNgram.h"
+#include "SimpleClassNgram.h"
+#include "DFNgram.h"
+#include "SkipNgram.h"
+#include "HiddenNgram.h"
+#include "HiddenSNgram.h"
+#include "NullLM.h"
+#include "BayesMix.h"
+#include "AdaptiveMix.h"
+#include "CacheLM.h"
+#include "DynamicLM.h"
+#include "DecipherNgram.h"
+#include "HMMofNgrams.h"
 
-#ifdef USE_SARRAY
-
-#include "SArray.cc"
-
-#ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_SARRAY(VocabIndex,LogP); 
-#endif
-
-#else /* ! USE_SARRAY */
-
-#include "LHash.cc"
-
-#ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_LHASH(VocabIndex,LogP); 
-#endif
-
-#endif /* USE_SARRAY */
-
-#include "Trie.cc"
-
-#ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_TRIE(VocabIndex,BOnode);
-#endif
+static unsigned order = defaultNgramOrder;
+static unsigned debug = 0;
+static char *pplFile = 0;
+static char *escape = 0;
+static char *countFile = 0;
+static unsigned countOrder = 0;
+static char *vocabFile = 0;
+static char *noneventFile = 0;
+static int limitVocab = 0;
+static char *lmFile  = 0;
+static char *mixFile  = 0;
+static char *mixFile2 = 0;
+static char *mixFile3 = 0;
+static char *mixFile4 = 0;
+static char *mixFile5 = 0;
+static char *mixFile6 = 0;
+static char *mixFile7 = 0;
+static char *mixFile8 = 0;
+static char *mixFile9 = 0;
+static int bayesLength = -1;	/* marks unset option */
+static double bayesScale = 1.0;
+static double mixLambda = 0.5;
+static double mixLambda2 = 0.0;
+static double mixLambda3 = 0.0;
+static double mixLambda4 = 0.0;
+static double mixLambda5 = 0.0;
+static double mixLambda6 = 0.0;
+static double mixLambda7 = 0.0;
+static double mixLambda8 = 0.0;
+static double mixLambda9 = 0.0;
+static int reverse = 0;
+static char *writeLM  = 0;
+static char *writeVocab  = 0;
+static int memuse = 0;
+static int renormalize = 0;
+static double prune = 0.0;
+static int pruneLowProbs = 0;
+static int minprune = 2;
+static int skipOOVs = 0;
+static unsigned generate = 0;
+static int seed = 0;  /* default dynamically generated in main() */
+static int df = 0;
+static int skipNgram = 0;
+static int hiddenS = 0;
+static char *hiddenVocabFile = 0;
+static int hiddenNot = 0;
+static char *classesFile = 0;
+static int simpleClasses = 0;
+static int expandClasses = -1;
+static unsigned expandExact = 0;
+static int tagged = 0;
+static int toLower = 0;
+static int multiwords = 0;
+static int keepunk = 0;
+static char *mapUnknown = 0;
+static int null = 0;
+static unsigned cache = 0;
+static double cacheLambda = 0.05;
+static int dynamic = 0;
+static double dynamicLambda = 0.05;
+static char *noiseTag = 0;
+static char *noiseVocabFile = 0;
+static char *stopWordFile = 0;
+static int decipherHack = 0;
+static int hmm = 0;
+static int adaptMix = 0;
+static double adaptDecay = 1.0;
+static unsigned adaptIters = 2;
 
 /*
- * Debug levels used
- */
-#define DEBUG_ESTIMATE_WARNINGS	1
-#define DEBUG_FIXUP_WARNINGS 3
-#define DEBUG_PRINT_GTPARAMS 2
-#define DEBUG_READ_STATS 1
-#define DEBUG_WRITE_STATS 1
-#define DEBUG_NGRAM_HITS 2
-#define DEBUG_ESTIMATES 4
-
-/* these are the same as in LM.cc */
-#define DEBUG_PRINT_SENT_PROBS		1
-#define DEBUG_PRINT_WORD_PROBS		2
-#define DEBUG_PRINT_PROB_SUMS		3
-
-const LogP LogP_PseudoZero = -99.0;	/* non-inf value used for log 0 */
-
-/*
- * Low level methods to access context (BOW) nodes and probs
+ * N-Best related variables
  */
 
-void
-Ngram::memStats(MemStats &stats)
+static char *nbestFile = 0;
+static unsigned maxNbest = 0;
+static char *rescoreFile = 0;
+static char *decipherLM = 0;
+static unsigned decipherOrder = 2;
+static int decipherNoBackoff = 0;
+static double decipherLMW = 8.0;
+static double decipherWTW = 0.0;
+static double rescoreLMW = 8.0;
+static double rescoreWTW = 0.0;
+
+static Option options[] = {
+    { OPT_UINT, "order", &order, "max ngram order" },
+    { OPT_UINT, "debug", &debug, "debugging level for lm" },
+    { OPT_TRUE, "skipoovs", &skipOOVs, "skip n-gram contexts containing OOVs" },
+    { OPT_TRUE, "df", &df, "use disfluency ngram model" },
+    { OPT_TRUE, "tagged", &tagged, "use a tagged LM" },
+    { OPT_TRUE, "skip", &skipNgram, "use skip ngram model" },
+    { OPT_TRUE, "hiddens", &hiddenS, "use hidden sentence ngram model" },
+    { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden ngram vocabulary" },
+    { OPT_TRUE, "hidden-not", &hiddenNot, "process overt hidden events" },
+    { OPT_STRING, "classes", &classesFile, "class definitions" },
+    { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
+    { OPT_INT, "expand-classes", &expandClasses, "expand class-model into word-model" },
+    { OPT_UINT, "expand-exact", &expandExact, "compute expanded ngrams longer than this exactly" },
+    { OPT_STRING, "stop-words", &stopWordFile, "stop-word vocabulary for stop-Ngram LM" },
+    { OPT_TRUE, "decipher", &decipherHack, "use bigram model exactly as recognizer" },
+    { OPT_TRUE, "unk", &keepunk, "vocabulary contains unknown word tag" },
+    { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
+    { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
+    { OPT_TRUE, "multiwords", &multiwords, "split multiwords for LM evaluation" },
+    { OPT_STRING, "ppl", &pplFile, "text file to compute perplexity from" },
+    { OPT_STRING, "escape", &escape, "escape prefix to pass data through -ppl" },
+    { OPT_STRING, "counts", &countFile, "count file to compute perplexity from" },
+    { OPT_UINT, "count-order", &countOrder, "max count order used by -counts" },
+    { OPT_UINT, "gen", &generate, "number of random sentences to generate" },
+    { OPT_INT, "seed", &seed, "seed for randomization" },
+    { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "nonevents", &noneventFile, "non-event vocabulary" },
+    { OPT_TRUE, "limit-vocab", &limitVocab, "limit LM reading to specified vocabulary" },
+    { OPT_STRING, "lm", &lmFile, "file in ARPA LM format" },
+    { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
+    { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
+    { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
+    { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
+    { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
+    { OPT_FLOAT, "mix-lambda2", &mixLambda2, "mixture weight for -mix-lm2" },
+    { OPT_STRING, "mix-lm3", &mixFile3, "third LM to mix in" },
+    { OPT_FLOAT, "mix-lambda3", &mixLambda3, "mixture weight for -mix-lm3" },
+    { OPT_STRING, "mix-lm4", &mixFile4, "fourth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda4", &mixLambda4, "mixture weight for -mix-lm4" },
+    { OPT_STRING, "mix-lm5", &mixFile5, "fifth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda5", &mixLambda5, "mixture weight for -mix-lm5" },
+    { OPT_STRING, "mix-lm6", &mixFile6, "sixth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda6", &mixLambda6, "mixture weight for -mix-lm6" },
+    { OPT_STRING, "mix-lm7", &mixFile7, "seventh LM to mix in" },
+    { OPT_FLOAT, "mix-lambda7", &mixLambda7, "mixture weight for -mix-lm7" },
+    { OPT_STRING, "mix-lm8", &mixFile8, "eighth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda8", &mixLambda8, "mixture weight for -mix-lm8" },
+    { OPT_STRING, "mix-lm9", &mixFile9, "ninth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
+    { OPT_TRUE, "null", &null, "use a null language model" },
+    { OPT_UINT, "cache", &cache, "history length for cache language model" },
+    { OPT_FLOAT, "cache-lambda", &cacheLambda, "interpolation weight for -cache" },
+    { OPT_TRUE, "dynamic", &dynamic, "interpolate with a dynamic lm" },
+    { OPT_TRUE, "hmm", &hmm, "use HMM of n-grams model" },
+    { OPT_TRUE, "adapt-mix", &adaptMix, "use adaptive mixture of n-grams model" },
+    { OPT_FLOAT, "adapt-decay", &adaptDecay, "history likelihood decay factor" },
+    { OPT_UINT, "adapt-iters", &adaptIters, "EM iterations for adaptive mix" },
+    { OPT_FLOAT, "dynamic-lambda", &dynamicLambda, "interpolation weight for -dynamic" },
+    { OPT_TRUE, "reverse", &reverse, "reverse words" },
+    { OPT_STRING, "write-lm", &writeLM, "re-write LM to file" },
+    { OPT_STRING, "write-vocab", &writeVocab, "write LM vocab to file" },
+    { OPT_TRUE, "renorm", &renormalize, "renormalize backoff weights" },
+    { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
+    { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
+    { OPT_TRUE, "prune-lowprobs", &pruneLowProbs, "low probability N-grams" },
+
+    { OPT_TRUE, "memuse", &memuse, "show memory usage" },
+
+    { OPT_STRING, "nbest", &nbestFile, "nbest list file to rescore" },
+    { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
+    { OPT_STRING, "rescore", &rescoreFile, "hyp stream input file to rescore" },
+    { OPT_STRING, "decipher-lm", &decipherLM, "DECIPHER(TM) LM for nbest list generation" },
+    { OPT_UINT, "decipher-order", &decipherOrder, "ngram order for -decipher-lm" },
+    { OPT_TRUE, "decipher-nobackoff", &decipherNoBackoff, "disable backoff hack in recognizer LM" },
+    { OPT_FLOAT, "decipher-lmw", &decipherLMW, "DECIPHER(TM) LM weight" },
+    { OPT_FLOAT, "decipher-wtw", &decipherWTW, "DECIPHER(TM) word transition weight" },
+    { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
+    { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
+    { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
+    { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
+};
+
+LM *
+makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
+			    unsigned order, LM *oldLM, double lambda)
 {
-    stats.total += sizeof(*this) - sizeof(contexts);
-    contexts.memStats(stats);
+    File file(filename, "r");
 
     /*
-     * The probs tables are not included in the above call,
-     * so we have to count those separately.
+     * create class-ngram if -classes were specified, otherwise a regular ngram
      */
-    VocabIndex context[order + 1];
+    Ngram *lm = (classVocab != 0) ?
+		  (simpleClasses ?
+			new SimpleClassNgram(vocab, *classVocab, order) :
+		        new ClassNgram(vocab, *classVocab, order)) :
+		  new Ngram(vocab, order);
+    assert(lm != 0);
 
-    for (int i = 1; i <= order; i++) {
-	NgramBOsIter iter(*this, context, i - 1);
-	BOnode *node;
+    lm->debugme(debug);
+    lm->skipOOVs = skipOOVs;
 
-	while (node = iter.next()) {
-	    stats.total -= sizeof(node->probs);
-	    node->probs.memStats(stats);
-	}
-    }
-}
-
-Ngram::Ngram(Vocab &vocab, unsigned neworder)
-    : LM(vocab), order(neworder), skipOOVs(false), trustTotals(false)
-{
-    if (order < 1) {
-	order = 1;
-    }
-    dummyIndex = Vocab_None;
-}
-
-unsigned 
-Ngram::setorder(unsigned neworder)
-{
-    unsigned oldorder = order;
-
-    if (neworder > 0) {
-	order = neworder;
+    if (!lm->read(file, limitVocab)) {
+	cerr << "format error in mix-lm file " << filename << endl;
+	exit(1);
     }
 
-    return oldorder;
-}
-
-/*
- * Locate a BOW entry in the n-gram trie
- */
-LogP *
-Ngram::findBOW(const VocabIndex *context)
-{
-    BOnode *bonode = contexts.find(context);
-    if (bonode) {
-	return &(bonode->bow);
-    } else {
-	return 0;
+    /*
+     * Each class LM needs to read the class definitions
+     */
+    if (classesFile != 0) {
+	File file(classesFile, "r");
+	((ClassNgram *)lm)->readClasses(file);
     }
-}
 
-/*
- * Locate a prob entry in the n-gram trie
- */
-LogP *
-Ngram::findProb(VocabIndex word, const VocabIndex *context)
-{
-    BOnode *bonode = contexts.find(context);
-    if (bonode) {
-	return bonode->probs.find(word);
-    } else {
-	return 0;
-    }
-}
-
-/*
- * Locate or create a BOW entry in the n-gram trie
- */
-LogP *
-Ngram::insertBOW(const VocabIndex *context)
-{
-    Boolean found;
-    BOnode *bonode = contexts.insert(context, found);
-
-    if (!found) {
+    if (oldLM == 0) {
+	return lm;
+    } else if (bayesLength < 0) {
 	/*
-	 * initialize the index in the BOnode
+	 * static mixture
 	 */
-	new (&bonode->probs) PROB_INDEX_T<VocabIndex,LogP>(0);
-    }
-    return &(bonode->bow);
-}
+	((Ngram *)oldLM)->mixProbs(*lm, 1.0 - lambda);
+	delete lm;
 
-/*
- * Locate or create a prob entry in the n-gram trie
- */
-LogP *
-Ngram::insertProb(VocabIndex word, const VocabIndex *context)
-{
-    Boolean found;
-    BOnode *bonode = contexts.insert(context, found);
-
-    if (!found) {
-	/*
-	 * initialize the index in the BOnode
-	 */
-	new (&bonode->probs) PROB_INDEX_T<VocabIndex,LogP>(0);
-    }
-    return bonode->probs.insert(word);
-}
-
-/*
- * Remove a BOW node (context) from the n-gram trie
- */
-void
-Ngram::removeBOW(const VocabIndex *context)
-{
-    contexts.removeTrie(context);
-}
-
-/*
- * Remove a prob entry from the n-gram trie
- */
-void
-Ngram::removeProb(VocabIndex word, const VocabIndex *context)
-{
-    BOnode *bonode = contexts.find(context);
-
-    if (bonode) {
-	bonode->probs.remove(word);
-    }
-}
-
-/*
- * Higher level methods, implemented low-level for efficiency
- */
-
-void *
-Ngram::contextID(const VocabIndex *context, unsigned &length)
-{
-    /*
-     * Find the longest BO node that matches a prefix of context.
-     * Returns its address as the ID.
-     */
-    BOtrie *trieNode = &contexts;
-
-    int i = 0;
-    while (i < order - 1 && context[i] != Vocab_None) {
-	BOtrie *next = trieNode->findTrie(context[i]);
-	if (next) {
-	    trieNode = next;
-	    i ++;
-	} else {
-	    break;
-	}
-    }
-
-    length = i;
-    return (void *)trieNode;
-}
-
-/*
- * Higher level methods (using the lower-level methods)
- */
-
-/*
- * This method implements the backoff algorithm in a straightforward,
- * recursive manner.
- */
-LogP
-Ngram::wordProbBO(VocabIndex word, const VocabIndex *context, unsigned int clen)
-{
-    LogP result;
-    /*
-     * To use the context array for lookup we truncate it to the
-     * indicated length, restoring the mangled item on exit.
-     */
-    VocabIndex saved = context[clen];
-    ((VocabIndex *)context)[clen] = Vocab_None;	/* discard const */
-
-    LogP *prob = findProb(word, context);
-
-    if (prob) {
-	if (running() && debug(DEBUG_NGRAM_HITS)) {
-	    dout() << "[" << (clen + 1) << "gram]";
-	}
-	result = *prob;
-    } else if (clen > 0) {
-	LogP *bow = findBOW(context);
-
-	if (bow) {
-	   result = *bow + wordProbBO(word, context, clen - 1);
-	} else {
-	   result = wordProbBO(word, context, clen - 1);
-	}
+	return oldLM;
     } else {
-	if (running() && debug(DEBUG_NGRAM_HITS)) {
-	    dout() << "[OOV]";
-	}
-	result = LogP_Zero;
+	/*
+	 * dymamic Bayesian mixture
+	 */
+	LM *newLM = new BayesMix(vocab, *lm, *oldLM,
+					bayesLength, lambda, bayesScale);
+	assert(newLM != 0);
+
+	newLM->debugme(debug);
+
+	return newLM;
     }
-    ((VocabIndex *)context)[clen] = saved;	/* discard const */
-    return result;
 }
 
-LogP
-Ngram::wordProb(VocabIndex word, const VocabIndex *context)
+int
+main(int argc, char **argv)
 {
-    unsigned int clen = Vocab::length(context);
+    setlocale(LC_CTYPE, "");
+    setlocale(LC_COLLATE, "");
+
+    /* set default seed for randomization */
+    seed = time(NULL) + getpid() + (getppid()<<16);
+
+    Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (hmm + adaptMix + decipherHack + tagged + skipNgram + hiddenS + df +
+			(hiddenVocabFile != 0) +
+			(classesFile != 0 || expandClasses >= 0) +
+			(stopWordFile != 0) > 1)
+     {
+	cerr << "HMM, AdaptiveMix, Decipher, tagged, DF, hidden N-gram, hidden-S, class N-gram, skip N-gram and stop-word N-gram models are mutually exclusive\n";
+	exit(2);
+     }
+
+    /*
+     * Set random seed
+     */
+    srand48((long)seed);
+
+    /*
+     * Construct language model
+     */
+
+    Vocab *vocab;
+    Ngram *ngramLM;
+    LM *useLM;
+
+    if (tagged && multiwords) {
+	cerr << "tagged and multiword vocabularies are mutually exclusive\n";
+	exit(2);
+    }
+
+    vocab = tagged ? new TaggedVocab :
+		multiwords ? new MultiwordVocab :
+			     new Vocab;
+    assert(vocab != 0);
+
+    vocab->unkIsWord = keepunk ? true : false;
+    vocab->toLower = toLower ? true : false;
+
+    /*
+     * Change unknown word string if requested
+     */
+    if (mapUnknown) {
+	vocab->remove(vocab->unkIndex);
+	vocab->unkIndex = vocab->addWord(mapUnknown);
+    }
+
+    if (vocabFile) {
+	File file(vocabFile, "r");
+	vocab->read(file);
+    }
+
+    if (noneventFile) {
+	/*
+	 * create temporary sub-vocabulary for non-event words
+	 */
+	SubVocab nonEvents(*vocab);
+
+	File file(noneventFile, "r");
+	nonEvents.read(file);
+
+	vocab->addNonEvents(nonEvents);
+    }
+
+    SubVocab *stopWords = 0;
+    if (stopWordFile != 0) {
+	stopWords = new SubVocab(*vocab);
+	assert(stopWords);
+
+	File file(stopWordFile, "r");
+	stopWords->read(file);
+    }
+
+    SubVocab *hiddenEvents = 0;
+    if (hiddenVocabFile != 0) {
+	hiddenEvents = new SubVocab(*vocab);
+	assert(hiddenEvents);
+
+	File file(hiddenVocabFile, "r");
+	hiddenEvents->read(file);
+    }
+
+    SubVocab *classVocab = 0;
+    if (classesFile != 0 || expandClasses >= 0) {
+	classVocab = new SubVocab(*vocab);
+	assert(classVocab);
+
+	/*
+	 * limitVocab on class N-grams only works if the classes are 
+	 * in the vocabulary at read time.  We ensure this by reading 
+	 * the class names (the first column of the class definitions)
+	 * into the vocabulary.
+	 */
+	File file(classesFile, "r");
+	classVocab->read(file);
+    }
+
+    ngramLM =
+       decipherHack ? new DecipherNgram(*vocab, order, !decipherNoBackoff) :
+	 df ? new DFNgram(*vocab, order) :
+	   skipNgram ? new SkipNgram(*vocab, order) :
+	     hiddenS ? new HiddenSNgram(*vocab, order) :
+	       tagged ? new TaggedNgram(*(TaggedVocab *)vocab, order) :
+		 (stopWordFile != 0) ? new StopNgram(*vocab, *stopWords, order):
+		   (hiddenVocabFile != 0) ? new HiddenNgram(*vocab, *hiddenEvents, order, hiddenNot) :
+		     (classVocab != 0) ? 
+			(simpleClasses ?
+			    new SimpleClassNgram(*vocab, *classVocab, order) :
+			    new ClassNgram(*vocab, *classVocab, order)) :
+		        new Ngram(*vocab, order);
+    assert(ngramLM != 0);
+
+    ngramLM->debugme(debug);
 
     if (skipOOVs) {
-	/*
-	 * Backward compatibility with the old broken perplexity code:
-	 * return prob 0 if any of the context-words have an unknown
-	 * word.
-	 */
-	if (word == vocab.unkIndex ||
-	    order > 1 && context[0] == vocab.unkIndex ||
-	    order > 2 && context[2] == vocab.unkIndex)
-	{
-	    return LogP_Zero;
-	}
+	ngramLM->skipOOVs = true;
     }
 
-    /*
-     * Perform the backoff algorithm for a context lenth that is 
-     * the minimum of what we were given and the maximal length of
-     * the contexts stored in the LM
-     */
-    return wordProbBO(word, context, ((clen > order - 1) ? order - 1 : clen));
-}
-
-Boolean
-Ngram::read(File &file)
-{
-    char *line;
-    unsigned int maxOrder = 0;	/* maximal n-gram order in this model */
-    unsigned int numNgrams[maxNgramOrder + 1];
-				/* the number of n-grams for each order */
-    unsigned int numRead[maxNgramOrder + 1];
-				/* Number of n-grams actually read */
-    int state = -1 ;		/* section of file being read:
-				 * -1 - pre-header, 0 - header,
-				 * 1 - unigrams, 2 - bigrams, ... */
-    Boolean warnedAboutUnk = false; /* at most one warning about <unk> */
-
-    for (int i = 0; i <= maxNgramOrder; i++) {
-	numNgrams[i] = 0;
-	numRead[i] = 0;
-    }
-
-    /*
-     * The ARPA format implicitly assumes a zero-gram backoff weight of 0.
-     * This has to be properly represented in the BOW trie so various
-     * recursive operation work correctly.
-     */
-    VocabIndex nullContext[1];
-    nullContext[0] = Vocab_None;
-    *insertBOW(nullContext) = LogP_Zero;
-
-    while (line = file.getline()) {
-	
-	Boolean backslash = (line[0] == '\\');
-
-	switch (state) {
-
-	case -1: 	/* looking for start of header */
-	    if (backslash && strncmp(line, "\\data\\", 6) == 0) {
-		state = 0;
-		continue;
-	    }
+    if (null) {
+	useLM = new NullLM(*vocab);
+	assert(useLM != 0);
+    } else if (lmFile) {
+	if (hmm) {
 	    /*
-	     * Everything before "\\data\\" is ignored
+	     * Read an HMM of Ngrams
 	     */
-	    continue;
+	    File file(lmFile, "r");
+	    HMMofNgrams *hmm = new HMMofNgrams(*vocab, order);
 
-	case 0:		/* ngram header */
-	    unsigned thisOrder;
-	    int nNgrams;
+	    hmm->debugme(debug);
 
-	    if (backslash && sscanf(line, "\\%d-grams", &state) == 1) {
-		/*
-		 * start reading n-grams
-		 */
-		if (state < 1 || state > maxOrder) {
-		    file.position() << "invalid ngram order " << state << "\n";
-		    return false;
-		}
-
-	        if (debug(DEBUG_READ_STATS)) {
-		    dout() << (state <= order ? "reading " : "skipping ")
-			   << numNgrams[state] << " "
-			   << state << "-grams\n";
-		}
-
-		continue;
-	    } else if (sscanf(line, "ngram %d=%d", &thisOrder, &nNgrams) == 2) {
-		/*
-		 * scanned a line of the form
-		 *	ngram <N>=<howmany>
-		 * now perform various sanity checks
-		 */
-		if (thisOrder <= 0 || thisOrder > maxNgramOrder) {
-		    file.position() << "ngram order " << thisOrder
-				    << " out of range\n";
-		    return false;
-		}
-		if (nNgrams < 0) {
-		    file.position() << "ngram number " << nNgrams
-				    << " out of range\n";
-		    return false;
-		}
-		if (thisOrder > maxOrder) {
-		    maxOrder = thisOrder;
-		}
-		numNgrams[thisOrder] = nNgrams;
-		continue;
-	    } else {
-		file.position() << "unexpected input\n";
-		return false;
+	    if (!hmm->read(file, limitVocab)) {
+		cerr << "format error in lm file\n";
+		exit(1);
 	    }
 
-	default:	/* reading n-grams, where n == state */
-
-	    if (backslash && sscanf(line, "\\%d-grams", &state) == 1) {
-		if (state < 1 || state > maxOrder) {
-		    file.position() << "invalid ngram order " << state << "\n";
-		    return false;
-		}
-
-	        if (debug(DEBUG_READ_STATS)) {
-		    dout() << (state <= order ? "reading " : "skipping ")
-			   << numNgrams[state] << " "
-			   << state << "-grams\n";
-		}
-
-		/*
-		 * start reading more n-grams
-		 */
-		continue;
-	    } else if (backslash && strncmp(line, "\\end\\", 5) == 0) {
-		/*
-		 * Check that the total number of ngrams read matches
-		 * that found in the header
-		 */
-		for (int i = 0; i <= maxOrder && i <= order; i++) {
-		    if (numNgrams[i] != numRead[i]) {
-			file.position() << "warning: " << numRead[i] << " "
-			                << i << "-grams read, expected "
-			                << numNgrams[i] << "\n";
-		    }
-		}
-
-		return true;
-	    } else if (state > order) {
-		/*
-		 * Save time and memory by skipping ngrams outside
-		 * the order range of this model
-		 */
-		continue;
-	    } else {
-		VocabString words[1+ maxNgramOrder + 1 + 1];
-				/* result of parsing an n-gram line
-				 * the first and last elements are actually
-				 * numerical parameters, but so what? */
-		VocabIndex wids[maxNgramOrder + 1];
-				/* ngram translated to word indices */
-		LogP prob, bow; /* probability and back-off-weight */
-
-		/*
-		 * Parse a line of the form
-		 *	<prob>	<w1> <w2> ...	<bow>
-		 */
-		unsigned int howmany =
-				Vocab::parseWords(line, words, state + 3);
-
-		if (howmany < state + 1 || howmany > state + 2) {
-		    file.position() << "ngram line has " << howmany
-				    << " fields (" << state + 2
-				    << " expected)\n";
-		    return false;
-		}
-
-		/*
-		 * Parse prob
-		 */
-		if (!parseLogP(words[0], prob)) {
-		    file.position() << "bad prob \"" << words[0] << "\"\n";
-		    return false;
-		} else if (prob > LogP_One || prob != prob) {
-		    file.position() << "warning: questionable prob \""
-				    << words[0] << "\"\n";
-		}
-
-		/* 
-		 * Parse bow, if any
-		 */
-		if (howmany == state + 2) {
-		    /*
-		     * Parsing floats strings is the most time-consuming
-		     * part of reading in backoff models.  We therefore
-		     * try to avoid parsing bows where they are useless,
-		     * i.e., for contexts that are longer than what this
-		     * model uses.  We also do a quick sanity check to
-		     * warn about non-zero bows in that position.
-		     */
-		    if (state == maxOrder) {
-			if (words[state + 1][0] != '0') {
-			    file.position() << "ignoring non-zero bow \""
-					    << words[state + 1]
-					    << "\" for maximal ngram\n";
-			}
-		    } else if (state == order) {
-			/*
-			 * save time and memory by skipping bows that will
-			 * never be used as a result of higher-order ngram
-			 * skipping
-			 */
-			;
-		    } else if (!parseLogP(words[state + 1], bow)) {
-			file.position() << "bad bow \"" << words[state + 1]
-					<< "\"\n";
-			return false;
-		    } else if (bow == LogP_Inf || bow != bow) {
-			file.position() << "warning: questionable bow \""
-		                    	<< words[state + 1] << "\"\n";
-		    }
-		}
-
-		/* 
-		 * Terminate the words array after the last word,
-		 * then translate it to word indices.  We also
-		 * reverse the ngram since that's how we'll need it
-		 * to index the trie.
-		 */
-		words[state + 1] = 0;
-		vocab.addWords(&words[1], wids, maxNgramOrder);
-		Vocab::reverse(wids);
-		
-		/*
-		 * Store bow, if any
-		 */
-		if (howmany == state + 2 && state < order) {
-		    *insertBOW(wids) = bow;
-		}
-
-		/*
-		 * Save the last word (which is now the first, due to reversal)
-		 * then use the first n-1 to index into
-		 * the context trie, storing the prob.
-		 */
-		if (!findBOW(&wids[1])) {
-		    file.position() << "warning: no bow for prefix of ngram \""
-				    << &words[1] << "\"\n";
-		} else {
-		    if (!warnedAboutUnk &&
-			wids[0] == vocab.unkIndex &&
-			prob != LogP_Zero && prob != LogP_PseudoZero &&
-		    	!vocab.unkIsWord)
-		    {
-			file.position() << "warning: non-zero probability for "
-			                << vocab.getWord(vocab.unkIndex)
-			                << " in closed-vocabulary LM\n";
-			warnedAboutUnk = true;
-		    }
-
-		    *insertProb(wids[0], &wids[1]) = prob;
-		}
-
-		/*
-		 * Hey, we're done with this ngram!
-		 */
-		numRead[state] ++;
-	    }
-	}
-    }
-
-    /*
-     * we reached a premature EOF
-     */
-    file.position() << "reached EOF before \\end\\\n";
-    return false;
-}
-
-void
-Ngram::writeWithOrder(File &file, unsigned int order)
-{
-    unsigned int i;
-    unsigned howmanyNgrams[maxNgramOrder + 1];
-    VocabIndex context[maxNgramOrder + 2];
-    VocabString scontext[maxNgramOrder + 1];
-
-    if (order > maxNgramOrder) {
-	order = maxNgramOrder;
-    }
-
-    fprintf(file, "\n\\data\\\n");
-
-    for (i = 1; i <= order; i++ ) {
-	howmanyNgrams[i] = numNgrams(i);
-	fprintf(file, "ngram %d=%d\n", i, howmanyNgrams[i]);
-    }
-
-    for (i = 1; i <= order; i++ ) {
-	fprintf(file, "\n\\%d-grams:\n", i);
-
-        if (debug(DEBUG_WRITE_STATS)) {
-	    dout() << "writing " << howmanyNgrams[i] << " "
-		   << i << "-grams\n";
-	}
-        
-	NgramBOsIter iter(*this, context + 1, i - 1, vocab.compareIndex());
-	BOnode *node;
-
-	while (node = iter.next()) {
-
-	    vocab.getWords(context + 1, scontext, maxNgramOrder + 1);
-	    Vocab::reverse(scontext);
-
-	    NgramProbsIter piter(*node, vocab.compareIndex());
-	    VocabIndex pword;
-	    LogP *prob;
-
-	    while (prob = piter.next(pword)) {
-		if (file.error()) {
-		    return;
-		}
-
-		fprintf(file, "%.*lg\t", LogP_Precision,
-				(double)(*prob == LogP_Zero ?
-						LogP_PseudoZero : *prob));
-		Vocab::write(file, scontext);
-		fprintf(file, "%s%s", (i > 1 ? " " : ""), vocab.getWord(pword));
-
-		if (i < order) {
-		    context[0] = pword;
-
-		    LogP *bow = findBOW(context);
-		    if (bow) {
-			fprintf(file, "\t%.*lg", LogP_Precision,
-					(double)(*bow == LogP_Zero ?
-						    LogP_PseudoZero : *bow));
-		    }
-		}
-
-		fprintf(file, "\n");
-	    }
-	}
-    }
-
-    fprintf(file, "\n\\end\\\n");
-}
-
-unsigned int
-Ngram::numNgrams(unsigned int order)
-{
-    if (order < 1) {
-	return 0;
-    } else {
-	unsigned int howmany = 0;
-
-	VocabIndex context[order + 1];
-
-	NgramBOsIter iter(*this, context, order - 1);
-	BOnode *node;
-
-	while (node = iter.next()) {
-	    howmany += node->probs.numEntries();
-	}
-
-	return howmany;
-    }
-}
-
-/*
- * Estimation
- */
-
-/*
- * XXX: This function is essentially duplicated in several other places,
- * using different count types.  Propate changes to
- *
- *	VarNgram::estimate()
- *	SkipNgram::estimateMstep()
- */
-Boolean
-Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
-{
-    /*
-     * If no discount method was specified we do the default, standard
-     * thing. Good Turing discounting with the specified min and max counts
-     * for all orders.
-     */
-    Discount *discounts[order];
-    unsigned i;
-    Boolean error = false;
-
-    for (i = 1; !error & i <= order; i++) {
-	discounts[i-1] =
-		new GoodTuring(mincounts ? mincounts[i-1] : GT_defaultMinCount,
-			       maxcounts ? maxcounts[i-1] : GT_defaultMaxCount);
-	/*
-	 * Transfer the LMStats's debug level to the newly
-	 * created discount objects
-	 */
-	discounts[i-1]->debugme(stats.debuglevel());
-
-	if (!discounts[i-1]->estimate(stats, i)) {
-	    cerr << "failed to estimate GT discount for order " << i + 1
-		 << endl;
-	    error = true;
-	} else if (debug(DEBUG_PRINT_GTPARAMS)) {
-		dout() << "Good Turing parameters for " << i << "-grams:\n";
-		File errfile(stderr);
-		discounts[i-1]->write(errfile);
-	}
-    }
-
-    if (!error) {
-	error = !estimate(stats, discounts);
-    }
-
-    for (i = 1; i <= order; i++) {
-	delete discounts[i-1];
-    }
-    return !error;
-}
-
-/*
- * Generic version of estimate(NgramStats, Discount)
- *                and estimate(NgramCounts<FloatCount>, Discount)
- */
-template <class CountType>
-Boolean
-Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
-{
-    /*
-     * For all ngrams, compute probabilities and apply the discount
-     * coefficients.
-     */
-    VocabIndex context[order];
-
-    /*
-     * Ensure <s> unigram exists (being a non-event, it is not inserted
-     * in distributeProb(), yet is assumed by much other software).
-     */
-    if (vocab.ssIndex != Vocab_None) {
-	context[0] = Vocab_None;
-
-	*insertProb(vocab.ssIndex, context) = LogP_Zero;
-    }
-
-    for (unsigned i = 1; i <= order; i++) {
-	CountType *contextCount;
-	NgramCountsIter<CountType> contextIter(stats, context, i-1);
-	unsigned noneventContexts = 0;
-	unsigned noneventNgrams = 0;
-	unsigned discountedNgrams = 0;
-
-	/*
-	 * This enumerates all contexts, i.e., i-1 grams.
-	 */
-	while (contextCount = contextIter.next()) {
+	    useLM = hmm;
+	} else if (adaptMix) {
 	    /*
-	     * Skip contexts ending in </s>.  This typically only occurs
-	     * with the doubling of </s> to generate trigrams from
-	     * bigrams ending in </s>.
-	     * If <unk> is not real word, also skip context that contain
-	     * it.
+	     * Read an adaptive mixture of Ngrams
 	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex ||
-	        vocab.isNonEvent(vocab.unkIndex) &&
-				 vocab.contains(context, vocab.unkIndex))
-	    {
-		noneventContexts ++;
-		continue;
+	    File file(lmFile, "r");
+	    AdaptiveMix *lm = new AdaptiveMix(*vocab, adaptDecay,
+							bayesScale, adaptIters);
+
+	    lm->debugme(debug);
+
+	    if (!lm->read(file, limitVocab)) {
+		cerr << "format error in lm file\n";
+		exit(1);
 	    }
 
-	    VocabIndex word[2];	/* the follow word */
-	    NgramCountsIter<CountType> followIter(stats, context, word, 1);
-	    CountType *ngramCount;
-
-	    /*
-	     * Total up the counts for the denominator
-	     * (the lower-order counts may not be consistent with
-	     * the higher-order ones, so we can't just use *contextCount)
-	     * Only if the trustTotal flag is set do we override this
-	     * with the count from the context ngram.
-	     */
-	    CountType totalCount = 0;
-	    Count observedVocab = 0;
-	    while (ngramCount = followIter.next()) {
-		if (vocab.isNonEvent(word[0]) ||
-		    ngramCount == 0 ||
-		    i == 1 && word[0] == dummyIndex)
-		{
-		    continue;
-		}
-		totalCount += *ngramCount;
-		observedVocab ++;
-	    }
-	    if (i > 1 && trustTotals) {
-		totalCount = *contextCount;
-	    }
-
-	    if (totalCount == 0) {
-		continue;
-	    }
-
-	    /*
-	     * reverse the context ngram since that's how
-	     * the BO nodes are indexed.
-	     */
-	    Vocab::reverse(context);
-
-	    /*
-	     * Compute the discounted probabilities
-	     * from the counts and store them in the backoff model.
-	     */
-	retry:
-	    followIter.init();
-	    Prob totalProb = 0.0;
-
-	    /*
-	     * check if discounting is disabled for this round
-	     */
-	    Boolean noDiscount =
-			    (discounts == 0) ||
-			    (discounts[i-1] == 0) ||
-			    discounts[i-1]->nodiscount();
-
-	    while (ngramCount = followIter.next()) {
-		LogP lprob;
-		double discount;
-
-		/*
-		 * Ignore zero counts.
-		 * They are there just as an artifact of the count trie
-		 * if a higher order ngram has a non-zero count.
-		 */
-		if (i > 1 && *ngramCount == 0) {
-		    continue;
-		}
-
-		if (vocab.isNonEvent(word[0]) || word[0] == dummyIndex) {
-		    /*
-		     * Discard all pseudo-word probabilities,
-		     * except for unigrams.  For unigrams, assign
-		     * probability zero.  This will leave them with
-		     * prob zero in all case, due to the backoff
-		     * algorithm.
-		     * Also discard the <unk> token entirely in closed
-		     * vocab models, its presence would prevent OOV
-		     * detection when the model is read back in.
-		     */
-		    if (i > 1 || word[0] == vocab.unkIndex || word[0] == dummyIndex) {
-			noneventNgrams ++;
-			continue;
-		    }
-
-		    lprob = LogP_Zero;
-		    discount = 1.0;
-		} else if (word[0] == dummyIndex) {
-		    /*
-		     * N-grams marked with dummy tag as the last word
-		     * count toward the total for that context, but are
-		     * just placeholders for backoff probability mass
-		     */
-		    discount = 0.0;
-		} else {
-		    /*
-		     * Ths discount array passed may contain 0 elements
-		     * to indicate no discounting at this order.
-		     */
-		    if (noDiscount) {
-			discount = 1.0;
-		    } else {
-			discount =
-			    discounts[i-1]->discount(*ngramCount, totalCount,
-								observedVocab);
-		    }
-		    Prob prob = (discount * *ngramCount) / totalCount;
-		    lprob = ProbToLogP(prob);
-		    totalProb += prob;
-
-		    if (discount != 0.0 && debug(DEBUG_ESTIMATES)) {
-			dout() << "CONTEXT " << (vocab.use(), context)
-			       << " WORD " << vocab.getWord(word[0])
-			       << " NUMER " << *ngramCount
-			       << " DENOM " << totalCount
-			       << " DISCOUNT " << discount
-			       << " LPROB " << lprob
-			       << endl;
-		    }
-		}
-		    
-		/*
-		 * A discount coefficient of zero indicates this ngram
-		 * should be omitted entirely (presumably to save space).
-		 */
-		if (discount == 0.0) {
-		    discountedNgrams ++;
-		    removeProb(word[0], context);
-		} else {
-		    *insertProb(word[0], context) = lprob;
-		} 
-	    }
-
-	    /*
-	     * This is a hack credited to Doug Paul (by Roni Rosenfeld in
-	     * his CMU tools).  It may happen that no probability mass
-	     * is left after totalling all the explicit probs, typically
-	     * because the discount coefficients were out of range and
-	     * forced to 1.0.  To arrive at some non-zero backoff mass
-	     * we try incrementing the denominator in the estimator by 1.
-	     */
-	    if (!noDiscount && totalCount > 0 &&
-		totalProb > 1.0 - Prob_Epsilon)
-	    {
-		totalCount ++;
-
-		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-		    cerr << "warning: no backoff probability mass left for \""
-			 << (vocab.use(), context)
-			 << "\" -- incrementing denominator"
-			 << endl;
-		}
-		goto retry;
-	    }
-
-	    /*
-	     * Undo the reversal above so the iterator can continue correctly
-	     */
-	    Vocab::reverse(context);
-	}
-
-	if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    if (noneventContexts > 0) {
-		dout() << "discarded " << noneventContexts << " "
-		       << i << "-gram contexts containing pseudo-events\n";
-	    }
-	    if (noneventNgrams > 0) {
-		dout() << "discarded " << noneventNgrams << " "
-		       << i << "-gram probs predicting pseudo-events\n";
-	    }
-	    if (discountedNgrams > 0) {
-		dout() << "discarded " << discountedNgrams << " "
-		       << i << "-gram probs discounted to zero\n";
-	    }
-	}
-    }
-
-    /*
-     * With all the probs in place, BOWs are obtained simply by the usual
-     * normalization.
-     */
-    recomputeBOWs();
-    fixupProbs();
-
-    return true;
-}
-
-Boolean
-Ngram::estimate(NgramStats &stats, Discount **discounts)
-{
-    return estimate2(stats, discounts);
-}
-
-Boolean
-Ngram::estimate(NgramCounts<FloatCount> &stats, Discount **discounts)
-{
-    return estimate2(stats, discounts);
-}
-
-/*
- * Mixing backoff models
- */
-void
-Ngram::mixProbs(Ngram &lm1, Ngram &lm2, double lambda)
-{
-    VocabIndex context[order + 1];
-
-    for (unsigned i = 0; i < order; i++) {
-	BOnode *node;
-	NgramBOsIter iter1(lm1, context, i);
-	
-	/*
-	 * First, find all explicit ngram probs in lm1, and mix them
-	 * with the corresponding probs of lm2 (explicit or backed-off).
-	 */
-	while (node = iter1.next()) {
-	    NgramProbsIter piter(*node);
-	    VocabIndex word;
-	    LogP *prob1;
-
-	    while (prob1 = piter.next(word)) {
-		*insertProb(word, context) =
-			MixLogP(*prob1, lm2.wordProb(word, context), lambda);
-	    }
-	}
-
-	/*
-	 * Do the same for lm2, except we dont't need to recompute 
-	 * those cases that were already handled above (explicit probs
-	 * in both lm1 and lm2).
-	 */
-	NgramBOsIter iter2(lm2, context, i);
-
-	while (node = iter2.next()) {
-	    NgramProbsIter piter(*node);
-	    VocabIndex word;
-	    LogP *prob2;
-
-	    while (prob2 = piter.next(word)) {
-		if (!lm1.findProb(word, context)) {
-		    *insertProb(word, context) =
-			MixLogP(lm1.wordProb(word, context), *prob2, lambda);
-		}
-	    }
-	}
-    }
-
-    recomputeBOWs();
-}
-
-/*
- * Compute the numerator and denominator of a backoff weight,
- * checking for sanity.  Returns true if values make sense,
- * and prints a warning if not.
- */
-Boolean
-Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
-				Prob &numerator, Prob &denominator)
-{
-    NgramProbsIter piter(*node);
-    VocabIndex word;
-    LogP *prob;
-
-    /*
-     * The BOW(c) for a context c is computed to be
-     *
-     *	BOW(c) = (1 - Sum p(x | c)) /  (1 - Sum p_BO(x | c))
-     *
-     * where Sum is a summation over all words x with explicit probabilities
-     * in context c, p(x|c) is that probability, and p_BO(x|c) is the 
-     * probability for that word according to the backoff algorithm.
-     */
-    numerator = 1.0;
-    denominator = 1.0;
-
-    while (prob = piter.next(word)) {
-	numerator -= LogPtoProb(*prob);
-	if (clen > 0) {
-	    denominator -=
-		LogPtoProb(wordProbBO(word, context, clen - 1));
-	}
-    }
-
-    /*
-     * Avoid some predictable anomalies due to rounding errors
-     */
-    if (numerator < 0.0 && numerator > -Prob_Epsilon) {
-	numerator = 0.0;
-    }
-    if (denominator < 0.0 && denominator > -Prob_Epsilon) {
-	denominator = 0.0;
-    }
-
-    if (numerator < 0.0) {
-	cerr << "BOW numerator for context \""
-	     << (vocab.use(), context)
-	     << "\" is " << numerator << " < 0\n";
-	return false;
-    } else if (denominator <= 0.0) {
-	if (numerator > Prob_Epsilon) {
-	    cerr << "BOW denominator for context \""
-		 << (vocab.use(), context)
-		 << "\" is " << denominator << " <= 0,"
-		 << "numerator is " << numerator
-		 << endl;
-	    return false;
+	    useLM = lm;
 	} else {
-	    numerator = 0.0;
-	    denominator = 0.0;	/* will give bow = 0 */
-	    return true;
+	    /*
+	     * Read just a single LM
+	     */
+	    File file(lmFile, "r");
+
+	    if (!ngramLM->read(file, limitVocab)) {
+		cerr << "format error in lm file\n";
+		exit(1);
+	    }
+
+	    if (mixFile && bayesLength < 0) {
+		/*
+		 * perform static interpolation (ngram merging)
+		 */
+		double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
+					mixLambda4 - mixLambda5 - mixLambda6 -
+					mixLambda7 - mixLambda8 - mixLambda9;
+
+		ngramLM = (Ngram *)makeMixLM(mixFile, *vocab, classVocab,
+					order, ngramLM,
+					mixLambda1/(mixLambda + mixLambda1));
+
+		if (mixFile2) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile2, *vocab, classVocab,
+					order, ngramLM,
+					mixLambda2/(mixLambda + mixLambda1 +
+								mixLambda2));
+		}
+		if (mixFile3) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile3, *vocab, classVocab,
+					order, ngramLM,
+					mixLambda3/(mixLambda + mixLambda1 +
+						    mixLambda2 + mixLambda3));
+		}
+		if (mixFile4) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile4, *vocab, classVocab,
+					order, ngramLM,
+					mixLambda4/(mixLambda + mixLambda1 +
+					mixLambda2 + mixLambda3 + mixLambda4));
+		}
+		if (mixFile5) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile5, *vocab, classVocab,
+					order, ngramLM, mixLambda5);
+		}
+		if (mixFile6) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile6, *vocab, classVocab,
+					order, ngramLM, mixLambda6);
+		}
+		if (mixFile7) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile7, *vocab, classVocab,
+					order, ngramLM, mixLambda7);
+		}
+		if (mixFile8) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile8, *vocab, classVocab,
+					order, ngramLM, mixLambda8);
+		}
+		if (mixFile9) {
+		    ngramLM = (Ngram *)makeMixLM(mixFile9, *vocab, classVocab,
+					order, ngramLM, mixLambda9);
+		}
+	    }
+
+	    /*
+	     * Renormalize before the optional steps below, in case input
+	     * model needs it, and because class expansion and pruning already
+	     * include normalization.
+	     */
+	    if (renormalize) {
+		ngramLM->recomputeBOWs();
+	    }
+
+	    /*
+	     * Read class definitions from command line AFTER the LM, so
+	     * they can override embedded class definitions.
+	     */
+	    if (classesFile != 0) {
+		File file(classesFile, "r");
+		((ClassNgram *)ngramLM)->readClasses(file);
+	    }
+
+	    if (expandClasses >= 0) {
+		/*
+		 * Replace class ngram with equivalent word ngram
+		 * expandClasses == 0 generates all ngrams
+		 * expandClasses > 0 generates only ngrams up to given length
+		 */
+		Ngram *newLM =
+		    ((ClassNgram *)ngramLM)->expand(expandClasses, expandExact);
+
+		newLM->debugme(debug);
+		delete ngramLM;
+		ngramLM = newLM;
+	    }
+
+	    if (prune != 0.0) {
+		ngramLM->pruneProbs(prune, minprune);
+	    }
+
+	    if (pruneLowProbs) {
+		ngramLM->pruneLowProbs(minprune);
+	    }
+
+	    useLM = ngramLM;
 	}
     } else {
-	return true;
+	cerr << "need at least an -lm file specified\n";
+	exit(1);
     }
-}
 
-/*
- * Renormalize language model by recomputing backoff weights.
- */
-void
-Ngram::recomputeBOWs()
-{
-    VocabIndex context[order + 1];
+    if (mixFile && bayesLength >= 0) {
+	/*
+	 * create a Bayes mixture LM 
+	 */
+	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
+				mixLambda4 - mixLambda5 - mixLambda6 -
+				mixLambda7 - mixLambda8 - mixLambda9;
 
-    /*
-     * Here it is important that we compute the backoff weights in
-     * increasing order, since the higher-order ones refer to the
-     * lower-order ones in the backoff algorithm.
-     * Note that this will only generate backoff nodes for those
-     * contexts that have words with explicit probabilities.  But
-     * this is precisely as it should be.
-     */
-    for (unsigned i = 0; i < order; i++) {
-	BOnode *node;
-	NgramBOsIter iter1(*this, context, i);
-	
-	while (node = iter1.next()) {
-	    NgramProbsIter piter(*node);
+	useLM = makeMixLM(mixFile, *vocab, classVocab, order, useLM,
+				mixLambda1/(mixLambda + mixLambda1));
 
-	    double numerator, denominator;
-
-	    if (computeBOW(node, context, i, numerator, denominator)) {
-		/*
-		 * If unigram probs leave a non-zero probability mass
-		 * then we should give that mass to the zero-order (uniform)
-		 * distribution for zeroton words.  However, the ARPA
-		 * BO format doesn't support a "null context" BOW.
-		 * We simluate the intended distribution by spreading the
-		 * left-over mass uniformly over all vocabulary items that
-		 * have a zero probability.
-		 * NOTE: We used to do this only if there was prob mass left,
-		 * but some ngram software requires all words to appear as
-		 * unigrams, which we achieve by giving them zero probability.
-		 */
-		if (i == 0 /*&& numerator > 0.0*/) {
-		    distributeProb(numerator, context);
-		} else if (numerator == 0.0 && denominator == 0) {
-		    node->bow = LogP_One;
-		} else {
-		    node->bow = ProbToLogP(numerator) - ProbToLogP(denominator);
-		}
-	    } else {
-		/*
-		 * Dummy value for improper models
-		 */
-		node->bow = LogP_Zero;
-	    }
+	if (mixFile2) {
+	    useLM = makeMixLM(mixFile2, *vocab, classVocab, order, useLM,
+				mixLambda2/(mixLambda + mixLambda1 +
+							mixLambda2));
+	}
+	if (mixFile3) {
+	    useLM = makeMixLM(mixFile3, *vocab, classVocab, order, useLM,
+				mixLambda3/(mixLambda + mixLambda1 +
+						mixLambda2 + mixLambda3));
+	}
+	if (mixFile4) {
+	    useLM = makeMixLM(mixFile4, *vocab, classVocab, order, useLM,
+				mixLambda4/(mixLambda + mixLambda1 +
+					mixLambda2 + mixLambda3 + mixLambda4));
+	}
+	if (mixFile5) {
+	    useLM = makeMixLM(mixFile5, *vocab, classVocab, order, useLM,
+								mixLambda5);
+	}
+	if (mixFile6) {
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+								mixLambda6);
+	}
+	if (mixFile7) {
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+								mixLambda7);
+	}
+	if (mixFile8) {
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+								mixLambda8);
+	}
+	if (mixFile9) {
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+								mixLambda9);
 	}
     }
-}
 
-/*
- * Compute the marginal probability of an N-gram context
- *	(This is very similar to sentenceProb(), but doesn't assume sentence
- *	start/end and treat the <s> context specially.)
- */
-LogP
-Ngram::computeContextProb(const VocabIndex *context)
-{
-    unsigned clen = Vocab::length(context);
+    if (cache > 0) {
+	/*
+	 * Create a mixture model with the cache lm as the second component
+	 */
+	CacheLM *cacheLM = new CacheLM(*vocab, cache);
+	assert(cacheLM != 0);
 
-    LogP prob = LogP_One;
+	BayesMix *mixLM = new BayesMix(*vocab, *useLM, *cacheLM,
+						0, 1.0 - cacheLambda, 0.0);
+	assert(mixLM != 0);
 
-    for (unsigned i = clen; i > 0; i --) {
-	VocabIndex word = context[i - 1];
+        useLM = mixLM;
+	useLM->debugme(debug);
+    }
+
+    if (dynamic) {
+	/*
+	 * Create a mixture model with the dynamic lm as the second component
+	 */
+	DynamicLM *dynamicLM = new DynamicLM(*vocab);
+	assert(dynamicLM != 0);
+
+	BayesMix *mixLM = new BayesMix(*vocab, *useLM, *dynamicLM,
+						0, 1.0 - dynamicLambda, 0.0);
+	assert(mixLM != 0);
+
+        useLM = mixLM;
+	useLM->debugme(debug);
+    }
+
+    /*
+     * Reverse words in scoring
+     */
+    if (reverse) {
+	useLM->reverseWords = true;
+    }
+
+    /*
+     * Skip noise tags in scoring
+     */
+    if (noiseVocabFile) {
+	File file(noiseVocabFile, "r");
+	useLM->noiseVocab.read(file);
+    }
+    if (noiseTag) {				/* backward compatibility */
+	useLM->noiseVocab.addWord(noiseTag);
+    }
+
+    if (memuse) {
+	MemStats memuse;
+	useLM->memStats(memuse);
+	memuse.print();
+    }
+
+    /*
+     * Apply multiword wrapper if requested
+     */
+    if (multiwords) {
+	useLM = new MultiwordLM(*(MultiwordVocab *)vocab, *useLM);
+	assert(useLM != 0);
+
+	useLM->debugme(debug);
+    }
+
+    /*
+     * Compute perplexity on a text file, if requested
+     */
+    if (pplFile) {
+	File file(pplFile, "r");
+	TextStats stats;
 
 	/*
-	 * If we're computing the marginal probability of the unigram
-	 * <s> context we have to lookup </s> instead since the former
-	 * has prob = 0 in an N-gram model.
+	 * Send perplexity info to stdout 
 	 */
-	if (i == clen && word == vocab.ssIndex) {
-	    word = vocab.seIndex;
-	}
+	useLM->dout(cout);
+	useLM->pplFile(file, stats, escape);
+	useLM->dout(cerr);
 
-	prob += wordProbBO(word, &context[i], clen - i);
+	cout << "file " << pplFile << ": " << stats;
     }
 
-    return prob;
-}
-
-/*
- * Prune probabilities from model so that the change in training set perplexity
- * is below a threshold.
- * The minorder parameter limits pruning to ngrams of that length and above.
- */
-void
-Ngram::pruneProbs(double threshold, unsigned minorder)
-{
     /*
-     * Hack alert: allocate the context buffer for NgramBOsIter, but leave
-     * room for a word id to be prepended.
+     * Compute perplexity on a count file, if requested
      */
-    VocabIndex wordPlusContext[order + 2];
-    VocabIndex *context = &wordPlusContext[1];
+    if (countFile) {
+	TextStats stats;
+	File file(countFile, "r");
 
-    for (unsigned i = order - 1; i > 0 && i >= minorder - 1; i--) {
-	unsigned prunedNgrams = 0;
+	/*
+	 * Send perplexity info to stdout 
+	 */
+	useLM->dout(cout);
+	useLM->pplCountsFile(file, countOrder ? countOrder : order,
+							    stats, escape);
+	useLM->dout(cerr);
 
-	BOnode *node;
-	NgramBOsIter iter1(*this, context, i);
-	
-	while (node = iter1.next()) {
-	    LogP bow = node->bow;	/* old backoff weight, BOW(h) */
-	    double numerator, denominator;
+	cout << "file " << countFile << ": " << stats;
+    }
 
-	    /* 
-	     * Compute numerator and denominator of the backoff weight,
-	     * so that we can quickly compute the BOW adjustment due to
-	     * leaving out one prob.
-	     */
-	    if (!computeBOW(node, context, i, numerator, denominator)) {
-		continue;
-	    }
+    /*
+     * Rescore N-best list, if requested
+     */
+    if (nbestFile) {
+	NBestList nbList(*vocab, maxNbest);
 
+	File inlist(nbestFile, "r");
+	if (!nbList.read(inlist)) {
+	    cerr << "format error in nbest file\n";
+	    exit(1);
+	}
+
+	if (decipherLM) {
 	    /*
-	     * Compute the marginal probability of the context, P(h)
+	     * decipherNoBackoff prevents the Decipher LM from simulating
+	     * backoff paths when they score higher than direct probabilities.
 	     */
-	    LogP contextProb = computeContextProb(context);
+	    DecipherNgram oldLM(*vocab, decipherOrder, !decipherNoBackoff);
 
-	    NgramProbsIter piter(*node);
-	    VocabIndex word;
-	    LogP *ngramProb;
+	    oldLM.debugme(debug);
 
-	    Boolean allPruned = true;
+	    File file(decipherLM, "r");
 
-	    while (ngramProb = piter.next(word)) {
-		/*
-		 * lower-order estimate for ngramProb, P(w|h')
-		 */
-		LogP backoffProb = wordProbBO(word, context, i - 1);
-
-		/*
-		 * Compute BOW after removing ngram, BOW'(h)
-		 */
-		LogP newBOW =
-			ProbToLogP(numerator + LogPtoProb(*ngramProb)) -
-			ProbToLogP(denominator + LogPtoProb(backoffProb));
-
-		/*
-		 * Compute change in entropy due to removal of ngram
-		 * deltaH = - P(H) x
-		 *  {P(W | H) [log P(w|h') + log BOW'(h) - log P(w|h)] +
-		 *   (1 - \sum_{v,h ngrams} P(v|h)) [log BOW'(h) - log BOW(h)]}
-		 *
-		 * (1-\sum_{v,h ngrams}) is the probability mass left over from
-		 * ngrams of the current order, and is the same as the 
-		 * numerator in BOW(h).
-		 */
-		LogP deltaProb = backoffProb + newBOW - *ngramProb;
-		Prob deltaEntropy = - LogPtoProb(contextProb) *
-					(LogPtoProb(*ngramProb) * deltaProb +
-					 numerator * (newBOW - bow));
-
-		/*
-		 * compute relative change in model (training set) perplexity
-		 *	(PPL' - PPL)/PPL = PPL'/PPL - 1
-		 *	                 = exp(H')/exp(H) - 1
-		 *	                 = exp(H' - H) - 1
-		 */
-		double perpChange = LogPtoProb(deltaEntropy) - 1.0;
-
-		Boolean pruned = threshold > 0 && perpChange < threshold;
-
-		/*
-		 * Make sure we don't prune ngrams whose backoff nodes are
-		 * needed ...
-		 */
-		if (pruned) {
-		    /*
-		     * wordPlusContext[1 ... i-1] was already filled in by
-		     * NgramBOIter. Just add the word to complete the ngram.
-		     */
-		    wordPlusContext[0] = word;
-
-		    if (findBOW(wordPlusContext)) {
-			pruned = false;
-		    }
-		}
-
-		if (debug(DEBUG_ESTIMATES)) {
-		    dout() << "CONTEXT " << (vocab.use(), context)
-			   << " WORD " << vocab.getWord(word)
-			   << " CONTEXTPROB " << contextProb
-			   << " OLDPROB " << *ngramProb
-			   << " NEWPROB " << (backoffProb + newBOW)
-			   << " DELTA-H " << deltaEntropy
-			   << " DELTA-LOGP " << deltaProb
-			   << " PPL-CHANGE " << perpChange
-			   << " PRUNED " << pruned
-			   << endl;
-		}
-
-		if (pruned) {
-		    removeProb(word, context);
-		    prunedNgrams ++;
-		} else {
-		    allPruned = false;
-		}
+	    if (!oldLM.read(file, limitVocab)) {
+		cerr << "format error in Decipher LM\n";
+		exit(1);
 	    }
 
+	    nbList.decipherFix(oldLM, decipherLMW, decipherWTW);
+	}
+
+	nbList.rescoreHyps(*useLM, rescoreLMW, rescoreWTW);
+	nbList.sortHyps();
+
+	File sout(stdout);
+	nbList.write(sout);
+    }
+
+    /*
+     * Rescore stream of N-best hyps, if requested
+     */
+    if (rescoreFile) {
+	File file(rescoreFile, "r");
+
+	LM *oldLM;
+
+	if (decipherLM) {
+	    oldLM =
+		 new DecipherNgram(*vocab, decipherOrder, !decipherNoBackoff);
+	    assert(oldLM != 0);
+
+	    oldLM->debugme(debug);
+
+	    File file(decipherLM, "r");
+
+	    if (!oldLM->read(file, limitVocab)) {
+		cerr << "format error in Decipher LM\n";
+		exit(1);
+	    }
+	} else {
 	    /*
-	     * If we removed all ngrams for this context we can 
-	     * remove the context itself.
-	     * Note: Due to the check above this also means there
-	     * are no contexts that extend the current one, so
-	     * removing this node won't leave any children orphaned.
+	     * Create dummy LM for the sake of rescoreFile()
 	     */
-	    if (allPruned) {
-		removeBOW(context);
-	    }
+	    oldLM = new NullLM(*vocab);
+	    assert(oldLM != 0);
 	}
 
-	if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    if (prunedNgrams > 0) {
-		dout() << "pruned " << prunedNgrams << " "
-		       << (i + 1) << "-grams\n";
-	    }
+	useLM->rescoreFile(file, rescoreLMW, rescoreWTW,
+				*oldLM, decipherLMW, decipherWTW, escape);
+
+#ifdef DEBUG
+	delete oldLM;
+#endif
+    }
+
+    if (generate) {
+	File outFile(stdout);
+	unsigned i;
+
+	for (i = 0; i < generate; i++) {
+	    VocabString *sent = useLM->generateSentence(maxWordsPerLine,
+							(VocabString *)0);
+	    Vocab::write(outFile, sent);
+	    putchar('\n');
 	}
     }
 
-    recomputeBOWs();
-}
-
-/*
- * Prune low probability N-grams
- *	Removes all N-gram probabilities that are lower than the
- *	corresponding backed-off estimates.  This is a crucial preprocessing
- *	step for N-gram models before conversion to finite-state networks.
- */
-void
-Ngram::pruneLowProbs(unsigned minorder)
-{
-    VocabIndex context[order];
-
-    Boolean havePruned;
-    
-    /*
-     * Since pruning changes backoff weights we have to keep pruning
-     * interatively as long as N-grams keep being removed.
-     */
-    do {
-	havePruned = false;
-
-	for (unsigned i = minorder - 1; i < order; i++) {
-	    unsigned prunedNgrams = 0;
-
-	    BOnode *node;
-	    NgramBOsIter iter1(*this, context, i);
-	    
-	    while (node = iter1.next()) {
-		LogP bow = node->bow;	/* old backoff weight, BOW(h) */
-
-		NgramProbsIter piter(*node);
-		VocabIndex word;
-		LogP *ngramProb;
-
-		while (ngramProb = piter.next(word)) {
-		    /*
-		     * lower-order estimate for ngramProb, P(w|h')
-		     */
-		    LogP backoffProb = wordProbBO(word, context, i - 1);
-
-		    if (backoffProb + bow > *ngramProb) {
-
-			if (debug(DEBUG_ESTIMATES)) {
-			    dout() << "CONTEXT " << (vocab.use(), context)
-				   << " WORD " << vocab.getWord(word)
-				   << " LPROB " << *ngramProb
-				   << " BACKOFF-LPROB " << (backoffProb + bow)
-				   << " PRUNED\n";
-			}
-
-			removeProb(word, context);
-			prunedNgrams ++;
-		    }
-		}
-	    }
-
-	    if (prunedNgrams > 0) {
-		havePruned = true;
-		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-		    dout() << "pruned " << prunedNgrams << " "
-			   << (i + 1) << "-grams\n";
-		}
-	    }
-	}
-	recomputeBOWs();
-
-    } while (havePruned);
-
-    fixupProbs();
-}
-
-/*
- * Insert probabilities for all context ngrams
- *
- * 	The ARPA format forces us to have a probability
- * 	for every context ngram.  So we create one if necessary and
- * 	set the probability to the same as what the backoff algorithm
- * 	would compute (so as not to change the distribution).
- */
-void
-Ngram::fixupProbs()
-{
-    VocabIndex context[order + 1];
-
-    /*
-     * we cannot insert entries into the context trie while we're
-     * iterating over it, so we need another trie to collect
-     * the affected contexts first. yuck.
-     * Note: We use the same trie type as in the Ngram model itself,
-     * so we don't need to worry about another template instantiation.
-     */
-    Trie<VocabIndex,NgramCount> contextsToAdd;
-
-    /*
-     * Find the contexts xyz that don't have a probability p(z|xy) in the
-     * model already.
-     */
-    unsigned i;
-    for (i = 1; i < order; i++) {
-	NgramBOsIter iter(*this, context, i);
-	
-	while (iter.next()) {
-	    /*
-	     * For a context abcd we need to create probability entries
-	     * p(d|abc), p(c|ab), p(b|a), p(a) if necessary.
-	     * If any of these is found in that order we can stop since a
-	     * previous pass will already have created the remaining ones.
-	     */
-	    for (unsigned j = 0; j < i; j++) {
-		LogP *prob = findProb(context[j], &context[j+1]);
-
-		if (prob) {
-		    break;
-		} else {
-		    /*
-		     * Just store something non-zero to distinguish from
-		     * internal nodes that are added implicitly.
-		     */
-		    *contextsToAdd.insert(&context[j]) = 1;
-		}
-	    }
-	}
+    if (writeLM) {
+	File file(writeLM, "w");
+	useLM->write(file);
     }
 
-
-    /*
-     * Store the missing probs
-     */
-    for (i = 1; i < order; i++) {
-	unsigned numFakes = 0;
-
-	Trie<VocabIndex,NgramCount> *node;
-	TrieIter2<VocabIndex,NgramCount> iter(contextsToAdd, context, i);
-	
-
-	while (node = iter.next()) {
-	    if (node->value()) {
-		numFakes ++;
-
-		/*
-		 * Note: we cannot combine the two statements below
-		 * since insertProb() creates a zero prob entry, which would
-		 * prevent wordProbBO() from computing the backed-off 
-		 * estimate!
-		 */
-		LogP backoffProb = wordProbBO(context[0], &context[1], i - 1);
-		*insertProb(context[0], &(context[1])) = backoffProb;
-
-		if (debug(DEBUG_FIXUP_WARNINGS)) {
-		    dout() << "faking probability for context "
-			   << (vocab.use(), context) << endl;
-		}
-	    }
-	}
-
-	if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    if (numFakes > 0) {
-		dout() << "inserted " << numFakes << " redundant " 
-		       << i << "-gram probs\n";
-	    }
-	}
-    }
-}
-
-/*
- * Redistribute probability mass over ngrams of given context
- */
-void
-Ngram::distributeProb(Prob mass, VocabIndex *context)
-{
-    /*
-     * First enumerate the vocabulary to count the number of
-     * items affected
-     */
-    unsigned numWords = 0;
-    unsigned numZeroProbs = 0;
-    VocabIter viter(vocab);
-    VocabIndex word;
-
-    while (viter.next(word)) {
-	if (!vocab.isNonEvent(word) && word != dummyIndex) {
-	    numWords ++;
-
-	    LogP *prob = findProb(word, context);
-	    if (!prob || *prob == LogP_Zero) {
-		numZeroProbs ++;
-	    }
-	    /*
-	     * create zero probs so we can update them below
-	     */
-	    if (!prob) {
-		*insertProb(word, context) = LogP_Zero;
-	    }
-	}
+    if (writeVocab) {
+	File file(writeVocab, "w");
+	vocab->write(file);
     }
 
-    /*
-     * If there are no zero-probability words then
-     * we add the left-over prob mass to all unigrams.
-     * Otherwise do as described above.
-     */
-    viter.init();
-
-    if (numZeroProbs > 0) {
-	if (debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    cerr << "warning: distributing " << mass
-		 << " left-over probability mass over "
-		 << numZeroProbs << " zeroton words" << endl;
-	}
-	Prob add = mass / numZeroProbs;
-
-	while (viter.next(word)) {
-	    if (!vocab.isNonEvent(word) && word != dummyIndex) {
-		LogP *prob = insertProb(word, context);
-		if (*prob == LogP_Zero) {
-		    *prob = ProbToLogP(add);
-		}
-	    }
-	}
-    } else {
-	if (mass > 0.0 && debug(DEBUG_ESTIMATE_WARNINGS)) {
-	    cerr << "warning: distributing " << mass
-		 << " left-over probability mass over all "
-		 << numWords << " words" << endl;
-	}
-	Prob add = mass / numWords;
-
-	while (viter.next(word)) {
-	    if (!vocab.isNonEvent(word) && word != dummyIndex) {
-		LogP *prob = insertProb(word, context);
-		*prob = ProbToLogP(LogPtoProb(*prob) + add);
-	    }
-	}
+#ifdef DEBUG
+    if (&ngramLM->vocab != vocab) {
+	delete &ngramLM->vocab;
     }
+    if (ngramLM != useLM) {
+	delete ngramLM;
+    }
+    delete useLM;
+
+    delete stopWords;
+    delete hiddenEvents;
+    delete classVocab;
+    delete vocab;
+
+    return 0;
+#endif /* DEBUG */
+
+    exit(0);
 }
 

@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.21 2001/08/07 06:59:36 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.22 2002/04/24 14:28:44 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -250,6 +250,124 @@ WordMesh::read(File &file)
 }
 
 /*
+ * Compute expected error from aligning a word to an alignment column
+ * if column == 0 : compute insertion cost
+ * if word == deleteIndex : compute deletion cost
+ */
+double
+WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
+{
+    if (column == 0) {
+	/*
+	 * Compute insertion cost for word
+	 */
+	if (word == deleteIndex) {
+	    return 0.0;
+	} else {
+	    if (distance) {
+		return totalPosterior * distance->penalty(word);
+	    } else {
+		return totalPosterior;
+	    }
+	}
+    } else {
+	if (word == deleteIndex) {
+	    /* 
+	     * Compute deletion cost for alignment column
+	     */
+	    if (distance) {
+		double deletePenalty = 0.0;
+
+		LHashIter<VocabIndex,Prob> iter(*column);
+		Prob *prob;
+		VocabIndex alignWord;
+		while (prob = iter.next(alignWord)) {
+		    if (alignWord != deleteIndex) {
+			deletePenalty += *prob * distance->penalty(alignWord);
+		    }
+		}
+		return deletePenalty;
+	    } else {
+		Prob *deleteProb = column->find(deleteIndex);
+		return  totalPosterior - (deleteProb ? *deleteProb : 0.0);
+	    }
+	} else {
+	    /*
+	     * Compute "substitution" cost of word in column
+	     */
+	    if (distance) {
+		/*
+		 * Compute distance to existing alignment as a weighted 
+		 * combination of distances
+		 */
+		double totalDistance = 0.0;
+
+	    	LHashIter<VocabIndex,Prob> iter(*column);
+		Prob *prob;
+		VocabIndex alignWord;
+		while (prob = iter.next(alignWord)) {
+		    if (alignWord == deleteIndex) {
+			totalDistance +=
+			    *prob * distance->penalty(word);
+		    } else {
+			totalDistance +=
+			    *prob * distance->distance(alignWord, word);
+		    }
+		}
+
+		return totalDistance;
+	    } else {
+	        Prob *wordProb = column->find(word);
+		return totalPosterior - (wordProb ? *wordProb : 0.0);
+	    }
+	}
+    }
+}
+
+/*
+ * Compute expected error from aligning two alignment columns
+ * if column1 == 0 : compute insertion cost
+ * if column2 == 0 : compute deletion cost
+ */
+double
+WordMesh::alignError(const LHash<VocabIndex,Prob>* column1, 
+		     const LHash<VocabIndex,Prob>* column2,
+		     Prob totalPosterior2)
+{
+    if (column2 == 0) {
+	return alignError(column1, deleteIndex);
+    } else {
+	/*
+	 * compute weighted sum of aligning each of the column2 entries,
+	 * using column2 posteriors as weights
+	 */
+	double totalDistance = 0.0;
+
+	LHashIter<VocabIndex,Prob> iter(*column2);
+	Prob *prob;
+	VocabIndex word2;
+	while (prob = iter.next(word2)) {
+	    double error = alignError(column1, word2);
+
+	    /*
+	     * Handle case where one of the entries has posterior 1, but 
+	     * others have small nonzero posteriors, too.  The small ones
+	     * can be ignored in the sum total, and this shortcut makes the
+	     * numerical computation symmetric with respect to the case
+	     * where posterior 1 occurs in column1 (as well as speeding things
+	     * up).
+	     */
+	    if (*prob == totalPosterior2) {
+		return *prob * error;
+	    } else {
+		totalDistance += *prob * error;
+	    }
+	}
+	return totalDistance;
+    }
+}
+
+/*
  * Align new words to existing alignment columns, expanding them as required
  * (derived from WordAlign())
  * If hypID != 0, then *hypID will record a sentence hyp ID for the 
@@ -326,13 +444,7 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
     chart[0][0].error = CORR_ALIGN;
 
     for (unsigned j = 1; j <= hypLength; j ++) {
-	/* insert error prob = totalPosterior */
-	if (distance) {
-	    chart[0][j].cost = chart[0][j-1].cost + totalPosterior *
-					distance->penalty(winfo[j-1].word);
-	} else {
-	    chart[0][j].cost = chart[0][j-1].cost + totalPosterior;
-	}
+	chart[0][j].cost = chart[0][j-1].cost + alignError(0, winfo[j-1].word);
 	chart[0][j].error = INS_ALIGN;
     }
 
@@ -340,63 +452,17 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
      * Fill in the rest of the chart, row by row.
      */
     for (unsigned i = 1; i <= refLength; i ++) {
-
-	/* deletion error prob = totalPosterior - deletion prob */
-	double deletePenalty;
-	if (distance) {
-	    deletePenalty = 0.0;
-
-	    LHashIter<VocabIndex,Prob> iter(*aligns[sortedAligns[i-1]]);
-	    Prob *prob;
-	    VocabIndex alignWord;
-	    while (prob = iter.next(alignWord)) {
-		if (alignWord != deleteIndex) {
-		    deletePenalty += *prob * distance->penalty(alignWord);
-		}
-	    }
-	} else {
-	    Prob *deleteProb = aligns[sortedAligns[i-1]]->find(deleteIndex);
-	    deletePenalty = totalPosterior - (deleteProb ? *deleteProb : 0.0);
-	}
+	double deletePenalty =
+			    alignError(aligns[sortedAligns[i-1]], deleteIndex);
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
 	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
-	    double minCost;
-	    WordAlignType minError;
-
-	    Prob *wordProb = aligns[sortedAligns[i-1]]->find(winfo[j-1].word);
-
-	    if (distance) {
-		/*
-		 * Compute distance to existing alignment as a weighted 
-		 * combination of distances
-		 */
-		double totalDistance = 0.0;
-
-	    	LHashIter<VocabIndex,Prob> iter(*aligns[sortedAligns[i-1]]);
-		Prob *prob;
-		VocabIndex alignWord;
-		while (prob = iter.next(alignWord)) {
-		    if (alignWord == deleteIndex) {
-			totalDistance +=
-			    *prob * distance->penalty(winfo[j-1].word);
-		    } else {
-			totalDistance +=
-			    *prob * distance->distance(alignWord, winfo[j-1].word);
-		    }
-		}
-
-		minCost = chart[i-1][j-1].cost + totalDistance;
-		minError = SUB_ALIGN;
-	    } else if (wordProb) {
-		minCost = chart[i-1][j-1].cost + totalPosterior - *wordProb;
-		minError = CORR_ALIGN;
-	    } else {
-		minCost = chart[i-1][j-1].cost + totalPosterior;
-		minError = SUB_ALIGN;
-	    }
+	    double minCost = chart[i-1][j-1].cost +
+				alignError(aligns[sortedAligns[i-1]],
+							winfo[j-1].word);
+	    WordAlignType minError = SUB_ALIGN;
 
 	    double delCost = chart[i-1][j].cost + deletePenalty;
 	    if (delCost < minCost) {
@@ -404,12 +470,8 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		minError = DEL_ALIGN;
 	    }
 
-	    double insCost = chart[i][j-1].cost;
-	    if (distance) {
-		insCost += totalPosterior * distance->penalty(winfo[j-1].word);
-	    } else {
-		insCost += totalPosterior;
-	    }
+	    double insCost = chart[i][j-1].cost +
+				alignError(0, winfo[j-1].word);
 	    if (insCost < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -557,6 +619,302 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
      */
     if (hypID) {
 	*allHyps.insert(*hypID) = *hypID;
+    }
+
+    totalPosterior += score;
+}
+
+void
+WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
+{
+    WordMesh &other = (WordMesh &)alignment;
+
+    unsigned refLength = numAligns;
+    unsigned hypLength = other.numAligns;
+
+    typedef struct {
+	double cost;			// minimal cost of partial alignment
+	WordAlignType error;		// best predecessor
+    } ChartEntry;
+
+    /* 
+     * Allocate chart statically, enlarging on demand
+     */
+    static unsigned maxHypLength = 0;
+    static unsigned maxRefLength = 0;
+    static ChartEntry **chart = 0;
+
+    if (chart == 0 || hypLength > maxHypLength || refLength > maxRefLength) {
+	/*
+	 * Free old chart
+	 */
+	if (chart != 0) {
+	    for (unsigned i = 0; i <= maxRefLength; i ++) {
+		delete [] chart[i];
+	    }
+	    delete [] chart;
+	}
+
+	/*
+	 * Allocate new chart
+	 */
+	maxHypLength = hypLength;
+	maxRefLength = refLength;
+    
+	chart = new ChartEntry*[maxRefLength + 1];
+	assert(chart != 0);
+
+	for (unsigned i = 0; i <= maxRefLength; i ++) {
+	    chart[i] = new ChartEntry[maxHypLength + 1];
+	    assert(chart[i] != 0);
+	}
+    }
+
+    /*
+     * Initialize the 0'th row
+     */
+    chart[0][0].cost = 0.0;
+    chart[0][0].error = CORR_ALIGN;
+
+    for (unsigned j = 1; j <= hypLength; j ++) {
+	unsigned pos = other.sortedAligns[j-1];
+	chart[0][j].cost = chart[0][j-1].cost +
+			   alignError(0,
+				      other.aligns[other.sortedAligns[j-1]],
+				      other.totalPosterior);
+	chart[0][j].error = INS_ALIGN;
+    }
+
+    /*
+     * Fill in the rest of the chart, row by row.
+     */
+    for (unsigned i = 1; i <= refLength; i ++) {
+	double deletePenalty =
+			    alignError(aligns[sortedAligns[i-1]], deleteIndex);
+
+	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
+	chart[i][0].error = DEL_ALIGN;
+
+	for (unsigned j = 1; j <= hypLength; j ++) {
+	    double minCost = chart[i-1][j-1].cost +
+			     alignError(aligns[sortedAligns[i-1]],
+					other.aligns[other.sortedAligns[j-1]],
+					other.totalPosterior);
+	    WordAlignType minError = SUB_ALIGN;
+
+	    double delCost = chart[i-1][j].cost + deletePenalty;
+	    if (delCost < minCost) {
+		minCost = delCost;
+		minError = DEL_ALIGN;
+	    }
+
+	    double insCost = chart[i][j-1].cost +
+			     alignError(0,
+					other.aligns[other.sortedAligns[j-1]],
+					other.totalPosterior);
+	    if (insCost < minCost) {
+		minCost = insCost;
+		minError = INS_ALIGN;
+	    }
+
+	    chart[i][j].cost = minCost;
+	    chart[i][j].error = minError;
+	}
+    }
+
+    /*
+     * Backtrace and add new words to alignment columns.
+     * Store word posteriors if requested.
+     */
+    {
+	unsigned i = refLength;
+	unsigned j = hypLength;
+
+	while (i > 0 || j > 0) {
+
+	    switch (chart[i][j].error) {
+	    case CORR_ALIGN:
+	    case SUB_ALIGN:
+		/*
+		 * merge all words in "other" alignment column into our own
+		 */
+		{
+		    double totalScore = 0.0;
+
+		    LHashIter<VocabIndex,Prob>
+				iter(*other.aligns[other.sortedAligns[j-1]]);
+		    Prob *otherProb;
+		    VocabIndex otherWord;
+		    while (otherProb = iter.next(otherWord)) {
+			totalScore +=
+			    (*aligns[sortedAligns[i-1]]->insert(otherWord) +=
+							    score * *otherProb);
+			/*
+			 * Check for preexisting word info and merge if
+			 * necesssary
+			 */
+			NBestWordInfo *otherInfo =
+				    other.wordInfo[other.sortedAligns[j-1]]->
+								find(otherWord);
+			if (otherInfo) {
+			    Boolean foundP;
+			    NBestWordInfo *oldInfo =
+					wordInfo[sortedAligns[i-1]]->
+						    insert(otherWord, foundP);
+			    if (foundP) {
+				oldInfo->merge(*otherInfo);
+			    } else {
+				*oldInfo = *otherInfo;
+			    }
+			}
+
+			Array<HypID> *otherHypList =
+					other.hypMap[other.sortedAligns[j-1]]->
+								find(otherWord);
+			if (otherHypList) {
+			    /*
+			     * Add hyp IDs to the hyp list for this word 
+			     * XXX: hyp IDs should be disjoint but there is no
+			     * checking of this!
+			     */
+			    Array<HypID> &hypList =
+						*hypMap[sortedAligns[i-1]]->
+							insert(otherWord);
+			    for (unsigned h = 0; h < otherHypList->size(); h ++)
+			    {
+				hypList[hypList.size()] = (*otherHypList)[h];
+			    }
+			}
+		    }
+
+		    if (alignScores) {
+			alignScores[j-1] = totalScore;
+		    }
+		}
+
+		i --; j --;
+
+		break;
+	    case DEL_ALIGN:
+		*aligns[sortedAligns[i-1]]->insert(deleteIndex) += score;
+
+		/*
+		 * Add all hyp IDs from "other" alignment to our delete hyp
+		 */
+		if (other.allHyps.numEntries() > 0) {
+		    Array<HypID> &hypList = 
+			*hypMap[sortedAligns[i-1]]->insert(deleteIndex);
+
+		    SArrayIter<HypID,HypID> otherHypsIter(other.allHyps);
+		    HypID id;
+		    while (otherHypsIter.next(id)) {
+			hypList[hypList.size()] = id;
+		    }
+		}
+
+		i --;
+		break;
+	    case INS_ALIGN:
+		/*
+		 * Make room for new alignment column in sortedAligns
+		 * and position new column
+		 */
+		for (unsigned k = numAligns; k > i; k --) {
+		    sortedAligns[k] = sortedAligns[k-1];
+		}
+		sortedAligns[i] = numAligns;
+
+		aligns[numAligns] = new LHash<VocabIndex,Prob>;
+		assert(aligns[numAligns] != 0);
+
+		wordInfo[numAligns] = new LHash<VocabIndex,NBestWordInfo>;
+		assert(wordInfo[numAligns] != 0);
+
+		hypMap[numAligns] = new LHash<VocabIndex,Array<HypID> >;
+		assert(hypMap[numAligns] != 0);
+
+		if (totalPosterior != 0.0) {
+		    *aligns[numAligns]->insert(deleteIndex) = totalPosterior;
+		}
+
+		/*
+		 * Add all hypIDs previously recorded to the *DELETE*
+		 * hypothesis at the newly created position.
+		 */
+		{
+		    Array<HypID> *hypList = 0;
+
+		    SArrayIter<HypID,HypID> myIter(allHyps);
+		    HypID id;
+		    while (myIter.next(id)) {
+			/*
+			 * Avoid inserting *DELETE* in hypMap unless needed
+			 */
+			if (hypList == 0) {
+			    hypList = hypMap[numAligns]->insert(deleteIndex);
+			}
+			(*hypList)[hypList->size()] = id;
+		    }
+		}
+
+		/*
+		 * insert all words in "other" alignment at current position
+		 */
+		{
+		    LHashIter<VocabIndex,Prob>
+				iter(*other.aligns[other.sortedAligns[j-1]]);
+		    Prob *otherProb;
+		    VocabIndex otherWord;
+		    while (otherProb = iter.next(otherWord)) {
+			*aligns[numAligns]->insert(otherWord) +=
+							score * *otherProb;
+
+			/*
+			 * Record word info if given
+			 */
+			NBestWordInfo *otherInfo =
+				other.wordInfo[other.sortedAligns[j-1]]->
+								find(otherWord);
+			if (otherInfo) {
+			    *wordInfo[numAligns]->insert(otherWord) =
+								*otherInfo;
+			}
+
+			Array<HypID> *otherHypList =
+				other.hypMap[other.sortedAligns[j-1]]->
+								find(otherWord);
+			if (otherHypList) {
+			    /*
+			     * Add hyp IDs to the hyp list for this word 
+			     */
+			    Array<HypID> &hypList = 
+				      *hypMap[numAligns]->insert(otherWord);
+			    for (unsigned h = 0; h < otherHypList->size(); h ++)
+			    {
+				hypList[hypList.size()] = (*otherHypList)[h];
+			    }
+			}
+		    }
+
+		    if (alignScores) {
+			alignScores[j-1] = score;
+		    }
+		}
+
+		numAligns ++;
+		j --;
+		break;
+	    }
+	}
+    }
+
+    /*
+     * Add hyps from "other" alignment to global list of our IDs
+     */
+    SArrayIter<HypID,HypID> otherHypsIter(other.allHyps);
+    HypID id;
+    while (otherHypsIter.next(id)) {
+	*allHyps.insert(id) = id;
     }
 
     totalPosterior += score;

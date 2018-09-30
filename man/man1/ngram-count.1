@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.15 2001/03/03 00:40:21 stolcke Exp $
-.TH ngram-count 1 "$Date: 2001/03/03 00:40:21 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.25 2002/09/08 19:20:28 stolcke Exp $
+.TH ngram-count 1 "$Date: 2002/09/08 19:20:28 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -90,7 +90,7 @@ The default is 0, which stands for N-grams of all lengths.
 .BI -write "n file"
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Writes only counts of the indicated order to
 .IR file .
 This is convenient to generate counts of different orders 
@@ -111,6 +111,13 @@ to
 .I lmfile 
 in 
 .BR ngram-format (5).
+.TP
+.BI \-nonevents " file"
+Read a list of words from
+.I file
+that are to be considered non-events, i.e., that
+can only occur in the context of an N-gram.
+Such words are given zero probability mass in model estimation.
 .TP
 .B \-float-counts
 Enable manipulation of fractional counts.
@@ -142,6 +149,13 @@ Build an ``open vocabulary'' LM, i.e., one that contains the unknown-word
 token as a regular word.
 The default is to remove the unknown word.
 .TP
+.BI \-map-unk " word"
+Map out-of-vocabulary words to 
+.IR word ,
+rather than the default
+.B <unk>
+tag.
+.TP
 .B \-trust-totals
 Force the lower-order counts to be used as total counts in estimating
 N-gram probabilities.
@@ -168,7 +182,7 @@ Debugging messages are written to stderr.
 .BI \-gt\fIn\fPmin " count"
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Set the minimal count of N-grams of order
 .I n
 that will be included in the LM.
@@ -179,7 +193,7 @@ but the alternative discounting methods described below as well.
 .BI \-gt\fIn\fPmax " count"
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Set the maximal count of N-grams of order
 .I n
 that are discounted under Good-Turing.
@@ -190,7 +204,7 @@ Discounting can be effectively disabled by setting this to 0.
 .BI \-gt\fIn\fP " gtfile"
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Save or retrieve Good-Turing parameters
 (cutoffs and discounting factors) in/from
 .IR gtfile .
@@ -208,7 +222,7 @@ otherwise they are computed from the current counts and saved in
 .BI \-cdiscount\fIn\fP " discount"
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Use Ney's absolute discounting for N-grams of 
 order
 .IR n ,
@@ -219,7 +233,7 @@ as the constant to subtract.
 .B \-wbdiscount\fIn\fP
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Use Witten-Bell discounting for N-grams of order
 .IR n .
 (This is the estimator where the first occurrence of each word is
@@ -228,9 +242,98 @@ taken to be a sample for the ``unseen'' event.)
 .B \-ndiscount\fIn\fP
 where
 .I n
-is 1, 2, 3, 4, 5, or 6.
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Use Ristad's natural discounting law for N-grams of order
 .IR n .
+.TP
+.B \-kndiscount\fIn\fP
+where
+.I n
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+Use Chen and Goodman's modified Kneser-Ney discounting for N-grams of order
+.IR n .
+.TP
+.B \-kn-counts-modified
+Indicates that input counts have already been modified for Kneser-Ney 
+smoothing.
+If this option is not given, the KN discounting method modifies counts
+(except those of highest order) in order to estimate the backoff distributions.
+When using the 
+.B \-write
+and related options the output will reflect the modified counts.
+.TP
+.BI \-kn\fIn\fP " knfile"
+where
+.I n
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+Save or retrieve Kneser-Ney parameters
+(cutoff and discounting constants) in/from
+.IR knfile .
+This is useful as smoothing parameters should always be determined from
+unlimited vocabulary counts, whereas the eventual LM may use a
+limited vocabulary.
+The parameter files may also be hand-edited.
+If an
+.B \-lm
+option is specified the KN parameters are read from
+.IR knfile ,
+otherwise they are computed from the current counts and saved in
+.IR knfile .
+.PP
+In the above discounting options, if the parameter 
+.I n
+is omitted the option sets the default discounting method for all N-grams 
+of length greater than 9.
+.TP
+.B \-interpolate\fIn\fP
+where
+.I n
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+Causes the discounted N-gram probability estimates at the specified order 
+.I n
+(or all orders, if 
+.I n
+is left empty)
+to be interpolated with lower-order estimates.
+(The result of the interpolation is encoded as a standard backoff
+model and can be evaluated as such -- the interpolation happens at
+estimation time.)
+This sometimes yields better models with some smoothing methods
+(see Chen & Goodman, 1998).
+Only Witten-Bell, absolute discounting, and modified Kneser-Ney smoothing
+currently support interpolation.
+.TP
+.BI \-meta-tag " string"
+Interpret words starting with 
+.I string
+as count-of-count (meta-count) tags.
+For example, an N-gram
+.br
+	a b \fIstring\fP3	4
+.br
+means that there were 4 trigrams starting with "a b"
+that occurred 3 times each.
+Meta-tags are only allowed in the last position of an N-gram.
+.br
+Note: when using 
+.B \-tolower
+the meta-tag
+.I string 
+must not contain any uppercase characters.
+.TP
+.B \-read-with-mincounts
+Save memory by eliminating N-grams with counts that fall below the thresholds
+set by
+.BI \-gt N min
+options during 
+.B \-read 
+operation 
+(this assumes the input counts contain no duplicate N-grams).
+Also, if
+.B \-meta-tag 
+is defined,
+these low-count N-grams will be converted to count-of-count N-grams,
+so that smoothing methods that need this information still work correctly.
 .SH "SEE ALSO"
 ngram-merge(1), ngram(1), ngram-class(1), training-scripts(1), lm-scripts(1),
 ngram-format(5).
@@ -248,18 +351,35 @@ Probabilities of Novel Events in Adaptive Text Compression,''
 .br
 E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
 Comp. Sci. Dept., Princeton Univ., 1995.
+.br
+S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques for
+Language Modeling,'' TR-10-98, Computer Science Group, Harvard Univ., 1998.
 .SH BUGS
 Several of the LM types supported by 
 .BR ngram (1)
 don't have explicit support in
 .BR ngram-count .
-Instead, they are built by separately manipulating ngram counts, 
-followed by standard ngram model estimation.
+Instead, they are built by separately manipulating N-gram counts, 
+followed by standard N-gram model estimation.
 .br
 LM support for tagged words is incomplete.
 .br
-Only absolute and Witten-Bell discounting currently supports fractional counts.
+Only absolute and Witten-Bell discounting currently support fractional counts.
+.br
+The combination of 
+.B \-read-with-mincounts
+and 
+.B \-meta-tag 
+preserves enough count-of-count information for
+.I applying 
+discounting parameters to the input counts, but it does not 
+necessarily allow the parameters to be correctly 
+.IR estimated .
+Therefore, discounting parameters should always be estimated from full 
+counts (e.g., using the helper 
+.BR training-scripts (1)),
+and then read from files.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-1999 SRI International
+Copyright 1995\-2002 SRI International

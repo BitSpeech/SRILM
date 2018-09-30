@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.30 2001/01/19 01:54:33 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.37 2003/02/15 06:53:03 stolcke Exp $
  *
  */
 
@@ -48,7 +48,7 @@ class Ngram: public LM
 
 public:
     Ngram(Vocab &vocab, unsigned order = defaultNgramOrder);
-    virtual ~Ngram() {};
+    virtual ~Ngram();
 
     unsigned setorder(unsigned neworder = 0);   /* change/return ngram order */
 
@@ -56,9 +56,13 @@ public:
      * LM interface
      */
     virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
-    virtual void *contextID(const VocabIndex *context, unsigned &length);
+    virtual void *contextID(const VocabIndex *context, unsigned &length)
+	{ return contextID(Vocab_None, context, length); };
+    virtual void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
+    virtual LogP contextBOW(const VocabIndex *context, unsigned length);
 
-    virtual Boolean read(File &file);
+    virtual Boolean read(File &file, Boolean limitVocab = false);
     virtual void write(File &file) { writeWithOrder(file, order); };
     virtual void writeWithOrder(File &file, unsigned int order);
 
@@ -75,6 +79,7 @@ public:
     virtual Boolean estimate(NgramStats &stats, Discount **discounts);
     virtual Boolean estimate(NgramCounts<FloatCount> &stats,
 							Discount **discounts);
+    virtual void mixProbs(Ngram &lm2, double lambda);
     virtual void mixProbs(Ngram &lm1, Ngram &lm2, double lambda);
     virtual void recomputeBOWs();
     virtual void pruneProbs(double threshold, unsigned minorder = 2);
@@ -85,8 +90,6 @@ public:
      */
     virtual unsigned int numNgrams(unsigned int n);
     virtual void memStats(MemStats &stats);
-
-    VocabIndex dummyIndex;			/* <dummy> tag */
 
     /*
      * Low-level access
@@ -102,11 +105,14 @@ protected:
     BOtrie contexts;				/* n-1 gram context trie */
     unsigned int order; 			/* maximal ngram order */
 
+    void clear();				/* remove all parameters */
+
     /*
      * Helper functions
      */
     virtual LogP wordProbBO(VocabIndex word, const VocabIndex *context,
 							unsigned int clen);
+    virtual unsigned vocabSize();
     template <class CountType>
 	Boolean estimate2(NgramCounts<CountType> &stats, Discount **discounts);
     virtual void fixupProbs();
@@ -114,6 +120,7 @@ protected:
     virtual LogP computeContextProb(const VocabIndex *context);
     virtual Boolean computeBOW(BOnode *node, const VocabIndex *context, 
 			    unsigned clen, Prob &numerator, Prob &denominator);
+    virtual Boolean computeBOWs(unsigned order);
 };
 
 /*

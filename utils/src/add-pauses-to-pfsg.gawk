@@ -3,7 +3,7 @@
 # add-pauses-to-pfsg --
 #	Modify Decipher PFSG to allow pauses between words
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg.gawk,v 1.8 2001/01/22 20:19:49 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg.gawk,v 1.11 2002/06/29 19:59:12 stolcke Exp $
 #
 BEGIN {
 	pause = "-pau-";
@@ -14,6 +14,11 @@ BEGIN {
 	wordwrap = 1;		# wrap pause filler around words
 	pauselast = 0;		# make pauses follow wrapped words
 	version = 0;		# no "version" line by default
+
+	# portable way to test for lowercase characters
+	# check for high-order bit is supposed to catch multibyte characters
+	word_pattern = "[[:lower:]\x80-\xFF]";		
+	if ("a" !~ word_pattern) word_pattern = "[a-z\x80-\xFF]";
 }
 
 #
@@ -43,11 +48,15 @@ function print_top_level(oldname) {
 	print "";
 }
 
+function word_wrapper_name(word) {
+	return "_" word "_PF";
+}
+
 #
 # output a pause wrapper for word
 #
 function print_word_wrapper(word) {
-	print "name " toupper(word) "_P";
+	print "name " word_wrapper_name(word);
 	if (pauselast) {
 	    print "nodes 3 " word " " pause_filler_name " " null;
 	} else {
@@ -83,6 +92,32 @@ NF == 0 {
 }
 
 #
+# read vocabulary list if supplied
+#
+NR == 1 && vocab != "" {
+	while (getline line < vocab) {
+	    if (split(line, a)) {
+		word_list[a[1]] = 1;
+	    }
+	}
+	close (vocab);
+}
+
+#
+# check that a node name is word
+# if a vocabulary was not specified we use the following heuristic:
+# word nodes contain at least one lowercase or non-ascii character and are not
+# surrounded by "*...*" (which indicates a class name).
+#
+function is_word(w) {
+	if (vocab) {
+	    return w in word_list;
+	} else {
+	    return w !~ /^\*.*\*$/ && w ~ word_pattern;
+	}
+}
+
+#
 # first time we see a pfsg name, issue a top-level wrapper for it.
 #
 $1 == "name" && !have_top_level {
@@ -90,15 +125,6 @@ $1 == "name" && !have_top_level {
 	print;
 	have_top_level = 1;
 	next;
-}
-
-#
-# check that a node name is word
-# word nodes contain at least one lowercase character and are not
-# surrounded by "*...*" (which indicates a class name).
-#
-function is_word(w) {
-	return w !~ /^\*.*\*$/ && w ~ /[a-z]/;
 }
 
 #
@@ -118,7 +144,7 @@ $1 == "nodes" {
 		    all_words[node_name] = 1;
 		    words[++num_words] = node_name;
 		}
-		printf " %s", toupper(node_name) "_P";
+		printf " %s", word_wrapper_name(node_name);
 	    } else {
 		printf " %s", node_name;
 	    }

@@ -1,11 +1,11 @@
 #!/usr/local/bin/gawk -f
 #
 # make-ngram-pfsg --
-#	Create a Decipher PFSG from a trigram language model
+#	Create a Decipher PFSG from an N-gram language model
 #
 # usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.21 2001/11/20 02:03:12 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.26 2003/01/12 19:11:11 stolcke Exp $
 #
 
 #########################################
@@ -25,8 +25,15 @@ BEGIN {
 	} else {
 	    getline pid < "/dev/pid";
 	}
-	tmpfile = "tmp.pfsg.trans." pid;
+	tmpfile = "/tmp/pfsg." pid;
+
+	# hack to remove tmpfile when killed
+	print "" | "trap '/bin/rm -f " tmpfile "' 0 1 2 15 30; cat >/dev/null";
+
 	debug = 0;
+
+	write_contexts = "";
+	read_contexts = "";
 }
 
 function rint(x) {
@@ -42,19 +49,19 @@ function scale_log(x) {
 }
 
 function output_for_node(name) {
-	if (name == start_tag || name == end_tag) {
+	num_words = split(name, words);
+
+	if (num_words == 0) {
+	    print "output_for_node: got empty name" > "/dev/stderr";
+	    exit(1);
+	} else if (words[1] == bo_name) {
 	    return null;
-	} else if (name == bo_name || match(name, bo_name " ") == 1) {
+	} else if (words[num_words] == end_tag || \
+		   words[num_words] == start_tag) 
+	{
 	    return null;
-	} else if (k = index(name, " ")) {
-	    name2 = substr(name, k+1);
-	    if (name2 == end_tag) {
-		return null;
-	    } else {
-		return name2;
-	    }
 	} else {
-	    return name;
+	    return words[num_words];
 	}
 }
 
@@ -107,11 +114,15 @@ function end_grammar(name) {
 	print "transitions " num_trans;
 	fflush();
 
-	close(tmpfile);
-	system("/bin/cat " tmpfile "; /bin/rm -f " tmpfile);
+	if (close(tmpfile) < 0) {
+		print "error closing tmp file" > "/dev/stderr";
+		exit(1);
+	}
+	system("/bin/cat " tmpfile);
 }
 
 function add_trans(from, to, prob) {
+#print "add_trans " from " -> " to " " prob > "/dev/stderr";
 	num_trans ++;
 	print node_index(from), node_index(to), scale_log(prob) > tmpfile;
 }
@@ -122,7 +133,7 @@ function add_trans(from, to, prob) {
 #
 
 BEGIN {
-	maxorder = 3;
+	maxorder = 0;
 	grammar_name = "PFSG";
 	bo_name = "BO";
 	check_bows = 0;
@@ -131,6 +142,13 @@ BEGIN {
 
 NR == 1 {
 	start_grammar(grammar_name);
+	
+	if (read_contexts) {
+	    while ((getline context < read_contexts) > 0) {
+		is_context[context] = 1;
+	    }
+	    close(read_contexts);
+	}
 }
 
 NF == 0 {
@@ -141,22 +159,27 @@ NF == 0 {
 	num_grams = substr($2,index($2,"=")+1);
 	if (num_grams > 0) {
 	    order = substr($2,1,index($2,"=")-1);
-	    if (order > maxorder) {
-		print "ngram order exceeds maximum (" maxorder ")" \
-				> "/dev/stderr";
-		exit(1);
+	
+	    # limit maximal N-gram order if desired
+	    if (maxorder > 0 && order > maxorder) {
+		order = maxorder;
 	    }
-	    if (order == 2) {
+
+	    if (order == 1) {
+		grammar_name = "UNIGRAM_PFSG";
+	    } else if (order == 2) {
 		grammar_name = "BIGRAM_PFSG";
-	    } if (order == 3) {
+	    } else if (order == 3) {
 		grammar_name = "TRIGRAM_PFSG";
+	    } else {
+		grammar_name = "NGRAM_PFSG";
 	    }
 	}
 	next;
 }
 
 /^\\[0-9]-grams:/ {
-	currorder=substr($0,2,1);
+	currorder = substr($0,2,1);
 	next;
 }
 /^\\/ {
@@ -164,113 +187,124 @@ NF == 0 {
 }
 
 #
-# unigrams
+# unigram parsing
 #
 currorder == 1 {
-	uniprob = $1;
-	word = $2;
-	bow = $3;
+	first_word = last_word = ngram = $2;
+	ngram_prefix = ngram_suffix = "";
 
-	uni_prob[word] = uniprob;
-
-	if (word != end_tag) {
-	    #
-	    # we always need a transition out of a unigram node
-	    # (implicit bow = 1)
-	    #
-	    if (bow == "") {
-		bow = 0;
-	    } else {
-		uni_bows[word] = bow;
-	    }
-
-	    if (order > 2) {
-		add_trans(bo_name " " word, bo_name, bow);
-	        add_trans(word, bo_name " " word, 0);
-	    } else {
-		add_trans(word, bo_name, bow);
-	    }
-	}
-
-	if (word != start_tag) {
-	    add_trans(bo_name, word, uniprob);
+	# we need all unigram backoffs (except for </s>),
+	# so fill in missing bow where needed
+	if (NF == 2 && last_word != end_tag) {
+		$3 = 0;
 	}
 }
 
 #
-# bigrams
+# bigram parsing
 #
 currorder == 2 {
-	biprob = $1;
-	word1 = $2;
-	word2 = $3;
-	bow = $4;
-
-	if (word2 == start_tag) {
-	    printf "warning: ignoring bigram into start tag %s -> %s\n", \
-			word1, word2 > "/dev/stderr";
-	    next;
-	}
-
-	word12 = $2 " " $3;
-
-	if (check_bows && order > 2) {
-	    bi_prob[word12] = biprob;
-	}
-
-	if (bow != "" && order > 2) {
-	    bi_bows[word12] = bow;
-
-	    add_trans(word12, bo_name " " word2, bow);
-	    add_trans(bo_name " " word1, word12, biprob);
-	} else {
-	    if (order > 2) {
-		add_trans(bo_name " " word1, word2, biprob);
-	    } else {
-		add_trans(word1, word2, biprob);
-	    }
-	}
-
-	if (check_bows && \
-	    word2 in uni_prob && \
-	    uni_prob[word2] + uni_bows[word1] - biprob > epsilon)
-	{
-	    printf "warning: bigram loses to backoff %s -> %s\n", \
-			    word1, word2 > "/dev/stderr";
-	}
+	ngram_prefix = first_word = $2;
+	ngram_suffix = last_word = $3;
+	ngram = $2 " " $3;
 }
 
 #
-# trigrams
+# trigram parsing
 #
 currorder == 3 {
-	triprob = $1;
-	word1 = $2;
-	word2 = $3;
-	word3 = $4;
+	first_word = $2;
+	last_word = $4;
+	ngram_prefix = $2 " " $3;
+	ngram_suffix = $3 " " $4;
+	ngram = ngram_prefix " " last_word;
+}
 
-	if (word3 == start_tag) {
-	    printf "warning: ignoring trigram into start tag %s %s -> %s\n", \
-			word1, word2, word3 > "/dev/stderr";
-	    next;
+#
+# higher-order N-gram parsing
+#
+currorder >= 4 && currorder <= order {
+	first_word = $2;
+	last_word = $(currorder + 1);
+	ngram_infix = $3;
+	for (i = 4; i <= currorder; i ++ ) {
+		ngram_infix = ngram_infix " " $i;
+	}
+	ngram_prefix = first_word " " ngram_infix;
+	ngram_suffix = ngram_infix " " last_word;
+	ngram = ngram_prefix " " last_word;
+}
+
+# 
+# shared code for N-grams of all orders
+#
+currorder <= order {
+	prob = $1;
+	bow = $(currorder + 2);
+
+	# skip backoffs that exceed maximal order,
+	# but always include unigram backoffs
+	if (bow != "" && (currorder == 1 || currorder < order)) {
+	    # remember all LM contexts for creation of N-gram transitions
+	    bows[ngram] = bow;
+
+	    # insert backoff transitions
+	    if (read_contexts ? (ngram in is_context) : \
+		                (currorder < order - 1)) \
+	    {
+		add_trans(bo_name " " ngram, bo_name " " ngram_suffix, bow);
+		add_trans(ngram, bo_name " " ngram, 0);
+	    } else {
+		add_trans(ngram, bo_name " " ngram_suffix, bow);
+	    }
+
+	    if (write_contexts) {
+		print ngram_suffix > write_contexts;
+	    }
 	}
 
-	word12 = word1 " " word2;
-	word23 = word2 " " word3;
-
-	if (word12 in bi_bows) {
-	    if (word23 in bi_bows) {
-		add_trans(word12, word23, triprob);
+	if (last_word == start_tag) {
+	    if (currorder > 1) {
+		printf "warning: ignoring ngram into start tag %s -> %s\n", \
+			    ngram_prefix, last_word > "/dev/stderr";
+	    }
+	} else {
+	    # insert N-gram transition to maximal suffix of target context
+	    if (last_word == end_tag) {
+		target = end_tag;
+	    } else if (ngram in bows || currorder == 1) {
+		# the minimal context is unigram
+		target = ngram;
+	    } else if (ngram_suffix in bows) {
+		target = ngram_suffix;
 	    } else {
-		add_trans(word12, word3, triprob);
-	    } 
+		target = ngram_suffix;
+		for (i = 3; i <= currorder; i ++) {
+		    target = substr(target, length($i) + 2);
+		    if (target in bows) break;
+		}
+	    }
 
-	    if (check_bows && \
-		word23 in bi_prob && \
-		bi_prob[word23] + bi_bows[word12] - triprob > epsilon)
+	    if (currorder == 1 || \
+		(read_contexts ? (ngram_prefix in is_context) : \
+				 (currorder < order))) \
 	    {
-		printf "warning: trigram loses to backoff %s %s -> %s\n", \
-				word1, word2, word3 > "/dev/stderr";
+		add_trans(bo_name " " ngram_prefix, target, prob);
+	    } else {
+		add_trans(ngram_prefix, target, prob);
+	    }
+
+	    if (check_bows) {
+		if (currorder < order) {
+		    probs[ngram] = prob;
+		}
+		
+		if (ngram_suffix in probs && \
+		    probs[ngram_suffix] + bows[ngram_prefix] - prob > epsilon)
+		{
+		    printf "warning: ngram loses to backoff %s -> %s\n", \
+			    ngram_prefix, last_word > "/dev/stderr";
+		}
 	    }
 	}
 }

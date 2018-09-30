@@ -1,4 +1,4 @@
-<! $Id: LM.3,v 1.1 1996/07/15 18:57:37 stolcke Exp $>
+<! $Id: LM.3,v 1.2 2003/02/15 07:08:52 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>LM</TITLE>
@@ -112,11 +112,13 @@ in <I>context</I>).
 Return <B>true</B> if <I>word</I> is a regular word in the LM, i.e.,
 one that the LM computes probabilities for (as opposed to
 non-event tag such as sentence-start).
-<DT><B> Boolean read(File &amp;<I>file</I>) </B>
+<DT><B> Boolean read(File &amp;<I>file</I>, Boolean <I>limitVocab</I> = false) </B>
 <DD>
 Read a LM from <I>file</I>.
 Return <B>true</B> is the file contents was formated correctly and 
 an internal LM representation could be successfully constructed from it.
+The optional 2nd argument controls whether words not already in the vocabulary
+are to be added automatically.
 <DT><B> void write(File &amp;<I>file</I>) </B>
 <DD>
 Writes the LM to <I>file</I> in a format that can be read back by

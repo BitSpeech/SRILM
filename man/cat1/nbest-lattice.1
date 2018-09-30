@@ -73,20 +73,28 @@ OOPPTTIIOONNSS
               and processing (for validation or format conversion
               purposes).
 
+       --nnbbeesstt--ffiilleess _f_i_l_e_-_l_i_s_t
+              Rescores  multiple N-best lists whose filenames are
+              read from _f_i_l_e_-_l_i_s_t.
+
+       --wwrriittee--nnbbeesstt--ddiirr _d_i_r_e_c_t_o_r_y
+              Outputs N-best lists to _d_i_r_e_c_t_o_r_y, to  files  named
+              after  the input N-best lists, for when multiple N-
+              best lists are processed (see --nnbbeesstt--ffiilleess).
+
+       --wwrriittee--vvooccaabb _f_i_l_e
+              Outputs vocabulary used in N-best list.
+
        --ddeecciipphheerr--nnbbeesstt
-              Output  N-best  list  in  Decipher nnbbeesstt--ffoorrmmaatt(5),
-              rather than the default native SRILM format.   (All
+              Output N-best  list  in  Decipher  nnbbeesstt--ffoorrmmaatt(5),
+              rather  than the default native SRILM format.  (All
               N-best formats are accepted for input regardless of
               this option.)
 
        --nnoo--rreessccoorree
-              Suppress rescoring of lattices; useful if only  the
-              operations  of  lattice/N-best list reading/writing
+              Suppress  rescoring of lattices; useful if only the
+              operations of lattice/N-best  list  reading/writing
               are desired.
-
-       --nnbbeesstt--ffiilleess _f_i_l_e_-_l_i_s_t
-              Rescores multiple N-best lists whose filenames  are
-              read from _f_i_l_e_-_l_i_s_t.
 
        --mmaaxx--nnbbeesstt _n
               Limits  the  number of hypotheses read from each N-
@@ -135,6 +143,11 @@ OOPPTTIIOONNSS
               number of words relative to the acoustic log proba-
               bilities (only  relevant  if  separate  scores  are
               given in the N-best input).
+              If  --nnoo--rreeoorrddeerr is not specified, and either _l_m_w or
+              _w_t_w are specified to  be  non-zero,  the  aggregate
+              scores  are  recomputed using those weights; other-
+              wise aggregate scores supplied in the input  N-best
+              lists are used to sort hypotheses.
 
        --ppoosstteerriioorr--ssccaallee _s_c_a_l_e
               Divide  the  total weighted log score by _s_c_a_l_e when
@@ -161,6 +174,9 @@ OOPPTTIIOONNSS
               Sets  the word transition weight for computing pos-
               teriors.  The default is to use whatever was speci-
               fied for --rreessccoorree--wwttww.
+              If  all  three of _a_m_w, _l_m_w, and _w_t_w are set to zero
+              the  posteriors  are  computed  directly  from  the
+              aggregate scores stored in the N-best input.
 
        --vvooccaabb _f_i_l_e
               Read  the  N-best  list vocabulary from _f_i_l_e.  This
@@ -243,13 +259,19 @@ OOPPTTIIOONNSS
               with  additional  paths constructed from the N-best
               hypotheses.
 
+       --llaattttiiccee--ffiilleess _f_i_l_e
+              Reads the names of one or more lattices  from  _f_i_l_e
+              and  aligns  those  lattices  with the main lattice
+              being built.  Each line of _f_i_l_e must contain a lat-
+              tice filename, optionally followed by a weight.
+
        --wwrriittee _f_i_l_e
               Writes the resulting word posterior lattice or mesh
               to _f_i_l_e, in wwllaatt--ffoorrmmaatt(5).
 
        --wwrriittee--ddiirr _d_i_r_e_c_t_o_r_y
-              Write  the  resulting N-best lattices to _d_i_r_e_c_t_o_r_y,
-              in files named after the input  N-best  lists,  for
+              Write the resulting N-best lattices  to  _d_i_r_e_c_t_o_r_y,
+              in  files  named  after the input N-best lists, for
               when  multiple  N-best  lists  are  processed  (see
               --nnbbeesstt--ffiilleess).
 
@@ -257,14 +279,18 @@ OOPPTTIIOONNSS
               Start building the lattice with the best hypothesis
               obtained from N-best error minimization.  This pro-
               duces  slightly  better  alignments  and  sometimes
-              lower  error  rates.   The default is to start with
+              lower error rates.  The default is  to  start  with
               the top-scoring hypothesis.
 
        --pprriimmee--wwiitthh--11bbeesstt
-              Similar to --pprriimmee--llaattttiiccee, but uses the  top-ranked
+              Similar  to --pprriimmee--llaattttiiccee, but uses the top-ranked
               sentence hypothesis for priming.  (Experience shows
-              that   --nnoo--rreeoorrddeerr   --pprriimmee--llaattttiiccee   gives    best
+              that    --nnoo--rreeoorrddeerr   --pprriimmee--llaattttiiccee   gives   best
               results.)
+
+       --pprriimmee--wwiitthh--rreeffss
+              Similar to --pprriimmee--llaattttiiccee, but uses  the  reference
+              words for priming.
 
        --nnoo--mmeerrggee
               Build  a lattice from the N-best hypotheses without
@@ -306,14 +332,14 @@ SSEEEE AALLSSOO
 
 BBUUGGSS
        Several functions are not uniformly  implemented  for  all
-       rescoring  modes  (e.g.,  --ddiiccttiioonnaarryy,  --rreeccoorrdd--hhyyppss,  and
-       --nnbbeesstt--bbaacckkttrraaccee are currently effective only in mesh-lat-
-       tice mode).
+       rescoring   modes   (e.g.,   --llaattttiiccee--ffiilleess,  --ddiiccttiioonnaarryy,
+       --rreeccoorrdd--hhyyppss, and --nnbbeesstt--bbaacckkttrraaccee are currently effective
+       only in mesh-lattice mode).
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1996-2001 SRI International
+       Copyright 1996-2002 SRI International
 
 
 
-SRILM Tools        $Date: 2001/08/11 18:12:23 $  nbest-lattice(1)
+SRILM Tools        $Date: 2003/02/15 09:20:36 $  nbest-lattice(1)

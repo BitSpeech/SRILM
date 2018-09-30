@@ -16,6 +16,7 @@ classes-to-fsm	pfsg-scripts (1)    - create and manipulate finite-state networks
 compare-ppls	ppl-scripts (1) - manipulate perplexities
 compare-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
 compute-best-mix		ppl-scripts (1) - manipulate perplexities
+compute-best-sentence-mix	ppl-scripts (1) - manipulate perplexities
 compute-oov-rate		training-scripts (1)	- miscellaneous conveniences for language model training
 compute-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
 continuous-ngram-count		training-scripts (1)	- miscellaneous conveniences for language model training
@@ -24,6 +25,7 @@ fsm-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks
 get-gt-counts	training-scripts (1)	- miscellaneous conveniences for language model training
 hidden-ngram	hidden-ngram (1)    - tag hidden events between words
 hits-from-log	ppl-scripts (1) - manipulate perplexities
+lattice-tool	lattice-tool (1)    - manipulate word lattices
 lm-scripts	lm-scripts (1)	- manipulate N-gram language models
 make-abs-discount		training-scripts (1)	- miscellaneous conveniences for language model training
 make-batch-counts		training-scripts (1)	- miscellaneous conveniences for language model training
@@ -31,6 +33,8 @@ make-big-lm	training-scripts (1)	- miscellaneous conveniences for language model
 make-diacritic-map		training-scripts (1)	- miscellaneous conveniences for language model training
 make-gt-discounts		training-scripts (1)	- miscellaneous conveniences for language model training
 make-hiddens-lm lm-scripts (1)	- manipulate N-gram language models
+make-kn-counts	training-scripts (1)	- miscellaneous conveniences for language model training
+make-kn-discounts		training-scripts (1)	- miscellaneous conveniences for language model training
 make-lm-subset	lm-scripts (1)	- manipulate N-gram language models
 make-nbest-pfsg pfsg-scripts (1)    - create and manipulate finite-state networks
 make-ngram-pfsg pfsg-scripts (1)    - create and manipulate finite-state networks
@@ -44,8 +48,10 @@ nbest-lattice	nbest-lattice (1)   - rescore N-best lists and lattices
 nbest-mix	nbest-mix (1)	- interpolate N-best posterior probabilities
 nbest-optimize	nbest-optimize (1)  - optimize score combination for N-best word error minimization
 nbest-posteriors		nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest-pron-score		nbest-pron-score (1)	- score pronunciations and pauses in N-best hypotheses
 nbest-rover	nbest-scripts (1)   - rescore and evaluate N-best lists
 nbest-scripts	nbest-scripts (1)   - rescore and evaluate N-best lists
+nbest-vocab	nbest-scripts (1)   - rescore and evaluate N-best lists
 nbest2-to-nbest1		nbest-scripts (1)   - rescore and evaluate N-best lists
 ngram		ngram (1)	- apply N-gram language models
 ngram-class	ngram-class (1) - induce word classes from N-gram statistics
@@ -57,6 +63,7 @@ pfsg-from-ngram pfsg-scripts (1)    - create and manipulate finite-state network
 pfsg-scripts	pfsg-scripts (1)    - create and manipulate finite-state networks
 pfsg-to-dot	pfsg-scripts (1)    - create and manipulate finite-state networks
 pfsg-to-fsm	pfsg-scripts (1)    - create and manipulate finite-state networks
+pfsg-vocab	pfsg-scripts (1)    - create and manipulate finite-state networks
 ppl-from-log	ppl-scripts (1) - manipulate perplexities
 ppl-scripts	ppl-scripts (1) - manipulate perplexities
 remove-lowprob-ngrams		lm-scripts (1)	- manipulate N-gram language models
@@ -64,10 +71,13 @@ replace-words-with-classes	training-scripts (1)	- miscellaneous conveniences for
 rescore-acoustic		nbest-scripts (1)   - rescore and evaluate N-best lists
 rescore-decipher		nbest-scripts (1)   - rescore and evaluate N-best lists
 rescore-reweight		nbest-scripts (1)   - rescore and evaluate N-best lists
+reverse-lm	lm-scripts (1)	- manipulate N-gram language models
 reverse-ngram-counts		training-scripts (1)	- miscellaneous conveniences for language model training
+reverse-text	training-scripts (1)	- miscellaneous conveniences for language model training
 segment 	segment (1)	- segment text using N-gram language model
 segment-nbest	segment-nbest (1)   - rescore and segment N-best lists using hidden segment N-gram model
 sentid-to-sclite		nbest-scripts (1)   - rescore and evaluate N-best lists
+sort-lm 	lm-scripts (1)	- manipulate N-gram language models
 subtract-ppls	ppl-scripts (1) - manipulate perplexities
 training-scripts		training-scripts (1)	- miscellaneous conveniences for language model training
 uniform-classes training-scripts (1)	- miscellaneous conveniences for language model training

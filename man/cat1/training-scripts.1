@@ -6,39 +6,45 @@ NNAAMMEE
        training-scripts,    compute-oov-rate,   continuous-ngram-
        count,   get-gt-counts,   make-abs-discount,   make-batch-
        counts,   make-big-lm,  make-diacritic-map,   make-gt-dis-
-       counts,  merge-batch-counts,   replace-words-with-classes,
-       reverse-ngram-counts, uniform-classes, vp2text - miscella-
-       neous conveniences for language model training
+       counts,  make-kn-counts,  make-kn-discounts,  merge-batch-
+       counts,  replace-words-with-classes, reverse-ngram-counts,
+       reverse-text,  uniform-classes,  vp2text  -  miscellaneous
+       conveniences for language model training
 
 SSYYNNOOPPSSIISS
        ggeett--ggtt--ccoouunnttss mmaaxx==_K oouutt==_n_a_m_e [_c_o_u_n_t_s...]
-       mmaakkee--ggtt--ddiissccoouunnttss mmiinn==_m_i_n mmaaxx==_m_a_x _g_t_c_o_u_n_t_s
        mmaakkee--aabbss--ddiissccoouunntt _g_t_c_o_u_n_t_s
+       mmaakkee--ggtt--ddiissccoouunnttss mmiinn==_m_i_n mmaaxx==_m_a_x _g_t_c_o_u_n_t_s
+       mmaakkee--kknn--ccoouunnttss   oorrddeerr==_N   mmaaxx__ppeerr__ffiillee==_M   oouuttppuutt==_f_i_l_e  [
+       nnoo__mmaaxx__oorrddeerr==11 ]
+       mmaakkee--kknn--ddiissccoouunnttss mmiinn==_m_i_n _g_t_c_o_u_n_t_s
        mmaakkee--bbaattcchh--ccoouunnttss _f_i_l_e_-_l_i_s_t [_b_a_t_c_h_-_s_i_z_e [_f_i_l_t_e_r [_c_o_u_n_t_-_d_i_r
        [_o_p_t_i_o_n_s...]]]]
        mmeerrggee--bbaattcchh--ccoouunnttss _c_o_u_n_t_-_d_i_r [_f_i_l_e_-_l_i_s_t|_s_t_a_r_t_-_i_t_e_r]
        ccoonnttiinnuuoouuss--nnggrraamm--ccoouunntt [ oorrddeerr==_N ] [_t_e_x_t_f_i_l_e...]
        rreevveerrssee--nnggrraamm--ccoouunnttss [_c_o_u_n_t_s_-_f_i_l_e...]
-       mmaakkee--bbiigg--llmm --nnaammee _n_a_m_e --rreeaadd _c_o_u_n_t_s --ttrruusstt--ttoottaallss --llmm _n_e_w_-
-       _m_o_d_e_l [_o_p_t_i_o_n_s...]
+       rreevveerrssee--tteexxtt [_t_e_x_t_f_i_l_e...]
+       mmaakkee--bbiigg--llmm  --nnaammee _n_a_m_e --rreeaadd _c_o_u_n_t_s [ --ttrruusstt--ttoottaallss --mmaaxx--
+       ppeerr--ffiillee M ] --llmm _n_e_w_-_m_o_d_e_l [_o_p_t_i_o_n_s...]
        rreeppllaaccee--wwoorrddss--wwiitthh--ccllaasssseess ccllaasssseess==_c_l_a_s_s_e_s [oouuttffiillee==_c_o_u_n_t_s
-       nnoorrmmaalliizzee==0|1 aaddddoonnee==_K hhaavvee__ccoouunnttss==11 ] [_t_e_x_t_f_i_l_e...]
+       nnoorrmmaalliizzee==0|1    aaddddoonnee==_K    hhaavvee__ccoouunnttss==11   ppaarrttiiaall==11   ]
+       [_t_e_x_t_f_i_l_e...]
        uunniiffoorrmm--ccllaasssseess _c_l_a_s_s_e_s >>_n_e_w_-_c_l_a_s_s_e_s
        mmaakkee--ddiiaaccrriittiicc--mmaapp _v_o_c_a_b
        vvpp22tteexxtt [_t_e_x_t_f_i_l_e...]
        ccoommppuuttee--oooovv--rraattee _v_o_c_a_b [_c_o_u_n_t_s...]
 
 DDEESSCCRRIIPPTTIIOONN
-       These  scripts  perform  convenience tasks associated with
-       the training of  language  models.   They  complement  and
+       These scripts perform convenience  tasks  associated  with
+       the  training  of  language  models.   They complement and
        extend the basic N-gram model estimator in nnggrraamm--ccoouunntt(1).
 
-       Since these tools are implemented as  scripts  they  don't
-       automatically  input  or output compressed data files cor-
-       rectly, unlike the main SRILM tools.  However, since  most
-       scripts  work with data from standard input or to standard
+       Since  these  tools  are implemented as scripts they don't
+       automatically input or output compressed data  files  cor-
+       rectly,  unlike the main SRILM tools.  However, since most
+       scripts work with data from standard input or to  standard
        output (by leaving out the file argument, or specifying it
-       as  ``-'')  it  is  easy to combine them with gguunnzziipp(1) or
+       as ``-'') it is easy to combine  them  with  gguunnzziipp(1)  or
        ggzziipp(1) on the command line.
 
        Also note that many of the scripts take their options with
@@ -47,34 +53,39 @@ DDEESSCCRRIIPPTTIIOONN
 
        ggeett--ggtt--ccoouunnttss  computes  the  counts-of-counts  statistics
        needed  in  Good-Turing  smoothing.   The  frequencies  of
-       counts up to _K are computed (default is 10).  The  results
-       are   stored   in  a  series  of  files  with  root  _n_a_m_e,
-       _n_a_m_e..ggtt11ccoouunnttss, _n_a_m_e..ggtt22ccoouunnttss, ...,  _n_a_m_e..ggtt_Kccoouunnttss.   It
-       is  assumed  that  the  input  counts  have  been properly
+       counts  up to _K are computed (default is 10).  The results
+       are  stored  in  a  series  of  files  with   root   _n_a_m_e,
+       _n_a_m_e..ggtt11ccoouunnttss,  _n_a_m_e..ggtt22ccoouunnttss,  ..., _n_a_m_e..ggtt_Nccoouunnttss.  It
+       is assumed  that  the  input  counts  have  been  properly
        merged, i.e., that there are no duplicated N-grams.
 
        mmaakkee--ggtt--ddiissccoouunnttss takes one of the output files of ggeett--ggtt--
-       ccoouunnttss  and  computes  the  corresponding Good-Turing dis-
+       ccoouunnttss and computes  the  corresponding  Good-Turing  dis-
        counting factors.  The output can then be passed to nnggrraamm--
-       ccoouunntt(1)  via  the  --ggtt_K  options to control the smoothing
-       during model estimation.  Precomputing the GT  discounting
-       in  this  fashion has the advantage that the GT statistics
-       are not affected  by  restricting  N-grams  to  a  limited
-       vocabulary.    Also,  ggeett--ggtt--ccoouunnttss/mmaakkee--ggtt--ddiissccoouunnttss  can
-       process arbitrarily large count files, since they  do  not
-       need  to read the counts into memory (unlike nnggrraamm--ccoouunntt).
+       ccoouunntt(1) via the --ggtt_n options  to  control  the  smoothing
+       during  model estimation.  Precomputing the GT discounting
+       in this fashion has the advantage that the  GT  statistics
+       are  not  affected  by  restricting  N-grams  to a limited
+       vocabulary.   Also,  ggeett--ggtt--ccoouunnttss/mmaakkee--ggtt--ddiissccoouunnttss   can
+       process  arbitrarily  large count files, since they do not
+       need to read the counts into memory (unlike  nnggrraamm--ccoouunntt).
 
-       mmaakkee--aabbss--ddiissccoouunntt computes the absolute  discounting  con-
-       stant  needed  for  the  nnggrraamm--ccoouunntt  --ccddiissccoouunntt_K options.
+       mmaakkee--aabbss--ddiissccoouunntt  computes  the absolute discounting con-
+       stant needed  for  the  nnggrraamm--ccoouunntt  --ccddiissccoouunntt_n  options.
        Input is one of the files produced by ggeett--ggtt--ccoouunnttss.
 
-       mmaakkee--bbaattcchh--ccoouunnttss performs the first  stage  in  the  con-
-       struction  of very large N-gram count files.  _f_i_l_e_-_l_i_s_t is
-       a list of input text files.  These files will  be  grouped
-       into batches of size _b_a_t_c_h_-_s_i_z_e (default 10) that are then
-       processed in one run of  nnggrraamm--ccoouunntt  each.   For  maximum
-       performance,  _b_a_t_c_h_-_s_i_z_e  should  be  as large as possible
-       without triggering paging.  Optionally, a _f_i_l_t_e_r script or
+       mmaakkee--kknn--ddiissccoouunntt  computes  the discounting constants used
+       by the modified Kneser-Ney smoothing method.  Input is one
+       of the files produced by ggeett--ggtt--ccoouunnttss.
+
+       mmaakkee--bbaattcchh--ccoouunnttss  performs  the  first  stage in the con-
+       struction of very large N-gram count files.  _f_i_l_e_-_l_i_s_t  is
+       a  list  of  input  text files.  Lines starting with a `#'
+       character are ignored.  These files will be  grouped  into
+       batches of size _b_a_t_c_h_-_s_i_z_e (default 10) that are then pro-
+       cessed in one run of nnggrraamm--ccoouunntt each.  For  maximum  per-
+       formance,  _b_a_t_c_h_-_s_i_z_e should be as large as possible with-
+       out triggering paging.  Optionally,  a  _f_i_l_t_e_r  script  or
        program can be given to condition the input texts.  The N-
        gram  count  files  are  left   in   directory   _c_o_u_n_t_-_d_i_r
        (``counts'' by default), where they can be found by a sub-
@@ -110,18 +121,41 @@ DDEESSCCRRIIPPTTIIOONN
             ngram-count -read - -recompute -write - | \
             reverse-ngram-counts > _n_e_w_-_c_o_u_n_t_s
 
+       rreevveerrssee--tteexxtt reverses the word order in text files,  line-
+       by-line.   Start-  and end-sentence tags, if present, will
+       be preserved.  This reversal is  appropriate  for  prepro-
+       cessing  training  data  for LMs that are meant to be used
+       with the nnggrraamm --rreevveerrssee option.
+
        mmaakkee--bbiigg--llmm constructs large N-gram models in a more  mem-
        ory-efficient  way than nnggrraamm--ccoouunntt by itself.  It does so
-       by precomputing the Good-Turing smoothing  parameters  and
-       passing  nnggrraamm--ccoouunntt  only  a subset of the counts, namely
-       those of N-grams to be retained in the  model.   The  _n_a_m_e
-       parameter is used to name various auxiliary files.  _c_o_u_n_t_s
-       contains the raw N-gram counts; it may by (and usually is)
-       a  compressed  file.  If the file contains complete lower-
-       order counts corresponding to  the  sums  of  higher-order
-       counts, then the --ttrruusstt--ttoottaallss options should be given for
-       efficiency.  All other _o_p_t_i_o_n_s are passed  to  nnggrraamm--ccoouunntt
-       (only options affecting model estimation should be given).
+       by precomputing the Good-Turing  or  Kneser-Ney  smoothing
+       parameters from the full set of counts, and then instruct-
+       ing nnggrraamm--ccoouunntt to store only a subset of  the  counts  in
+       memory,  namely  those  of  N-grams  to be retained in the
+       model.  The _n_a_m_e parameter is used to name various  auxil-
+       iary files.  _c_o_u_n_t_s contains the raw N-gram counts; it may
+       be (and usually is) a compressed file.  Unlike with nnggrraamm--
+       ccoouunntt,  the  --rreeaadd  option  can be repeated to concatenate
+       multiple count files, but the arguments  must  be  regular
+       files;  reading from stdin is not supported.  If Good-Tur-
+       ing smoothing is  used  and  the  file  contains  complete
+       lower-order  counts  corresponding  to the sums of higher-
+       order counts, then the --ttrruusstt--ttoottaallss options may be  given
+       for  efficiency.   All  other _o_p_t_i_o_n_s are passed to nnggrraamm--
+       ccoouunntt (only options affecting model estimation  should  be
+       given).  Smoothing methods other than Good-Turing and mod-
+       ified  Kneser-Ney  are  not  supported   by   mmaakkee--bbiigg--llmm.
+       Kneser-Ney  smoothing  also  requires enough disk space to
+       compute and store the modified lower-order counts used  by
+       the  KN method.  This is done using the mmeerrggee--bbaattcchh--ccoouunnttss
+       command, and the --mmaaxx--ppeerr--ffiillee option  controls  how  many
+       counts are to be stored per batch, and should be chosen so
+       that these batches fit in real memory.
+
+       mmaakkee--kknn--ccoouunnttss computes the  modified  lower-order  counts
+       used  by  the  KN  smoothing  method.   It is invoked as a
+       helper scripts by mmaakkee--bbiigg--llmm ..
 
        rreeppllaaccee--wwoorrddss--wwiitthh--ccllaasssseess  replaces  expansions  of  word
        classes  with  the  corresponding  class  labels.  _c_l_a_s_s_e_s
@@ -129,38 +163,41 @@ DDEESSCCRRIIPPTTIIOONN
        ties  are  resolved  in favor of the longest matching word
        strings.  Ties are broken in favor of the expansion listed
        first  in  _c_l_a_s_s_e_s_.   Optionally,  the  file  _c_o_u_n_t_s  will
-       receive  the   expansion   counts   resulting   from   the
-       replacements.   nnoorrmmaalliizzee==00  or  11  indicates  whether the
-       counts should be normalized to probabilities  (default  is
-       1).  The aaddddoonnee option may be used to smooth the expansion
-       probabilities by adding _K to each count (default 1).   The
+       receive the expansion counts resulting from  the  replace-
+       ments.   nnoorrmmaalliizzee==00  or  11  indicates  whether the counts
+       should be normalized to probabilities (default is 1).  The
+       aaddddoonnee  option  may be used to smooth the expansion proba-
+       bilities by adding _K  to  each  count  (default  1).   The
        option  hhaavvee__ccoouunnttss==11 indicates that the input consists of
        N-gram counts and that replacement should be performed  on
        them.   Note  this  will  not  merge counts that have been
        mapped to identical N-grams, since this is done  automati-
-       cally when nnggrraamm--ccoouunntt(1) reads count data.
+       cally  when  nnggrraamm--ccoouunntt(1)  reads count data.  The option
+       ppaarrttiiaall==11 prevents multi-word class expansions from  being
+       replaced  when  more than one space character occurs inbe-
+       tween the words.
 
        uunniiffoorrmm--ccllaasssseess takes a file in ccllaasssseess--ffoorrmmaatt(5) and adds
-       uniform probabilities to  expansions  that  don't  have  a
+       uniform  probabilities  to  expansions  that  don't have a
        probability explicitly stated.
 
-       mmaakkee--ddiiaaccrriittiicc--mmaapp  constructs  a  map  file that pairs an
-       ASCII-fied version of the words  in  _v_o_c_a_b  with  all  the
-       occurring  non-ASCII word forms.  Such a map file can then
-       be used with ddiissaammbbiigg(1) and a language  model  to  recon-
-       struct  the  non-ASCII  word  form with diacritics from an
+       mmaakkee--ddiiaaccrriittiicc--mmaapp constructs a map  file  that  pairs  an
+       ASCII-fied  version  of  the  words  in _v_o_c_a_b with all the
+       occurring non-ASCII word forms.  Such a map file can  then
+       be  used  with  ddiissaammbbiigg(1) and a language model to recon-
+       struct the non-ASCII word form  with  diacritics  from  an
        ASCII text.
 
-       vvpp22tteexxtt is a reimplementation of the filter  used  in  the
+       vvpp22tteexxtt  is  a  reimplementation of the filter used in the
        DARPA Hub-3 and Hub-4 CSR evaluations to convert ``verbal-
-       ized punctuation'' texts to language model training  data.
+       ized  punctuation'' texts to language model training data.
 
-       ccoommppuuttee--oooovv--rraattee  determines the out-of-vocabulary rate of
-       a corpus from its unigram _c_o_u_n_t_s and a  target  vocabulary
+       ccoommppuuttee--oooovv--rraattee determines the out-of-vocabulary rate  of
+       a  corpus  from its unigram _c_o_u_n_t_s and a target vocabulary
        list in _v_o_c_a_b.
 
 SSEEEE AALLSSOO
-       ngram-count(1), classes-format(5), disambig(1).
+       ngram-count(1), ngram(1), classes-format(5),  disambig(1).
 
 BBUUGGSS
        Some  of  the  tools could be generalized and/or made more
@@ -168,8 +205,8 @@ BBUUGGSS
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1995-1999 SRI International
+       Copyright 1995-2002 SRI International
 
 
 
-SRILM Tools        $Date: 2001/08/18 03:21:46 $training-scripts(1)
+SRILM Tools        $Date: 2003/01/17 03:00:42 $training-scripts(1)

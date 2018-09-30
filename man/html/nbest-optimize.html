@@ -1,4 +1,4 @@
-<! $Id: nbest-optimize.1,v 1.10 2001/06/26 18:10:20 stolcke Exp $>
+<! $Id: nbest-optimize.1,v 1.11 2002/02/23 23:12:29 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-optimize</TITLE>
@@ -272,6 +272,19 @@ plus optionally a value for the posterior scaling parameter
 Write the best word hypotheses to 
 <I> file </I>
 after optimization.
+<DT><B>-write-rover-control</B><I> file</I><B></B>
+<DD>
+Writes a control file for 
+<B> nbest-rover </B>
+to 
+<I>file</I>,<I></I>
+reflecting the names of the input directories and the optimized parameter
+values.
+The format of
+<I> file </I>
+is described in
+<A HREF="nbest-scripts.html">nbest-scripts(1)</A>.
+The file is rewritten for each new minimal error weight combination found.
 <DT><B> -- </B>
 <DD>
 Signals the end of options, such that following command-line arguments are 
@@ -304,14 +317,21 @@ W. H. Press, B. P. Flannery, S. A. Teukolsky, &amp; W. T. Vetterling,
 Cambridge University Press, 1988.
 <BR>
 <H2> BUGS </H2>
-Likely.
 Gradient-based optimization is not supported (yet) in 1-best mode;
 use simplex-search optimization instead.
+<BR>
+The N-best directory in the control file output by
+<B> -write-rover-control </B>
+is inferred from the
+first N-best filename specified with
+<B>-nbest-files</B>,<B></B>
+and will therefore only work if all N-best lists are placed in the same
+directory.
 <H2> AUTHORS </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
 <BR>
 Dimitra Vergyri &lt;dverg@speech.sri.com&gt;
 <BR>
-Copyright 2000, 2001 SRI International
+Copyright 2000-2002 SRI International
 </BODY>
 </HTML>

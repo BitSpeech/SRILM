@@ -2,9 +2,9 @@
  * DFNgram.h --
  *	N-gram backoff language model for disfluencies
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.h,v 1.10 1999/10/16 17:03:36 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.h,v 1.11 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 
@@ -54,7 +54,9 @@ public:
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
     LogP wordProbRecompute(VocabIndex word, const VocabIndex *context);
-    void *contextID(const VocabIndex *context, unsigned &length);
+    void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
+    LogP contextBOW(const VocabIndex *context, unsigned length);
     Boolean isNonWord(VocabIndex word);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 

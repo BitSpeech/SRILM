@@ -1,18 +1,20 @@
-<! $Id: pfsg-scripts.1,v 1.9 2001/06/19 19:36:10 stolcke Exp $>
+<! $Id: pfsg-scripts.1,v 1.15 2003/02/20 19:37:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>pfsg-scripts</TITLE>
 <BODY>
 <H1>pfsg-scripts</H1>
 <H2> NAME </H2>
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-stats, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
 <H2> SYNOPSIS </H2>
 <B> make-ngram-pfsg </B>
+[<B>maxorder=</B><I>N</I><B></B>]
 [<B>check_bows=</B>0|1<B></B>]
 [<I>lm-file</I>]
 <B>&gt;</B><I>pfsg-file</I><B></B>
 <BR>
 <B> add-pauses-to-pfsg </B>
+[<B>vocab=</B><I>file</I>
 [<B>pauselast=1</B>]
 [<B>wordwrap=0</B>]
 [<B>pause=</B>
@@ -38,6 +40,9 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 <B>wtw=</B><I>W</I><B></B>
 ]
 [<I>nbest-file</I>]
+<BR>
+<B> pfsg-vocab </B>
+[<I>pfsg-file</I>...]
 <BR>
 <B> pfsg-to-dot </B>
 [<B>show_probs=</B>0|1<B></B>
@@ -100,8 +105,12 @@ encodes a backoff N-gram model in
 <A HREF="ngram-format.html">ngram-format(5)</A>
 as a finite-state network in
 <A HREF="pfsg-format.html">pfsg-format(5)</A>.
-<B> check_bows=0 </B>
-disables a check for conditional probabilities that are smaller than the
+<B>maxorder=</B><I>N</I><B></B>
+limits the N-gram length used in PFSG construction to 
+<I>N</I>;<I></I>
+the default is to use all N-grams occurring in the input model.
+<B> check_bows=1 </B>
+enables a check for conditional probabilities that are smaller than the
 corresponding backoff probabilities.
 Such transitions should first be removed from the model with 
 <B>ngram -prune-lowprobs</B>.<B></B>
@@ -119,7 +128,7 @@ A typical usage is
 The result is a PFSG suitable for use in a speech recognizer.
 The option
 <B> pauselast=1 </B>
-switches the order of words and pause nodes in the sub-PFSGSs;
+switches the order of words and pause nodes in the sub-PFSGs;
 <B> wordwrap=0 </B>
 disables the insertion of sub-PFSGs altogether.
 <P>
@@ -132,6 +141,12 @@ grammar, respectively.
 <B> version=1 </B>
 inserts a version line at the top of the output as required by 
 the Nuance recognition system (see NUANCE COMPATIBILTY below).
+<B> add-pauses-to-pfsg </B>
+uses a heuristic to distinguish word nodes in the input PFSG from
+other nodes (NULL or sub-PFSGs).
+The option
+<B>vocab=</B><I>file</I><B></B>
+lets one specify a vocabulary of word names to override these heuristics.
 <P>
 <B> add-classes-to-pfsg </B>
 extends an input PFSG with expansions for word classes, defined in
@@ -179,6 +194,9 @@ the language model weight to
 <I>L</I>,<I></I>
 and the word transition weight to
 <I>W</I>.<I></I>
+<P>
+<B> pfsg-vocab </B>
+extracts the vocabulary used in one or more PFSGs.
 <P>
 <B> pfsg-to-dot </B>
 renders a PFSG in
@@ -288,16 +306,15 @@ grammar ``test.bo'' with vocabulary ``test.vocab'' and class expansions
 <BR>
 <P>
 <B> wlat-to-pfsg </B>
-converts a word posterior lattice or mesh ("sausage") in the format output by 
-<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+converts a word posterior lattice or mesh ("sausage") in 
+<A HREF="wlat-format.html">wlat-format(5)</A>
 into 
 <A HREF="pfsg-format.html">pfsg-format(5)</A>.
 <P>
 <B> wlat-to-dot </B>
 renders a
-<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+<A HREF="wlat-format.html">wlat-format(5)</A>
 word lattice in 
-in
 <A HREF="dot.html">dot(1)</A>
 format for subsequent layout, printing, etc.
 <B> show_probs=1 </B>
@@ -313,12 +330,12 @@ The Nuance recognizer (as of version 6.2) understands a variant of the
 PFSG format; hence the scripts above should be useful in building
 recognition systems for that recognizer.
 <P>
-A suitable PFSG can be generated from a bigram or trigram backoff model
+A suitable PFSG can be generated from an N-gram backoff model
 in ARPA
 <A HREF="ngram-format.html">ngram-format(5)</A>
 using the following command:
 <BR>
-	ngram -debug 1 -lm <I>LM.bo</I> -prune-lowprobs -write-lm - | \
+	ngram -debug 1 -order <I>N</I> -lm <I>LM.bo</I> -prune-lowprobs -write-lm - | \
 <BR>
 	make-ngram-pfsg | \
 <BR>
@@ -349,14 +366,15 @@ to rename null nodes accordingly.
 Caveat: Compatibility with Nuance is purely due to historical circumstance and
 not supported.
 <H2> SEE ALSO </H2>
-<A HREF="ngram.html">ngram(1)</A>, <A HREF="nbest-lattice.html">nbest-lattice(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>,
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="wlat-format.html">wlat-format(5)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>,
 <A HREF="classes-format.html">classes-format(5)</A>, <A HREF="fsm.html">fsm(5)</A>, <A HREF="dot.html">dot(1)</A>.
 <H2> BUGS </H2>
 <B> make-ngram-pfsg </B>
-currently handles only bigram and trigram models.
+should be reimplemented in C++ for speed and some size optimizations that
+require more global operations on the PFSG.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-2001 SRI International
+Copyright 1995-2003 SRI International
 </BODY>
 </HTML>

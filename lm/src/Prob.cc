@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.12 1999/10/07 06:24:18 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.13 2002/08/02 02:42:36 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -57,7 +57,7 @@ parseLogP(const char *str, LogP &result)
      * We also use scanf() when there are too many digits to handle with
      * integers.
      * Finally, we also parse +/- infinity values as they are printed by 
-     * printf().  These are "[Ii]nf" are "[Ii]nfinity".
+     * printf().  These are "[Ii]nf" or "[Ii]nfinity".
      */
 
     /*

@@ -6,12 +6,13 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.12 1999/08/07 22:25:02 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.13 2002/10/13 15:40:39 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream.h>
+#include <locale.h>
 
 #include "option.h"
 #include "File.h"
@@ -382,6 +383,9 @@ segmentFileContinuous(File &file, LM &lm, double bias)
 int
 main(int argc, char **argv)
 {
+    setlocale(LC_CTYPE, "");
+    setlocale(LC_COLLATE, "");
+
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     /*

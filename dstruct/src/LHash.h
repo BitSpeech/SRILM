@@ -16,7 +16,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.29 1999/12/29 09:14:31 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.30 2002/05/25 14:40:59 stolcke Exp $
  *
  */
 
@@ -47,15 +47,13 @@ class LHashBody
     unsigned maxBits:LHASH_MAXBIT_NBITS;	/* number of bits in hash code
 				     	 	 *  = log2 (maxEntries) */
     unsigned nEntries:LHASH_MAXENTRY_NBITS;	/* number of entries */
-    struct entry {
-	KeyT key;
-	DataT value;
-    }		data[1];	/* hashed array of key-value pairs */
+
+    MapEntry<KeyT,DataT> data[1];	/* hashed array of key-value pairs */
 };
 
 /*
- * If we define the class a a subclass of Map<KeyT,DataT> we
- * incur and extra word of memory per instance for the virtual function
+ * If we define the class as a subclass of Map<KeyT,DataT> we
+ * incur an extra word of memory per instance for the virtual function
  * table pointer.
  */
 template <class KeyT, class DataT>

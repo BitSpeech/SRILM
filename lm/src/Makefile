@@ -17,27 +17,18 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.59 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.68 2003/02/21 20:20:42 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
 include $(SRILM)/common/Makefile.common.variables
 
-ifneq ($(CC), $(subst gcc,,$(CC)))
-CC += -Wreturn-type 
-endif
-
-ifneq ($(CXX), $(subst g++,,$(CXX)))
-CXX += -Wreturn-type -DINSTANTIATE_TEMPLATES
-endif
-
 # This should enable locale-specific string collation for vocabulary sorting
 # (it will slow things down somewhat).
 #ADDITIONAL_CXXFLAGS = -Dstrcmp=strcoll
 
-# Use SArray to save space (default is LHash for speed)
-#ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY
-#LIBSUFFIX=-fast
+# Flags for generating "compact" data structures
+COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Define variables.
 
@@ -55,6 +46,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/VocabMultiMap.h \
 	$(SRCDIR)/VocabDistance.h \
 	$(SRCDIR)/SubVocab.h \
+	$(SRCDIR)/MultiwordVocab.h \
 	$(SRCDIR)/TextStats.h \
 	$(SRCDIR)/LM.h \
 	$(SRCDIR)/LMStats.h \
@@ -65,6 +57,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/NgramStats.h \
 	$(SRCDIR)/Discount.h \
 	$(SRCDIR)/ClassNgram.h \
+	$(SRCDIR)/SimpleClassNgram.h \
 	$(SRCDIR)/DFNgram.h \
 	$(SRCDIR)/SkipNgram.h \
 	$(SRCDIR)/HiddenNgram.h \
@@ -77,6 +70,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/StopNgram.h \
 	$(SRCDIR)/StopNgramStats.h \
 	$(SRCDIR)/NullLM.h \
+	$(SRCDIR)/MultiwordLM.h \
 	$(SRCDIR)/BayesMix.h \
 	$(SRCDIR)/AdaptiveMix.h \
 	$(SRCDIR)/CacheLM.h \
@@ -101,18 +95,20 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/VocabMultiMap.cc \
 	$(SRCDIR)/VocabDistance.cc \
 	$(SRCDIR)/SubVocab.cc \
+	$(SRCDIR)/MultiwordVocab.cc \
 	$(SRCDIR)/TextStats.cc \
 	$(SRCDIR)/LM.cc \
 	$(SRCDIR)/LMStats.cc \
 	$(SRCDIR)/RefList.cc \
 	$(SRCDIR)/NBest.cc \
 	$(SRCDIR)/NBestSet.cc \
-	$(SRCDIR)/Ngram.cc \
+	$(SRCDIR)/NgramLM.cc \
 	$(SRCDIR)/NgramStatsInt.cc \
 	$(SRCDIR)/NgramStatsFloat.cc \
 	$(SRCDIR)/NgramStatsDouble.cc \
 	$(SRCDIR)/Discount.cc \
 	$(SRCDIR)/ClassNgram.cc \
+	$(SRCDIR)/SimpleClassNgram.cc \
 	$(SRCDIR)/DFNgram.cc \
 	$(SRCDIR)/SkipNgram.cc \
 	$(SRCDIR)/HiddenNgram.cc \
@@ -124,6 +120,7 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/TaggedNgramStats.cc \
 	$(SRCDIR)/StopNgram.cc \
 	$(SRCDIR)/StopNgramStats.cc \
+	$(SRCDIR)/MultiwordLM.cc \
 	$(SRCDIR)/BayesMix.cc \
 	$(SRCDIR)/AdaptiveMix.cc \
 	$(SRCDIR)/CacheLM.cc \
@@ -146,7 +143,7 @@ ADDITIONAL_INCLUDES += \
 	$(TCL_INCLUDE)
 
 ADDITIONAL_LDFLAGS += \
-	-u matherr
+	-u $(SYMBOL_PREFIX)matherr
 
 OTHER_LIBRARIES = \
 	-ldstruct \
@@ -181,6 +178,7 @@ REAL_PROGRAM_NAMES = \
 	nbest-lattice \
 	nbest-mix \
 	nbest-optimize \
+	nbest-pron-score \
 	segment \
 	segment-nbest \
 	hidden-ngram \

@@ -1,0 +1,25 @@
+#!/bin/sh
+
+sentence1="i've got a bad feeling"
+sentence2="i've got a good feeling"
+
+lm=../multi-ngram/train-all.3bo.gz
+debug=2
+
+{
+	echo "$sentence1"
+	echo "$sentence2"
+} | \
+ngram -debug $debug -lm $lm -ppl -
+
+escape="***foo"
+
+{
+	echo $escape 1
+	echo "$sentence1" | ngram-count -text - -write -
+	echo $escape 2
+	echo "$sentence2" | ngram-count -text - -write -
+} | \
+gawk '/^\*\*\*/ || $1 == "<s>" && NF > 2 || NF == 4'| \
+ngram -debug $debug -lm $lm -escape "$escape" -counts -
+

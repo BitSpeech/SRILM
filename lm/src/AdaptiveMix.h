@@ -2,9 +2,9 @@
  * AdaptiveMix.h --
  *	Adaptive Mixture language model
  *
- * Copyright (c) 1998, SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.h,v 1.4 1998/11/09 23:44:09 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.h,v 1.6 2003/02/15 06:56:29 stolcke Exp $
  *
  */
 
@@ -28,10 +28,11 @@ public:
      * LM interface
      */
     virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
-    virtual void *contextID(const VocabIndex *context, unsigned &length);
+    virtual void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
     virtual void setState(const char *state);
 
-    virtual Boolean read(File &file);
+    virtual Boolean read(File &file, Boolean limitVocab = false);
     virtual void write(File &file);
 
     /*

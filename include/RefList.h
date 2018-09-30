@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.2 2000/03/31 09:11:14 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.3 2002/08/08 19:11:19 stolcke Exp $
  *
  */
 
@@ -19,6 +19,8 @@
 #include "LHash.h"
 
 typedef const char *RefString;
+
+RefString idFromFilename(const char *filename);
 
 class RefList 
 {

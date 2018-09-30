@@ -76,9 +76,9 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.24 2000/05/10 00:24:31 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.28 2002/08/24 20:45:59 stolcke Exp $
  *
  */
 
@@ -90,6 +90,7 @@
 #include "Boolean.h"
 #include "File.h"
 #include "LHash.h"
+#include "SArray.h"
 #include "Array.h"
 #include "MemStats.h"
 
@@ -120,7 +121,7 @@ public:
     virtual VocabIndex addWord(VocabString name);
     virtual VocabString getWord(VocabIndex index) const;
     virtual VocabIndex getIndex(VocabString name,
-				    VocabIndex unkIndex = Vocab_None) const;
+				    VocabIndex unkIndex = Vocab_None);
     virtual void remove(VocabString name);
     virtual void remove(VocabIndex index);
     virtual unsigned int numWords() const { return byName.numEntries(); };
@@ -142,12 +143,35 @@ public:
      * Some Vocab tokens/indices are "pseudo words", i.e., they don't
      * get probabilities since they can only occur in contexts.
      */
-    virtual Boolean isNonEvent(VocabString word) const	/* pseudo-word? */
+    virtual Boolean isNonEvent(VocabString word)	/* pseudo-word? */
 	{ return isNonEvent(getIndex(word)); };
     virtual Boolean isNonEvent(VocabIndex word) const	/* non-event? */
-	{ return (word == ssIndex) || 
-		 (word == pauseIndex) ||
-		 !unkIsWord && (word == unkIndex); };
+	{ return !unkIsWord && (word == unkIndex) ||
+		 nonEventMap.find(word) != 0; };
+
+    virtual VocabIndex addNonEvent(VocabIndex word);
+    virtual VocabIndex addNonEvent(VocabString name)
+	{ return addNonEvent(addWord(name)); };
+    virtual Boolean addNonEvents(Vocab &nonevents);
+
+    /*
+     * Handling of meta-count tags: these are tags that represent a token
+     * count total, or a type frequency count (count-of-count).
+     * If metaTag == "__META__", the following tags acquire special meaning:
+     *
+     *	__META__		a word count total
+     *	__META__1		count of singleton word types
+     *	__META__2		count of word types occurring twice
+     *	...			...
+     *	__META__N		count of word types occurring N times
+     */
+    VocabString metaTag;		/* meta-count tag */
+    Boolean isMetaTag(VocabIndex word)
+	{ return metaTagMap.find(word) != 0; };
+    unsigned typeOfMetaTag(VocabIndex word)
+	{ unsigned *type = metaTagMap.find(word);
+	  return type != 0 ? *type : (unsigned)-1; };
+    VocabIndex metaTagOfType(unsigned);
 
     /*
      * Utilities for handling Vocab sequences
@@ -158,7 +182,7 @@ public:
 			  VocabIndex *wids, unsigned int max);
     virtual unsigned int getIndices(const VocabString *words,
 			    VocabIndex *wids, unsigned int max,
-			    VocabIndex unkIndex = Vocab_None) const;
+			    VocabIndex unkIndex = Vocab_None);
     static unsigned int parseWords(char *line,
 				   VocabString *words, unsigned int max);
 
@@ -196,13 +220,19 @@ public:
 
     static Vocab *outputVocab;  /* implicit parameter to operator<< */
 
+    static Vocab *compareVocab;	/* implicit parameter to compare() */
 protected:
     LHash<VocabString,VocabIndex> byName;
     Array<VocabString> byIndex;
     VocabIndex nextIndex;
     VocabIndex maxIndex;
 
-    static Vocab *compareVocab;	/* implicit parameter to compare() */
+    LHash<VocabIndex, unsigned> nonEventMap;	/* set of non-event words */
+    LHash<VocabIndex, unsigned> metaTagMap;	/* maps metatags to their type:
+						   0	count total
+						   1	single counts
+						   ...
+						   N	count of count N */
 };
 
 ostream &operator<< (ostream &, const VocabString *words);
@@ -220,8 +250,8 @@ private:
 };
 
 /* 
- * We sometimes use strings over VocabIndex as keys into hash tables.
- * Define the necessary support functions (see Map.h and LHash.cc).
+ * We sometimes use strings over VocabIndex as keys into maps.
+ * Define the necessary support functions (see Map.h, LHash.cc, SArray.cc).
  */
 static inline unsigned
 LHash_hashKey(const VocabIndex *key, unsigned maxBits)
@@ -271,4 +301,30 @@ LHash_equalKey(const VocabIndex *key1, const VocabIndex *key2)
     }
 }
      
+static inline int
+SArray_compareKey(const VocabIndex *key1, const VocabIndex *key2)
+{
+    unsigned int i = 0;
+
+    for (i = 0; ; i++) {
+	if (key1[i] == Vocab_None) {
+	    if (key2[i] == Vocab_None) {
+		return 0;
+	    } else {
+		return -1;	/* key1 is shorter */
+	    }
+	} else {
+	    if (key2[i] == Vocab_None) {
+		return 1;	/* key2 is shorted */
+	    } else {
+		int comp = SArray_compareKey(key1[i], key2[i]);
+		if (comp != 0) {
+		    return comp;	/* they differ at pos i */
+		}
+	    }
+	}
+    }
+    /*NOTREACHED*/
+}
+
 #endif /* _Vocab_h_ */

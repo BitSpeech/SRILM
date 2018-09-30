@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/TaggedVocab.h,v 1.1 1995/08/23 03:17:52 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.2 2002/08/09 08:45:16 stolcke Exp $
  *
  */
 
@@ -41,13 +41,13 @@ public:
      * Modified Vocab methods
      */
     virtual VocabIndex addWord(VocabString name);
-    virtual VocabString getWord(VocabIndex index);
+    virtual VocabString getWord(VocabIndex index) const;
     virtual VocabIndex getIndex(VocabString name,
 				    VocabIndex unkIndex = Vocab_None);
     virtual void remove(VocabString name);
     virtual void remove(VocabIndex index);
 
-    virtual void write(File &file, Boolean sorted = true);
+    virtual void write(File &file, Boolean sorted = true) const;
 
     /*
      * Tagged index accessors/constructors
@@ -65,7 +65,7 @@ public:
 	return unTag(index) == Tagged_None;
     }
 
-    virtual inline Boolean isNonEvent(VocabIndex word) {
+    virtual inline Boolean isNonEvent(VocabIndex word) const {
 	return isTag(word) || Vocab::isNonEvent(word);
     }
 

@@ -44,6 +44,9 @@
  *	The data for the new node is zero-initialized, and has no
  *	child nodes.
  *
+ * voild clear()
+ *	Removes all entries.
+ *
  * unsigned int numEntries()
  *	Returns the current number of keys (i.e., entries) in the trie.
  *
@@ -75,7 +78,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.14 1999/10/02 17:03:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.15 2002/07/23 01:51:33 stolcke Exp $
  *
  */
 
@@ -153,6 +156,8 @@ public:
     Trie<KeyT,DataT> *removeTrie(KeyT key, Boolean &foundP = _Map::foundP)
 	{ KeyT keys[2]; keys[0] = key, Map_noKey(keys[1]);
 	  return removeTrie(keys, foundP); };
+
+    void clear() { sub.clear(0); };
 
     unsigned int numEntries() const { return sub.numEntries(); };
 

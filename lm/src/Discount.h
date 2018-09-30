@@ -1,6 +1,11 @@
 /*
  * Discount.h --
  *	Discounting schemes
+ *
+ * Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
+ *
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.17 2002/07/20 18:34:15 stolcke Exp $
+ *
  */
 
 
@@ -26,7 +31,8 @@ const Count GT_defaultMaxCount = 5;
 class Discount: public Debug
 {
 public:
-    virtual ~Discount() { };
+    Discount() : interpolate(false) {};
+    virtual ~Discount() {};
 
     virtual double discount(Count count, Count totalCount, Count observedVocab)
 	{ return 1.0; };	    /* discount coefficient for count */
@@ -39,6 +45,16 @@ public:
 	 */
 	{ return discount((Count)ceil(count), (Count)ceil(totalCount),
 							    observedVocab); };
+
+    virtual double lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab)
+	{ return 0.0; }		    /* weight given to the lower-order
+				     * distribution when interpolating
+				     * high-order estimates (none by default) */
+    virtual double lowerOrderWeight(FloatCount totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab)
+	{ return lowerOrderWeight((Count)ceil(totalCount), observedVocab,
+						min2Vocab, min3Vocab); };
 
     virtual Boolean nodiscount() { return false; };
 				    /* check if discounting disabled */
@@ -56,7 +72,17 @@ public:
 	/*
 	 * by default, don't allow discount estimation from fractional counts
 	 */
-	{ return false; }
+	{ return false; };
+
+    virtual void prepareCounts(NgramCounts<NgramCount> &counts,
+				unsigned order, unsigned maxOrder)
+	{ return; };
+
+    virtual void prepareCounts(NgramCounts<FloatCount> &counts,
+				unsigned order, unsigned maxOrder)
+	{ return; };
+
+    Boolean interpolate;
 };
 
 
@@ -69,9 +95,8 @@ class GoodTuring: public Discount
 public:
     GoodTuring(unsigned mincount = GT_defaultMinCount,
 	       unsigned maxcount = GT_defaultMaxCount);
-    ~GoodTuring() {};		   /* works around g++ 2.7.2 bug */
 
-    virtual double discount(Count count, Count totalCount, Count observedVocab);
+    double discount(Count count, Count totalCount, Count observedVocab);
     Boolean nodiscount();
 
     void write(File &file);
@@ -91,6 +116,9 @@ private:
 /*
  * ConstDiscount --
  *	Ney's method of subtracting a constant <= 1 from all counts
+ * 	(also known as "Absolute discounting").
+ *	Note: this method supports interpolating higher and lower-order
+ *	estimates.
  */
 class ConstDiscount: public Discount
 {
@@ -99,19 +127,23 @@ public:
 	: _discount(d < 0.0 ? 0.0 : d > 1.0 ? 1.0 : d),
 	  _mincount(mincount) {};
 
-    virtual double discount(Count count, Count totalCount, Count observedVocab)
+    double discount(Count count, Count totalCount, Count observedVocab)
       { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
 					(count - _discount) / count; };
-    virtual double discount(FloatCount count, FloatCount totalCount,
+    double discount(FloatCount count, FloatCount totalCount,
 							Count observedVocab)
       { return (count <= 0.0) ? 1.0 :
 		(count < _mincount || count < _discount) ? 0.0 : 
 					(count - _discount) / count; };
 
+    double lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab)
+      { return _discount * observedVocab / totalCount; }
+
     Boolean nodiscount() { return _mincount <= 1.0 && _discount == 0.0; } ;
 
-    virtual Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
-	{ return true; }	    /* allow fractional count discounting */
+    Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
+      { return true; }	    /* allow fractional count discounting */
 
 private:
     double _discount;		    /* the discounting constant */
@@ -146,19 +178,24 @@ private:
  *	Witten & Bell's method of estimating the probability of an
  *	unseen event by the total number of 'new' events overserved,
  *	i.e., counting each observed word type once.
+ *	Note: this method supports interpolating higher and lower-order
+ *	estimates.
  */
 class WittenBell: public Discount
 {
 public:
     WittenBell(unsigned mincount = 0) : _mincount(mincount) {};
 
-    virtual double discount(Count count, Count totalCount, Count observedVocab)
+    double discount(Count count, Count totalCount, Count observedVocab)
       { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
       			((double)totalCount / (totalCount + observedVocab)); };
-    virtual double discount(FloatCount count, FloatCount totalCount,
+    double discount(FloatCount count, FloatCount totalCount,
 							Count observedVocab)
       { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
       			((double)totalCount / (totalCount + observedVocab)); };
+    double lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab)
+      { return (double)observedVocab / (totalCount + observedVocab); };
 
     Boolean nodiscount() { return false; };
 
@@ -171,7 +208,41 @@ private:
     double _mincount;		    /* minimum count to retain */
 };
 
+/*
+ * ModKneserNey --
+ *	Modified Kneser-Ney discounting (Chen & Goodman 1998)
+ */
+class ModKneserNey: public Discount
+{
+public:
+    ModKneserNey(unsigned mincount = 0, Boolean countsAreModified = false)
+      : minCount(mincount), countsAreModified(countsAreModified),
+	discount1(0.0), discount2(0.0), discount3plus(0.0) {};
+
+    double discount(Count count, Count totalCount, Count observedVocab);
+    double lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab);
+    Boolean nodiscount() { return false; };
+
+    void write(File &file);
+    Boolean read(File &file);
+
+    Boolean estimate(NgramStats &counts, unsigned order);
+    Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
+	{ return false; };
+
+    void prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
+							unsigned maxOrder);
+
+private:
+    Count minCount;		    /* counts below this are set to 0 */
+
+    double discount1;		    /* discounting constants */
+    double discount2;
+    double discount3plus;
+
+    Boolean countsAreModified;	    /* low-order counts are already modified */
+};
 
 #endif /* _Discount_h_ */
-
 

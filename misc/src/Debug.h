@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/Debug.h,v 1.3 1995/08/12 23:54:52 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/Debug.h,v 1.3 1995/08/12 23:54:52 stolcke Exp $
  *
  */
 

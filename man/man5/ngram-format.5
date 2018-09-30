@@ -1,5 +1,5 @@
-.\" $Id: ngram-format.5,v 1.2 2000/01/21 03:40:22 stolcke Exp $
-.TH ngram-format 5 "$Date: 2000/01/21 03:40:22 $" "SRILM File Formats"
+.\" $Id: ngram-format.5,v 1.3 2002/07/27 20:49:37 stolcke Exp $
+.TH ngram-format 5 "$Date: 2002/07/27 20:49:37 $" "SRILM File Formats"
 .SH NAME
 ngram-format \- File format for ARPA backoff N-gram models
 .SH SYNOPSIS
@@ -63,7 +63,9 @@ The highest-order N-grams in particular will not need backoff weights
 (they would be useless).
 .PP
 Since log(0) (minus infinity) has no portable representation, such values
-are mapped to a large negative number (typically -99).
+are mapped to a large negative number.
+However, the designated dummy value (-99 in SRILM) is interpreted as log(0)
+when read back from file into memory.
 .PP
 The correctness of the N-gram counts 
 .IR n1 ,

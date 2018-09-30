@@ -2,9 +2,9 @@
  * NgramStats.h --
  *	N-gram statistics
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.17 1999/10/11 09:56:40 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.20 2002/07/23 16:44:04 stolcke Exp $
  *
  */
 
@@ -37,6 +37,8 @@ public:
     NgramCounts(Vocab &vocab, unsigned int order);
     virtual ~NgramCounts() {};
 
+    unsigned getorder() { return order; };
+
     /*
      * Individual word/ngram lookup and insertion
      */
@@ -65,9 +67,13 @@ public:
 
     Boolean read(File &file) { return read(file, order); };
     Boolean read(File &file, unsigned int order);
+    Boolean readMinCounts(File &file, unsigned order, unsigned *minCounts);
     void write(File &file) { write(file, order); };
     void write(File &file, unsigned int order, Boolean sorted = false);
 
+    static unsigned int parseNgram(char *line,
+				  VocabString *words, unsigned int max,
+				  CountT &count);
     static unsigned int readNgram(File &file,
 				  VocabString *words, unsigned int max,
 				  CountT &count);
@@ -88,6 +94,8 @@ protected:
     NgramNode counts;
     void incrementCounts(const VocabIndex *words,
 				unsigned minOrder = 1, CountT factor = 1);
+    void addCounts(const VocabIndex *prefix,
+			const LHash<VocabIndex, CountT> &set);
     void writeNode(NgramNode *node, File &file, char *buffer, char *bptr,
 	    unsigned int level, unsigned int order, Boolean sorted);
     CountT sumNode(NgramNode *node, unsigned int level, unsigned int order);

@@ -4,8 +4,12 @@
 #	compute word error rate from a sentid hyp file and a sentid reference
 #	file, using the NIST 'sclite' program
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-sclite,v 1.15 2001/05/07 18:33:28 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-sclite,v 1.18 2002/11/09 20:08:04 stolcke Exp $
 #
+
+reject="@reject@"
+
+subsets=
 
 if [ $# -lt 2 ]; then
 	echo "usage: $0 [-v] -h hyps -r refs [-S id-subset] [-M|-multiwords] [-g glm-file] [sclite-options ...]" >&2
@@ -24,10 +28,11 @@ else
 		-h)	hyps="$hyps $2"
 			name=`basename $2`
 			shift ;;
-		-S)	subset=$2; shift ;;
+		-S)	subsets="$subsets $2"; shift ;;
 		-M|-multiwords)
 			multiwords=1 ;;
 		-H)	remove_hesitations=1 ;;
+		-R)	reject="<>" ;;
 		-g)	glmfile=$2; shift ;;
 		*)	options="$options $1" ;;
 		esac
@@ -39,8 +44,18 @@ sentids=/tmp/ce.sentids$$
 speakers=/tmp/ce.speakers$$
 sortedrefs=/tmp/ce.refs$$
 sortedhyps=/tmp/ce.hyps$$
+ignorehyps=/tmp/ce.ign$$
 
-trap '/bin/rm -f $sentids $speakers $sortedrefs $sortedhyps' 0 1 2 13 15
+trap '/bin/rm -f $sentids $speakers $sortedrefs $sortedhyps $ignorehyps' \
+	0 1 2 13 15
+
+multijoin () {
+	if [ $# -eq 1 ]; then
+	    cat $1
+	else
+	    join $1 $2 | { shift; shift; multijoin - "$@"; }
+	fi
+}
 
 #
 # extract and sort sentids from hyps
@@ -51,11 +66,7 @@ case "$hyps" in
 *)   gawk '{ print $1 }' $hyps ;;
 esac | \
 sort | \
-if [ -n "$subset" ]; then
-	join - $subset
-else
-	cat
-fi > $sentids
+multijoin - $subsets > $sentids
 
 
 #
@@ -81,6 +92,11 @@ case "$refs" in
      sed -e 's,\[[^]]*\],,g' | \
      sentid-to-sclite \
 	    > $sortedrefs
+
+    # find segments to ignore
+    gawk 'NF == 2 && tolower($2) == "ignore_time_segment_in_scoring" \
+		{ print $1 }' $refs | \
+    sort > $ignorehyps
     ;;
 esac
 
@@ -89,6 +105,7 @@ esac
 #
 case "$refs" in
 *.stm) # NIST scoring
+    # sclite will handle ignored segments
     case "$hyps" in 
     *.ctm)
 	gawk '!/^;;/ { print tolower($1 "_" $2), $0 }' $hyps | \
@@ -107,12 +124,13 @@ case "$refs" in
 	cat
     fi > $sortedhyps
     ;;
-*)  sort $hyps | join - $sentids | \
+*)  # we have to remove ignored segments ourselves
+    sort $hyps | join - $sentids | join -v 1 - $ignorehyps | \
      gawk '{ if (multiwords) for (i = 2; i <= NF; i++) gsub("_", " ", $i); print }'\
 	    multiwords=$multiwords | \
      sed -e 's,\[[^]]*\],,g' \
 	    -e 's,<[^>]*>,,g' \
-	    -e 's,@reject@,,g' \
+	    -e "s,$reject,,g" \
 	    -e 's,-pau-,,g' | \
      sentid-to-sclite \
 	    > $sortedhyps

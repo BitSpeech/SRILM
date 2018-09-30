@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.26 2000/07/13 06:18:06 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.29 2002/07/27 20:10:17 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -26,7 +26,7 @@ INSTANTIATE_ARRAY(VocabString);
 #endif
 
 Vocab::Vocab(VocabIndex start, VocabIndex end)
-    : byIndex(start), nextIndex(start), maxIndex(end)
+    : byIndex(start), nextIndex(start), maxIndex(end), metaTag(0)
 {
     /*
      * Vocab_None is both the non-index value and the end-token
@@ -59,6 +59,12 @@ Vocab::Vocab(VocabIndex start, VocabIndex end)
     ssIndex = addWord(Vocab_SentStart);
     seIndex = addWord(Vocab_SentEnd);
     pauseIndex = addWord(Vocab_Pause);
+
+    /*
+     * declare some known non-events
+     */
+    addNonEvent(ssIndex);
+    addNonEvent(pauseIndex);
 }
 
 // Compute memory usage
@@ -107,14 +113,66 @@ Vocab::addWord(VocabString name)
 	} else {
 	    *indexPtr = nextIndex;
 	    byIndex[nextIndex] = byName.getInternalKey(name);
+
+	    /*
+	     * Check for metatags, and intern them into our metatag type map
+	     */
+	    if (metaTag != 0) {
+		unsigned metaTagLength = strlen(metaTag);
+
+		if (strncmp(name, metaTag, metaTagLength) == 0) {
+		    int type = -1;
+		    if (name[metaTagLength] == '\0') {
+			type = 0;
+		    } else {
+			sscanf(&name[metaTagLength], "%u", &type);
+		    }
+		    if (type >= 0) {
+			*metaTagMap.insert(nextIndex) = type;
+		    }
+		}
+	    }
+
 	    return nextIndex++;
 	}
     } 
 }
 
+// declare word to be a non-event
+VocabIndex
+Vocab::addNonEvent(VocabIndex word)
+{
+    /* 
+     * First make sure the word is already defined
+     */
+    if (getWord(word) == 0) {
+	return Vocab_None;
+    } else {
+	*nonEventMap.insert(word) = 1;
+	return word;
+    }
+}
+
+// declare a set of non-events
+Boolean
+Vocab::addNonEvents(Vocab &nonevents)
+{
+    VocabIter viter(nonevents);
+    Boolean ok = true;
+
+    VocabString name;
+    while (name = viter.next()) {
+	if (addNonEvent(name) == Vocab_None) {
+	    ok = false;
+	}
+    }
+
+    return ok;
+}
+
 // Get a word's index by its name
 VocabIndex
-Vocab::getIndex(VocabString name, VocabIndex unkIndex) const
+Vocab::getIndex(VocabString name, VocabIndex unkIndex)
 {
     if (toLower) {
 	name = mapToLower(name);
@@ -122,7 +180,35 @@ Vocab::getIndex(VocabString name, VocabIndex unkIndex) const
 
     VocabIndex *indexPtr = byName.find(name);
 
-    return indexPtr ? *indexPtr : unkIndex;
+    /*
+     * If word is a metatag and not already interned, do it now
+     */
+    if (indexPtr == 0 &&
+	metaTag != 0 &&
+	strncmp(name, metaTag, strlen(metaTag)) == 0)
+    {
+	return addWord(name);
+    } else {
+	return indexPtr ? *indexPtr : unkIndex;
+    }
+}
+
+// Get the index of a metatag
+VocabIndex
+Vocab::metaTagOfType(unsigned type)
+{
+    if (metaTag == 0) {
+	return Vocab_None;
+    } else {
+	if (type == 0) {
+	    return getIndex(metaTag);
+	} else {
+	    char tagName[strlen(metaTag) + 20];
+
+	    sprintf(tagName, "%s%u", metaTag, type);
+	    return getIndex(tagName);
+	}
+    }
 }
 
 // Get a word's name by its index
@@ -148,6 +234,8 @@ Vocab::remove(VocabString name)
 
     if (indexPtr) {
 	byIndex[*indexPtr] = 0;
+	nonEventMap.remove(*indexPtr);
+	metaTagMap.remove(*indexPtr);
 
 	if (*indexPtr == ssIndex) {
 	    ssIndex = Vocab_None;
@@ -175,6 +263,8 @@ Vocab::remove(VocabIndex index)
 	if (name) {
 	    byName.remove(name);
 	    byIndex[index] = 0;
+	    nonEventMap.remove(index);
+	    metaTagMap.remove(index);
 
 	    if (index == ssIndex) {
 		ssIndex = Vocab_None;
@@ -227,7 +317,7 @@ Vocab::addWords(const VocabString *words, VocabIndex *wids, unsigned int max)
 unsigned int
 Vocab::getIndices(const VocabString *words,
 		  VocabIndex *wids, unsigned int max,
-		  VocabIndex unkIndex) const
+		  VocabIndex unkIndex)
 {
     unsigned int i;
 
@@ -402,11 +492,16 @@ Vocab *Vocab::compareVocab;	/* implicit parameter to compare() */
 // This should be a non-static member, so we don't have to pass the
 // Vocab in a global variable, but then we couldn't use this function
 // with qsort() and friends.
+// If compareVocab == 0 then comparison by index is performed.
 int
 Vocab::compare(VocabIndex word1, VocabIndex word2)
 {
-    return strcmp(compareVocab->getWord(word1),
-	          compareVocab->getWord(word2));
+    if (compareVocab == 0) {
+	return word2 - word1;
+    } else {
+	return strcmp(compareVocab->getWord(word1),
+		      compareVocab->getWord(word2));
+    }
 }
 
 int

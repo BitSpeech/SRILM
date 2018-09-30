@@ -1,7 +1,7 @@
-.\" $Id: nbest-scripts.1,v 1.20 2001/08/19 17:57:11 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2001/08/19 17:57:11 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.27 2003/02/16 20:45:45 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2003/02/16 20:45:45 $" "SRILM Tools"
 .SH NAME
-nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
+nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
 .B rescore-decipher 
 .RB [ \-bytelog ]
@@ -13,6 +13,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .IR command ]
 .RB [ \-norescore ]
 .RB [ \-lm-only ]
+.RB [ \-limit-vocab ]
 .I nbest-file-list
 .I score-dir
 .B \-lm 
@@ -79,6 +80,9 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .I nbest-file
 \&...
 .br
+.B nbest-vocab
+.RI [ nbest-list ...]
+.br
 .B nbest-error
 .IR score-dir | file-list
 .I refs
@@ -102,11 +106,13 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 [\c
 .B \-S
 .I subset
-.BR \-v ]
+\&...]
 .RB [ \-multiwords | \-M ]
+.RB [ \-R ]
 .RB [ \-g
 .IR glmfile ]
 .RB [ \-H ]
+.RB [ \-v ]
 .RI [ sclite-options ...]
 .br
 .B compare-sclite
@@ -185,6 +191,11 @@ and
 may be used together to perform textual rewriting of N-best lists.
 .BR \-lm-only
 dumps out LM scores only, instead of complete N-best lists.
+.B \-limit-vocab
+saves memory by arranging for
+.BR ngram (1) 
+to load only those N-gram parameters that are relevant to the vocabulary
+of the N-best lists to be rescored.
 .PP
 .B rescore-acoustic
 replaces the acoustic scores in a set of N-best lists by a weighted 
@@ -216,8 +227,6 @@ The N-best files are found in directory
 .I score-dir
 or listed in
 .IR file-list .
-They must have been produced with a prior run of
-.BR rescore-decipher .
 Optional arguments set the language model weight
 .I lmw
 (default 8),
@@ -312,13 +321,16 @@ written to that file.
 Any additional arguments are passed as options to the underlying
 .BR nbest-lattice (1)
 invocation.
+.br
+.B nbest-rover
+can process N-best lists in any of the formats described in
+.BR nbest-format (5),
+\fIas long as all N-best lists for a given utterance are in the same format\fP.
+When Decipher formats are used only their acoustic scores are used.
 .PP
 .B nbest-posteriors
 rescales the scores in an N-best list to reflect (weighted) posterior
 probabilities.
-The input
-.I nbest-file
-must be in rescored SRILM N-best format.
 The output is the same N-best list with acoustic scores set to
 the log (base 10) of the posterior hyp probabilities and LM scores set to zero.
 .BI postscale= S
@@ -356,6 +368,11 @@ merges hypotheses that are identical after resolving multiwords.
 .B nopauses=1
 merges hypotheses that are identical after removal of pause words.
 .PP
+.B nbest-vocab
+outputs the vocabulary used in a set of N-best lists.
+(The N-best files cannot be compressed, but may be concatenated and
+supplied via stdin.)
+.PP
 .B nbest-error
 computes the overall oracle word error rate of a set of N-best lists
 in directory
@@ -387,7 +404,9 @@ time marks in the sentence IDs and may need adjustment to local conventions.
 .PP
 .B compute-sclite
 is a wrapper around 
-.BR sclite (1).
+the NIST 
+.BR sclite (1)
+scoring tool.
 .I refs
 and
 .I hyps 
@@ -412,16 +431,22 @@ More than one
 .B \-h 
 option can be given to combine the contents of multiple hypotheses files.
 Optionally, 
-.I subset 
-specifies a sorted list of sentence IDs to score.
-Any additional options are passed to
-.BR sclite ,
-e.g., to control its output actions or alignment mode.
+.B \-S 
+specifies a
+sorted list of sentence IDs
+.I subset
+to score.
+Multiple 
+.B \-S 
+options may be given, to form the intersection of several subsets.
 .B \-multiwords 
 or
 .B \-M
 splits ``multiwords'' joined by underscores into their component words
 prior to scoring.
+.B \-R
+preserves reject words in the hypotheses for scoring (as appropriate if
+references also contain rejects).
 .B \-g
 .I glmfile
 enables filtering of references and hypotheses by the NIST
@@ -436,6 +461,9 @@ to be deleted from the output for scoring purposes.
 .B \-v 
 displays the complete command used to invoke
 .BR sclite .
+Any additional options are passed to
+.BR sclite ,
+e.g., to control its output actions or alignment mode.
 .PP
 .B compare-sclite
 scores two sets of hypotheses 
@@ -468,7 +496,14 @@ may need to be modified for
 and 
 .B compare-sclite 
 to work.
+.PP
+.B rescore-decipher 
+.B \-pretty
+may not work correctly with the
+.B \-limit-vocab
+option if the word mapping adds to the vocabulary subset used in the N-best
+lists.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2001 SRI International
+Copyright 1995-2003 SRI International

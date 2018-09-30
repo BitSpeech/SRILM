@@ -1,0 +1,27 @@
+
+SRILM version 1.3 has been successfully built and tested using 
+the CYGWIN environment (www.cygwin.com) as of Feb 11, 2002.
+The test used CYGWIN DLL 1.3.9 and gcc 2.95.3 (but note the warning
+in doc/README.x86 regarding a comiler bug), and ran successfully
+on a Windows 98 and a Windows 2000 Professional system.
+
+The following special measures were taken to ensure a successful build:
+
+- Make sure the make, gcc, binutils, gzip, tcltk, gawk, and tcsh packages are
+  installed with CYGWIN.  To run the tests you will also need the diff and time
+  packages.
+- Copy or link /bin/tcsh.exe to /bin/csh.exe, so that various csh scripts can
+  execute.
+- Set MAKE_MODE=UNIX in the environment.
+
+After installation, set your bash environment as follows
+
+    export SRILM=/cygdrive/c/srilm13   # or similar
+    export MACHINE_TYPE=cygwin
+    export PATH=$PATH:$SRILM/bin:$SRILM/cygwin/bin # mentioned in INSTALL
+    export MANPATH=$MANPATH:$SRILM/man     # mentioned in INSTALL
+
+or the equivalent for other shells.
+
+A. Stolcke
+$Id: README.windows,v 1.4 2002/12/25 06:31:13 stolcke Exp $

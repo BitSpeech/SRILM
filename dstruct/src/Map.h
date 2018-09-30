@@ -46,7 +46,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/spot71/srilm/devel/dstruct/src/RCS/Map.h,v 1.15 1996/12/08 09:09:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map.h,v 1.16 2002/05/25 14:40:59 stolcke Exp $
  *
  */
 
@@ -73,6 +73,14 @@ public:
 					 * a Map on demand */
     static Boolean foundP;		/* default result argument for
 					 * the "foundP" argument below */
+};
+
+template <class KeyT, class DataT>
+class MapEntry
+{
+public:
+    KeyT key;
+    DataT value;
 };
 
 template <class KeyT, class DataT>

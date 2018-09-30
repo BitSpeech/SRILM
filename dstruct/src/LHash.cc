@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char LHash_Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.42 1999/10/05 06:18:48 stolcke Exp $";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.43 2002/05/25 14:40:59 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -206,7 +206,7 @@ LHash<KeyT,DataT>::locate(KeyT key, unsigned &index) const
 
     if (body) {
 	unsigned maxBits = BODY(body)->maxBits;
-    	register LHashBody<KeyT,DataT>::entry *data = (LHashBody<KeyT,DataT>::entry *)BODY(body)->data;
+    	register MapEntry<KeyT,DataT> *data = BODY(body)->data;
 
 	if (maxBits < minHashBits) {
 	    /*

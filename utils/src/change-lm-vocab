@@ -9,7 +9,7 @@
 #
 # usage: change-lm-vocab -vocab vocabfile -lm oldlm -write-lm newlm
 #
-# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.5 1999/11/05 20:24:43 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.6 2002/08/06 23:35:32 stolcke Exp $
 #
 
 oldlm=-
@@ -35,11 +35,7 @@ else
 	ngram_vocab="$vocab"
 fi
 
-case "$oldlm" in
-*.gz)	gunzip < $oldlm ;;
-*.Z)	uncompress < $oldlm ;;
-*)	cat $oldlm ;;
-esac | gawk '
+gunzip -cf $oldlm | gawk '
 # read the vocab file
 NR == 1 && vocab {
 	# always include sentence begin/end

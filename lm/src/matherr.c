@@ -5,10 +5,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1996 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/matherr.c,v 1.1 1998/01/18 03:51:12 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/matherr.c,v 1.2 2002/03/01 16:24:05 stolcke Exp $";
 #endif
 
 #include <math.h>
+#include <string.h>
 
 int
 matherr(struct exception *x)

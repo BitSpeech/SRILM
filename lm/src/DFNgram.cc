@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.20 2000/10/13 05:24:17 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.21 2002/08/25 17:27:45 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -67,13 +67,23 @@ DFNgram::~DFNgram()
 }
 
 void *
-DFNgram::contextID(const VocabIndex *context, unsigned &length)
+DFNgram::contextID(VocabIndex word, const VocabIndex *context, unsigned &length)
 {
     /*
      * Due to the DP algorithm, we alway use the full context
      * (don't inherit Ngram::contextID()).
      */
-    return LM::contextID(context, length);
+    return LM::contextID(word, context, length);
+}
+
+LogP
+DFNgram::contextBOW(const VocabIndex *context, unsigned length)
+{
+    /*
+     * Due to the DP algorithm, we alway use the full context
+     * (don't inherit Ngram::contextBOW()).
+     */
+    return LM::contextBOW(context, length);
 }
 
 Boolean

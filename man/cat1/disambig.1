@@ -94,33 +94,39 @@ OOPPTTIIOONNSS
               Instead, output the input word unchanged.  This  is
               like having an implicit default mapping for unknown
               words to themselves,  except  that  the  word  will
-              still be treated as <unk> by the language model.
+              still  be  treated  as <unk> by the language model.
+              Also, with this option the  LM  is  assumed  to  be
+              open-vocabulary  (the default is close-vocabulary).
 
        --nnoo--eeooss
-              Do  no  assume that each input line contains a com-
-              plete  sentence.   This  prevents   end-of-sentence
+              Do no assume that each input line contains  a  com-
+              plete   sentence.   This  prevents  end-of-sentence
               tokens </s> from being appended automatically.
 
        --ccoonnttiinnuuoouuss
-              Process  all  words in the input as one sequence of
-              words, irrespective of line breaks.  Normally  each
-              line  is  processed  separately  as a sentence.  V2
-              tokens are output one-per-line.  This  option  also
-              prevents  sentence  start/end tokens (<s> and </s>)
+              Process all words in the input as one  sequence  of
+              words,  irrespective of line breaks.  Normally each
+              line is processed separately  as  a  sentence.   V2
+              tokens  are  output one-per-line.  This option also
+              prevents sentence start/end tokens (<s>  and  </s>)
               from being added to the input.
 
        --ffbb    Perform forward-backward decoding of the input (V1)
-              token  sequence.   Outputs  the V2 tokens that have
-              the highest posterior probability, for  each  posi-
-              tion.   The  default  is  to  use Viterbi decoding,
+              token sequence.  Outputs the V2  tokens  that  have
+              the  highest  posterior probability, for each posi-
+              tion.  The default  is  to  use  Viterbi  decoding,
               i.e., the output is the V2 sequence with the higher
               joint posterior probability.
 
        --ffww--oonnllyy
               Similar to --ffbb, but uses only the forward probabil-
-              ities for computing posteriors.  This may  be  used
+              ities  for  computing posteriors.  This may be used
               to simulate on-line prediction of tags, without the
               benefit of future context.
+
+       --ttoottaallss
+              Output  the total string probability for each input
+              sentence.
 
        --ppoosstteerriioorrss
               Output the table  of  posterior  probabilities  for
@@ -131,6 +137,15 @@ OOPPTTIIOONNSS
               otherwise  an  approximation  will  be used that is
               based on the probability of the  most  likely  path
               containing a given V2 token at given position.
+
+       --nnbbeesstt _N
+              Output  the  _N  best hypotheses instead of just the
+              first best when doing Viterbi search.  If _N>1, then
+              each  hypothesis  is prefixed by the tag NNBBEESSTT___n _x,,
+              where _n is the rank of the hypothesis in the N-best
+              list  and _x its score, the negative log of the com-
+              bined probability of transitions  and  observations
+              of the corresponding HMM path.
 
        --wwrriittee--vvooccaabb11 _f_i_l_e
               Writes  the  input  vocabulary from the map (V1) to
@@ -152,17 +167,19 @@ OOPPTTIIOONNSS
        to indicate stdin/stdout.
 
 BBUUGGSS
-       The  --ccoonnttiinnuuoouuss  option  effectively  disables --kkeeeepp--uunnkk,
-       i.e., unknown input words are always mapped to <unk>.
+       The  --ccoonnttiinnuuoouuss and --tteexxtt--mmaapp options effectively disable
+       --kkeeeepp--uunnkk, i.e., unknown input words are always mapped  to
+       <unk>.
 
 SSEEEE AALLSSOO
-       ngram-count(1),   hidden-ngram(1),    training-scripts(1),
+       ngram-count(1),    hidden-ngram(1),   training-scripts(1),
        ngram-format(5).
 
 AAUUTTHHOORR
-       Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1995-1998 SRI International
+       Andreas Stolcke <stolcke@speech.sri.com>,
+       Anand Venkataraman <anand@speech.sri.com>.
+       Copyright 1995-2002 SRI International
 
 
 
-SRILM Tools        $Date: 2001/08/17 21:56:35 $       disambig(1)
+SRILM Tools        $Date: 2003/01/28 17:36:50 $       disambig(1)

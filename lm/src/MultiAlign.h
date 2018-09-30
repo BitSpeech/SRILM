@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998,2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.8 2001/08/07 17:38:17 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.9 2002/04/24 14:28:44 stolcke Exp $
  *
  */
 
@@ -70,6 +70,10 @@ public:
     void alignReference(const VocabIndex *words)
 	{ HypID id = refID;
 	  alignWords(words, 0.0, 0, &id); };
+
+    virtual void alignAlignment(MultiAlign &alignment, Prob score,
+						    Prob *alignScores = 0)
+	{ cerr << "alignAlignment not implemnted (yet)\n"; };
 
     /*
      * compute minimal word errr

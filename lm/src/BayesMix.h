@@ -14,9 +14,9 @@
  * mixtures of bigram models, the p(context | M_i) would simply be the unigram 
  * probability of the last word according to M_i.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.7 1999/10/06 02:47:38 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.8 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 
@@ -40,7 +40,8 @@ public:
      * LM interface
      */
     virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
-    virtual void *contextID(const VocabIndex *context, unsigned &length);
+    virtual void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
     virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
 

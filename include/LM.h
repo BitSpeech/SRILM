@@ -5,9 +5,9 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.29 2000/05/07 01:23:53 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.33 2003/02/15 06:56:29 stolcke Exp $
  *
  */
 
@@ -77,6 +77,8 @@ public:
 							unsigned order);
 						/* probability from counts */
 
+    virtual unsigned pplCountsFile(File &file, unsigned order, TextStats &stats,
+				const char *escapeString = 0);
     virtual unsigned pplFile(File &file, TextStats &stats,
 				const char *escapeString = 0);
     virtual unsigned rescoreFile(File &file, double lmScale, double wtScale,
@@ -97,12 +99,19 @@ public:
 
     virtual void *contextID(const VocabIndex *context)
 	{ unsigned length; return contextID(context, length); };
-    virtual void *contextID(const VocabIndex *context, unsigned &length);
-				    /* context ID and length used by LM */
+    virtual void *contextID(const VocabIndex *context, unsigned &length)
+	{ return contextID(Vocab_None, context, length); };
+				    /* context used by LM */
+    virtual void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
+				    /* context used for specific word */
+
+    virtual LogP contextBOW(const VocabIndex *context, unsigned length);
+				   /* backoff weight for truncating context */
 
     virtual Boolean isNonWord(VocabIndex word);
 
-    virtual Boolean read(File &file);
+    virtual Boolean read(File &file, Boolean limitVocab = false);
     virtual void write(File &file);
 
     virtual Boolean running() { return _running; }

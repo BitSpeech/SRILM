@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.61 2001/10/31 07:00:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.69 2003/02/15 09:16:23 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -44,6 +44,7 @@ static unsigned debug = 0;
 static int werRescore = 0;
 static unsigned maxRescore = 0;
 static char *vocabFile = 0;
+static char *writeVocabFile = 0;
 static int toLower = 0;
 static int multiwords = 0;
 static char *readFile = 0;
@@ -53,7 +54,9 @@ static char *rescoreFile = 0;
 static int computeNbestError = 0;
 static int computeLatticeError = 0;
 static char *nbestFiles = 0;
+static char *latticeFiles = 0;
 static char *writeNbestFile = 0;
+static char *writeNbestDir = 0;
 static int writeDecipherNbest = 0;
 static unsigned maxNbest = 0;
 static double rescoreLMW = 8.0;
@@ -70,6 +73,7 @@ static int noReorder = 0;
 static double postPrune = 0.0;
 static int primeLattice = 0;
 static int primeWith1best = 0;
+static int primeWithRefs = 0;
 static int noViterbi = 0;
 static int useMesh = 0;
 static char *dictFile = 0;
@@ -98,8 +102,11 @@ static Option options[] = {
     { OPT_TRUE, "lattice-error", &computeLatticeError, "compute lattice error" },
     { OPT_STRING, "nbest", &rescoreFile, "same as -rescore" },
     { OPT_STRING, "write-nbest", &writeNbestFile, "output n-best list" },
+    { OPT_STRING, "write-nbest-dir", &writeNbestDir, "output n-best directory" },
+    { OPT_STRING, "write-vocab", &writeVocabFile, "output n-best vocabulary" },
     { OPT_TRUE, "decipher-nbest", &writeDecipherNbest, "output Decipher n-best format" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
+    { OPT_STRING, "lattice-files", &latticeFiles, "list of lattice filenames to merge with main lattice" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_UINT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
     { OPT_FLOAT, "posterior-prune", &postPrune, "ignore n-best hyps whose cumulative posterior mass is below threshold" },
@@ -117,6 +124,7 @@ static Option options[] = {
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before rescoring" },
     { OPT_TRUE, "prime-lattice", &primeLattice, "initialize word lattice with WE-minimized hyp" },
     { OPT_TRUE, "prime-with-1best", &primeWith1best, "initialize word lattice with 1-best hyp" },
+    { OPT_TRUE, "prime-with-refs", &primeWithRefs, "initialize word lattice with reference hyp" },
     { OPT_TRUE, "no-viterbi", &noViterbi, "minimize lattice WE without Viterbi search" },
     { OPT_TRUE, "use-mesh", &useMesh, "align using word mesh (not lattice)" },
     { OPT_STRING, "dictionary", &dictFile, "dictionary to use in mesh alignment" },
@@ -130,13 +138,16 @@ static Option options[] = {
 };
 
 void
-latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList)
+latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
+						const VocabIndex *reference)
 {
     unsigned totalWords = 0;
     unsigned numHyps = nbestList.numHyps();
 
     if (!noReorder) {
-	nbestList.reweightHyps(rescoreLMW, rescoreWTW);
+    	if (rescoreLMW != 0.0 || rescoreWTW != 0.0) {
+	    nbestList.reweightHyps(rescoreLMW, rescoreWTW);
+	}
 	nbestList.sortHyps();
     }
 
@@ -179,6 +190,14 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList)
 	    }
 
 	    Vocab::copy(primeWords, bestHyp);
+	} else if (primeWithRefs) {
+	    if (reference) {
+	        Vocab::copy(primeWords, reference);
+	    } else {
+		cerr << sentid << " has no reference -- not priming lattice\n";
+		delete [] primeWords;
+		primeWords = 0;
+	    }
 	} else {
 	    /*
 	     * prime with WE-minimized hyp -- slow!
@@ -188,7 +207,9 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList)
 				    subs, inss, dels, maxRescore, postPrune);
 	}
 
-	lat.addWords(primeWords, primePosterior);
+	if (primeWords) {
+	    lat.addWords(primeWords, primePosterior);
+	}
     }
 
     /*
@@ -196,13 +217,13 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList)
      */
     for (unsigned i = 0; i < numHyps; i ++) {
 	NBestHyp &hyp = nbestList.getHyp(i);
-	HypID hypID = i;
+	HypID hypID = hyp.rank;
 	HypID *hypIDPtr = recordHypIDs ? &hypID : 0;
 
 	/*
 	 * Check for overflow in the hypIDs
 	 */
-	if (recordHypIDs && ((unsigned)hypID != i || hypID == refID)) {
+	if (recordHypIDs && ((unsigned)hypID != hyp.rank || hypID == refID)) {
 	    cerr << "Sorry, too many hypotheses in N-best list "
 		 << (sentid ? sentid : "") << endl;
 	    exit(2);
@@ -319,7 +340,9 @@ wordErrorRescore(const char *sentid, NBestList &nbestList)
     }
 
     if (!noReorder) {
-	nbestList.reweightHyps(rescoreLMW, rescoreWTW);
+    	if (rescoreLMW != 0.0 || rescoreWTW != 0.0) {
+	    nbestList.reweightHyps(rescoreLMW, rescoreWTW);
+	}
 	nbestList.sortHyps();
     }
 
@@ -384,12 +407,53 @@ computeWordErrors(const char *sentid, NBestList &nbestList,
 }
 
 /*
+ * Align a list of lattices
+ *	a list of lines containing lattice filenames, followed by optional
+ *	weights is read from file
+ */
+void
+alignLattices(MultiAlign &lat, File &file)
+{
+    char *line;
+    while (line = file.getline()) {
+	char *lname = strtok(line, wordSeparators);
+	if (!lname) continue;
+
+	double weight = 1.0;
+	char *wstring = strtok(0, wordSeparators);
+	if (wstring) {
+	    sscanf(wstring, "%lf", &weight);
+	}
+
+	File lFile(lname, "r");
+	MultiAlign *newLat;
+
+	if (useMesh) {
+	    newLat = new WordMesh(lat.vocab);
+	} else {
+	    newLat = new WordLattice(lat.vocab);
+	}
+	assert(newLat != 0);
+
+	if (!newLat->read(lFile)) {
+	    cerr << "format error in lattice file\n";
+	    continue;
+	}
+
+	lat.alignAlignment(*newLat, weight);
+
+	delete newLat;
+    }
+}
+
+/*
  * Process a single N-best list
  */
 void
 processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 			VocabMultiMap &dictionary,
-			const VocabIndex *reference, const char *outLattice)
+			const VocabIndex *reference,
+			const char *outLattice, const char *outNbest)
 {
     Vocab &vocab = nullLM.vocab;
     MultiAlign *lat;
@@ -416,6 +480,15 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 	    cerr << "format error in lattice file\n";
 	    exit(1);
 	}
+    }
+
+    /*
+     * Read list of other lattices, and merge with main lattice
+     */
+    if (latticeFiles) {
+	File file(latticeFiles, "r");
+
+	alignLattices(*lat, file);
     }
 
     /*
@@ -464,15 +537,15 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 	    /*
 	     * Lattice building (and rescoring)
 	     */
-	    latticeRescore(sentid, *lat, nbestList);
+	    latticeRescore(sentid, *lat, nbestList, reference);
 	}
 
 	if (dumpErrors) {
 	    computeWordErrors(sentid, nbestList, reference);
 	}
 
-	if (writeNbestFile) {
-	    File output(writeNbestFile, "w");
+	if (outNbest) {
+	    File output(outNbest, "w");
 
 	    nbestList.write(output, writeDecipherNbest);
 	}
@@ -509,30 +582,6 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
     delete lat;
 }
 
-/*
- * Locate utterance id in filename
- */
-char *
-sentidFromFilename(const char *filename)
-{
-    const char *id = strrchr(filename, '/');
-    if (id) {
-	id += 1;
-    } else {
-	id = filename;
-    }
-
-    char *suffix = strchr(id, '.');
-    if (suffix) *suffix = '\0';
-
-    char *result = strdup(id);
-    assert(result != 0);
-
-    if (suffix) *suffix = '.';
-
-    return result;
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -541,7 +590,7 @@ main (int argc, char *argv[])
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
-    if (primeWith1best) {
+    if (primeWith1best || primeWithRefs) {
 	primeLattice = 1;
     }
 
@@ -628,13 +677,15 @@ main (int argc, char *argv[])
      * Process single nbest file
      */
     if (rescoreFile) {
-	processNbest(nullLM, 0, rescoreFile, dictionary, reference, writeFile);
+	processNbest(nullLM, 0, rescoreFile, dictionary, reference,
+						writeFile, writeNbestFile);
     } else if (!nbestFiles) {
 	/*
 	 * If neither -nbest nor -nbest-files was specified
 	 * do lattice processing only.
 	 */
-	processNbest(nullLM, 0, 0, dictionary, reference, writeFile);
+	processNbest(nullLM, 0, 0, dictionary, reference,
+						writeFile, writeNbestFile);
     }
 
     /*
@@ -657,10 +708,10 @@ main (int argc, char *argv[])
 	File file(nbestFiles, "r");
 	char *line;
 	while (line = file.getline()) {
-	    char *fname = strtok(line, " \t\n");
+	    char *fname = strtok(line, wordSeparators);
 	    if (!fname) continue;
 
-	    char *sentid = sentidFromFilename(fname);
+	    RefString sentid = idFromFilename(fname);
 
 	    VocabIndex *reference = 0;
 
@@ -670,25 +721,34 @@ main (int argc, char *argv[])
 		    cerr << "no reference for " << sentid << endl;
 		    if (dumpErrors || computeNbestError || computeLatticeError)
 		    {
-			free(sentid);
 			continue;
 		    }
 		}
 	    }
 
+	    char writeLatticeName[(writeDir ? strlen(writeDir) : 0) + 1
+				  + strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
 	    if (writeDir) {
-		char writeName[strlen(writeDir) + 1 + strlen(sentid) 
-						+ strlen(GZIP_SUFFIX) + 1];
-		sprintf(writeName, "%s/%s%s", writeDir, sentid, GZIP_SUFFIX);
-
-		processNbest(nullLM, sentid, fname, dictionary, reference,
-								    writeName);
-	    } else {
-		processNbest(nullLM, sentid, fname, dictionary, reference, 0);
+		sprintf(writeLatticeName, "%s/%s%s", writeDir, sentid,
+								GZIP_SUFFIX);
 	    }
 
-	    free(sentid);
+	    char writeNbestName[(writeNbestDir ? strlen(writeNbestDir) : 0) + 1
+				+ strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
+	    if (writeNbestDir) {
+		sprintf(writeNbestName, "%s/%s%s", writeNbestDir, sentid,
+								GZIP_SUFFIX);
+	    }
+
+	    processNbest(nullLM, sentid, fname, dictionary, reference,
+					writeDir ? writeLatticeName : 0,
+					writeNbestDir ? writeNbestName : 0);
 	}
+    }
+
+    if (writeVocabFile) {
+	File file(writeVocabFile, "w");
+	vocab.write(file);
     }
 
     exit(0);

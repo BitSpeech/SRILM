@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.9 1999/10/06 02:47:38 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.10 2002/08/25 17:27:45 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -61,11 +61,13 @@ BayesMix::wordProb(VocabIndex word, const VocabIndex *context)
 }
 
 void *
-BayesMix::contextID(const VocabIndex *context, unsigned &length)
+BayesMix::contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length)
 {
     /*
      * Return the context ID of the component model that uses the longer
-     * context.
+     * context. We must use longest context regardless of predicted word
+     * because mixture models don't support contextBOW().
      */
     unsigned len1, len2;
 

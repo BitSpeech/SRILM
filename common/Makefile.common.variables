@@ -11,7 +11,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.18 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.20 2003/02/21 22:43:25 stolcke Exp $
 #
 
 
@@ -23,21 +23,27 @@ ifeq ($(MACHINE_TYPE),  )
   MACHINE_TYPE := $(shell $(SRILM)/bin/machine-type)
 endif
 ifeq ($(OS_TYPE),  )
-  OS_TYPE := $(shell /bin/uname -s)
+  OS_TYPE := $(shell uname -s)
 endif
 ifeq ($(OS_VERSION),  )
-  OS_VERSION := $(shell /bin/uname -r)
+  OS_VERSION := $(shell uname -r)
 endif
 
 # Define options.
 OPTIMIZE_OPTION =
+COMPACT_OPTION = _c
 DEBUG_OPTION = _g
 PROFILE_OPTION = _p
 EXPORT_OPTION = _x
 
+# Flags for generating "compact" data structures (nothing by default)
+COMPACT_FLAGS = $(OPTIMIZE_FLAGS)
+
 # Purify support (can be changed in Makefile.machine.$(MACHINE_TYPE))
 PURIFY = purify
 PURIFY_FLAGS = -best-effort
+
+
 
 # How to create an archive library
 ARCHIVE = $(AR) ruv
@@ -80,21 +86,25 @@ BIN_OPTION = $(OPTION)
 ifeq ($(OPTION), $(OPTIMIZE_OPTION))
   OPTION_FLAGS = $(OPTIMIZE_FLAGS)
 else
-  ifeq ($(OPTION), $(DEBUG_OPTION))
-    OPTION_FLAGS = $(DEBUG_FLAGS)
+  ifeq ($(OPTION), $(COMPACT_OPTION))
+    OPTION_FLAGS = $(COMPACT_FLAGS)
   else
-    ifeq ($(OPTION), $(PROFILE_OPTION))
-      OPTION_FLAGS = $(PROFILE_FLAGS)
-      # We also need to link with the profiling flags.
-      ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_FLAGS)
+    ifeq ($(OPTION), $(DEBUG_OPTION))
+      OPTION_FLAGS = $(DEBUG_FLAGS)
     else
-      ifeq ($(OPTION), $(EXPORT_OPTION))
-        # Export programs are compiled with optimization
-        #  and linked with special export flags.
-        OPTION_FLAGS = $(OPTIMIZE_FLAGS)
-        ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
-        # The optimized objects are also the export objects.
-        OBJ_OPTION =
+      ifeq ($(OPTION), $(PROFILE_OPTION))
+	OPTION_FLAGS = $(PROFILE_FLAGS)
+	# We also need to link with the profiling flags.
+	ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_FLAGS)
+      else
+	ifeq ($(OPTION), $(EXPORT_OPTION))
+	  # Export programs are compiled with optimization
+	  #  and linked with special export flags.
+	  OPTION_FLAGS = $(OPTIMIZE_FLAGS)
+	  ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
+	  # The optimized objects are also the export objects.
+	  OBJ_OPTION =
+	endif
       endif
     endif
   endif

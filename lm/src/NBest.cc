@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.41 2001/08/07 06:55:57 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.49 2002/12/05 20:54:52 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -24,6 +24,7 @@ INSTANTIATE_ARRAY(NBestHyp);
 
 #define DEBUG_PRINT_RANK	1
 
+const char *phoneSeparator = ":";	 // used for phones & phoneDurs strings
 const NBestTimestamp frameLength = 0.01; // quantization unit of word timemarks
 
 /*
@@ -31,7 +32,6 @@ const NBestTimestamp frameLength = 0.01; // quantization unit of word timemarks
  */
 
 const unsigned phoneStringLength = 100;
-const char *phoneSeparator = ":";	 // used for phones & phoneDurs strings
 
 NBestWordInfo::NBestWordInfo()
     : word(Vocab_None), phones(0), phoneDurs(0)
@@ -157,6 +157,7 @@ NBestHyp::NBestHyp()
     acousticScore = languageScore = totalScore = 0.0;
     posterior = 0.0;
     numWords = numErrors = 0;
+    rank = 0;
 }
 
 NBestHyp::~NBestHyp()
@@ -182,6 +183,9 @@ NBestHyp::operator= (const NBestHyp &other)
     totalScore = other.totalScore;
 
     numWords = other.numWords;
+    posterior = other.posterior;
+    numErrors = other.numErrors;
+    rank = other.rank;
 
     if (other.words) {
 	unsigned actualNumWords = Vocab::length(other.words) + 1;
@@ -219,21 +223,29 @@ NBestHyp::operator= (const NBestHyp &other)
 const char multiwordSeparator = '_';
 
 static Boolean
-addPhones(char *old, const char *ph) 
+addPhones(char *old, const char *ph, Boolean reversed = false) 
 {
     unsigned oldLen = strlen(old);
     unsigned newLen = strlen(ph);
 
     if (oldLen + 1 + newLen + 1 > phoneStringLength) {
 	return false;
+    } else if (reversed) {
+	if (oldLen > 0) {
+	    memmove(&old[newLen + 1], old, oldLen + 1);
+	}
+	strcpy(old, ph);
+	if (oldLen > 0) {
+	    old[newLen] = phoneSeparator[0];
+	}
     } else {
 	if (oldLen > 0) {
 	    old[oldLen ++] = phoneSeparator[0];
 	}
 	strcpy(&old[oldLen], ph);
-
-	return true;
     }
+
+    return true;
 }
 
 Boolean
@@ -292,9 +304,9 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	/*
 	 * Parse the first word as a score (in parens)
 	 */
-	int score;
+	double score;
 
-	if (sscanf(wstrings[0], "(%d)", &score) != 1)
+	if (sscanf(wstrings[0], "(%lf)", &score) != 1)
 	{
 	    cerr << "bad Decipher score: " << wstrings[0] << endl;
 	    return false;
@@ -305,6 +317,13 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	 */
 	totalScore = acousticScore = BytelogToLogP(score);
 	languageScore = 0.0;
+
+	/* 
+	 * Note: numWords includes pauses, consistent with the way the 
+	 * recognizer applies word transition weights.  Elimination of pauses
+	 * is the job of LM rescoring.
+	 */
+	numWords = actualNumWords;
 
 	Vocab::copy(justWords, &wstrings[1]);
 
@@ -324,9 +343,9 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	/*
 	 * Parse the first word as a score (in parens)
 	 */
-	int score;
+	double score;
 
-	if (sscanf(wstrings[0], "(%d)", &score) != 1)
+	if (sscanf(wstrings[0], "(%lf)", &score) != 1)
 	{
 	    cerr << "bad Decipher score: " << wstrings[0] << endl;
 	    return false;
@@ -342,6 +361,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	Bytelog lmScore = 0;
 
 	NBestTimestamp prevEndTime = -1.0;	/* end time of last token */
+	NBestTimestamp prevPhoneStart = 0.0;
 	NBestWordInfo *prevWordInfo = 0;
 
 	char phones[phoneStringLength];
@@ -361,6 +381,17 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		justWords[actualNumWords] = token;
 
 		if (backtrace) {
+		    /*
+		     * save pronunciation info for previous word
+		     */
+		    if (prevWordInfo) {
+			prevWordInfo->phones = strdup(phones);
+			assert(prevWordInfo->phones != 0);
+
+			prevWordInfo->phoneDurs = strdup(phoneDurs);
+			assert(prevWordInfo->phoneDurs != 0);
+		    }
+
 		    NBestWordInfo winfo;
 		    winfo.word = Vocab_None;
 		    winfo.start = startTime;
@@ -410,23 +441,31 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		    const char *phone = lbracket ? lbracket + 1 : token;
 		    char *rbracket = strrchr(phone, ']');
 		    if (rbracket) *rbracket = '\0';
-		    addPhones(phones, phone);
+		    addPhones(phones, phone, startTime < prevPhoneStart);
 
 		    char phoneDur[20];
 		    sprintf(phoneDur, "%d",
 			    (int)((endTime - startTime)/frameLength + 0.5) + 1);
-		    addPhones(phoneDurs, phoneDur);
+		    addPhones(phoneDurs, phoneDur, startTime < prevPhoneStart);
 
-		    if (endTime == prevEndTime) {
-			prevWordInfo->phones = strdup(phones);
-			assert(prevWordInfo->phones != 0);
-
-			prevWordInfo->phoneDurs = strdup(phoneDurs);
-			assert(prevWordInfo->phoneDurs != 0);
-		    }
+		    prevPhoneStart = startTime;
 		}
 	    }
 	}
+
+	if (backtrace) {
+	    /*
+	     * save pronunciation info for last word
+	     */
+	    if (prevWordInfo) {
+		prevWordInfo->phones = strdup(phones);
+		assert(prevWordInfo->phones != 0);
+
+		prevWordInfo->phoneDurs = strdup(phoneDurs);
+		assert(prevWordInfo->phoneDurs != 0);
+	    }
+	}
+
 	justWords[actualNumWords] = 0;
 
 	/*
@@ -435,11 +474,14 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	totalScore = BytelogToLogP(score);
 	acousticScore = BytelogToLogP(acScore);
 	languageScore = BytelogToLogP(lmScore);
+	numWords = actualNumWords;
 
+	/*
 	if (score != acScore + lmScore) {
 	    cerr << "acoustic and language model scores don't add up ("
 		 << acScore << " + " << lmScore << " != " << score << ")\n";
 	}
+	*/
 
     } else {
 	actualNumWords -= 3;
@@ -452,18 +494,15 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	/*
 	 * Parse the first three columns as numbers
 	 */
-	if (sscanf(wstrings[0], "%f", &acousticScore) != 1)
-	{
+	if (!parseLogP(wstrings[0], acousticScore)) {
 	    cerr << "bad acoustic score: " << wstrings[0] << endl;
 	    return false;
 	}
-	if (sscanf(wstrings[1], "%f", &languageScore) != 1)
-	{
+	if (!parseLogP(wstrings[1], languageScore)) {
 	    cerr << "bad LM score: " << wstrings[1] << endl;
 	    return false;
 	}
-	if (sscanf(wstrings[2], "%u", &numWords) != 1)
-	{
+	if (sscanf(wstrings[2], "%u", &numWords) != 1) {
 	    cerr << "bad word count: " << wstrings[2] << endl;
 	    return false;
 	}
@@ -585,7 +624,7 @@ NBestHyp::rescore(LM &lm, double lmScale, double wtScale)
      * LM score is recomputed,
      * numWords is set to take non-word tokens into account
      */
-    languageScore = lmScale * lm.sentenceProb(words, stats);
+    languageScore = weightLogP(lmScale, lm.sentenceProb(words, stats));
     numWords = stats.numWords;
 
     /*
@@ -614,8 +653,8 @@ NBestHyp::rescore(LM &lm, double lmScale, double wtScale)
 void
 NBestHyp::reweight(double lmScale, double wtScale, double amScale)
 {
-    totalScore = amScale * acousticScore +
-			    lmScale * languageScore +
+    totalScore = weightLogP(amScale, acousticScore) +
+			    weightLogP(lmScale, languageScore) +
 			    wtScale * numWords;
 }
 
@@ -628,7 +667,7 @@ NBestHyp::decipherFix(LM &lm, double lmScale, double wtScale)
      * LM score is recomputed,
      * numWords is set to take non-word tokens into account
      */
-    languageScore = lmScale * lm.sentenceProb(words, stats);
+    languageScore = weightLogP(lmScale, lm.sentenceProb(words, stats));
     numWords = stats.numWords;
 
     /*
@@ -733,12 +772,16 @@ NBestList::read(File &file)
     unsigned int howmany = 0;
 
     while (line && (maxSize == 0 || howmany < maxSize)) {
-	if (! hypList[howmany++].parse(line, vocab, decipherFormat,
+	if (! hypList[howmany].parse(line, vocab, decipherFormat,
 					acousticOffset, multiwords, backtrace))
 	{
 	    file.position() << "bad n-best hyp\n";
 	    return false;
 	}
+
+	hypList[howmany].rank = howmany;
+
+	howmany ++;
 
 	line = file.getline();
     }
@@ -798,7 +841,7 @@ NBestList::computePosteriors(double lmScale, double wtScale,
     /*
      * First compute the numerators for the posteriors
      */
-    Prob totalNumerator = 0.0;
+    LogP2 totalNumerator = LogP_Zero;
     LogP scoreOffset;
 
     unsigned h;
@@ -815,11 +858,20 @@ NBestList::computePosteriors(double lmScale, double wtScale,
 	 *
 	 * The posterior weight is a parameter that controls the
 	 * peakedness of the posterior distribution.
+	 *
+	 * As a special case, if all weights are zero, we compute the
+	 * posterios directly from the stored aggregate scores.
 	 */
-	LogP totalScore = (amScale * hyp.acousticScore +
-			    lmScale * hyp.languageScore +
-			    wtScale * hyp.numWords) /
-			 postScale;
+	LogP totalScore;
+	
+	if (amScale == 0.0 && lmScale == 0.0 && wtScale == 0.0) {
+	    totalScore = hyp.totalScore / postScale;
+	} else {
+	    totalScore = (weightLogP(amScale, hyp.acousticScore) +
+				weightLogP(lmScale, hyp.languageScore) +
+				wtScale * hyp.numWords) /
+			     postScale;
+	}
 
 	/*
 	 * To prevent underflow when converting LogP's to Prob's, we 
@@ -834,9 +886,12 @@ NBestList::computePosteriors(double lmScale, double wtScale,
 	    totalScore -= scoreOffset;
 	}
 
-	hyp.posterior = LogPtoProb(totalScore);
+	/*
+	 * temporarily store unnormalized log posterior in hyp
+	 */
+	hyp.posterior = totalScore;
 
-	totalNumerator += hyp.posterior;
+	totalNumerator = AddLogP(totalNumerator, hyp.posterior);
     }
 
     /*
@@ -845,7 +900,7 @@ NBestList::computePosteriors(double lmScale, double wtScale,
     for (h = 0; h < _numHyps; h++) {
 	NBestHyp &hyp = hypList[h];
 
-	hyp.posterior /= totalNumerator;
+	hyp.posterior = LogPtoProb(hyp.posterior - totalNumerator);
     }
 }
 
@@ -889,6 +944,7 @@ NBestList::removeNoise(LM &lm)
 		    hypList[h].wordInfo[k] = endOfHyp;
 		}
 	    }
+	    hypList[h].wordInfo[Vocab::length(hypList[h].words)] = endOfHyp;
 	}
     }
 }

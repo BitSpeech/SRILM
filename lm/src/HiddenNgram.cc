@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2000, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.10 2000/10/13 06:35:08 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.13 2003/02/15 06:19:14 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -139,13 +139,24 @@ HiddenNgram::~HiddenNgram()
 }
 
 void *
-HiddenNgram::contextID(const VocabIndex *context, unsigned &length)
+HiddenNgram::contextID(VocabIndex word, const VocabIndex *context,
+							    unsigned &length)
 {
     /*
      * Due to the DP algorithm, we always use the full context
      * (don't inherit Ngram::contextID()).
      */
-    return LM::contextID(context, length);
+    return LM::contextID(word, context, length);
+}
+
+LogP
+HiddenNgram::contextBOW(const VocabIndex *context, unsigned length)
+{
+    /*
+     * Due to the DP algorithm, we always use the full context
+     * (don't inherit Ngram::contextBOW()).
+     */
+    return LM::contextBOW(context, length);
 }
 
 /*
@@ -182,12 +193,12 @@ HiddenNgram::isNonWord(VocabIndex word)
 }
 
 Boolean
-HiddenNgram::read(File &file)
+HiddenNgram::read(File &file, Boolean limitVocab)
 {
     /*
      * First, read the regular N-gram model
      */
-    if (!Ngram::read(file)) {
+    if (!Ngram::read(file, limitVocab)) {
 	return false;
     } else {
 	/*
@@ -637,7 +648,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * repeated.
                  */
                 unsigned usedLength;
-                Ngram::contextID(startNewContext, usedLength);
+                Ngram::contextID(Vocab_None, startNewContext, usedLength);
 		if (usedLength < repeatFrom) {
 		    assert(repeatFrom < prevContextLength);
 		    usedLength = repeatFrom;
@@ -669,9 +680,11 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * when at the final word.  In that case we just record
 		 * the total probability.
 		 */
-		if (prefix > 0) {
+		if (prefix > 0 || debug(DEBUG_PRINT_VITERBI)) {
 		    trellis.update(prevState, newState, eventProb + wordProb);
-		} else {
+		}
+
+		if (prefix == 0) {
 		    logSum = AddLogP(logSum, prevProb + eventProb + wordProb);
 		}
 
@@ -829,7 +842,7 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     if (debug(DEBUG_PRINT_VITERBI)) {
-	len = trellis.where() - 1;
+	len = trellis.where();
 	HiddenNgramState bestStates[len];
 
 	if (trellis.viterbi(bestStates, len) == 0) {

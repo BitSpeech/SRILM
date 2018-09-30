@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,v 1.4 2001/09/23 19:29:41 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,v 1.6 2001/12/28 23:37:16 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -20,6 +20,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,
 #include "File.h"
 #include "Vocab.h"
 #include "Ngram.h"
+#include "MultiwordVocab.h"
 
 #include "Array.cc"
 #include "LHash.cc"
@@ -47,105 +48,13 @@ static Option options[] = {
 };
 
 /*
- * construct a mapping from multiword vocab indices to strings of indices
- * corresponding to their components
+ * Reassign parameters to the multiword ngrams in multiLM according the
+ * probabilities in ngramLM.  vocab is the multiword vocabulary used to 
+ * expand ngrams.
  */
-LHash< VocabIndex, VocabIndex * > *
-makeMultiwordMap(Vocab &vocab, Ngram &lm)
-{
-    LHash< VocabIndex, VocabIndex * > *map =
-			new LHash< VocabIndex, VocabIndex * >;
-    assert(map != 0);
-
-    VocabIter viter(vocab);
-    VocabString word;
-    VocabIndex wid;
-
-
-    while (word = viter.next(wid)) {
-	static VocabIndex emptyContext[1] = { Vocab_None };
-
-	if (strchr(word, *multiChar) && !lm.findProb(wid, emptyContext)) {
-	    /*
-	     * split multiword
-	     */
-	    char wordString[strlen(word) + 1];
-	    VocabIndex widString[maxWordsPerLine + 1];
-
-	    strcpy(wordString, word);
-
-	    char *cp = strtok(wordString, multiChar);
-	    unsigned numWords = 0;
-	    do {
-		assert(numWords <= maxWordsPerLine);
-
-		widString[numWords] = vocab.getIndex(cp);
-
-		if (widString[numWords] == Vocab_None) {
-		    cerr << "warning: multiword component " << cp
-			 << " not in vocab\n";
-		    widString[numWords] = vocab.unkIndex;
-		}
-
-		numWords ++;
-	    } while (cp = strtok((char *)0, multiChar));
-
-	    widString[numWords] = Vocab_None;
-
-	    VocabIndex *wids = new VocabIndex[numWords + 1];
-	    assert(wids != 0);
-
-	    Vocab::copy(wids, widString);
-
-	    *(map->insert(wid)) = wids;
-	}
-    }
-    return map;
-}
-
-/*
- * Expand a string of multiwords into components
- *	return length of expanded string
- */
-unsigned
-expandMultiwords(VocabIndex *words, VocabIndex *expanded,
-	     LHash< VocabIndex, VocabIndex * > &map, Boolean reverse = false)
-{
-    unsigned j = 0;
-
-    for (unsigned i = 0; words[i] != Vocab_None; i ++) {
-
-	VocabIndex **comps = map.find(words[i]);
-
-	if (comps == 0) {
-	    assert(j <= maxWordsPerLine);
-	    expanded[j] = words[i];
-	    j ++;
-	} else {
-	    unsigned compsLength = Vocab::length(*comps);
-
-	    for (unsigned k = 0; k < compsLength; k ++) {
-		assert(j <= maxWordsPerLine);
-		if (reverse) {
-		    expanded[j] = (*comps)[compsLength - 1 - k];
-		} else {
-		    expanded[j] = (*comps)[k];
-		}
-		j ++;
-	    }
-	}
-    }
-
-    assert(j <= maxWordsPerLine);
-    expanded[j] = Vocab_None;
-    return j;
-}
-
 void
-assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
-					LHash< VocabIndex, VocabIndex * > &map)
+assignMultiProbs(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 {
-    Vocab &vocab = multiLM.vocab;
     unsigned order = multiLM.setorder();
 
     for (unsigned i = 0; i < order; i++) {
@@ -154,7 +63,6 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
 	NgramBOsIter iter(multiLM, context, i);
 	
 	while (node = iter.next()) {
-
 	    /*
 	     * buffer holding expanded context, with room to prepend expanded
 	     * word
@@ -166,7 +74,8 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
 	     */
 	    VocabIndex *expandedContext = &expandedBuffer[maxWordsPerLine];
 	    unsigned expandedContextLength =
-		    expandMultiwords(context, expandedContext, map, true);
+			    vocab.expandMultiwords(context, expandedContext,
+							maxWordsPerLine, true);
 
 	    /*
 	     * Find the corresponding context in the old LM
@@ -195,7 +104,8 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
 
 		VocabIndex expandedWord[maxWordsPerLine + 1];
 		unsigned expandedWordLength =
-			expandMultiwords(multiWord, expandedWord, map);
+			    vocab.expandMultiwords(multiWord, expandedWord,
+							    maxWordsPerLine);
 
 		LogP prob = LogP_One;
 		for (unsigned j = 0; j < expandedWordLength; j ++) {
@@ -221,7 +131,7 @@ assignMultiProbs(Ngram &multiLM, Ngram &ngramLM,
  */
 Boolean
 haveNgramsFor(VocabIndex word, VocabIndex *context, Ngram &ngramLM,
-					LHash< VocabIndex, VocabIndex * > &map)
+						    MultiwordVocab &vocab)
 {
     VocabIndex multiwordNgram[Vocab::length(context) + 2];
     VocabIndex expandedNgram[2 * maxWordsPerLine + 1];
@@ -236,7 +146,8 @@ haveNgramsFor(VocabIndex word, VocabIndex *context, Ngram &ngramLM,
      * Expand the reversed ngram with all multiwords
      */
     unsigned expandedLength =
-		    expandMultiwords(multiwordNgram, expandedNgram, map, true);
+		vocab.expandMultiwords(multiwordNgram, expandedNgram,
+						2 * maxWordsPerLine, true);
 
     /*
      * Check that all maximal N-grams are contained in reference model
@@ -269,10 +180,8 @@ haveNgramsFor(VocabIndex word, VocabIndex *context, Ngram &ngramLM,
  * Populate multi-ngram LM with a superset of original ngrams.
  */
 void
-populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
-					LHash< VocabIndex, VocabIndex * > &map)
+populateMultiNgrams(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 {
-    Vocab &vocab = multiLM.vocab;
     unsigned order = ngramLM.setorder();
     unsigned multiOrder = multiLM.setorder();
 
@@ -289,18 +198,27 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
     LHash<VocabIndex, Array<VocabIndex> > startMultiwords;
     LHash<VocabIndex, Array<VocabIndex> > endMultiwords;
 
-    VocabIndex word;
     VocabIndex **expansion;
-    LHashIter< VocabIndex, VocabIndex * > mapIter(map);
-    while (expansion = mapIter.next(word)) {
-	VocabIndex startWord = (*expansion)[0];
-	VocabIndex endWord = (*expansion)[Vocab::length(*expansion) - 1];
 
-	Array<VocabIndex> &startIndex = *startMultiwords.insert(startWord);
-	Array<VocabIndex> &endIndex = *endMultiwords.insert(endWord);
+    VocabIter viter(vocab);
+    VocabIndex word;
 
-	startIndex[startIndex.size()] = word;
-	endIndex[endIndex.size()] = word;
+    while (viter.next(word)) {
+	VocabIndex oneWord[2];
+	oneWord[0] = word;
+	oneWord[1] = Vocab_None;
+
+	VocabIndex expansion[maxWordsPerLine + 1];
+	if (vocab.expandMultiwords(oneWord, expansion, maxWordsPerLine) > 1) {
+	    VocabIndex startWord = expansion[0];
+	    VocabIndex endWord = expansion[Vocab::length(expansion) - 1];
+
+	    Array<VocabIndex> &startIndex = *startMultiwords.insert(startWord);
+	    Array<VocabIndex> &endIndex = *endMultiwords.insert(endWord);
+
+	    startIndex[startIndex.size()] = word;
+	    endIndex[endIndex.size()] = word;
+	}
     }
 
     /*
@@ -335,7 +253,7 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
 			 */
 			if (!pruneUnseenNgrams ||
 		            haveNgramsFor((*startIndex)[k], context,
-								ngramLM, map))
+							ngramLM, vocab))
 			{
 			    *multiLM.insertProb((*startIndex)[k], context) =
 									*prob;
@@ -369,7 +287,7 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
 			    for (unsigned k = 0; k < startIndex->size(); k ++) {
 				if (!pruneUnseenNgrams ||
 				    haveNgramsFor((*startIndex)[k], context,
-								ngramLM, map))
+							ngramLM, vocab))
 				{
 				    *multiLM.insertProb((*startIndex)[k],
 							    context) = *prob;
@@ -398,11 +316,33 @@ populateMultiNgrams(Ngram &multiLM, Ngram &ngramLM,
     /*
      * Remove ngrams made redundant by multiwords
      */
-    mapIter.init();
-    while (expansion = mapIter.next(word)) {
-	Vocab::reverse(*expansion);
-	multiLM.removeProb((*expansion)[0], &(*expansion)[1]);
-	Vocab::reverse(*expansion);
+    viter.init();
+    while (viter.next(word)) {
+	VocabIndex oneWord[2];
+	oneWord[0] = word;
+	oneWord[1] = Vocab_None;
+
+	VocabIndex expansion[maxWordsPerLine + 1];
+	if (vocab.expandMultiwords(oneWord, expansion, maxWordsPerLine) > 1) {
+	    Vocab::reverse(expansion);
+	    multiLM.removeProb(expansion[0], &expansion[1]);
+	    Vocab::reverse(expansion);
+	}
+    }
+
+    /*
+     * Free auxiliary data (XXX: due to flaw in LHash)
+     */
+    viter.init();
+    while (viter.next(word)) {
+	Array<VocabIndex> *starts = startMultiwords.find(word);
+	if (starts) {
+	    starts->~Array();
+	}
+	Array<VocabIndex> *ends = endMultiwords.find(word);
+	if (ends) {
+	    ends->~Array();
+	}
     }
 }
 
@@ -422,7 +362,7 @@ main(int argc, char **argv)
     /*
      * Construct language models
      */
-    Vocab vocab;
+    MultiwordVocab vocab(multiChar);
     Ngram ngramLM(vocab, order);
     Ngram multiNgramLM(vocab, multiOrder);
 
@@ -460,20 +400,14 @@ main(int argc, char **argv)
     }
 
     /*
-     * Construct mapping from multiwords to component words
-     */
-    LHash< VocabIndex, VocabIndex * > *map =
-				makeMultiwordMap(vocab, ngramLM);
-
-    /*
      * If a vocabulary was specified assume that we want to add new ngrams
      * containing multiwords.
      */
     if (vocabFile) {
-	populateMultiNgrams(multiNgramLM, ngramLM, *map);
+	populateMultiNgrams(vocab, multiNgramLM, ngramLM);
     }
 
-    assignMultiProbs(multiNgramLM, ngramLM, *map);
+    assignMultiProbs(vocab, multiNgramLM, ngramLM);
 
     {
 	File file(writeLM, "w");

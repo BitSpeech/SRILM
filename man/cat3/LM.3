@@ -124,11 +124,13 @@ CCLLAASSSS MMEEMMBBEERRSS
               (as  opposed  to  non-event  tag  such as sentence-
               start).
 
-       BBoooolleeaann rreeaadd((FFiillee &&_f_i_l_e))
+       BBoooolleeaann rreeaadd((FFiillee &&_f_i_l_e,, BBoooolleeaann _l_i_m_i_t_V_o_c_a_b == ffaallssee))
               Read a LM from _f_i_l_e.  Return ttrruuee is the file  con-
               tents  was  formated  correctly  and an internal LM
               representation could  be  successfully  constructed
-              from it.
+              from   it.   The  optional  2nd  argument  controls
+              whether words not already in the vocabulary are  to
+              be added automatically.
 
        vvooiidd wwrriittee((FFiillee &&_f_i_l_e))
               Writes  the LM to _f_i_l_e in a format that can be read
@@ -164,4 +166,4 @@ AAUUTTHHOORR
 
 
 
-SRILM              $Date: 1996/07/15 18:57:37 $             LM(3)
+SRILM              $Date: 2003/02/15 07:08:52 $             LM(3)

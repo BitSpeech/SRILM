@@ -7,9 +7,9 @@
  * then transitions to another state according to the HMM state transition
  * matrix.
  *
- * Copyright (c) 1997, SRI International.  All Rights Reserved.
+ * Copyright (c) 1997,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.h,v 1.5 1999/10/16 17:04:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.h,v 1.6 2003/02/15 06:56:29 stolcke Exp $
  *
  */
 
@@ -51,7 +51,7 @@ public:
     LogP wordProbRecompute(VocabIndex word, const VocabIndex *context);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
-    Boolean read(File &file);
+    Boolean read(File &file, Boolean limitVocab = false);
     void write(File &file);
 
     void setState(const char *state);	/* re-read HMM from file */

@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.14 2000/10/02 21:43:54 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999, 2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.22 2003/02/15 06:19:14 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -112,7 +112,7 @@ operator<< (ostream &stream, const ClassNgramState &state)
 
 ClassNgram::ClassNgram(Vocab &vocab, SubVocab &classVocab, unsigned order)
     : Ngram(vocab, order), classVocab(classVocab),
-      trellis(maxWordsPerLine + 2 + 1), simpleNgram(false), savedLength(0)
+      trellis(maxWordsPerLine + 2 + 1, 0), savedLength(0), simpleNgram(false)
 {
     /*
      * Make sure the classes are subset of base vocabulary 
@@ -122,16 +122,36 @@ ClassNgram::ClassNgram(Vocab &vocab, SubVocab &classVocab, unsigned order)
 
 ClassNgram::~ClassNgram()
 {
+    clearClasses();
 }
 
 void *
-ClassNgram::contextID(const VocabIndex *context, unsigned &length)
+ClassNgram::contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length)
 {
-    /*
-     * Due to the DP algorithm, we alway use the full context
-     * (don't inherit Ngram::contextID()).
-     */
-    return LM::contextID(context, length);
+    if (simpleNgram) {
+	return Ngram::contextID(word, context, length);
+    } else {
+	/*
+	 * Due to the DP algorithm, we alway use the full context
+	 * (don't inherit Ngram::contextID()).
+	 */
+	return LM::contextID(word, context, length);
+    } 
+}
+
+LogP
+ClassNgram::contextBOW(const VocabIndex *context, unsigned length)
+{
+    if (simpleNgram) {
+	return Ngram::contextBOW(context, length);
+    } else {
+	/*
+	 * Due to the DP algorithm, we alway use the full context
+	 * (don't inherit Ngram::contextBOW()).
+	 */
+	return LM::contextBOW(context, length);
+    } 
 }
 
 Boolean
@@ -140,7 +160,8 @@ ClassNgram::isNonWord(VocabIndex word)
     /*
      * classes are not words: duh!
      */
-    return LM::isNonWord(word) || classVocab.getWord(word) != 0;
+    return Ngram::isNonWord(word) || 
+	    !simpleNgram && classVocab.getWord(word) != 0;
 }
 
 /*
@@ -267,8 +288,6 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    savedContext[savedLength ++] = currWord;
 	}
 
-	const VocabIndex *currContext = &context[prefix];
-
 	/*
 	 * Put underlying Ngram in "running" state (for debugging etc.)
 	 * only when processing the last (current) word to prevent
@@ -367,7 +386,7 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
                  * Truncate context to what is actually used by LM.
                  */
                 unsigned usedLength;
-                Ngram::contextID(newContext, usedLength);
+                Ngram::contextID(Vocab_None, newContext, usedLength);
 
                 VocabIndex truncatedContextWord = newContext[usedLength];
                 newContext[usedLength] = Vocab_None;
@@ -425,7 +444,7 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		     * Truncate context to what is actually used by LM
 		     */
 		    unsigned usedLength;
-		    Ngram::contextID(newContext, usedLength);
+		    Ngram::contextID(Vocab_None, newContext, usedLength);
 
 		    VocabIndex truncatedContextWord = newContext[usedLength];
 		    newContext[usedLength] = Vocab_None;
@@ -446,7 +465,9 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 			     << endl;
 		    }
 
-		    havePosProb = true;
+		    if (classProb != LogP_Zero && *expansionProb != 0.0) {
+			havePosProb = true;
+		    }
 
 		    /*
 		     * For efficiency reasons we don't update the trellis
@@ -476,16 +497,16 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * This allows us to compute conditional probs based on
 	 * truncated contexts, and to compute the total sentence probability
 	 * leaving out the OOVs, as required by sentenceProb().
+	 * We include the words in the state so that context cues (e.g., <s>)
+	 * can still be used down the line.
 	 */
 	if (prefix > 0 && !havePosProb) {
-	    VocabIndex emptyContext[1];
-	    emptyContext[0] = Vocab_None;
-	    ClassNgramState emptyState;
-	    emptyState.classContext = emptyContext;
-	    emptyState.classExpansion = 0;
+	    ClassNgramState newState;
+	    newState.classContext = &context[prefix - 1];
+	    newState.classExpansion = 0;
 
 	    trellis.init(pos);
-	    trellis.setProb(emptyState, trellis.sumLogP(pos - 1));
+	    trellis.setProb(newState, trellis.sumLogP(pos - 1));
 
 	    if (currWord == vocab.unkIndex) {
 		stats.numOOVs ++;
@@ -544,16 +565,16 @@ ClassNgram::wordProbRecompute(VocabIndex word, const VocabIndex *context)
 LogP
 ClassNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 {
-    unsigned int len = vocab.length(sentence);
-    LogP totalProb;
-
     /*
      * The debugging machinery is not duplicated here, so just fall back
      * on the general code for that.
      */
-    if (debug(DEBUG_PRINT_WORD_PROBS)) {
-	totalProb = Ngram::sentenceProb(sentence, stats);
+    if (simpleNgram || debug(DEBUG_PRINT_WORD_PROBS)) {
+	return Ngram::sentenceProb(sentence, stats);
     } else {
+	unsigned int len = vocab.length(sentence);
+	LogP totalProb;
+
 	VocabIndex reversed[len + 2 + 1];
 
 	/*
@@ -577,18 +598,18 @@ ClassNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	stats.numSentences ++;
 	stats.prob += totalProb;
 	stats.numWords += len;
-    }
 
-    return totalProb;
+	return totalProb;
+    }
 }
 
 Boolean
-ClassNgram::read(File &file)
+ClassNgram::read(File &file, Boolean limitVocab)
 {
     /*
      * First read the ngram data in standard format
      */
-    if (!Ngram::read(file)) {
+    if (!Ngram::read(file, limitVocab)) {
 	return false;
     }
 	
@@ -616,13 +637,33 @@ ClassNgram::write(File &file)
     fprintf(file, "\n");
 }
 
+void
+ClassNgram::clearClasses()
+{
+    /* 
+     * Remove all class definitions
+     */
+    classDefs.clear();
+    classDefsByWord.clear();
+}
+
 Boolean
 ClassNgram::readClasses(File &file)
 {
     char *line;
+    Boolean classesCleared = false;
 
     while (line = file.getline()) {
 	VocabString words[maxWordsPerLine];
+
+	/*
+	 * clear old class definitions only when encountering first new
+	 * class definition
+	 */
+	if (!classesCleared) {
+	    clearClasses();
+	    classesCleared = true;
+	}
 
 	unsigned howmany = Vocab::parseWords(line, words, maxWordsPerLine);
 
@@ -699,7 +740,7 @@ ClassNgram::writeClasses(File &file)
 }
 
 /*
- * Compile class-ngram into word-ngram model by expanding clases
+ * Compile class-ngram into word-ngram model by expanding classes
  * Algorithm:
  * 1 - Compute joint probabilities for expanded word-ngrams
  * 2 - Compute conditional word-ngram probabilities from joint probs.
@@ -891,10 +932,16 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	    }
 	}
     }
+
+    /*
+     * Duplicate special words indices in new vocab
+     */
     newVocab->unkIndex = vocab.unkIndex;
     newVocab->ssIndex = vocab.ssIndex;
     newVocab->seIndex = vocab.seIndex;
     newVocab->pauseIndex = vocab.pauseIndex;
+    newVocab->addNonEvent(vocab.ssIndex);
+    newVocab->addNonEvent(vocab.pauseIndex);
 
     /*
      * Create new ngram model (inherit debug level from class ngram)

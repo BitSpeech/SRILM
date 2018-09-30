@@ -1,5 +1,5 @@
-.\" $Id: LM.3,v 1.1 1996/07/15 18:57:37 stolcke Exp $
-.TH LM 3 "$Date: 1996/07/15 18:57:37 $" SRILM
+.\" $Id: LM.3,v 1.2 2003/02/15 07:08:52 stolcke Exp $
+.TH LM 3 "$Date: 2003/02/15 07:08:52 $" SRILM
 .SH NAME
 LM \- Generic language model
 .SH SYNOPSIS
@@ -108,10 +108,12 @@ Return \fBtrue\fP if \fIword\fP is a regular word in the LM, i.e.,
 one that the LM computes probabilities for (as opposed to
 non-event tag such as sentence-start).
 .TP
-.B "Boolean read(File &\fIfile\fP)"
+.B "Boolean read(File &\fIfile\fP, Boolean \fIlimitVocab\fP = false)"
 Read a LM from \fIfile\fP.
 Return \fBtrue\fP is the file contents was formated correctly and 
 an internal LM representation could be successfully constructed from it.
+The optional 2nd argument controls whether words not already in the vocabulary
+are to be added automatically.
 .TP
 .B "void write(File &\fIfile\fP)"
 Writes the LM to \fIfile\fP in a format that can be read back by

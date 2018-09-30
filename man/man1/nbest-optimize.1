@@ -1,5 +1,5 @@
-.\" $Id: nbest-optimize.1,v 1.10 2001/06/26 18:10:20 stolcke Exp $
-.TH nbest-optimize 1 "$Date: 2001/06/26 18:10:20 $" "SRILM Tools"
+.\" $Id: nbest-optimize.1,v 1.11 2002/02/23 23:12:29 stolcke Exp $
+.TH nbest-optimize 1 "$Date: 2002/02/23 23:12:29 $" "SRILM Tools"
 .SH NAME
 nbest-optimize \- optimize score combination for N-best word error minimization
 .SH SYNOPSIS
@@ -269,6 +269,19 @@ Write the best word hypotheses to
 .I file
 after optimization.
 .TP
+.BI \-write-rover-control " file"
+Writes a control file for 
+.B nbest-rover
+to 
+.IR file ,
+reflecting the names of the input directories and the optimized parameter
+values.
+The format of
+.I file
+is described in
+.BR nbest-scripts (1).
+The file is rewritten for each new minimal error weight combination found.
+.TP
 .B \--
 Signals the end of options, such that following command-line arguments are 
 interpreted as additional scorefiles even if they start with `-'.
@@ -298,12 +311,19 @@ W. H. Press, B. P. Flannery, S. A. Teukolsky, & W. T. Vetterling,
 Cambridge University Press, 1988.
 .br
 .SH BUGS
-Likely.
 Gradient-based optimization is not supported (yet) in 1-best mode;
 use simplex-search optimization instead.
+.br
+The N-best directory in the control file output by
+.B \-write-rover-control
+is inferred from the
+first N-best filename specified with
+.BR \-nbest-files ,
+and will therefore only work if all N-best lists are placed in the same
+directory.
 .SH AUTHORS
 Andreas Stolcke <stolcke@speech.sri.com>
 .br
 Dimitra Vergyri <dverg@speech.sri.com>
 .br
-Copyright 2000, 2001 SRI International
+Copyright 2000-2002 SRI International

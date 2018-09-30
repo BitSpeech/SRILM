@@ -5,7 +5,7 @@
 #
 # usage: make-multiword-pfsg multiword-defs [pfsg] > new-pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-multiword-pfsg,v 1.1 2000/07/29 01:49:21 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-multiword-pfsg,v 1.2 2002/07/09 15:18:09 stolcke Exp $
 #
 
 multiword_defs=${1}
@@ -62,7 +62,7 @@ fsmcompile -t -i $mw_symbols -o $word_symbols $class_fsm | \
 # compose original FSM with multiword transducer;
 # then convert back to PFSG
 #
-{ zcat $old_fsm; rm -f $old_fsm; } | fsmcompile -i $word_symbols | \
+{ gunzip -c $old_fsm; rm -f $old_fsm; } | fsmcompile -i $word_symbols | \
 fsmcompose - $class_fsmc | fsmproject -o | \
 fsmprint -i $mw_symbols | fsm-to-pfsg pfsg_name=$new_name 
 

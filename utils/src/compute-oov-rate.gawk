@@ -7,19 +7,30 @@
 #
 # Assumes unigram counts do not have repeated words.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-oov-rate,v 1.1 1995/11/13 22:49:57 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-oov-rate.gawk,v 1.7 2002/12/07 19:03:33 stolcke Exp $
 #
+
+BEGIN {
+	# high bit characters also detect multibyte characters
+	letter = "[[:alpha:]\x80-\xFF]";
+	if ("x" !~ letter) letter = "[A-Za-z\x80-\xFF]";
+}
 
 # Read vocab
 #
 ARGIND == 1 {
 	vocab[$1] = 1;
 }
+
+function is_fragment(word) {
+	return word ~ (letter "-$") || word ~ ("^-" letter);
+}
+
 #
 # Read counts
 #
 ARGIND > 1 {
-	if ($1 == "<s>" || $1 == "</s>") {
+	if ($1 == "<s>" || $1 == "</s>" || $1 == "-pau-") {
 		next;
 	}
 
@@ -30,10 +41,27 @@ ARGIND > 1 {
 		oov_count += $2;
 		oov_types ++; 
 	}
+
+	if (!is_fragment($1)) {
+		total_nofrag_count += $2;
+		total_nofrag_types ++;
+
+		if (!vocab[$1]) {
+			oov_nofrag_count += $2;
+			oov_nofrag_types ++; 
+		}
+	}
+
 }
 END {
-	printf "OOV tokens: %d out of %d (%.2f\%)\n", \
+	printf "OOV tokens: %d / %d (%.2f%%) ", \
 			oov_count, total_count, 100 * oov_count/total_count;
-	printf "OOV types: %d out of %d (%.2f\%)\n", \
+	printf "excluding fragments: %d / %d (%.2f%%)\n", \
+			oov_nofrag_count, total_nofrag_count, \
+			100 * oov_nofrag_count/total_nofrag_count;
+	printf "OOV types: %d / %d (%.2f%%) ", \
 			oov_types, total_types, 100 * oov_types/total_types;
+	printf "excluding fragments: %d / %d (%.2f%%)\n", \
+			oov_nofrag_types, total_nofrag_types, \
+			100 * oov_nofrag_types/total_nofrag_types;
 }

@@ -1,23 +1,35 @@
-<! $Id: training-scripts.1,v 1.5 2001/08/18 03:21:46 stolcke Exp $>
+<! $Id: training-scripts.1,v 1.11 2003/01/17 03:00:42 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>training-scripts</TITLE>
 <BODY>
 <H1>training-scripts</H1>
 <H2> NAME </H2>
-training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, uniform-classes, vp2text - miscellaneous conveniences for language model training
+training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, make-kn-counts, make-kn-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, reverse-text, uniform-classes, vp2text - miscellaneous conveniences for language model training
 <H2> SYNOPSIS </H2>
 <B> get-gt-counts </B>
 <B>max=</B><I>K</I><B></B>
 <B>out=</B><I>name</I><B></B>
 [<I>counts</I>...]
 <BR>
+<B> make-abs-discount </B>
+<I> gtcounts </I>
+<BR>
 <B> make-gt-discounts </B>
 <B>min=</B><I>min</I><B></B>
 <B>max=</B><I>max</I><B></B>
 <I> gtcounts </I>
 <BR>
-<B> make-abs-discount </B>
+<B> make-kn-counts </B>
+<B>order=</B><I>N</I><B></B>
+<B>max_per_file=</B><I>M</I><B></B>
+<B>output=</B><I>file</I><B></B>
+[
+<B> no_max_order=1 </B>
+]
+<BR>
+<B> make-kn-discounts </B>
+<B>min=</B><I>min</I><B></B>
 <I> gtcounts </I>
 <BR>
 <B> make-batch-counts </B>
@@ -40,12 +52,18 @@ training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-
 <B> reverse-ngram-counts </B>
 [<I>counts-file</I>...]
 <BR>
+<B> reverse-text </B>
+[<I>textfile</I>...]
+<BR>
 <B> make-big-lm </B>
 <B> -name </B>
 <I> name </I>
 <B> -read </B>
 <I> counts </I>
+[
 <B> -trust-totals </B>
+<B>-max-per-file</B> M<B></B>
+]
 <B> -lm </B>
 <I> new-model </I>
 [<I>options</I>...]
@@ -56,6 +74,7 @@ training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-
 <B>normalize=</B>0|1<B></B>
 <B>addone=</B><I>K</I><B></B>
 <B> have_counts=1 </B>
+<B> partial=1 </B>
 ]
 [<I>textfile</I>...]
 <BR>
@@ -107,7 +126,7 @@ The results are stored in a series of files with root
 <B><I>name</I>.gt1counts</B>,<B></B>
 <B><I>name</I>.gt2counts</B>,<B></B>
 ..., 
-<B><I>name</I>.gt<I>K</I>counts</B>.<B></B>
+<B><I>name</I>.gt<I>N</I>counts</B>.<B></B>
 It is assumed that the input counts have been properly merged, i.e.,
 that there are no duplicated N-grams.
 <P>
@@ -118,7 +137,7 @@ and computes the corresponding Good-Turing discounting factors.
 The output can then be passed to
 <A HREF="ngram-count.html">ngram-count(1)</A>
 via the 
-<B>-gt</B><I>K</I><B></B>
+<B>-gt</B><I>n</I><B></B>
 options to control the smoothing during model estimation.
 Precomputing the GT discounting in this fashion has the advantage that the
 GT statistics are not affected by restricting N-grams to a limited vocabulary.
@@ -131,8 +150,14 @@ read the counts into memory (unlike
 <B> make-abs-discount </B>
 computes the absolute discounting constant needed for the
 <B> ngram-count </B>
-<B>-cdiscount</B><I>K</I><B></B>
+<B>-cdiscount</B><I>n</I><B></B>
 options.
+Input is one of the files produced by 
+<B>get-gt-counts</B>.<B></B>
+<P>
+<B> make-kn-discount </B>
+computes the discounting constants used by the modified Kneser-Ney
+smoothing method.
 Input is one of the files produced by 
 <B>get-gt-counts</B>.<B></B>
 <P>
@@ -141,6 +166,7 @@ performs the first stage in the construction of very large N-gram count
 files.
 <I> file-list </I>
 is a list of input text files.
+Lines starting with a `#' character are ignored.
 These files will be grouped into batches of size
 <I> batch-size </I>
 (default 10)
@@ -211,29 +237,61 @@ use
 <BR>
 	reverse-ngram-counts &gt; <I>new-counts</I>
 <P>
+<B> reverse-text </B>
+reverses the word order in text files, line-by-line.
+Start- and end-sentence tags, if present, will be preserved.
+This reversal is appropriate for preprocessing training data
+for LMs that are meant to be used with the 
+<B> ngram </B>
+<B>-reverse</B><B></B>
+option.
+<P>
 <B> make-big-lm </B>
 constructs large N-gram models in a more memory-efficient way than
 <B> ngram-count </B>
 by itself.
-It does so by precomputing the Good-Turing smoothing parameters
-and passing 
+It does so by precomputing the Good-Turing or Kneser-Ney smoothing parameters
+from the full set of counts, and then instructing
 <B> ngram-count </B>
-only a subset of the counts,
+to store only a subset of the counts in memory,
 namely those of N-grams to be retained in the model.
 The
 <I> name </I>
 parameter is used to name various auxiliary files.
 <I> counts </I>
-contains the raw N-gram counts; it may by (and usually is) a compressed file.
-If the file contains complete lower-order counts corresponding to the
+contains the raw N-gram counts; it may be (and usually is) a compressed file.
+Unlike with
+<B>ngram-count</B>,<B></B>
+the
+<B> -read </B>
+option can be repeated to concatenate multiple count files, but the arguments
+must be regular files; reading from stdin is not supported.
+If Good-Turing smoothing is used and the file contains complete lower-order
+counts corresponding to the
 sums of higher-order counts, then the
 <B> -trust-totals </B>
-options should be given for efficiency.
+options may be given for efficiency.
 All other
 <I> options </I>
 are passed to 
 <B> ngram-count </B>
 (only options affecting model estimation should be given).
+Smoothing methods other than Good-Turing and modified Kneser-Ney are not
+supported by
+<B>make-big-lm</B>.<B></B>
+Kneser-Ney smoothing also requires enough disk space to compute and store the
+modified lower-order counts used by the KN method.
+This is done using the 
+<B> merge-batch-counts </B>
+command, and the
+<B> -max-per-file </B>
+option controls how many counts are to be stored per batch, and 
+should be chosen so that these batches fit in real memory.
+<P>
+<B> make-kn-counts </B>
+computes the modified lower-order counts used by the KN smoothing method.
+It is invoked as a helper scripts by 
+<B> make-big-lm . </B>
 <P>
 <B> replace-words-with-classes </B>
 replaces expansions of word classes with the corresponding class labels.
@@ -264,6 +322,10 @@ Note this will not merge counts that have been mapped to identical N-grams,
 since this is done automatically when 
 <A HREF="ngram-count.html">ngram-count(1)</A>
 reads count data.
+The option
+<B> partial=1 </B>
+prevents multi-word class expansions from being replaced when more than
+one space character occurs inbetween the words.
 <P>
 <B> uniform-classes </B>
 takes a file in
@@ -292,13 +354,13 @@ determines the out-of-vocabulary rate of a corpus from its unigram
 and a target vocabulary list in
 <I>vocab</I>.<I></I>
 <H2> SEE ALSO </H2>
-<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="classes-format.html">classes-format(5)</A>, <A HREF="disambig.html">disambig(1)</A>.
+<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="ngram.html">ngram(1)</A>, <A HREF="classes-format.html">classes-format(5)</A>, <A HREF="disambig.html">disambig(1)</A>.
 <H2> BUGS </H2>
 Some of the tools could be generalized and/or made more robust to
 misuse.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-1999 SRI International
+Copyright 1995-2002 SRI International
 </BODY>
 </HTML>

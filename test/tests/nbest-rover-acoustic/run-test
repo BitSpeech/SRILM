@@ -1,0 +1,18 @@
+#!/bin/sh
+
+mkdir -p sausages
+
+sentid=sw_40008_A_0015814_0016128
+
+echo $sentid > test.sentids
+
+nbest-rover test.sentids rover.control posteriors.out > hyps.out \
+		-nbest-backtrace \
+		-write-dir sausages \
+		-refs ../nbest-optimize/all.refs
+
+gunzip -c sausages/$sentid.gz
+
+rm -f test.sentids hyps.out posteriors.out
+rm -rf sausages
+

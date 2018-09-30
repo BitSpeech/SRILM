@@ -1,9 +1,12 @@
-.\" $Id: pfsg-scripts.1,v 1.9 2001/06/19 19:36:10 stolcke Exp $
-.TH pfsg-scripts 1 "$Date: 2001/06/19 19:36:10 $" "SRILM Tools"
+.\" $Id: pfsg-scripts.1,v 1.15 2003/02/20 19:37:01 stolcke Exp $
+.TH pfsg-scripts 1 "$Date: 2003/02/20 19:37:01 $" "SRILM Tools"
 .SH NAME
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
 .SH SYNOPSIS
 .B make-ngram-pfsg
+[\c
+.BI maxorder= N\c
+]
 [\c
 .BR check_bows= 0|1\c
 ]
@@ -11,6 +14,7 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .BI > pfsg-file
 .br
 .B add-pauses-to-pfsg
+.RB [ vocab= \fIfile\fP ]
 .RB [ pauselast=1 ]
 .RB [ wordwrap=0 ]
 .RB [ pause=
@@ -37,6 +41,9 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .BI wtw= W
 ]
 .RI [ nbest-file ]
+.br
+.B pfsg-vocab
+.RI [ pfsg-file ...]
 .br
 .B pfsg-to-dot
 [\c
@@ -109,8 +116,12 @@ encodes a backoff N-gram model in
 .BR ngram-format (5)
 as a finite-state network in
 .BR pfsg-format (5).
-.B check_bows=0
-disables a check for conditional probabilities that are smaller than the
+.BI maxorder= N
+limits the N-gram length used in PFSG construction to 
+.IR N ;
+the default is to use all N-grams occurring in the input model.
+.B check_bows=1
+enables a check for conditional probabilities that are smaller than the
 corresponding backoff probabilities.
 Such transitions should first be removed from the model with 
 .BR "ngram \-prune-lowprobs" .
@@ -128,7 +139,7 @@ A typical usage is
 The result is a PFSG suitable for use in a speech recognizer.
 The option
 .B pauselast=1
-switches the order of words and pause nodes in the sub-PFSGSs;
+switches the order of words and pause nodes in the sub-PFSGs;
 .B wordwrap=0
 disables the insertion of sub-PFSGs altogether.
 .PP
@@ -141,6 +152,12 @@ grammar, respectively.
 .B version=1
 inserts a version line at the top of the output as required by 
 the Nuance recognition system (see NUANCE COMPATIBILTY below).
+.B add-pauses-to-pfsg
+uses a heuristic to distinguish word nodes in the input PFSG from
+other nodes (NULL or sub-PFSGs).
+The option
+.BI vocab= file
+lets one specify a vocabulary of word names to override these heuristics.
 .PP
 .B add-classes-to-pfsg
 extends an input PFSG with expansions for word classes, defined in
@@ -188,6 +205,9 @@ the language model weight to
 .IR L ,
 and the word transition weight to
 .IR W .
+.PP
+.B pfsg-vocab
+extracts the vocabulary used in one or more PFSGs.
 .PP
 .B pfsg-to-dot
 renders a PFSG in
@@ -297,16 +317,15 @@ grammar ``test.bo'' with vocabulary ``test.vocab'' and class expansions
 .br
 .PP
 .B wlat-to-pfsg
-converts a word posterior lattice or mesh ("sausage") in the format output by 
-.BR nbest-lattice (1)
+converts a word posterior lattice or mesh ("sausage") in 
+.BR wlat-format (5)
 into 
 .BR pfsg-format (5).
 .PP
 .B wlat-to-dot
 renders a
-.BR nbest-lattice (1)
+.BR wlat-format (5)
 word lattice in 
-in
 .BR dot (1)
 format for subsequent layout, printing, etc.
 .B show_probs=1
@@ -322,12 +341,12 @@ The Nuance recognizer (as of version 6.2) understands a variant of the
 PFSG format; hence the scripts above should be useful in building
 recognition systems for that recognizer.
 .PP
-A suitable PFSG can be generated from a bigram or trigram backoff model
+A suitable PFSG can be generated from an N-gram backoff model
 in ARPA
 .BR ngram-format (5)
 using the following command:
 .br
-	ngram -debug 1 -lm \fILM.bo\fP -prune-lowprobs -write-lm - | \\
+	ngram -debug 1 -order \fIN\fP -lm \fILM.bo\fP -prune-lowprobs -write-lm - | \\
 .br
 	make-ngram-pfsg | \\
 .br
@@ -358,12 +377,13 @@ to rename null nodes accordingly.
 Caveat: Compatibility with Nuance is purely due to historical circumstance and
 not supported.
 .SH "SEE ALSO"
-ngram(1), nbest-lattice(1), ngram-format(5), pfsg-format(5), nbest-format(5),
+ngram(1), ngram-format(5), pfsg-format(5), wlat-format(5), nbest-format(5),
 classes-format(5), fsm(5), dot(1).
 .SH BUGS
 .B make-ngram-pfsg
-currently handles only bigram and trigram models.
+should be reimplemented in C++ for speed and some size optimizations that
+require more global operations on the PFSG.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2001 SRI International
+Copyright 1995-2003 SRI International

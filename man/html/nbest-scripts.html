@@ -1,11 +1,11 @@
-<! $Id: nbest-scripts.1,v 1.20 2001/08/19 17:57:11 stolcke Exp $>
+<! $Id: nbest-scripts.1,v 1.27 2003/02/16 20:45:45 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-scripts</TITLE>
 <BODY>
 <H1>nbest-scripts</H1>
 <H2> NAME </H2>
-nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite - rescore and evaluate N-best lists
+nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite - rescore and evaluate N-best lists
 <H2> SYNOPSIS </H2>
 <B> rescore-decipher </B>
 [<B>-bytelog</B>]
@@ -17,6 +17,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <I>command</I>]<I></I>
 [<B>-norescore</B>]
 [<B>-lm-only</B>]
+[<B>-limit-vocab</B>]
 <I> nbest-file-list </I>
 <I> score-dir </I>
 <B> -lm </B>
@@ -83,6 +84,9 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <I> nbest-file </I>
 ...
 <BR>
+<B> nbest-vocab </B>
+[<I>nbest-list</I>...]
+<BR>
 <B> nbest-error </B>
 <I>score-dir</I>|<I>file-list</I>
 <I> refs </I>
@@ -104,11 +108,13 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 ...]
 [<B> -S </B>
 <I> subset </I>
-<B>-v</B>]<B></B>
+...]
 [<B>-multiwords</B>|
+[<B>-R</B>]
 [<B>-g</B>
 <I>glmfile</I>]<I></I>
 [<B>-H</B>]
+[<B>-v</B>]
 [<I>sclite-options</I>...]
 <BR>
 <B> compare-sclite </B>
@@ -185,6 +191,11 @@ and
 may be used together to perform textual rewriting of N-best lists.
 <B>-lm-only</B><B></B>
 dumps out LM scores only, instead of complete N-best lists.
+<B> -limit-vocab </B>
+saves memory by arranging for
+<A HREF="ngram.html">ngram(1)</A> 
+to load only those N-gram parameters that are relevant to the vocabulary
+of the N-best lists to be rescored.
 <P>
 <B> rescore-acoustic </B>
 replaces the acoustic scores in a set of N-best lists by a weighted 
@@ -216,8 +227,6 @@ The N-best files are found in directory
 <I> score-dir </I>
 or listed in
 <I>file-list</I>.<I></I>
-They must have been produced with a prior run of
-<B>rescore-decipher</B>.<B></B>
 Optional arguments set the language model weight
 <I> lmw </I>
 (default 8),
@@ -312,13 +321,16 @@ written to that file.
 Any additional arguments are passed as options to the underlying
 <A HREF="nbest-lattice.html">nbest-lattice(1)</A>
 invocation.
+<BR>
+<B> nbest-rover </B>
+can process N-best lists in any of the formats described in
+<A HREF="nbest-format.html">nbest-format(5)</A>,
+<I>as long as all N-best lists for a given utterance are in the same format</I>.
+When Decipher formats are used only their acoustic scores are used.
 <P>
 <B> nbest-posteriors </B>
 rescales the scores in an N-best list to reflect (weighted) posterior
 probabilities.
-The input
-<I> nbest-file </I>
-must be in rescored SRILM N-best format.
 The output is the same N-best list with acoustic scores set to
 the log (base 10) of the posterior hyp probabilities and LM scores set to zero.
 <B>postscale=</B><I>S</I><B></B>
@@ -356,6 +368,11 @@ merges hypotheses that are identical after resolving multiwords.
 <B> nopauses=1 </B>
 merges hypotheses that are identical after removal of pause words.
 <P>
+<B> nbest-vocab </B>
+outputs the vocabulary used in a set of N-best lists.
+(The N-best files cannot be compressed, but may be concatenated and
+supplied via stdin.)
+<P>
 <B> nbest-error </B>
 computes the overall oracle word error rate of a set of N-best lists
 in directory
@@ -387,7 +404,9 @@ time marks in the sentence IDs and may need adjustment to local conventions.
 <P>
 <B> compute-sclite </B>
 is a wrapper around 
-<A HREF="sclite.html">sclite(1)</A>.
+the NIST 
+<A HREF="sclite.html">sclite(1)</A>
+scoring tool.
 <I> refs </I>
 and
 <I> hyps </I>
@@ -412,16 +431,22 @@ More than one
 <B> -h </B>
 option can be given to combine the contents of multiple hypotheses files.
 Optionally, 
+<B> -S </B>
+specifies a
+sorted list of sentence IDs
 <I> subset </I>
-specifies a sorted list of sentence IDs to score.
-Any additional options are passed to
-<B>sclite</B>,<B></B>
-e.g., to control its output actions or alignment mode.
+to score.
+Multiple 
+<B> -S </B>
+options may be given, to form the intersection of several subsets.
 <B> -multiwords </B>
 or
 <B> -M </B>
 splits ``multiwords'' joined by underscores into their component words
 prior to scoring.
+<B> -R </B>
+preserves reject words in the hypotheses for scoring (as appropriate if
+references also contain rejects).
 <B> -g </B>
 <I> glmfile </I>
 enables filtering of references and hypotheses by the NIST
@@ -436,6 +461,9 @@ to be deleted from the output for scoring purposes.
 <B> -v </B>
 displays the complete command used to invoke
 <B>sclite</B>.<B></B>
+Any additional options are passed to
+<B>sclite</B>,<B></B>
+e.g., to control its output actions or alignment mode.
 <P>
 <B> compare-sclite </B>
 scores two sets of hypotheses 
@@ -468,9 +496,16 @@ may need to be modified for
 and 
 <B> compare-sclite </B>
 to work.
+<P>
+<B> rescore-decipher </B>
+<B> -pretty </B>
+may not work correctly with the
+<B> -limit-vocab </B>
+option if the word mapping adds to the vocabulary subset used in the N-best
+lists.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-2001 SRI International
+Copyright 1995-2003 SRI International
 </BODY>
 </HTML>

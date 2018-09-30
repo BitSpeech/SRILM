@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,v 1.17 2001/10/31 07:00:31 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,v 1.18 2002/08/29 20:06:16 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -28,6 +28,12 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_MAP1(VocabIndex,VocabIndex,LogP);
+
+#ifdef USE_SARRAY
+// XXX: avoid multiple definitions with NgramLM
+INSTANTIATE_LHASH(VocabIndex,LogP);
+#endif
+
 #endif
 
 #define DEBUG_TEXTSTATS		1

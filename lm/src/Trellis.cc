@@ -1,15 +1,16 @@
 /*
  * Trellis.cc --
- *	Finite-state trellis dynamic programming
- *
+ *	Finite-state trellis dynamic programming.  This file contains functions for
+ * Trellis and its associated classes: TrellisNode, TrellisSlice, TrellisNBest,
+ * and TrellisIter.
  */
 
 #ifndef _Trellis_cc_
 #define _Trellis_cc_
 
 #ifndef lint
-static char Trellis_Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.14 1999/05/13 02:55:44 stolcke Exp $";
+static char Trellis_Copyright[] = "Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.19 2001/12/22 18:27:19 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -26,15 +27,15 @@ static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis
     template class Trellis<StateT>
 
 template <class StateT>
-Trellis<StateT>::Trellis(unsigned size)
-    : trellisSize(size)
+Trellis<StateT>::Trellis(unsigned len, unsigned numNbest)
+  : trellisSize(len), numNbest(numNbest)
 {
-    assert(size > 0);
+    assert(len > 0);
 
-    trellis = new LHash<StateT, TrellisNode<StateT> >[size];
+    trellis = new TrellisSlice<StateT> [len];
     assert(trellis != 0);
 
-    init();
+    init(0);
 }
 
 template <class StateT>
@@ -47,21 +48,22 @@ template <class StateT>
 void
 Trellis<StateT>::clear()
 {
-    delete [] trellis;
-
-    trellis = new LHash<StateT, TrellisNode<StateT> >[trellisSize];
-    assert(trellis != 0);
+    /*
+     * This function used to clear the entire trellis, which is wasteful
+     * since we typically only ever use a small fraction of its full length.
+     * Clearing of old entries is now done incrementally, on-demand in
+     * TrellisSlice::init().
+     */
     init();
 }
 
 template <class StateT>
 void
-Trellis<StateT>::init(unsigned time)
+Trellis<StateT>::init(unsigned t)
 {
-    assert(time < trellisSize);
-
-    currTime = time;
-    initSlice(trellis[currTime]);
+    assert(t < trellisSize);
+    currTime = t;
+    trellis[t].init();			// Initialize the time slice t.
 }
 
 template <class StateT>
@@ -70,279 +72,156 @@ Trellis<StateT>::step()
 {
     currTime ++;
     assert(currTime < trellisSize);
-
-    initSlice(trellis[currTime]);
+    trellis[currTime].init();
 }
 
+/*
+ * Explicitly set the total and max probability of a path ending at the given
+ * state
+ */
 template <class StateT>
 void
 Trellis<StateT>::setProb(StateT state, LogP prob)
 {
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[currTime];
-
+    TrellisSlice<StateT>& currSlice = trellis[currTime];
     Boolean foundP;
     TrellisNode<StateT> *node = currSlice.insert(state, foundP);
 
     node->lprob = prob;
-
-    if (!foundP) {
-	node->max = prob;
-	Map_noKey(node->prev);
-	node->backlpr = LogP_Zero;
-	node->backmax = LogP_Zero;
-    } else {
-	if (prob > node->max) {
-	    node->max = prob;
+    if (foundP) {
+	if (node->nbestSize() > 0 && prob > node->nbest[0].score) {
+	    node->nbest[0].score = prob;
 	}
+	return;
+    }
+
+    /*
+     * Not found.  Create a new entry.
+     */
+    node->backlpr = LogP_Zero;
+    node->backmax = LogP_Zero;
+    node->nbest.init(numNbest);
+    if (node->nbestSize() > 0) {
+	node->nbest[0].score = prob;
     }
 }
 
 template <class StateT>
 LogP
-Trellis<StateT>::getLogP(StateT state, unsigned time)
+Trellis<StateT>::getLogP(StateT state, unsigned t)
 {
-    assert(time <= currTime);
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[time];
+    assert(t <= currTime);
+    TrellisNode<StateT> *node = trellis[t].find(state);
 
-    TrellisNode<StateT> *node = currSlice.find(state);
-
-    if (node) {
-	return node->lprob;
-    } else {
-	return LogP_Zero;
-    }
+    return (node? node->lprob : LogP_Zero);
 }
 
 template <class StateT>
 LogP
-Trellis<StateT>::getMax(StateT state, unsigned time, LogP &backmax)
+Trellis<StateT>::getMax(StateT state, unsigned t, LogP &backmax)
 {
-    assert(time <= currTime);
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[time];
+    assert(t <= currTime);
+    TrellisNode<StateT> *node = trellis[t].find(state);
 
-    TrellisNode<StateT> *node = currSlice.find(state);
-
-    if (node) {
+    if (node && node->nbestSize() > 0) {
 	backmax = node->backmax;
-	return node->max;
-    } else {
-	backmax = LogP_Zero;
-	return LogP_Zero;
+	return node->nbest[0].score;
     }
+    backmax = LogP_Zero;
+    return LogP_Zero;
 }
 
-template <class StateT>
+template<class StateT>
 void
 Trellis<StateT>::update(StateT oldState, StateT newState, LogP trans)
 {
-    assert(currTime > 0);
-    LHash<StateT, TrellisNode<StateT> > &lastSlice = trellis[currTime - 1];
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[currTime];
+    assert(currTime > 0 && currTime < trellisSize);
+    TrellisSlice<StateT>& lastSlice = trellis[currTime-1];
+    TrellisSlice<StateT>& currSlice = trellis[currTime];
 
     TrellisNode<StateT> *oldNode = lastSlice.find(oldState);
-    if (!oldNode) {
-	/*
-	 * If the predecessor state doesn't exist its probability is
-	 * implicitly zero and we have nothing to do!
-	 */
-	return;
-    } else {
-	Boolean foundP;
-	TrellisNode<StateT> *newNode = currSlice.insert(newState, foundP);
-
-	/*
-	 * Accumulate total forward prob
-	 */
-	LogP2 newProb = oldNode->lprob + trans;
-	if (!foundP) {
-	    newNode->lprob = newProb;
-	    newNode->backlpr = LogP_Zero;
-	    newNode->backmax = LogP_Zero;
-	} else {
-	    newNode->lprob = AddLogP(newNode->lprob, newProb);
-	}
-
-	/*
-	 * Update maximal state prob and Viterbi links
-	 */
-	LogP totalProb = oldNode->max + trans;
-	if (!foundP || totalProb > newNode->max) {
-	    newNode->max = totalProb;
-	    newNode->prev = oldState;
-	}
-    }
-}
-
-template <class StateT>
-void
-Trellis<StateT>::initSlice(LHash<StateT, TrellisNode<StateT> > &slice)
-{
-    LHashIter<StateT, TrellisNode<StateT> > iter(slice);
-    TrellisNode<StateT> *node;
-    StateT state;
-
-    while (node = iter.next(state)) {
-	node->lprob = LogP_Zero; 
-	node->max = LogP_Zero;
-	Map_noKey(node->prev);
-	node->backlpr = LogP_Zero;
-	node->backmax = LogP_Zero;
-    }
-}
-
-template <class StateT>
-LogP
-Trellis<StateT>::sumLogP(unsigned time)
-{
-    assert(time <= currTime);
-
-    return sumSlice(trellis[time]);
-}
-
-template <class StateT>
-LogP
-Trellis<StateT>::sumSlice(LHash<StateT, TrellisNode<StateT> > &slice)
-{
-    LHashIter<StateT, TrellisNode<StateT> > iter(slice);
-    TrellisNode<StateT> *node;
-    StateT state;
-
-    LogP2 sum = LogP_Zero;
-    while (node = iter.next(state)) {
-	sum = AddLogP(sum, node->lprob);
-    }
-
-    return sum;
-}
-
-template <class StateT>
-StateT
-Trellis<StateT>::max(unsigned time)
-{
-    assert(time <= currTime);
-
-    return maxSlice(trellis[time]);
-}
-
-template <class StateT>
-StateT
-Trellis<StateT>::maxSlice(LHash<StateT, TrellisNode<StateT> > &slice)
-{
-    LHashIter<StateT, TrellisNode<StateT> > iter(slice);
-    TrellisNode<StateT> *node;
-    StateT state;
-
-    StateT maxState;
-    Map_noKey(maxState);
-
-    LogP maxProb = LogP_Zero;
-
-    while (node = iter.next(state)) {
-	if (Map_noKeyP(maxState) || node->max > maxProb) {
-	    maxProb = node->max;
-	    maxState = state;
-	}
-    }
-
-    return maxState;
-}
-
-template <class StateT>
-unsigned
-Trellis<StateT>::viterbi(StateT *path, unsigned length)
-{
-    StateT lastState;
-    Map_noKey(lastState);
-    return viterbi(path, length, lastState);
-}
-
-template <class StateT>
-unsigned
-Trellis<StateT>::viterbi(StateT *path, unsigned length, StateT lastState)
-{
-    if (length > currTime + 1) {
-	length = currTime + 1;
-    }
-
-    assert(length > 0);
-
-    StateT currState;
 
     /*
-     * Backtrace from the last state with maximum score, unless the caller
-     * has given us a specific one to start with.
+     * If the predecessor state doesn't exist its probability is
+     * implicitly zero and we have nothing to do!
      */
-    if (Map_noKeyP(lastState)) {
-    	currState = maxSlice(trellis[length - 1]);
-    } else {
-	currState = lastState;
+    if (!oldNode) {
+	return;
     }
 
-    unsigned pos = length;
-    while (!Map_noKeyP(currState)) {
-	assert(pos > 0);
-	pos --;
-	path[pos] = currState;
+    Boolean foundP;
+    TrellisNode<StateT> *newNode = currSlice.insert(newState, foundP);
 
-	LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[pos];
-	TrellisNode<StateT> *currNode = currSlice.find(currState);
-	assert(currNode != 0);
-	
-	currState = currNode->prev;
-    }
-    if (pos != 0) {
-	/*
-	 * Viterbi backtrace failed before reaching start of sentence,
-	 */
-	return 0;
+    LogP2 newProb = oldNode->lprob + trans;	// Accumulate total FW prob.
+    if (!foundP) {
+	newNode->lprob = newProb;
+	newNode->backlpr = LogP_Zero;
+	newNode->backmax = LogP_Zero;
+	newNode->nbest.init(numNbest);
     } else {
-	return length;
+	newNode->lprob = AddLogP(newNode->lprob, newProb);
     }
+
+    /*
+     * Update Viterbi related info.
+     */
+    for (unsigned i = 0; i < oldNode->nbestSize(); i++) {
+	LogP totalProb = oldNode->nbest[i].score + trans;
+	newNode->nbest.insert(Hyp<StateT>(totalProb, oldState, i));
+    }
+}
+
+template <class StateT>
+LogP
+Trellis<StateT>::sumLogP(unsigned t)
+{
+    assert(t <= currTime);
+    return trellis[t].sum();
+}
+
+template <class StateT>
+StateT
+Trellis<StateT>::max(unsigned t)
+{
+    assert(t <= currTime);
+    return trellis[t].max();
 }
 
 template <class StateT>
 void
 Trellis<StateT>::setBackProb(StateT state, LogP prob)
 {
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[backTime];
+    TrellisNode<StateT> *node = trellis[backTime].find(state);
 
-    Boolean foundP;
-    TrellisNode<StateT> *node = currSlice.find(state, foundP);
-
-    if (node) {
-	node->backlpr = prob;
-	if (prob > node->backmax) {
-	    node->backmax = prob;
-	}
-    } else {
+    if (!node) {
 	cerr << "trying to set backward prob for nonexistent node " << state
 	     << " at time " << backTime << endl;
+	return;
+    }
+
+    node->backlpr = prob;
+    if (prob > node->backmax) {
+	node->backmax = prob;
     }
 }
 
 template <class StateT>
 LogP
-Trellis<StateT>::getBackLogP(StateT state, unsigned time)
+Trellis<StateT>::getBackLogP(StateT state, unsigned t)
 {
-    assert(time <= currTime);
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[time];
+    assert(t <= currTime);
+    TrellisNode<StateT> *node = trellis[t].find(state);
 
-    TrellisNode<StateT> *node = currSlice.find(state);
-
-    if (node) {
-	return node->backlpr;
-    } else {
-	return LogP_Zero; 
-    }
+    return (node? node->backlpr : LogP_Zero);
 }
 
 template <class StateT>
 void
-Trellis<StateT>::initBack(unsigned time)
+Trellis<StateT>::initBack(unsigned t)
 {
-    assert(time <= currTime);
+    assert(t <= currTime);
 
-    backTime = time;
+    backTime = t;
 }
 
 template <class StateT>
@@ -357,50 +236,381 @@ template <class StateT>
 void
 Trellis<StateT>::updateBack(StateT oldState, StateT newState, LogP trans)
 {
-    assert(backTime != (unsigned)-1);	/* check to underflow */
+    assert(backTime != (unsigned)-1);	/* check for underflow */
 
-    LHash<StateT, TrellisNode<StateT> > &nextSlice = trellis[backTime + 1];
-    LHash<StateT, TrellisNode<StateT> > &currSlice = trellis[backTime];
-
+    TrellisSlice<StateT>& currSlice = trellis[backTime];
+    TrellisSlice<StateT>& nextSlice = trellis[backTime + 1];
     TrellisNode<StateT> *nextNode = nextSlice.find(newState);
+
+    /*
+     * If the successor state doesn't exist its probability is
+     * implicitly zero and we have nothing to do!
+     */
     if (!nextNode) {
-	/*
-	 * If the successor state doesn't exist its probability is
-	 * implicitly zero and we have nothing to do!
-	 */
 	return;
+    }
+
+    TrellisNode<StateT> *thisNode = currSlice.find(oldState);
+
+    if (!thisNode) {
+	cerr << "trying to update backward prob for nonexistent node "
+	     << oldState << " at time " << backTime << endl;
+	return;
+    }
+
+    /* Accumulate total backward prob
+    */
+    LogP2 thisProb = nextNode->backlpr + trans;
+    thisNode->backlpr = AddLogP(thisNode->backlpr, thisProb);
+
+    LogP totalMax = nextNode->backmax + trans;
+    if (totalMax > thisNode->backmax) {
+	thisNode->backmax = totalMax;
+    }
+}
+
+//-------------Viterbi backtrace algorithms-------------------------------
+
+/*
+ * Returns in "path" the most likely partial path of the given length, len.
+ * We obtain this by calling the overloaded viterbi() with an unmapped
+ * lastState, which causes it to default to the most likely last state.
+ */
+template <class StateT>
+unsigned
+Trellis<StateT>::viterbi(StateT *path, unsigned len)
+{
+    LogP dummy;
+    StateT lastState;
+    Map_noKey(lastState);
+    return nbest_viterbi(path, len, 0, dummy, lastState);
+}
+
+/* Same as viterbi(), but instead returns the nth best partial path
+ */
+template <class StateT>
+unsigned
+Trellis<StateT>::nbest_viterbi(StateT *path, unsigned len, unsigned nth, LogP& score)
+{
+    StateT lastState;
+    Map_noKey(lastState);
+    return nbest_viterbi(path, len, nth, score, lastState);
+}
+
+/*
+ * If lastState is unmapped, this returns in "path" the Viterbi backtrace
+ * of the nth best partial path of the given length from the n-best of all
+ * the nbest lists in the required timeslice.  Alternately, lastState may be
+ * mapped, in which case, the returned path is just the nth best partial
+ * path of the given length that ends at the given state.
+ */
+template <class StateT>
+unsigned
+Trellis<StateT>::nbest_viterbi(StateT *path, unsigned len, unsigned n,
+					    LogP &score, StateT lastState)
+{
+    if (len > currTime + 1) {		  // Sanity check
+	len = currTime + 1;
+    }
+    assert(len > 0 && len <= trellisSize);
+
+    if (n >= numNbest) {
+	return 0;
+    }
+
+    StateT currState;
+    int currWhichbest;
+    
+    /*
+     * Suppose lastState is explicitly given. i.e., mapped.  Then we
+     * backtrace from this state's nth best hyp.  Otherwise, we
+     * construct the nbest from the required time slice, determine
+     * which state actually ends the nth overall-best hyp and
+     * backtrace from that state.
+     */
+    if (Map_noKeyP(lastState)) {
+	TrellisNBestList<StateT>& nblist = trellis[len-1].nbest(numNbest);
+	currState = nblist[n].prev;
+	currWhichbest = nblist[n].whichbest;
+	score = nblist[n].score;
     } else {
-	Boolean foundP;
-	TrellisNode<StateT> *thisNode = currSlice.find(oldState, foundP);
+	currState = lastState;
+	currWhichbest = n;
 
-        if (!thisNode) {
-	    cerr << "trying to update backward prob for nonexistent node "
-		 << oldState << " at time " << backTime << endl;
-	    return;
+	TrellisNode<StateT> *node = trellis[len-1].find(currState);
+	if (!node) {
+	    return 0;
 	}
+	score = node->nbest[n].score;
+    }
 
-	/*
-	 * Accumulate total backword prob
-	 */
-	LogP2 thisProb = nextNode->backlpr + trans;
-	thisNode->backlpr = AddLogP(thisNode->backlpr, thisProb);
+    unsigned pos = len;
+    while (!Map_noKeyP(currState)) {
+	assert(pos > 0);
+	pos --;
+	path[pos] = currState;
 
-	LogP totalMax = nextNode->backmax + trans;
-	if (totalMax > thisNode->backmax) {
-	    thisNode->backmax = totalMax;
+	TrellisNode<StateT> *currNode = trellis[pos].find(currState);
+	assert(currNode);
+
+	currState = currNode->nbest[currWhichbest].prev;
+	currWhichbest = currNode->nbest[currWhichbest].whichbest;
+    }
+
+    if (pos != 0) {		// Backtrace failed before reaching start
+	  return 0;
+    }
+    return len;
+}
+
+//------------------ Slice related functions -----------------------------------
+
+template<class StateT>
+ostream&
+operator<<(ostream& os, const TrellisSlice<StateT>& slice)
+{
+    LHashIter<StateT, TrellisNode<StateT> > iter(slice.nodes);
+    TrellisNode<StateT>* node;
+    StateT state;
+
+    while (node = iter.next(state))
+    os << "  State: [" << state << "],\t" << node->nbestSize() << "-Best = "
+       << *node << endl;
+    return os;
+}
+
+template <class StateT>
+TrellisSlice<StateT>::~TrellisSlice()
+{
+    /*
+     * Destroy node structures and associated n-best lists
+     */
+    init();
+}
+
+/*
+ * Initialization of a time slice.
+ */
+template <class StateT>
+void
+TrellisSlice<StateT>::init()
+{
+    LHashIter<StateT, TrellisNode<StateT> > iter(nodes);
+    TrellisNode<StateT> *node;
+    StateT state;
+
+    /*
+     * XXX: We need to explicitly destroy the nodes in the hash table,
+     * due to lossage in LHash, to cause n-best lists to be freed.
+     * Unfortunately gcc 2.8.1 has a bug that prevents us from calling 
+     * ~TrellisNode(), so we make do with clear().
+     */
+    while (node = iter.next(state)) {
+#if __GNUC__ == 2 && __GNUC_MINOR__ <= 8
+	node->clear();
+#else
+	node->~TrellisNode();
+#endif
+    }
+    nodes.clear(0);
+
+    /*
+     * The globalNbest list is cleared and left unexpanded.
+     * We only fill it in when asked for.
+     */
+    globalNbest.init(0);
+}
+
+/*
+ * Returns the log of the sum of the probabilities of paths that end at
+ * the current time slice.
+ */
+template <class StateT>
+LogP
+TrellisSlice<StateT>::sum()
+{
+    LHashIter<StateT, TrellisNode<StateT> > iter(nodes);
+    TrellisNode<StateT> *node;
+    StateT state;
+    LogP2 logSum = LogP_Zero;
+
+    while (node = iter.next(state)) {
+	logSum = AddLogP(logSum, node->lprob);
+    }
+    return logSum;
+}
+
+/*
+ * Returns the state that ends the highest probability path at the current
+ * time slice.
+ */
+template <class StateT>
+StateT
+TrellisSlice<StateT>::max()
+{
+    LHashIter<StateT, TrellisNode<StateT> > iter(nodes);
+    TrellisNode<StateT> *node;
+    StateT state, maxState;
+    LogP maxProb = LogP_Zero;
+
+    Map_noKey(maxState);
+    while (node = iter.next(state)) {
+	if (Map_noKeyP(maxState) ||
+	    node->nbestSize() > 0 && node->nbest[0].score > maxProb)
+	{
+	    maxProb = node->nbest[0].score;
+	    maxState = state;
 	}
+    }
+    return maxState;
+}
+
+/*
+ * Calculates the nbest list of paths ending at the current time slice.
+ * Once this is calculated, it is stored in the globalNbest member to avoid
+ * recomputation. The n-best list thus computed is the n-best of the union
+ * of all the n-best hyps belonging to each state in this time-slice.
+ *
+ * To get the n-best paths over the entire trellis, we must first call this
+ * function on the last time slice.  The nbest list thus obtained can then
+ * be back-traced to obtain n-best of the best paths.
+ */
+template<class StateT>
+TrellisNBestList<StateT>&
+TrellisSlice<StateT>::nbest(unsigned numNbest)
+{
+    if (globalNbest.size() >= numNbest) {
+	return globalNbest;
+    }
+
+    globalNbest.init(numNbest);
+
+    LHashIter<StateT, TrellisNode<StateT> > iter(nodes);
+    TrellisNode<StateT> *node;
+    StateT state;
+
+    while (node = iter.next(state)) {
+	for (unsigned n = 0; n < node->nbestSize(); n++) {
+	    globalNbest.insert(Hyp<StateT>(node->nbest[n].score, state, n));
+	}
+    }
+
+    return globalNbest;
+}
+
+//-------------------TrellisNBestList functions--------------------------------
+
+template<class StateT>
+TrellisNBestList<StateT>::TrellisNBestList(unsigned num)
+  : numNbest(0), nblist(0)
+{
+    init(num);
+}
+
+template<class StateT>
+TrellisNBestList<StateT>::~TrellisNBestList()
+{
+    delete [] nblist;
+}
+
+/*
+ * allocate or clear an N-best list
+ */
+template<class StateT>
+void
+TrellisNBestList<StateT>::init(unsigned newSize)
+{
+    StateT s;
+    Map_noKey(s);
+    Hyp<StateT> h(LogP_Zero, s, 0);
+
+    if (newSize == 0) {
+	delete [] nblist;
+	nblist = 0;
+    } else if (newSize > numNbest) {
+	delete [] nblist;
+	nblist = new Hyp<StateT> [newSize];
+	assert(nblist != 0);
+    }
+    numNbest = newSize;
+
+    /*
+     * clear entries
+     */
+    for (unsigned i = 0; i < numNbest; i++) {
+	nblist[i] = h;
     }
 }
 
 /*
- * Iteration over states in a trellis slice
+ * Moves n bytes from src to dst starting at the end.  This is useful
+ * to "shift down" part of an array.
  */
+template<class T>
+inline void rmemmove(T *dst, T *src, unsigned n)
+{
+    T *d = dst + n;
+    T *s = src + n;
+
+    while (n--) {
+	*(--d) = *(--s);
+    }
+}
+
+/* Returns the position where hyp would be inserted into the nbest
+ * list.  This may be numNbest if the hyp is worse than the worst
+ * hyp already in the list.
+ */
+template<class StateT>
+inline unsigned
+TrellisNBestList<StateT>::findrank(const Hyp<StateT>& hyp) const
+{
+    unsigned low = 0, high = numNbest - 1;
+
+    while (low+1 < high) {
+	unsigned m = (high+low)/2;
+	if (nblist[m].score >= hyp.score) {
+	    low = m;
+	} else {
+	    high = m;
+	}
+    }
+
+    /*
+     * low+1 == high at this point, but it may be that low == n-1
+     * where n is the correct insertion point, e.g., when inserting
+     * 2.5 in (...,3,2,...).
+     */
+    while (low < numNbest && nblist[low].score >= hyp.score) {
+	low ++;
+    }
+    return low;
+}
+
+/*
+ * insert(hyp) inserts the given hyp into the current nBestList if the score
+ * of hyp is better (greater) than the score of the worst hyp in the list.  The
+ * hyp is inserted before the very first hyp in the list that has a score
+ * *worse* than it.
+ */
+template<class StateT>
+void 
+TrellisNBestList<StateT>::insert(const Hyp<StateT>& hyp)
+{
+    unsigned i = findrank(hyp);
+    if (i < numNbest) {
+	rmemmove<Hyp<StateT> >(&nblist[i+1], &nblist[i], numNbest-i-1);
+	nblist[i] = hyp;
+    }
+}
+
+//------------------ Iteration over states in a trellis slice -----------------
 
 template <class StateT>
-TrellisIter<StateT>::TrellisIter(Trellis<StateT> &trellis, unsigned time)
-    : sliceIter(trellis.trellis[time])
+TrellisIter<StateT>::TrellisIter(Trellis<StateT> &trellis, unsigned t)
+ : sliceIter(trellis.trellis[t].nodes)
 {
-    assert(time <= trellis.currTime);
+    assert(t <= trellis.currTime);
 }
 
 template <class StateT>
@@ -416,12 +626,12 @@ TrellisIter<StateT>::next(StateT &state, LogP &prob)
 {
     TrellisNode<StateT> *node = sliceIter.next(state);
 
-    if (node) {
-	prob = node->lprob;
-	return true;
-    } else {
+    if (!node) {
 	return false;
     }
+
+    prob = node->lprob;
+    return true;
 }
 
 #endif /* _Trellis_cc_ */

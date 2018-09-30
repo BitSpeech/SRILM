@@ -22,6 +22,9 @@
  *	Deletes the entry associated with (key1, key2) from the Map, returning
  *	a pointer to the previously stored value, if any.
  *
+ * void clear()
+ *	Delete all entries.
+ *
  * unsigned numEntries(Key1T key1)
  *	Returns the current number of keys (i.e., entries) stored under key1.
  *
@@ -45,16 +48,16 @@
  *	map2.
  *
  * void init()
- *	Reset an interation to the first element.
+ *	Reset an iteration to the first element.
  *
  * DataT *next(Key2T &key)
  *	Steps the iteration and returns a pointer to the next entry,
  *	or null if the iteration is finished.  key is set to the associated
  *	Key value.
  *
- * Copyright (c) 1999, SRI International.  All Rights Reserved.
+ * Copyright (c) 1999,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.h,v 1.5 2000/08/05 19:47:08 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.h,v 1.6 2002/07/18 20:59:22 stolcke Exp $
  *
  */
 
@@ -102,6 +105,8 @@ public:
     unsigned numEntries(Key1T key1) const
       { MAP2_INDEX_T<Key2T,DataT> *value = sub.find(key1);
 	return value ? value->numEntries() : 0; };
+
+    void clear();
 
     void dump() const;				/* debugging: dump contents */
     void memStats(MemStats &stats) const;	/* compute memory stats */

@@ -2,9 +2,9 @@
  * StopNgram.h --
  *	N-gram LM with stop words removed from context
  *
- * Copyright (c) 1996, SRI International.  All Rights Reserved.
+ * Copyright (c) 1996,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.h,v 1.2 1999/10/14 04:10:25 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.h,v 1.3 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 
@@ -23,7 +23,9 @@ public:
      * LM interface
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
-    void *contextID(const VocabIndex *context, unsigned &length);
+    void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
+    LogP contextBOW(const VocabIndex *context, unsigned length);
 
     SubVocab &stopWords;			/* stop word set */
 

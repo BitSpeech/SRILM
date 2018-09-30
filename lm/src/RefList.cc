@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.3 2000/03/31 09:10:24 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998, 2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.5 2002/11/01 21:04:59 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -20,6 +20,51 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(RefString, VocabIndex *);
 #endif
+
+/*
+ * List of known filename suffixes that can be stripped to infer 
+ * utterance ids.
+ */
+static char *suffixes[] = {
+	".Z", ".gz", ".score", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", 0
+};
+
+/*
+ * Locate utterance id in filename
+ *	Result is returned in temporary buffer that is valid until next
+ *	call to this function.
+ */
+RefString
+idFromFilename(const char *filename)
+{
+    static char *result = 0;
+
+    const char *root = strrchr(filename, '/');
+
+    if (root) {
+	root += 1;
+    } else {
+	root = filename;
+    }
+
+    if (result) free(result);
+    result = strdup(root);
+    assert(result != 0);
+
+    unsigned rootlen = strlen(result);
+
+    for (unsigned i = 0; suffixes[i] != 0; i++) {
+	unsigned suffixlen = strlen(suffixes[i]);
+
+	if (suffixlen < rootlen &&
+	    strcmp(&result[rootlen - suffixlen], suffixes[i]) == 0)
+	{
+	    result[rootlen - suffixlen] = '\0';
+	    rootlen -= suffixlen;
+	}
+    }
+    return result;
+}
 
 RefList::RefList(Vocab &vocab)
     : vocab(vocab)

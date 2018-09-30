@@ -12,7 +12,7 @@
 #	normalize=<0|1>	normalize counts to probabilities (default = 1)
 #	addone=<count>	value to add to counts for probability smoothing (1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/replace-words-with-classes.gawk,v 1.4 2001/05/25 19:20:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/replace-words-with-classes.gawk,v 1.6 2003/01/01 22:52:52 stolcke Exp $
 #
 
 function read_classes(file) {
@@ -96,13 +96,16 @@ function add_to_prefix_tree(class, expansion, prob) {
 BEGIN {
     normalize = 1;
     addone = 1;
+    partial = 0;
 }
 
 NR == 1 {
     if (classes) {
 	read_classes(classes);
+	close(classes);
+    } else {
+	print "no classes file specified" > "/dev/stderr";
     }
-    close(classes);
 
     for (class in num_class_expansions) {
 	for (i = 1; i <= num_class_expansions[class]; i ++) {
@@ -116,6 +119,12 @@ NR == 1 {
 {
     output = "";
     next_pos = 1;
+
+
+    # partial option: multiple spaces block multiword replacement
+    if (partial) {
+	gsub("[ 	][ 	]*[ 	]", " | ");
+    }
 
     #
     # handle ngram counts by simply leaving the count value alone
@@ -169,6 +178,13 @@ NR == 1 {
 	    node_count[class_node] ++;
 	    class_count[class] ++;
 	}
+    }
+
+    # partial option: multiple spaces block multiword replacement
+    if (partial) {
+	gsub(" [|] ", " ", output);
+	sub("^[|]", " ", output);
+	sub("[|]$", " ", output);
     }
 
     if (have_counts) {

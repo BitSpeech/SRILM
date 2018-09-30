@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.cc,v 1.2 1999/10/14 04:10:25 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.cc,v 1.3 2002/08/25 17:27:45 stolcke Exp $";
 #endif
 
 #include "StopNgram.h"
@@ -52,13 +52,14 @@ StopNgram::wordProb(VocabIndex word, const VocabIndex *context)
 }
 
 void *
-StopNgram::contextID(const VocabIndex *context, unsigned &length)
+StopNgram::contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length)
 {
     VocabIndex usedContext[maxNgramOrder + 1];
     unsigned deleted =
 		removeStopWords(context, usedContext, sizeof(usedContext));
 
-    void *result = Ngram::contextID(usedContext, length);
+    void *result = Ngram::contextID(word, usedContext, length);
 
     /*
      * To be safe, add the number of deleted stop words to the used context
@@ -67,3 +68,13 @@ StopNgram::contextID(const VocabIndex *context, unsigned &length)
     length += deleted;
     return result;
 }
+
+LogP
+StopNgram::contextBOW(const VocabIndex *context, unsigned length)
+{
+    VocabIndex usedContext[maxNgramOrder + 1];
+    removeStopWords(context, usedContext, sizeof(usedContext));
+
+    return Ngram::contextBOW(usedContext, length);
+}
+

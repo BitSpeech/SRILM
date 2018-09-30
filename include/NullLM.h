@@ -6,9 +6,9 @@
  * It is thus not a real model, but it can be used as a dummy when
  * an LM should not perform any real function.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/di/ws97/tools/srilm-0.97beta/lm/src/RCS/NullLM.h,v 1.2 1997/07/22 15:06:26 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NullLM.h,v 1.3 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 
@@ -25,7 +25,8 @@ public:
     LogP wordProb(VocabIndex word, const VocabIndex *context)
 	{ return 0.0; }
 
-    void *contextID(const VocabIndex *context, unsigned &length)
+    void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length)
 	{ length = 0; return (void *)1; };
 };
 

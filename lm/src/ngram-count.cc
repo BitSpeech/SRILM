@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.37 2001/10/31 07:00:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.45 2002/10/11 04:29:50 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -17,6 +17,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,
 #include "option.h"
 #include "File.h"
 #include "Vocab.h"
+#include "SubVocab.h"
 #include "Ngram.h"
 #include "VarNgram.h"
 #include "TaggedNgram.h"
@@ -27,7 +28,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,
 #include "StopNgramStats.h"
 #include "Discount.h"
 
-const unsigned maxorder = 6;		/* this is only relevant to the 
+const unsigned maxorder = 9;		/* this is only relevant to the 
 					 * the -gt<n> and -write<n> flags */
 
 static char *filetag = 0;
@@ -35,27 +36,35 @@ static unsigned order = 3;
 static unsigned debug = 0;
 static char *textFile = 0;
 static char *readFile = 0;
+static int readWithMincounts = 0;
 
 static unsigned writeOrder = 0;		/* default is all ngram orders */
 static char *writeFile[maxorder+1];
 
-static unsigned gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2};
-static unsigned gtmax[maxorder+1] = {5, 1, 7, 7, 7, 7, 7};
+static unsigned gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2, 2, 2, 2};
+static unsigned gtmax[maxorder+1] = {5, 1, 7, 7, 7, 7, 7, 7, 7, 7};
 
-static double cdiscount[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1};
-static int ndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0};
-static int wbdiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0};
+static double cdiscount[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+static int ndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int wbdiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int kndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int knCountsModified = 0;
+
+static int interpolate[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 static char *gtFile[maxorder+1];
+static char *knFile[maxorder+1];
 static char *lmFile = 0;
 static char *initLMFile = 0;
 
 static char *vocabFile = 0;
+static char *noneventFile = 0;
 static char *writeVocab = 0;
 static int memuse = 0;
 static int recompute = 0;
 static int sort = 0;
 static int keepunk = 0;
+static char *mapUnknown = 0;
 static int tagged = 0;
 static int toLower = 0;
 static int trustTotals = 0;
@@ -71,7 +80,7 @@ static unsigned maxEMiters = 100;
 static double minEMdelta = 0.001;
 
 static char *stopWordFile = 0;
-static char *dummyTag = 0;
+static char *metaTag = 0;
 
 static Option options[] = {
     { OPT_UINT, "order", &order, "max ngram order" },
@@ -83,6 +92,7 @@ static Option options[] = {
     { OPT_STRING, "tag", &filetag, "file tag to use in messages" },
     { OPT_STRING, "text", &textFile, "text file to read" },
     { OPT_STRING, "read", &readFile, "counts file to read" },
+    { OPT_TRUE, "read-with-mincounts", &readWithMincounts, "apply minimum counts when reading counts file" },
 
     { OPT_STRING, "write", &writeFile[0], "counts file to write" },
     { OPT_STRING, "write1", &writeFile[1], "1gram counts file to write" },
@@ -91,6 +101,9 @@ static Option options[] = {
     { OPT_STRING, "write4", &writeFile[4], "4gram counts file to write" },
     { OPT_STRING, "write5", &writeFile[5], "5gram counts file to write" },
     { OPT_STRING, "write6", &writeFile[6], "6gram counts file to write" },
+    { OPT_STRING, "write7", &writeFile[7], "7gram counts file to write" },
+    { OPT_STRING, "write8", &writeFile[8], "8gram counts file to write" },
+    { OPT_STRING, "write9", &writeFile[9], "9gram counts file to write" },
 
     { OPT_UINT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
     { OPT_UINT, "gtmax", &gtmax[0], "upper GT discounting cutoff" },
@@ -106,6 +119,12 @@ static Option options[] = {
     { OPT_UINT, "gt5max", &gtmax[5], "upper 5gram discounting cutoff" },
     { OPT_UINT, "gt6min", &gtmin[6], "lower 6gram discounting cutoff" },
     { OPT_UINT, "gt6max", &gtmax[6], "upper 6gram discounting cutoff" },
+    { OPT_UINT, "gt7min", &gtmin[7], "lower 7gram discounting cutoff" },
+    { OPT_UINT, "gt7max", &gtmax[7], "upper 7gram discounting cutoff" },
+    { OPT_UINT, "gt8min", &gtmin[8], "lower 8gram discounting cutoff" },
+    { OPT_UINT, "gt8max", &gtmax[8], "upper 8gram discounting cutoff" },
+    { OPT_UINT, "gt9min", &gtmin[9], "lower 9gram discounting cutoff" },
+    { OPT_UINT, "gt9max", &gtmax[9], "upper 9gram discounting cutoff" },
 
     { OPT_STRING, "gt", &gtFile[0], "Good-Turing discount parameter file" },
     { OPT_STRING, "gt1", &gtFile[1], "Good-Turing 1gram discounts" },
@@ -114,6 +133,9 @@ static Option options[] = {
     { OPT_STRING, "gt4", &gtFile[4], "Good-Turing 4gram discounts" },
     { OPT_STRING, "gt5", &gtFile[5], "Good-Turing 5gram discounts" },
     { OPT_STRING, "gt6", &gtFile[6], "Good-Turing 6gram discounts" },
+    { OPT_STRING, "gt7", &gtFile[7], "Good-Turing 7gram discounts" },
+    { OPT_STRING, "gt8", &gtFile[8], "Good-Turing 8gram discounts" },
+    { OPT_STRING, "gt9", &gtFile[9], "Good-Turing 9gram discounts" },
 
     { OPT_FLOAT, "cdiscount", &cdiscount[0], "discounting constant" },
     { OPT_FLOAT, "cdiscount1", &cdiscount[1], "1gram discounting constant" },
@@ -122,6 +144,9 @@ static Option options[] = {
     { OPT_FLOAT, "cdiscount4", &cdiscount[4], "4gram discounting constant" },
     { OPT_FLOAT, "cdiscount5", &cdiscount[5], "5gram discounting constant" },
     { OPT_FLOAT, "cdiscount6", &cdiscount[6], "6gram discounting constant" },
+    { OPT_FLOAT, "cdiscount7", &cdiscount[7], "7gram discounting constant" },
+    { OPT_FLOAT, "cdiscount8", &cdiscount[8], "8gram discounting constant" },
+    { OPT_FLOAT, "cdiscount9", &cdiscount[9], "9gram discounting constant" },
 
     { OPT_TRUE, "ndiscount", &ndiscount[0], "use natural discounting" },
     { OPT_TRUE, "ndiscount1", &ndiscount[1], "1gram natural discounting" },
@@ -130,6 +155,9 @@ static Option options[] = {
     { OPT_TRUE, "ndiscount4", &ndiscount[4], "4gram natural discounting" },
     { OPT_TRUE, "ndiscount5", &ndiscount[5], "5gram natural discounting" },
     { OPT_TRUE, "ndiscount6", &ndiscount[6], "6gram natural discounting" },
+    { OPT_TRUE, "ndiscount7", &ndiscount[7], "7gram natural discounting" },
+    { OPT_TRUE, "ndiscount8", &ndiscount[8], "8gram natural discounting" },
+    { OPT_TRUE, "ndiscount9", &ndiscount[9], "9gram natural discounting" },
 
     { OPT_TRUE, "wbdiscount", &wbdiscount[0], "use Witten-Bell discounting" },
     { OPT_TRUE, "wbdiscount1", &wbdiscount[1], "1gram Witten-Bell discounting"},
@@ -138,10 +166,50 @@ static Option options[] = {
     { OPT_TRUE, "wbdiscount4", &wbdiscount[4], "4gram Witten-Bell discounting"},
     { OPT_TRUE, "wbdiscount5", &wbdiscount[5], "5gram Witten-Bell discounting"},
     { OPT_TRUE, "wbdiscount6", &wbdiscount[6], "6gram Witten-Bell discounting"},
+    { OPT_TRUE, "wbdiscount7", &wbdiscount[7], "7gram Witten-Bell discounting"},
+    { OPT_TRUE, "wbdiscount8", &wbdiscount[8], "8gram Witten-Bell discounting"},
+    { OPT_TRUE, "wbdiscount9", &wbdiscount[9], "9gram Witten-Bell discounting"},
+
+    { OPT_TRUE, "kndiscount", &kndiscount[0], "use modified Kneser-Ney discounting" },
+    { OPT_TRUE, "kndiscount1", &kndiscount[1], "1gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount2", &kndiscount[2], "2gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount3", &kndiscount[3], "3gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount4", &kndiscount[4], "4gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount5", &kndiscount[5], "5gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount6", &kndiscount[6], "6gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount7", &kndiscount[7], "7gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount8", &kndiscount[8], "8gram modified Kneser-Ney discounting"},
+    { OPT_TRUE, "kndiscount9", &kndiscount[9], "9gram modified Kneser-Ney discounting"},
+
+    { OPT_STRING, "kn", &knFile[0], "Kneser-Ney discount parameter file" },
+    { OPT_STRING, "kn1", &knFile[1], "Kneser-Ney 1gram discounts" },
+    { OPT_STRING, "kn2", &knFile[2], "Kneser-Ney 2gram discounts" },
+    { OPT_STRING, "kn3", &knFile[3], "Kneser-Ney 3gram discounts" },
+    { OPT_STRING, "kn4", &knFile[4], "Kneser-Ney 4gram discounts" },
+    { OPT_STRING, "kn5", &knFile[5], "Kneser-Ney 5gram discounts" },
+    { OPT_STRING, "kn6", &knFile[6], "Kneser-Ney 6gram discounts" },
+    { OPT_STRING, "kn7", &knFile[7], "Kneser-Ney 7gram discounts" },
+    { OPT_STRING, "kn8", &knFile[8], "Kneser-Ney 8gram discounts" },
+    { OPT_STRING, "kn9", &knFile[9], "Kneser-Ney 9gram discounts" },
+
+    { OPT_TRUE, "kn-counts-modified", &knCountsModified, "input counts already modified for KN smoothing"},
+
+    { OPT_TRUE, "interpolate", &interpolate[0], "use interpolated estimates"},
+    { OPT_TRUE, "interpolate1", &interpolate[1], "use interpolated 1gram estimates"},
+    { OPT_TRUE, "interpolate2", &interpolate[2], "use interpolated 2gram estimates"},
+    { OPT_TRUE, "interpolate3", &interpolate[3], "use interpolated 3gram estimates"},
+    { OPT_TRUE, "interpolate4", &interpolate[4], "use interpolated 4gram estimates"},
+    { OPT_TRUE, "interpolate5", &interpolate[5], "use interpolated 5gram estimates"},
+    { OPT_TRUE, "interpolate6", &interpolate[6], "use interpolated 6gram estimates"},
+    { OPT_TRUE, "interpolate7", &interpolate[7], "use interpolated 7gram estimates"},
+    { OPT_TRUE, "interpolate8", &interpolate[8], "use interpolated 8gram estimates"},
+    { OPT_TRUE, "interpolate9", &interpolate[9], "use interpolated 9gram estimates"},
+
     { OPT_STRING, "lm", &lmFile, "LM to estimate" },
     { OPT_STRING, "init-lm", &initLMFile, "initial LM for EM estimation" },
     { OPT_TRUE, "unk", &keepunk, "keep <unk> in LM" },
-    { OPT_STRING, "dummy", &dummyTag, "dummy tag used to mark backoff ngram counts" },
+    { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
+    { OPT_STRING, "meta-tag", &metaTag, "meta tag used to input count-of-count information" },
     { OPT_TRUE, "float-counts", &useFloatCounts, "use fractional counts" },
     { OPT_TRUE, "tagged", &tagged, "build a tagged LM" },
     { OPT_TRUE, "skip", &skipNgram, "build a skip N-gram LM" },
@@ -155,6 +223,7 @@ static Option options[] = {
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
     { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "nonevents", &noneventFile, "non-event vocabulary" },
     { OPT_STRING, "write-vocab", &writeVocab, "write vocab to file" },
     { OPT_TRUE, "memuse", &memuse, "show memory usage" },
     { OPT_DOC, 0, 0, "the default action is to write counts to stdout" }
@@ -183,8 +252,19 @@ main(int argc, char **argv)
     vocab->unkIsWord = keepunk ? true : false;
     vocab->toLower = toLower ? true : false;
 
-    if (dummyTag) {
-	vocab->addWord(dummyTag);
+    /*
+     * Change unknown word string if requested
+     */
+    if (mapUnknown) {
+	vocab->remove(vocab->unkIndex);
+	vocab->unkIndex = vocab->addWord(mapUnknown);
+    }
+
+    /*
+     * Meta tag is used to input count-of-count information
+     */
+    if (metaTag) {
+	vocab->metaTag = metaTag;
     }
 
     SubVocab *stopWords = 0;
@@ -192,9 +272,6 @@ main(int argc, char **argv)
     if (stopWordFile != 0) {
 	stopWords = new SubVocab(*vocab);
 	assert(stopWords);
-
-	stopWords->remove(stopWords->ssIndex);
-	stopWords->remove(stopWords->seIndex);
     }
 
     /*
@@ -231,9 +308,36 @@ main(int argc, char **argv)
 	stopWords->read(file);
     }
 
+    if (noneventFile) {
+	/*
+	 * create temporary sub-vocabulary for non-event words
+	 */
+	SubVocab nonEvents(USE_STATS(vocab));
+
+	File file(noneventFile, "r");
+	nonEvents.read(file);
+
+	USE_STATS(vocab).addNonEvents(nonEvents);
+    }
+
     if (readFile) {
 	File file(readFile, "r");
-	USE_STATS(read(file));
+
+	if (readWithMincounts) {
+	    unsigned minCounts[order];
+
+	    /* construct min-counts array from -gtNmin options */
+	    unsigned i;
+	    for (i = 0; i < order && i < maxorder; i ++) {
+		minCounts[i] = gtmin[i + 1];
+	    }
+	    for ( ; i < order; i ++) {
+		minCounts[i] = gtmin[0];
+	    }
+	    USE_STATS(readMinCounts(file, order, minCounts));
+	} else {
+	    USE_STATS(read(file));
+	}
     }
 
     if (textFile) {
@@ -261,6 +365,15 @@ main(int argc, char **argv)
     }
 
     /*
+     * While ngrams themselves can have order 0 (they will always be empty)
+     * we need order >= 1 for LM estimation.
+     */
+    if (order == 0) {
+	cerr << "LM order must be positive -- set to 1\n";
+	order = 1;
+    }
+
+    /*
      * This stores the discounting parameters for the various orders
      * Note this is only needed when estimating an LM
      */
@@ -282,7 +395,7 @@ main(int argc, char **argv)
      * - the user wants them written to a file
      * - we also want to estimate a LM later
      */
-    for (i = 1; i <= maxorder || i <= order; i++) {
+    for (i = 1; i <= order; i++) {
 	unsigned useorder = (i > maxorder) ? 0 : i;
 
 	Discount *discount = 0;
@@ -299,6 +412,9 @@ main(int argc, char **argv)
 	} else if (cdiscount[useorder] != -1.0) {
 	    discount = new ConstDiscount(cdiscount[useorder], gtmin[useorder]);
 	    assert(discount);
+	} else if (knFile[useorder] || kndiscount[useorder]) {
+	    discount = new ModKneserNey(gtmin[useorder], knCountsModified);
+	    assert(discount);
 	} else if (gtFile[useorder] || (i <= order && lmFile)) {
 	    discount = new GoodTuring(gtmin[useorder], gtmax[useorder]);
 	    assert(discount);
@@ -311,7 +427,19 @@ main(int argc, char **argv)
 	if (discount) {
 	    discount->debugme(debug);
 
-	    if (gtFile[useorder] && lmFile) {
+	    if (interpolate[0] || interpolate[useorder]) {
+		discount->interpolate = true;
+	    }
+
+	    if (knFile[useorder] && lmFile) {
+		File file(knFile[useorder], "r");
+
+		if (!discount->read(file)) {
+		    cerr << "error in reading discount parameter file "
+			 << knFile[useorder] << endl;
+		    exit(1);
+		}
+	    } else if (gtFile[useorder] && lmFile) {
 		File file(gtFile[useorder], "r");
 
 		if (!discount->read(file)) {
@@ -332,16 +460,18 @@ main(int argc, char **argv)
 			 << i << endl;
 		    exit(1);
 		}
-		if (gtFile[useorder]) {
+		if (knFile[useorder]) {
+		    File file(knFile[useorder], "w");
+		    discount->write(file);
+		    written = true;
+		} else if (gtFile[useorder]) {
 		    File file(gtFile[useorder], "w");
 		    discount->write(file);
 		    written = true;
 		}
 	    }
 
-	    if (i <= order) {
-		discounts[i-1] = discount;
-	    }
+	    discounts[i-1] = discount;
 	}
     }
 
@@ -376,13 +506,6 @@ main(int argc, char **argv)
 	 * Set debug level on LM object
 	 */
 	lm->debugme(debug);
-
-	/*
-	 * Dummy tag is used to mark ngrams that should be backed off
-	 */
-	if (dummyTag) {
-	    lm->dummyIndex = vocab->getIndex(dummyTag);
-	}
 
 	/*
 	 * Read initial LM parameters in case we're doing EM

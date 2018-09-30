@@ -1,0 +1,337 @@
+.\" $Id: lattice-tool.1,v 1.6 2003/02/19 07:49:04 stolcke Exp $
+.TH lattice-tool 1 "$Date: 2003/02/19 07:49:04 $" "SRILM Tools"
+.SH NAME
+lattice-tool \- manipulate word lattices
+.SH SYNOPSIS
+.B lattice-tool
+[\c
+.BR \-help ]
+option
+\&...
+.SH DESCRIPTION
+.B lattice-tool
+performs operations on word lattices in 
+.BR pfsg-format (5),
+including size reduction, pruning, null-node removal, weight assignment from
+language models, and lattice word error computation.
+.SH OPTIONS
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
+.TP
+.B \-help
+Print option summary.
+.TP
+.BI \-debug " level"
+Set the debugging output level (0 means no debugging output).
+Debugging messages are sent to stderr.
+.TP
+.BI \-in-lattice " file"
+Read input lattice from
+.IR file .
+.TP
+.BI \-in-lattice2 " file"
+Read additional input lattice (for binary lattice operations) from
+.IR file .
+.TP
+.BI \-in-lattice-list " file"
+Read list of input lattices from
+.IR file .
+Lattice operations are applied to each filename listed in 
+.IR file  .
+.TP
+.BI \-out-lattice " file"
+Write result lattice to 
+.IR file .
+.TP
+.BI \-out-lattice-dir " dir"
+Write result lattices from processing of 
+.B \-in-lattice-list
+to directory
+.IR dir .
+.TP
+.B \-write-internal
+Write output lattices with internal node numbering instead of compact,
+consecutive numbering.
+.TP
+.B \-overwrite
+OVerwrite existing output lattice files.
+.TP
+.BI \-vocab " file"
+Initialize the vocabulary to words listed in
+.IR file .
+This is useful in conjunction with 
+.TP
+.B \-limit-vocab
+Discard LM parameters on reading that do not pertain to the words 
+specified in the vocabulary.
+The default is that words used in the LM are automatically added to the 
+vocabulary.
+This option can be used to reduce the memory requirements for large LMs;
+to this end,
+.B \-vocab 
+option typically specifies the set of words used in the lattices to be 
+processed.
+.TP
+.B \-tolower
+Map all vocabulary to lowercase.
+.TP
+.BI \-max-time " T"
+Limit processing time per lattice to
+.I T
+seconds.
+.PP
+Options controlling lattice operations:
+.TP
+.BI \-operation " O"
+Perform a lattice algebra operation
+.I O
+on the two lattices specified by
+.B \-in-lattice
+and
+.BR \-in-lattice2 ,
+before any other processing steps.
+Operations currently supported are
+.B concatenate
+and
+.BR or ,
+for serial and parallel lattice combination, respectively.
+This option does not apply when multiple input lattices are processed.
+.TP
+.BI \-write-posteriors " file"
+Compute the posteriors of lattice nodes and transitions (using the
+forward-backward algorithm) and write out a word posterior lattice
+in
+.BR wlat-format (5).
+This and other options based on posterior probabilities make most sense
+if the input lattice contains combined acoustic-language model weights.
+.TP
+.BI \-posterior-prune " P"
+Prune lattice nodes with posterior less 
+.I P
+times the highest posterior path.
+.TP
+.BI \-posterior-scale " S"
+Scale the transition weights by dividing by
+.I S
+for the purpose of posterior probability computation.
+If the input weights represent combined acoustic-language model scores
+then this should be approximately the language model weight of the 
+recognizer in order to avoid overly peaked posteriors (the default value is 8).
+.TP
+.B \-reduce 
+Reduce lattice size by a single forward node merging pass.
+.TP
+.BI \-reduce-iterate " I"
+Reduce lattice size by up to
+.I I
+forward-backward node merging passes.
+.TP
+.BI \-overlap-ratio " R"
+Perform approximate lattice reduction by merging nodes that share 
+more than a fraction
+.I R
+of their incoming or outgoing nodes.
+The default is 0, i.e., only exact lattice reduction is performed.
+.TP
+.BI \-overlap-base " B"
+If 
+.I B
+is 0 (the default), then the overlap ratio
+.I R 
+is taken relative to the smaller set of transitions being compared.
+If the value is 1, the ratio is relative to the larger of the two sets.
+.TP
+.B \-reduce-before-pruning
+Perform lattice reduction before posterior-based pruning.
+The default order is to first prune, then reduce.
+.TP
+.BI \-pre-reduce-iterate " I"
+Perform iterative reduction prior to lattice expansion, but after 
+pause elimination.
+.TP
+.BI \-post-reduce-iterate " I"
+Perform iterative reduction after lattice expansion and pause node recovery.
+Note: this is not recommended as it changes the weights assigned from
+the specified language model.
+.TP
+.B \-no-pause
+Do not recover pauses after lattice expansion.
+.TP
+.B \-compact-pause
+Use compact encoding of pause nodes that saves nodes put allows 
+optional pauses where they might not have been included in the original
+lattice.
+.TP
+.B \-loop-pause
+Add self-loops on pause nodes.
+.TP
+.B \-collapse-same-words
+Perform an operation on the final lattices that collapses all nodes 
+with the same words, except null nodes, pause nodes, or nodes with 
+noise words.
+This can reduce the lattice size dramatically, but also introduces new 
+paths.
+.TP
+.B \-connectivity
+Check the connectedness of lattices.
+.TP
+.B \-compute-node-entropy
+Compute the node entropy of lattices.
+.TP
+.BI \-ref-list " file"
+Read reference word strings from 
+.IR file .
+Each line starts with a sentence ID (the basename of the lattice file name),
+followed by the words.
+.TP
+.BI \-ref-file " file"
+Read reference word strings from
+.IR file .
+Lines must contain reference words only, and must be matched to input
+lattices in the order processed.
+This and the next option triggers computation of lattice word errors
+(minimum word error counts of any path through a lattice).
+.TP
+.BI \-noise-vocab " file"
+Read a list of "noise" words from
+.IR file .
+These words are ignored when computing lattice word errors,
+or when collapsing nodes with
+.BR \-collapse-same-words .
+.TP
+.BI \-split-multiwords
+Split lattice nodes with multiwords into a sequence of non-multiword
+nodes.
+This option is necessary to compute lattice error of multiword lattices
+against non-multiword references, but may be useful in its own right.
+.PP
+The following options control transition weight assignment:
+.TP
+.BI \-order " n"
+Set the maximal N-gram order to be used for transition weight assignment
+(the default is 3).
+This also selects the lattice expansion algorithm to be used.
+For unigrams, the original lattice structure is preserved (unless modified
+by other operations).
+For bigram weights, NULL and pause nodes are eliminated, transition weights
+reassigned, and then pause nodes are restored.
+For trigram weights, additional nodes are inserted to create unique
+trigrams histories (lattice expansion).
+.TP
+.BI \-lm " file"
+Read N-gram language model from 
+.IR file .
+This option also triggers weight reassignment and lattice expansion.
+.TP
+.B \-multiwords
+Resolve multiwords in the lattice without splitting nodes.
+This is useful in rescoring lattices containing multiwords with a
+LM does not use multiwords.
+.TP
+.BI \-classes " file"
+Interpret the LM as an N-gram over word classes.
+The expansions of the classes are given in
+.IR file 
+in 
+.BR classes-format (5).
+Tokens in the LM that are not defined as classes in
+.I file 
+are assumed to be plain words, so that the LM can contain mixed N-grams over
+both words and word classes.
+.TP
+.BR \-simple-classes
+Assume a "simple" class model: each word is member of at most one word class,
+and class expansions are exactly one word long.
+.TP
+.BI \-mix-lm " file"
+Read a second N-gram model for interpolation purposes.
+The second and any additional interpolated models can also be class N-grams
+(using the same
+.B \-classes 
+definitions).
+.TP
+.BI \-lambda " weight"
+Set the weight of the main model when interpolating with
+.BR \-mix-lm .
+Default value is 0.5.
+.TP
+.BI \-mix-lm2 " file"
+.TP
+.BI \-mix-lm3 " file"
+.TP
+.BI \-mix-lm4 " file"
+.TP
+.BI \-mix-lm5 " file"
+.TP
+.BI \-mix-lm6 " file"
+.TP
+.BI \-mix-lm7 " file"
+.TP
+.BI \-mix-lm8 " file"
+.TP
+.BI \-mix-lm9 " file"
+Up to 9 more N-gram models can be specified for interpolation.
+.TP
+.BI \-mix-lambda2 " weight"
+.TP
+.BI \-mix-lambda3 " weight"
+.TP
+.BI \-mix-lambda4 " weight"
+.TP
+.BI \-mix-lambda5 " weight"
+.TP
+.BI \-mix-lambda6 " weight"
+.TP
+.BI \-mix-lambda7 " weight"
+.TP
+.BI \-mix-lambda8 " weight"
+.TP
+.BI \-mix-lambda9 " weight"
+These are the weights for the additional mixture components, corresponding
+to
+.B \-mix-lm2
+through
+.BR \-mix-lm9 .
+The weight for the
+.B \-mix-lm 
+model is 1 minus the sum of 
+.B \-lambda
+and 
+.B \-mix-lambda2
+through
+.BR \-mix-lambda9 .
+.TP
+.BI \-compact-expansion
+Use the compact trigram expansion algorithm that uses backoff nodes
+(see paper reference below).
+This algorithm only applies to simple word-based N-gram models, and
+cannot deal with interpolated or class-based models, or interact with
+the 
+.B \-multiword
+option.
+.TP
+.BI \-max-nodes " M"
+Abort lattices exansion when the number of nodes exceeds 
+.IR M .
+This is another mechanism to avoid spending too much time on very large
+lattices.
+.SH "SEE ALSO"
+ngram(1), pfsg-scripts(1),
+pfsg-format(5), ngram-format(5), classes-format(5).
+.br
+F. Weng, A. Stolcke, and A. Sankar,
+``Efficient Lattice Representation and Generation.''
+\fIProc. Intl. Conf. on Spoken Language Processing\fP, vol. 6, pp. 2531\-2534,
+Sydney, 1998.
+.SH BUGS
+Not all LM types supported by 
+.BR ngram (1)
+are handled by 
+.B lattice-tool.
+.SH AUTHOR
+Fuliang Weng <fuliang@speech.sri.com>
+.br
+Andreas Stolcke <stolcke@speech.sri.com>
+.br
+Copyright 1997\-2002 SRI International

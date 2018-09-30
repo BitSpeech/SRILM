@@ -7,12 +7,13 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.19 2001/10/31 07:00:31 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.21 2002/10/13 15:40:52 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream.h>
+#include <locale.h>
 
 #include "option.h"
 #include "File.h"
@@ -752,7 +753,7 @@ processNbestLists(const char *fileList, LM &lm, LM &oldLM,
 
 	char *line;
 	while (line = file.getline()) {
-	    char *fname = strtok(line, " \t\n");
+	    char *fname = strtok(line, wordSeparators);
 	    if (fname) {
 		nbestFileList[numNbestLists] = strdup(fname);
 		assert(nbestFileList[numNbestLists] != 0);
@@ -832,6 +833,9 @@ processNbestLists(const char *fileList, LM &lm, LM &oldLM,
 int
 main(int argc, char **argv)
 {
+    setlocale(LC_CTYPE, "");
+    setlocale(LC_COLLATE, "");
+
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     /*

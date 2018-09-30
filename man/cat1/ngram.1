@@ -51,17 +51,39 @@ OOPPTTIIOONNSS
               Read  the  (main)  N-gram  model  from  _f_i_l_e.  This
               option is always required, unless --nnuullll was chosen.
 
-       --ddff    Interpret the LM as containing disfluency events.
-
        --ttaaggggeedd
               Interpret the LM as containing word/tag N-grams.
 
        --sskkiipp  Interpret the LM as a ``skip'' N-gram model.
 
        --hhiiddddeenn--vvooccaabb _f_i_l_e
-              Interpret  the  LM  as  an N-gram containing hidden
-              events between words.  The  list  of  hidden  event
+              Interpret the LM as an N-gram model containing hid-
+              den events between words.  The list of hidden event
               tags is read from _f_i_l_e.
+              Hidden event definitions may also follow the N-gram
+              definitions in the LM file (the argument  to  --llmm).
+              The format for such definitions is
+                   _e_v_e_n_t  [--ddeelleettee  _D]  [--rreeppeeaatt  _R]  [--iinnsseerrtt _w]
+              [--oobbsseerrvveedd] [--oommiitt]
+              The optional flags after the event name modify  the
+              default behavior of hidden events in the model.  By
+              default events are unobserved pseudo-words of which
+              at  most  one  can occur between regular words, and
+              which are added to the context to predict following
+              words and events.  (A typical use would be to model
+              hidden  sentence  boundaries.)   --ddeelleettee  indicates
+              that  upon  encountering  the  event,  _D  words are
+              deleted from  the  next  word's  context.   --rreeppeeaatt
+              indicates  that  after  the  event the next _R words
+              from the context are to be repeated.  --iinnsseerrtt spec-
+              ifies that an (unobserved) word _w is to be inserted
+              into the history.  --oobbsseerrvveedd  specifies  the  event
+              tag is not hidden, but observed in the word stream.
+              --oommiitt indicates that the event tag itself is not to
+              be  added to the history for predicting the follow-
+              ing words.
+              The hidden event mechanism represents a generaliza-
+              tion of the disfluency LM enabled by --ddff.
 
        --hhiiddddeenn--nnoott
               Modifies processing of hidden event N-grams for the
@@ -69,88 +91,132 @@ OOPPTTIIOONNSS
               stream, as opposed to inferred through dynamic pro-
               gramming.
 
+       --ddff    Interpret the LM as containing  disfluency  events.
+              This  enables an older form of hidden-event LM used
+              in Stolcke & Shriberg (1996).  It is roughly equiv-
+              alent to a hidden-event LM with
+                   UH -observed -omit       (filled pause)
+                   UM -observed -omit       (filled pause)
+                   @SDEL -insert <s>        (sentence restart)
+                   @DEL1 -delete 1 -omit    (1-word deletion)
+                   @DEL2 -delete 2 -omit    (2-word deletion)
+                   @REP1 -repeat 1 -omit    (1-word repetition)
+                   @REP2 -repeat 2 -omit    (2-word repetition)
+
        --ccllaasssseess _f_i_l_e
-              Interpret the LM as an N-gram  over  word  classes.
-              The  expansions of the classes are given in _f_i_l_e in
-              ccllaasssseess--ffoorrmmaatt(5).  Tokens in the LM that  are  not
-              defined  as classes in _f_i_l_e are assumed to be plain
-              words, so that the LM  can  contain  mixed  N-grams
+              Interpret  the  LM  as an N-gram over word classes.
+              The expansions of the classes are given in _f_i_l_e  in
+              ccllaasssseess--ffoorrmmaatt(5).   Tokens  in the LM that are not
+              defined as classes in _f_i_l_e are assumed to be  plain
+              words,  so  that  the  LM can contain mixed N-grams
               over both words and word classes.
-              Class  definitions may also follow the N-gram defi-
-              nitions in the LM file (the argument to  --llmm).   In
+              Class definitions may also follow the N-gram  defi-
+              nitions  in  the LM file (the argument to --llmm).  In
               that case --ccllaasssseess //ddeevv//nnuullll should be specified to
-              trigger interpretation of the LM as  a  class-based
-              model.
+              trigger  interpretation  of the LM as a class-based
+              model.  Otherwise, class definitions specified with
+              this  option  override any definitions found in the
+              LM file itself.
+
+       --ssiimmppllee--ccllaasssseess
+              Assume a "simple" class model: each word is  member
+              of at most one word class, and class expansions are
+              exactly one word long.
 
        --eexxppaanndd--ccllaasssseess _k
-              Replace   the   read  class-N-gram  model  with  an
-              (approximately) equivalent word-based N-gram.   The
-              argument   _k  limits  the  length  of  the  N-grams
-              included in the new model (_k=0  allows  N-grams  of
+              Replace  the  read  class-N-gram  model   with   an
+              (approximately)  equivalent word-based N-gram.  The
+              argument  _k  limits  the  length  of  the   N-grams
+              included  in  the  new model (_k=0 allows N-grams of
               arbitrary length).
 
        --eexxppaanndd--eexxaacctt _k
-              Use  a  more  exact (but also more expensive) algo-
-              rithm to compute the conditional  probabilities  of
+              Use a more exact (but also  more  expensive)  algo-
+              rithm  to  compute the conditional probabilities of
               N-grams  expanded  from  classes,  for  N-grams  of
-              length _k or longer (_k=0 is a special case  and  the
+              length  _k  or longer (_k=0 is a special case and the
               default, it disables the exact algorithm for all N-
-              grams).  The exact  algorithm  is  recommended  for
-              class-N-gram  models  that contain multi-word class
-              expansions, for N-gram lengths exceeding the  order
+              grams).   The  exact  algorithm  is recommended for
+              class-N-gram models that contain  multi-word  class
+              expansions,  for N-gram lengths exceeding the order
               of the underlying class N-grams.
 
        --ddeecciipphheerr
-              Use  the  N-gram  model exactly as the Decipher(TM)
-              recognizer would, i.e., choosing the  backoff  path
-              if  it  has  a  higher  probability than the bigram
-              transition,  and  rounding  log  probabilities   to
+              Use the N-gram model exactly  as  the  Decipher(TM)
+              recognizer  would,  i.e., choosing the backoff path
+              if it has a  higher  probability  than  the  bigram
+              transition,   and  rounding  log  probabilities  to
               bytelog precision.
 
-       --hhmmmm   Use  an  HMM  of  N-grams  language model.  The --llmm
-              option specifies a file  that  describes  a  proba-
-              bilistic  graph,  with each line corresponding to a
+       --hhmmmm   Use an HMM of  N-grams  language  model.   The  --llmm
+              option  specifies  a  file  that describes a proba-
+              bilistic graph, with each line corresponding  to  a
               node or state.  A line has the format:
                    _s_t_a_t_e_n_a_m_e _n_g_r_a_m_-_f_i_l_e _s_1 _p_1 _s_2 _p_2 ...
-              where _s_t_a_t_e_n_a_m_e is a string identifying the  state,
+              where  _s_t_a_t_e_n_a_m_e is a string identifying the state,
               _n_g_r_a_m_-_f_i_l_e names a file containing a backoff N-gram
-              model, _s_1,_s_2, ... are names of  follow-states,  and
+              model,  _s_1,_s_2,  ... are names of follow-states, and
               _p_1,_p_2, ... are the associated transition probabili-
-              ties.  A filename of ``-'' can be used to  indicate
-              the  N-gram model data is included in the HMM file,
+              ties.   A filename of ``-'' can be used to indicate
+              the N-gram model data is included in the HMM  file,
               after the current line.  (Further HMM states may be
               specified after the N-gram data.)
-              The  names  IINNIITTIIAALL  and FFIINNAALL denote the start and
+              The names IINNIITTIIAALL and FFIINNAALL denote  the  start  and
               end states, respectively, and have no associated N-
-              gram  model  (_n_g_r_a_m_-_f_i_l_e must be specified as ``.''
-              for these).  The --oorrddeerr option specifies the  maxi-
+              gram model (_n_g_r_a_m_-_f_i_l_e must be specified  as  ``.''
+              for  these).  The --oorrddeerr option specifies the maxi-
               mal N-gram length in the component models.
-              The  semantics  of an HMM of N-grams is as follows:
-              as each state is visited, words  are  emitted  from
+              The semantics of an HMM of N-grams is  as  follows:
+              as  each  state  is visited, words are emitted from
               the associated N-gram model.  The first state (cor-
               responding to the start-of-sentence) is IINNIITTIIAALL.  A
-              state  is  left with the probability of the end-of-
-              sentence token in the  respective  model,  and  the
+              state is left with the probability of  the  end-of-
+              sentence  token  in  the  respective model, and the
               next state is chosen according to the state transi-
-              tion probabilities.  Each  state  has  to  emit  at
-              least  one  word.   The  actual  end-of-sentence is
-              emitted if and only if the FFIINNAALL state is  reached.
+              tion  probabilities.   Each  state  has  to emit at
+              least one  word.   The  actual  end-of-sentence  is
+              emitted  if and only if the FFIINNAALL state is reached.
               Each word probability is conditioned on all preced-
-              ing words, regardless of whether they were  emitted
+              ing  words, regardless of whether they were emitted
               in the same or a previous state.
 
        --vvooccaabb _f_i_l_e
-              Initialize  the  vocabulary  for  the LM from _f_i_l_e.
+              Initialize the vocabulary for  the  LM  from  _f_i_l_e.
               This is especially useful if the LM itself does not
               specify a complete vocabulary, e.g., as with --nnuullll.
 
-       --uunnkk   Indicates that the LM contains  the  unknown  word,
+       --nnoonneevveennttss _f_i_l_e
+              Read  a list of words from _f_i_l_e that are to be con-
+              sidered non-events, i.e., that should only occur in
+              LM  contexts,  but  not as predictions.  Such words
+              are excluded from sentence  generation  (--ggeenn)  and
+              probability summation (--ppppll --ddeebbuugg 33).
+
+       --lliimmiitt--vvooccaabb
+              Discard  LM  parameters on reading that do not per-
+              tain to the words specified in the vocabulary.  The
+              default   is   that   words  used  in  the  LM  are
+              automatically added to the vocabulary.  This option
+              can  be  used to reduce the memory requirements for
+              large LMs that are going to be evaluated only on  a
+              small vocabulary subset.
+
+       --uunnkk   Indicates  that  the  LM contains the unknown word,
               i.e., is an open-class LM.
+
+       --mmaapp--uunnkk _w_o_r_d
+              Map out-of-vocabulary words to  _w_o_r_d,  rather  than
+              the default <<uunnkk>> tag.
 
        --ttoolloowweerr
               Map  all  vocabulary  to lowercase.  Useful if case
               conventions for text/counts and language model dif-
               fer.
+
+       --mmuullttiiwwoorrddss
+              Split  input  words consisting of multiwords joined
+              by underscores into their components, before evalu-
+              ating LM probabilities.
 
        --mmiixx--llmm _f_i_l_e
               Read  a  second N-gram model for interpolation pur-
@@ -159,7 +225,7 @@ OOPPTTIIOONNSS
               --ccllaasssseess  definitions),  but  are  otherwise   con-
               strained  to be standard N-grams, i.e., the options
               --ddff, --ttaaggggeedd, --sskkiipp, and --hhiiddddeenn--vvooccaabb do not apply
-              to then.
+              to them.
               NNOOTTEE:: Unless --bbaayyeess (see below) is specified, --mmiixx--
               llmm triggers a static interpolation of the models in
               memory.   In  most  cases a more efficient, dynamic
@@ -176,7 +242,15 @@ OOPPTTIIOONNSS
        --mmiixx--llmm44 _f_i_l_e
 
        --mmiixx--llmm55 _f_i_l_e
-              Up to 4 more N-gram models  can  be  specified  for
+
+       --mmiixx--llmm66 _f_i_l_e
+
+       --mmiixx--llmm77 _f_i_l_e
+
+       --mmiixx--llmm88 _f_i_l_e
+
+       --mmiixx--llmm99 _f_i_l_e
+              Up to 9 more N-gram models  can  be  specified  for
               interpolation.
 
        --mmiixx--llaammbbddaa22 _w_e_i_g_h_t
@@ -186,11 +260,19 @@ OOPPTTIIOONNSS
        --mmiixx--llaammbbddaa44 _w_e_i_g_h_t
 
        --mmiixx--llaammbbddaa55 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa66 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa77 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa88 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa99 _w_e_i_g_h_t
               These  are  the  weights for the additional mixture
               components, corresponding to --mmiixx--llmm22 through --mmiixx--
-              llmm55.   The  weight for the --mmiixx--llmm model is 1 minus
+              llmm99.   The  weight for the --mmiixx--llmm model is 1 minus
               the sum of --llaammbbddaa and --mmiixx--llaammbbddaa22  through  --mmiixx--
-              llaammbbddaa55.
+              llaammbbddaa99.
 
        --bbaayyeess _l_e_n_g_t_h
               Interpolate  the  second  and  the main model using
@@ -216,42 +298,43 @@ OOPPTTIIOONNSS
               Interpolate  the main LM (or the one resulting from
               operations above) with a dynamically  changing  LM.
               LM  changes  are indicated by the tag ``<LMstate>''
-              starting a line in the input to --ppppll, followed by a
-              filename containing the new LM.
+              starting a line in the input to --ppppll,  --ccoouunnttss,  or
+              --rreessccoorree, followed by a filename containing the new
+              LM.
 
        --ddyynnaammiicc--llaammbbddaa _w_e_i_g_h_t
-              Set   interpolation  weight  for  the  dynamic  LM.
+              Set  interpolation  weight  for  the  dynamic   LM.
               Default value is 0.05.
 
-       The following options  specify  the  operations  performed
+       The  following  options  specify  the operations performed
        on/with the LM constructed as per the options above.
 
        --rreennoorrmm
-              Renormalize  the  main model by recomputing backoff
+              Renormalize the main model by  recomputing  backoff
               weights for the given probabilities.
 
        --pprruunnee _t_h_r_e_s_h_o_l_d
-              Prune N-gram probabilities if their removal  causes
-              (training  set) perplexity of the model to increase
+              Prune  N-gram probabilities if their removal causes
+              (training set) perplexity of the model to  increase
               by less than _t_h_r_e_s_h_o_l_d relative.
 
        --pprruunnee--lloowwpprroobbss
-              Prune N-gram probabilities that are lower than  the
+              Prune  N-gram probabilities that are lower than the
               corresponding backed-off estimates.  This generates
-              N-gram models that can be correctly converted  into
+              N-gram  models that can be correctly converted into
               probabilistic finite-state networks.
 
        --mmiinnpprruunnee _n
-              Only  prune  N-grams  of  length  at  least _n.  The
-              default (and minimum allowed  value)  is  2,  i.e.,
-              only  unigrams  are  excluded  from  pruning.  This
-              option applies to both --pprruunnee and  --pprruunnee--lloowwpprroobbss.
+              Only prune N-grams  of  length  at  least  _n.   The
+              default  (and  minimum  allowed  value) is 2, i.e.,
+              only unigrams  are  excluded  from  pruning.   This
+              option  applies to both --pprruunnee and --pprruunnee--lloowwpprroobbss.
 
        --wwrriittee--llmm _f_i_l_e
-              Write  a model back to _f_i_l_e.  The output will be in
-              the same format as read by --llmm,  except  if  opera-
+              Write a model back to _f_i_l_e.  The output will be  in
+              the  same  format  as read by --llmm, except if opera-
               tions  such  as  --mmiixx--llmm  or  --eexxppaanndd--ccllaasssseess  were
-              applied, in which case the output will contain  the
+              applied,  in which case the output will contain the
               generated  single  N-gram  backoff  model  in  ARPA
               nnggrraamm--ffoorrmmaatt(5).
 
@@ -262,36 +345,42 @@ OOPPTTIIOONNSS
               Generate _n_u_m_b_e_r random sentences from the LM.
 
        --sseeeedd _v_a_l_u_e
-              Initialize the random  number  generator  used  for
-              sentence  generation using seed _v_a_l_u_e.  The default
+              Initialize  the  random  number  generator used for
+              sentence generation using seed _v_a_l_u_e.  The  default
               is to use a seed that should be close to unique for
               each invocation of the program.
 
        --ppppll _t_e_x_t_f_i_l_e
-              Compute  sentence  scores  (log  probabilities) and
-              perplexities from the sentences in _t_e_x_t_f_i_l_e,  which
-              should  contain  one sentence per line.  The --ddeebbuugg
-              option controls the level of detail  printed,  even
-              though  output is to stdout (not stderr).  At level
-              0, only summary statistics for  the  entire  corpus
-              are printed.  At level 1, statistics for individual
-              sentences are printed.  At level  2,  probabilities
-              for  each  word,  plus  LM-dependent  details about
-              backoff used etc., are printed.  At  level  3,  the
-              probabilities for all words are summed in each con-
-              text, and the sum is printed.  If this differs sig-
-              nificantly from 1, a warning message to stderr will
-              be issued.
+              Compute sentence  scores  (log  probabilities)  and
+              perplexities  from the sentences in _t_e_x_t_f_i_l_e, which
+              should contain one sentence per line.   The  --ddeebbuugg
+              option  controls  the level of detail printed, even
+              though output is to stdout (not stderr).  At  level
+              0,  only  summary  statistics for the entire corpus
+              are printed.  These  include  the  number  of  sen-
+              tences,  words,  out-of-vocabulary  words and zero-
+              probability tokens in the input,  as  well  as  its
+              total  log  probability and perplexity.  Perplexity
+              is given with two different normalizations:  count-
+              ing  all  input tokens (``ppl'') and excluding end-
+              of-sentence tags (``ppl1'').  At level  1,  statis-
+              tics  for  individual  sentences  are  printed.  At
+              level 2, probabilities  for  each  word,  plus  LM-
+              dependent  details  about  backoff  used  etc., are
+              printed.  At level 3,  the  probabilities  for  all
+              words  are  summed  in each context, and the sum is
+              printed.  If this differs significantly from  1,  a
+              warning message to stderr will be issued.
 
        --nnbbeesstt _f_i_l_e
-              Read an N-best list in nnbbeesstt--ffoorrmmaatt(5)  and  rerank
-              the   hypotheses   using  the  specified  LM.   The
+              Read  an  N-best list in nnbbeesstt--ffoorrmmaatt(5) and rerank
+              the  hypotheses  using  the  specified   LM.    The
               reordered N-best list is written to stdout.  If the
               N-best list is given in ``NBestList1.0'' format and
-              contains composite acoustic/language model  scores,
+              contains  composite acoustic/language model scores,
               then --ddeecciipphheerr--llmm and the recognizer language model
-              and word transition weights (see below) need to  be
-              specified  so  the  original acoustic scores can be
+              and  word transition weights (see below) need to be
+              specified so the original acoustic  scores  can  be
               recovered.
 
        --mmaaxx--nnbbeesstt _n
@@ -299,51 +388,54 @@ OOPPTTIIOONNSS
               list.  Only the first _n hypotheses are processed.
 
        --rreessccoorree _f_i_l_e
-              Similar  to --nnbbeesstt, but the input is processed as a
-              stream of N-best hypotheses (without header).   The
+              Similar to --nnbbeesstt, but the input is processed as  a
+              stream  of N-best hypotheses (without header).  The
               output consists of the rescored hypotheses in SRILM
-              format (the  third  of  the  formats  described  in
+              format  (the  third  of  the  formats  described in
               nnbbeesstt--ffoorrmmaatt(5)).
 
        --ddeecciipphheerr--llmm _m_o_d_e_l_-_f_i_l_e
-              Designates  the  N-gram  backoff model (typically a
-              bigram) that was used by  the  Decipher(TM)  recog-
-              nizer   in   computing  composite  scores  for  the
+              Designates the N-gram backoff  model  (typically  a
+              bigram)  that  was  used by the Decipher(TM) recog-
+              nizer  in  computing  composite  scores   for   the
               hypotheses fed to --rreessccoorree or --nnbbeesstt.  Used to com-
               pute acoustic scores from the composite scores.
 
        --ddeecciipphheerr--oorrddeerr _N
-              Specifies  the  order  of the Decipher N-gram model
+              Specifies the order of the  Decipher  N-gram  model
               used (default is 2).
 
        --ddeecciipphheerr--nnoobbaacckkooffff
-              Indicates that the Decipher N-gram model  does  not
-              contain  backoff  nodes,  i.e.,  all  recognizer LM
+              Indicates  that  the Decipher N-gram model does not
+              contain backoff  nodes,  i.e.,  all  recognizer  LM
               scores are correct up to rounding.
 
        --ddeecciipphheerr--llmmww _w_e_i_g_h_t
-              Specifies the language model  weight  used  by  the
-              recognizer.   Used  to compute acoustic scores from
+              Specifies  the  language  model  weight used by the
+              recognizer.  Used to compute acoustic  scores  from
               the composite scores.
 
        --ddeecciipphheerr--wwttww _w_e_i_g_h_t
-              Specifies the word transition weight  used  by  the
-              recognizer.   Used  to compute acoustic scores from
+              Specifies  the  word  transition weight used by the
+              recognizer.  Used to compute acoustic  scores  from
               the composite scores.
 
        --eessccaappee _s_t_r_i_n_g
-              Set an ``escape string'' for the --ppppll and  --rreessccoorree
-              computations.  Input lines starting with _s_t_r_i_n_g are
-              not processed as sentences and passed unchanged  to
-              stdout instead.  This allows associated information
-              to be passed to scoring scripts etc.
+              Set an ``escape string'' for the --ppppll, --ccoouunnttss, and
+              --rreessccoorree computations.  Input lines  starting  with
+              _s_t_r_i_n_g  are  not  processed as sentences and passed
+              unchanged to stdout instead.  This  allows  associ-
+              ated  information  to  be passed to scoring scripts
+              etc.
 
        --ccoouunnttss _c_o_u_n_t_s_f_i_l_e
               Perform a computation similar to  --ppppll,  but  based
               only  on  the  N-gram  counts  found in _c_o_u_n_t_s_f_i_l_e.
               Probabilities are computed for  the  last  word  of
               each N-gram, using the other words as contexts, and
-              scaling by the associated N-gram count.
+              scaling by the associated  N-gram  count.   Summary
+              statistics are output at the end, as well as before
+              each escaped input line.
 
        --ccoouunntt--oorrddeerr _n
               Use only counts of order _n in the --ccoouunnttss  computa-
@@ -387,18 +479,28 @@ SSEEEE AALLSSOO
        _U_n_d_e_r_s_t_a_n_d_i_n_g _W_o_r_k_s_h_o_p, 270-274, Lansdowne, VA, 1998.
        A.  Stolcke  et  al.,  ``Automatic  Detection  of Sentence
        Boundaries and Disfluencies based on Recognized Words,  ''
-       _P_r_o_c_. _I_C_S_L_P, 2247-2250, Sydney.
+       _P_r_o_c_. _I_C_S_L_P, 2247-2250, Sydney, 1998.
+       A.  Stolcke and E. Shriberg, ``Statistical language model-
+       ing  for  speech  disfluencies,''Proc.  IEEE  ICASSP,  pp.
+       405-409, Atlanta, GA, 1996.
 
 BBUUGGSS
        Some  LM  types (such as Bayes-interpolated LMs) currently
        do not support the --wwrriittee--llmm function.
+
+       For the --lliimmiitt--vvooccaabb option to work correctly with  hidden
+       event  and  class N-gram LMs, the event/class vocabularies
+       have  to  be  specified  by  options  (--hhiiddddeenn--vvooccaabb   and
+       --ccllaasssseess,  respectively).   Embedding  event/class defini-
+       tions in the LM file only will not work correctly.
+
        Sentence generation is slow and takes time proportional to
        the vocabulary size.
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1995-2000 SRI International
+       Copyright 1995-2003 SRI International
 
 
 
-SRILM Tools        $Date: 2000/10/04 01:00:09 $          ngram(1)
+SRILM Tools        $Date: 2003/03/01 05:33:50 $          ngram(1)

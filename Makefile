@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for SRILM
 #
-# $Header: /home/srilm/devel/RCS/Makefile,v 1.15 2001/05/21 17:20:40 stolcke Exp $
+# $Header: /home/srilm/devel/RCS/Makefile,v 1.21 2003/01/03 18:34:48 stolcke Exp $
 #
 
 # SRILM = /home/speech/stolcke/project/srilm/devel
@@ -11,14 +11,16 @@ MODULES = \
 	misc \
 	dstruct \
 	lm \
+	lattice \
 	utils \
-	htk
+	htk 
 
 EXCLUDE = \
 	me \
-	lattice \
+	fngram \
 	lm/src/test \
 	utils/src/fsmtest \
+	test/output \
 	EXCLUDE
 
 MAKE_VARS = \
@@ -58,7 +60,7 @@ package:	EXCLUDE
 EXCLUDE:	force
 	(find $(EXCLUDE) bin/* lib/* */bin/* */obj/* \
 		-type d -print -prune ; \
-	find . -name "*.~[0-9]*" -print; \
+	find . \( -name "*.~[0-9]*" -o -name core \) -print; \
 	find . -name RCS -print) | \
 	sed 's,^\./,,' > $@
 

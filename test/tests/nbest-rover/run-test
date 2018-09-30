@@ -1,0 +1,4 @@
+#!/bin/sh
+
+nbest-rover - rover.control
+

@@ -1,5 +1,5 @@
-.\" $Id: hidden-ngram.1,v 1.13 2001/08/18 03:22:02 stolcke Exp $
-.TH hidden-ngram 1 "$Date: 2001/08/18 03:22:02 $" "SRILM Tools"
+.\" $Id: hidden-ngram.1,v 1.20 2003/01/28 17:36:50 stolcke Exp $
+.TH hidden-ngram 1 "$Date: 2003/01/28 17:36:50 $" "SRILM Tools"
 .SH NAME
 hidden-ngram \- tag hidden events between words
 .SH SYNOPSIS
@@ -28,6 +28,10 @@ Print option summary.
 .BI \-text " file"
 Specifies the file containing the word sequences to be tagged
 (one sentence per line).
+Start- and end-of-sentence tags are 
+.I not
+added by the program, but should be included in the input if the 
+language model uses them.
 .TP
 .BI \-escape " string"
 Set an ``escape string.''
@@ -73,6 +77,79 @@ Set the effective N-gram order used by the language model to
 .IR n .
 Default is 3 (use a trigram model).
 .TP
+.BI \-classes " file"
+Interpret the LM as an N-gram over word classes.
+The expansions of the classes are given in
+.IR file 
+in 
+.BR classes-format (5).
+Tokens in the LM that are not defined as classes in
+.I file 
+are assumed to be plain words, so that the LM can contain mixed N-grams over
+both words and word classes.
+.TP
+.BR \-simple-classes
+Assume a "simple" class model: each word is member of at most one word class,
+and class expansions are exactly one word long.
+.TP
+.BI \-mix-lm " file"
+Read a second N-gram model for interpolation purposes.
+The second and any additional interpolated models can also be class N-grams
+(using the same
+.B \-classes 
+definitions).
+.TP
+.BI \-lambda " weight"
+Set the weight of the main model when interpolating with
+.BR \-mix-lm .
+Default value is 0.5.
+.TP
+.BI \-mix-lm2 " file"
+.TP
+.BI \-mix-lm3 " file"
+.TP
+.BI \-mix-lm4 " file"
+.TP
+.BI \-mix-lm5 " file"
+.TP
+.BI \-mix-lm6 " file"
+.TP
+.BI \-mix-lm7 " file"
+.TP
+.BI \-mix-lm8 " file"
+.TP
+.BI \-mix-lm9 " file"
+Up to 9 more N-gram models can be specified for interpolation.
+.TP
+.BI \-mix-lambda2 " weight"
+.TP
+.BI \-mix-lambda3 " weight"
+.TP
+.BI \-mix-lambda4 " weight"
+.TP
+.BI \-mix-lambda5 " weight"
+.TP
+.BI \-mix-lambda6 " weight"
+.TP
+.BI \-mix-lambda7 " weight"
+.TP
+.BI \-mix-lambda8 " weight"
+.TP
+.BI \-mix-lambda9 " weight"
+These are the weights for the additional mixture components, corresponding
+to
+.B \-mix-lm2
+through
+.BR \-mix-lm9 .
+The weight for the
+.B \-mix-lm 
+model is 1 minus the sum of 
+.B \-lambda
+and 
+.B \-mix-lambda2
+through
+.BR \-mix-lambda9 .
+.TP
 .BI \-lmw " W"
 Scales the language model probabilities by a factor 
 .IR W .
@@ -100,6 +177,8 @@ between words (which is the default).
 .B \-keep-unk
 Do not map unknown input words to the <unk> token.
 Instead, output the input word unchanged.
+Also, with this option the LM is assumed to be open-vocabulary
+(the default is close-vocabulary).
 .TP
 .B \-fb
 Perform forward-backward decoding of the input token sequence.
@@ -139,6 +218,22 @@ is also specified this probability is obtained by summing over all
 hidden event sequences; otherwise it is calculated (i.e., underestimated)
 using the most probably hidden event sequence.
 .TP
+.BI \-nbest " N"
+Output the
+.I N
+best hypotheses instead of just the first best when
+doing Viterbi search.
+If
+.IR N >1,
+then each hypothesis is prefixed by the tag
+.BI NBEST_ n " " x ,
+where
+.I n
+is the rank of the hypothesis in the N-best list and
+.I x 
+its score, the negative log of the combined probability of transitions
+and observations of the corresponding HMM path.
+.TP
 .BI \-write-counts " file"
 Write the posterior weighted counts of n-grams, including those
 with hidden tags, summed over the entire input data, to
@@ -165,20 +260,33 @@ stdin/stdout.
 .SH BUGS
 The
 .B \-continuous
-option effectively disables
+and
+.B \-text\-map
+options effectively disable
 .BR \-keep-unk ,
 i.e., unknown input words are always mapped to <unk>.
 Also, 
 .B \-continuous
 doesn't preserve the positions of escaped input lines relative to
 the input.
+.br
+The dynamic programming for event decoding is not efficiently interleaved
+with that required to evaluate class N-gram models;
+therefore, the state space generated 
+in decoding with 
+.BR \-classes
+quickly becomes infeasibly large unless 
+.BR \-simple-classes
+is also specified.
 .SH "SEE ALSO"
-ngram-count(1), disambig(1), segment(1), ngram-format(5).
+ngram-count(1), disambig(1), segment(1), ngram-format(5), classes-format(5).
 .br
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
 Disfluencies based on Recognized Words,''
 \fIProc. ICSLP\fP, 2247\-2250, Sydney.
-.SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+.SH AUTHORS
+Andreas Stolcke <stolcke@speech.sri.com>,
 .br
-Copyright 1998\-1999 SRI International
+Anand Venkataraman <anand@speech.sri.com>.
+.br
+Copyright 1998\-2002 SRI International

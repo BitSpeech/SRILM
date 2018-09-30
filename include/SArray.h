@@ -12,7 +12,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.27 1999/10/03 18:50:00 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.28 2002/05/25 14:40:59 stolcke Exp $
  *
  */
 
@@ -33,10 +33,7 @@ class SArrayBody
     unsigned deleted:1;			/* signals deletions to iterator */
     unsigned maxEntries:31;		/* total allocated entries */
 
-    struct entry {
-	KeyT key;
-	DataT value;
-    }		data[1];		/* sorted array of key-value pairs */
+    MapEntry<KeyT,DataT> data[1];	/* sorted array of key-value pairs */
 };
 
 template <class KeyT, class DataT>

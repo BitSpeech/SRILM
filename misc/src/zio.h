@@ -7,11 +7,14 @@
 
     Copyright (c) 1994, SRI International.  All Rights Reserved.
 
-    RCS ID: $Id: zio.h,v 1.6 1999/10/13 09:07:13 stolcke Exp $
+    RCS ID: $Id: zio.h,v 1.7 2003/02/21 20:18:53 stolcke Exp $
 */
 
 /*
  *  $Log: zio.h,v $
+ *  Revision 1.7  2003/02/21 20:18:53  stolcke
+ *  avoid conflict if zopen is already defined in library
+ *
  *  Revision 1.6  1999/10/13 09:07:13  stolcke
  *  make filename checking functions public
  *
@@ -41,6 +44,11 @@ extern "C" {
 /* Include declarations files. */
 
 #include <stdio.h>
+
+/* Avoid conflict with library function */
+#ifdef HAVE_ZOPEN
+#define zopen my_zopen
+#endif
 
 /* Constants */
 

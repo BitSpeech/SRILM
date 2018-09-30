@@ -1,0 +1,128 @@
+nbest-pron-score(1)                           nbest-pron-score(1)
+
+
+
+NNAAMMEE
+       nbest-pron-score  -  score pronunciations and pauses in N-
+       best hypotheses
+
+SSYYNNOOPPSSIISS
+       nnbbeesstt--pprroonn--ssccoorree [--hheellpp] _o_p_t_i_o_n ...
+
+DDEESSCCRRIIPPTTIIOONN
+       nnbbeesstt--pprroonn--ssccoorree reads N-best lists and computes log prob-
+       ability scores for the pronunciations and pauses contained
+       in them.  Pronunciation scoring requires that  the  N-best
+       lists  contain  phone  backtraces in "NBestList2.0" nnbbeesstt--
+       ffoorrmmaatt(5).
+
+       Pronunciation scores are computed from  the  probabilities
+       in  a  dictionary.   Pauses  are  binned into three length
+       classes (none, short, long) and scored according to a tri-
+       gram  language  model  that conditions the pause length on
+       the left and right neighboring words, in  that  order  (so
+       that bigram backoff uses the left neighbor only).
+
+OOPPTTIIOONNSS
+       --hheellpp  Print option summary.
+
+       --ddeebbuugg _l_e_v_e_l
+              Controls  the  amount  of  output  (the  higher the
+              _l_e_v_e_l, the more).
+
+       --ttoolloowweerr
+              Map all vocabulary to lowercase.   Useful  if  case
+              conventions for text/counts and language model dif-
+              fer.
+
+       --mmuullttiiwwoorrddss
+              Deal with N-best lists containing multiwords joined
+              by  underscores.   This only affects pause scoring:
+              if a word adjacent to a pause is a multiword and is
+              not  in  the vocabulary of the pause LM, then it is
+              split and only the component closest to  the  pause
+              is conditioned on.
+
+       --nnbbeesstt _f_i_l_e
+              Score the N-best hypothese in _f_i_l_e.
+
+       --rreessccoorree _f_i_l_e
+              Same as --nnbbeesstt.
+
+       --nnbbeesstt--ffiilleess _f_i_l_e
+              Process all N-best list filenames listed in _f_i_l_e.
+
+       --mmaaxx--nnbbeesstt _n
+              Limits the number of hypotheses read from an N-best
+              list.  Only the first _n hypotheses are processed.
+
+       --ddiiccttiioonnaarryy _f_i_l_e
+              Enable pronunciation scoring, using the  pronuncia-
+              tion dictionary _f_i_l_e.  Each line contains a pronun-
+              ciation in the format
+                   _w_o_r_d [_p] _p_h_o_n_e ...
+              The optional value _p is the pronunciation probabil-
+              ity.  If the second field in a line is not a number
+              the pronunciation is assumed  to  have  probability
+              one.
+
+       --iinnttllooggss
+              Interpret  probabilities  in the dictionary as int-
+              log-scaled log probabilities (as used  in  the  SRI
+              Decipher(TM)  system),  rather than straight proba-
+              bilities.
+
+       --ppaauussee--llmm _f_i_l_e
+              Enable pause scoring, using the pause LM in _f_i_l_e.
+
+       --nnoo--ppaauussee _t_a_g
+              The word used to represent the absence of  a  pause
+              in the pause LM.
+
+       --sshhoorrtt--ppaauussee _t_a_g
+              The  word  used  to  represent a short pause in the
+              pause LM.
+
+       --lloonngg--ppaauussee _t_a_g
+              The word used to represent  a  long  pause  in  the
+              pause LM.
+
+       --mmiinn--ppaauussee--dduurr _T
+              The  minimum duration, in seconds, for a non-speech
+              region to be considered a (short) pause.
+
+       --lloonngg--ppaauussee--dduurr _T
+              The duration, in second, above which  a  non-speech
+              region is considered a "long" pause.
+
+       The  default values for pause tags and duration thresholds
+       are printed by the --hheellpp option.
+
+       --pprroonn--ssccoorree--ddiirr _d_i_r
+              Write pronunciation scores to _d_i_r  when  processing
+              multiple   N-best  lists,  using  output  filenames
+              derived from the input files.
+
+       --ppaauussee--ssccoorree--ddiirr _d_i_r
+              Write pause scores to _d_i_r when processing  multiple
+              N-best  lists,  using output filenames derived from
+              the input files.
+
+SSEEEE AALLSSOO
+       nbest-format(5),   nbest-scripts(1),    nbest-optimize(1),
+       ngram(1).
+       A.  Stolcke  et  al.,  ``The SRI RT-02 Speech-to-Text Sys-
+       tem'', Rich  Transcription  Workshop,  Vienna,  VA,  April
+       2002.
+
+BBUUGGSS
+       The  binning of pause lengths into three classes should be
+       generalized.
+
+AAUUTTHHOORR
+       Andreas Stolcke <stolcke@speech.sri.com>.
+       Copyright 2002 SRI International
+
+
+
+SRILM Tools        $Date: 2002/06/25 07:18:30 $nbest-pron-score(1)

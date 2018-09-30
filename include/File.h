@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.5 1999/01/22 07:11:42 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.7 2003/01/30 18:49:38 stolcke Exp $
  *
  */
 
@@ -14,10 +14,9 @@
 #include <stdio.h>
 #include <iostream.h>
 
-const unsigned int maxLineLength = 10000;		// no longer used
-const unsigned int maxWordsPerLine = 10000;
+const unsigned int maxWordsPerLine = 50000;
 
-char *const wordSeparators = " \t\n";
+char *const wordSeparators = " \t\r\n";
 
 typedef FILE * FILEptr;
 

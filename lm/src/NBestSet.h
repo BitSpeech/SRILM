@@ -2,9 +2,9 @@
  * NBestSet.h --
  *	Sets of N-best lists
  *
- * Copyright (c) 1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.4 2001/04/13 03:54:35 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.5 2002/02/23 21:58:17 stolcke Exp $
  *
  */
 
@@ -26,7 +26,7 @@
  * An element of the NBest set: an NBest List and associated information
  */
 typedef struct {
-    char *filename;
+    const char *filename;
     NBestList *nbest;
 } NBestSetElement;
 
@@ -64,6 +64,7 @@ public:
 
     void init();
     NBestList *next(RefString &id);
+    const char *nextFile(RefString &id);
 
 private:
     NBestSet &mySet;

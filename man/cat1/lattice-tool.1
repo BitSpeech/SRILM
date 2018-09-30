@@ -1,0 +1,312 @@
+lattice-tool(1)                                   lattice-tool(1)
+
+
+
+NNAAMMEE
+       lattice-tool - manipulate word lattices
+
+SSYYNNOOPPSSIISS
+       llaattttiiccee--ttooooll [--hheellpp] option ...
+
+DDEESSCCRRIIPPTTIIOONN
+       llaattttiiccee--ttooooll performs operations on word lattices in ppffssgg--
+       ffoorrmmaatt(5), including size  reduction,  pruning,  null-node
+       removal,  weight assignment from language models, and lat-
+       tice word error computation.
+
+OOPPTTIIOONNSS
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
+       --hheellpp  Print option summary.
+
+       --ddeebbuugg _l_e_v_e_l
+              Set the debugging output level (0 means  no  debug-
+              ging  output).   Debugging  messages  are  sent  to
+              stderr.
+
+       --iinn--llaattttiiccee _f_i_l_e
+              Read input lattice from _f_i_l_e.
+
+       --iinn--llaattttiiccee22 _f_i_l_e
+              Read additional input lattice (for  binary  lattice
+              operations) from _f_i_l_e.
+
+       --iinn--llaattttiiccee--lliisstt _f_i_l_e
+              Read  list  of  input  lattices from _f_i_l_e.  Lattice
+              operations are applied to each filename  listed  in
+              _f_i_l_e.
+
+       --oouutt--llaattttiiccee _f_i_l_e
+              Write result lattice to _f_i_l_e.
+
+       --oouutt--llaattttiiccee--ddiirr _d_i_r
+              Write  result  lattices from processing of --iinn--llaatt--
+              ttiiccee--lliisstt to directory _d_i_r.
+
+       --wwrriittee--iinntteerrnnaall
+              Write output lattices with internal node  numbering
+              instead of compact, consecutive numbering.
+
+       --oovveerrwwrriittee
+              OVerwrite existing output lattice files.
+
+       --vvooccaabb _f_i_l_e
+              Initialize  the vocabulary to words listed in _f_i_l_e.
+              This is useful in conjunction with
+
+       --lliimmiitt--vvooccaabb
+              Discard LM parameters on reading that do  not  per-
+              tain to the words specified in the vocabulary.  The
+              default is that words used in the LM are  automati-
+              cally  added to the vocabulary.  This option can be
+              used to reduce the memory  requirements  for  large
+              LMs; to this end, --vvooccaabb option typically specifies
+              the set  of  words  used  in  the  lattices  to  be
+              processed.
+
+       --ttoolloowweerr
+              Map all vocabulary to lowercase.
+
+       --mmaaxx--ttiimmee _T
+              Limit processing time per lattice to _T seconds.
+
+       Options controlling lattice operations:
+
+       --ooppeerraattiioonn _O
+              Perform  a  lattice  algebra operation _O on the two
+              lattices specified by --iinn--llaattttiiccee and --iinn--llaattttiiccee22,
+              before any other processing steps.  Operations cur-
+              rently supported are ccoonnccaatteennaattee and oorr, for serial
+              and  parallel  lattice  combination,  respectively.
+              This option does not apply when multiple input lat-
+              tices are processed.
+
+       --wwrriittee--ppoosstteerriioorrss _f_i_l_e
+              Compute the posteriors of lattice nodes and transi-
+              tions (using the  forward-backward  algorithm)  and
+              write  out  a  word  posterior lattice in wwllaatt--ffoorr--
+              mmaatt(5).  This and other options based on  posterior
+              probabilities  make most sense if the input lattice
+              contains combined acoustic-language model  weights.
+
+       --ppoosstteerriioorr--pprruunnee _P
+              Prune lattice nodes with posterior less _P times the
+              highest posterior path.
+
+       --ppoosstteerriioorr--ssccaallee _S
+              Scale the transition weights by dividing by  _S  for
+              the  purpose  of posterior probability computation.
+              If the input weights represent  combined  acoustic-
+              language  model scores then this should be approxi-
+              mately the language model weight of the  recognizer
+              in  order  to  avoid  overly peaked posteriors (the
+              default value is 8).
+
+       --rreedduuccee
+              Reduce lattice size by a single forward node  merg-
+              ing pass.
+
+       --rreedduuccee--iitteerraattee _I
+              Reduce  lattice  size  by  up to _I forward-backward
+              node merging passes.
+
+       --oovveerrllaapp--rraattiioo _R
+              Perform approximate lattice  reduction  by  merging
+              nodes  that  share  more than a fraction _R of their
+              incoming or outgoing  nodes.   The  default  is  0,
+              i.e., only exact lattice reduction is performed.
+
+       --oovveerrllaapp--bbaassee _B
+              If  _B  is 0 (the default), then the overlap ratio _R
+              is taken relative to the smaller set of transitions
+              being  compared.   If  the value is 1, the ratio is
+              relative to the larger of the two sets.
+
+       --rreedduuccee--bbeeffoorree--pprruunniinngg
+              Perform lattice  reduction  before  posterior-based
+              pruning.  The default order is to first prune, then
+              reduce.
+
+       --pprree--rreedduuccee--iitteerraattee _I
+              Perform iterative reduction prior to lattice expan-
+              sion, but after pause elimination.
+
+       --ppoosstt--rreedduuccee--iitteerraattee _I
+              Perform iterative reduction after lattice expansion
+              and pause node recovery.  Note: this is not  recom-
+              mended  as it changes the weights assigned from the
+              specified language model.
+
+       --nnoo--ppaauussee
+              Do not recover pauses after lattice expansion.
+
+       --ccoommppaacctt--ppaauussee
+              Use compact encoding  of  pause  nodes  that  saves
+              nodes  put  allows optional pauses where they might
+              not have been included in the original lattice.
+
+       --lloooopp--ppaauussee
+              Add self-loops on pause nodes.
+
+       --ccoollllaappssee--ssaammee--wwoorrddss
+              Perform an operation on  the  final  lattices  that
+              collapses  all  nodes  with  the same words, except
+              null nodes, pause nodes, or nodes with noise words.
+              This  can reduce the lattice size dramatically, but
+              also introduces new paths.
+
+       --ccoonnnneeccttiivviittyy
+              Check the connectedness of lattices.
+
+       --ccoommppuuttee--nnooddee--eennttrrooppyy
+              Compute the node entropy of lattices.
+
+       --rreeff--lliisstt _f_i_l_e
+              Read reference word strings from _f_i_l_e.   Each  line
+              starts with a sentence ID (the basename of the lat-
+              tice file name), followed by the words.
+
+       --rreeff--ffiillee _f_i_l_e
+              Read reference word strings from _f_i_l_e.  Lines  must
+              contain  reference  words only, and must be matched
+              to input lattices in the order processed.  This and
+              the  next  option  triggers  computation of lattice
+              word errors (minimum word error counts of any  path
+              through a lattice).
+
+       --nnooiissee--vvooccaabb _f_i_l_e
+              Read  a  list  of  "noise"  words from _f_i_l_e.  These
+              words  are  ignored  when  computing  lattice  word
+              errors,  or  when  collapsing nodes with --ccoollllaappssee--
+              ssaammee--wwoorrddss.
+
+       --sspplliitt--mmuullttiiwwoorrddss
+              Split lattice nodes with multiwords into a sequence
+              of  non-multiword  nodes.  This option is necessary
+              to compute  lattice  error  of  multiword  lattices
+              against non-multiword references, but may be useful
+              in its own right.
+
+       The following options control  transition  weight  assign-
+       ment:
+
+       --oorrddeerr _n
+              Set the maximal N-gram order to be used for transi-
+              tion weight assignment (the default  is  3).   This
+              also  selects the lattice expansion algorithm to be
+              used.  For unigrams, the original lattice structure
+              is preserved (unless modified by other operations).
+              For bigram weights, NULL and pause nodes are elimi-
+              nated,  transition  weights  reassigned,  and  then
+              pause nodes are  restored.   For  trigram  weights,
+              additional nodes are inserted to create unique tri-
+              grams histories (lattice expansion).
+
+       --llmm _f_i_l_e
+              Read N-gram language model from _f_i_l_e.  This  option
+              also   triggers  weight  reassignment  and  lattice
+              expansion.
+
+       --mmuullttiiwwoorrddss
+              Resolve multiwords in the lattice without splitting
+              nodes.   This  is useful in rescoring lattices con-
+              taining multiwords with a LM does  not  use  multi-
+              words.
+
+       --ccllaasssseess _f_i_l_e
+              Interpret  the  LM  as an N-gram over word classes.
+              The expansions of the classes are given in _f_i_l_e  in
+              ccllaasssseess--ffoorrmmaatt(5).   Tokens  in the LM that are not
+              defined as classes in _f_i_l_e are assumed to be  plain
+              words,  so  that  the  LM can contain mixed N-grams
+              over both words and word classes.
+
+       --ssiimmppllee--ccllaasssseess
+              Assume a "simple" class model: each word is  member
+              of at most one word class, and class expansions are
+              exactly one word long.
+
+       --mmiixx--llmm _f_i_l_e
+              Read a second N-gram model for  interpolation  pur-
+              poses.   The second and any additional interpolated
+              models can also be class N-grams  (using  the  same
+              --ccllaasssseess definitions).
+
+       --llaammbbddaa _w_e_i_g_h_t
+              Set the weight of the main model when interpolating
+              with --mmiixx--llmm.  Default value is 0.5.
+
+       --mmiixx--llmm22 _f_i_l_e
+
+       --mmiixx--llmm33 _f_i_l_e
+
+       --mmiixx--llmm44 _f_i_l_e
+
+       --mmiixx--llmm55 _f_i_l_e
+
+       --mmiixx--llmm66 _f_i_l_e
+
+       --mmiixx--llmm77 _f_i_l_e
+
+       --mmiixx--llmm88 _f_i_l_e
+
+       --mmiixx--llmm99 _f_i_l_e
+              Up to 9 more N-gram models  can  be  specified  for
+              interpolation.
+
+       --mmiixx--llaammbbddaa22 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa33 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa44 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa55 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa66 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa77 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa88 _w_e_i_g_h_t
+
+       --mmiixx--llaammbbddaa99 _w_e_i_g_h_t
+              These  are  the  weights for the additional mixture
+              components, corresponding to --mmiixx--llmm22 through --mmiixx--
+              llmm99.   The  weight for the --mmiixx--llmm model is 1 minus
+              the sum of --llaammbbddaa and --mmiixx--llaammbbddaa22  through  --mmiixx--
+              llaammbbddaa99.
+
+       --ccoommppaacctt--eexxppaannssiioonn
+              Use  the  compact  trigram expansion algorithm that
+              uses backoff nodes  (see  paper  reference  below).
+              This algorithm only applies to simple word-based N-
+              gram models, and cannot deal with  interpolated  or
+              class-based models, or interact with the --mmuullttiiwwoorrdd
+              option.
+
+       --mmaaxx--nnooddeess _M
+              Abort lattices exansion when the  number  of  nodes
+              exceeds  _M.   This  is  another  mechanism to avoid
+              spending too much time on very large lattices.
+
+SSEEEE AALLSSOO
+       ngram(1),  pfsg-scripts(1),   pfsg-format(5),   ngram-for-
+       mat(5), classes-format(5).
+       F.  Weng,  A.  Stolcke, and A. Sankar, ``Efficient Lattice
+       Representation and Generation.''   _P_r_o_c_.  _I_n_t_l_.  _C_o_n_f_.  _o_n
+       _S_p_o_k_e_n _L_a_n_g_u_a_g_e _P_r_o_c_e_s_s_i_n_g, vol. 6, pp. 2531-2534, Sydney,
+       1998.
+
+BBUUGGSS
+       Not all LM types supported by nnggrraamm(1) are handled by llaatt--
+       ttiiccee--ttooooll..
+
+AAUUTTHHOORR
+       Fuliang Weng <fuliang@speech.sri.com>
+       Andreas Stolcke <stolcke@speech.sri.com>
+       Copyright 1997-2002 SRI International
+
+
+
+SRILM Tools        $Date: 2003/02/19 07:49:04 $   lattice-tool(1)

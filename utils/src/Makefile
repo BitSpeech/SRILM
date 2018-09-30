@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.37 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.47 2003/02/20 15:17:37 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -44,6 +44,7 @@ EXPORTED_SCRIPTS = \
 	pfsg-from-ngram \
 	nbest-error \
 	nbest-rover \
+	align-with-tags \
 	compute-sclite \
 	compare-sclite
 
@@ -58,9 +59,12 @@ GAWK_SCRIPTS = \
 	combine-acoustic-scores \
 	compare-ppls \
 	compute-best-mix \
+	compute-best-rover-mix \
+	compute-best-sentence-mix \
 	compute-oov-rate \
 	continuous-ngram-count \
 	extract-skip-probs \
+	find-reference-posteriors \
 	fsm-to-pfsg \
 	get-gt-counts \
 	hits-from-log \
@@ -68,19 +72,26 @@ GAWK_SCRIPTS = \
 	make-abs-discount \
 	make-diacritic-map \
 	make-gt-discounts \
+	make-kn-discounts \
+	make-kn-counts \
 	make-hiddens-lm \
 	make-lm-subset \
 	make-nbest-pfsg \
 	make-ngram-pfsg \
 	make-sub-lm \
+	sort-lm \
+	reverse-lm \
 	merge-nbest \
 	nbest-posteriors \
 	nbest2-to-nbest1 \
+	nbest-vocab \
 	pfsg-to-dot \
 	pfsg-to-fsm \
+	pfsg-vocab \
 	ppl-from-log \
 	remove-lowprob-ngrams \
 	replace-words-with-classes \
+	reverse-text \
 	reverse-ngram-counts \
 	sentid-to-sclite \
 	sentid-to-ctm \

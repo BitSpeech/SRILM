@@ -9,7 +9,7 @@
 # than the nbest list is long, missing values are filled in with the
 # minimal score found in that file.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/combine-acoustic-scores,v 1.1 1998/09/03 07:27:09 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/combine-acoustic-scores.gawk,v 1.3 2002/05/15 15:32:39 stolcke Exp $
 #
 function get_from_file(i) {
 	if (ARGV[i] ~ /\.gz$/) {
@@ -41,9 +41,47 @@ BEGIN {
 		exit 1;
 	}
 
+	# format of input nbest list
+	nbestformat = 0;
+
 	while ((max_nbest == 0 || hypno < max_nbest) && get_from_file(1)) {
 
+		if ($1 == "NBestList1.0") {
+			nbestformat = 1;
+			print;
+			continue;
+		} else if ($1 == "NBestList2.0") {
+			nbestformat = 2;
+			print;
+			continue;
+		}
+
 		old_ac = $1; $1 = "";
+		if (nbestformat == 1) {
+			# old Decipher nbest format: just use the aggregate
+			# score as the acoustic score
+			gsub("[()]", "", old_ac);
+			old_ac *= bytelogscale;
+		} else if (nbestformat == 2) {
+			# new Decipher nbest format: extract acoustic score
+			# from backtrace info by subtracing lm scores from
+			# total.
+			gsub("[()]", "", old_ac);
+			prev_end_time = -1;
+			for (i = 2; i <= NF; i += 11) {
+			    start_time = $(i + 3);
+			    end_time = $(i + 5);
+
+			    # skip tokens that are subsumed by the previous word
+			    # (this eliminates phone and state symbols)
+			    if (start_time > prev_end_time) {
+				old_ac -= $(i + 7);
+				prev_end_time = end_time;
+			    }
+			}
+			old_ac *= bytelogscale;
+		}
+			
 		hyp = $0;
 
 		total_ac = weight[1] * old_ac;
@@ -79,6 +117,9 @@ BEGIN {
 			total_ac += weight[i] * new_ac;
 		}
 
+		if (nbestformat > 0) {
+			total_ac = "(" (total_ac / bytelogscale) ")";
+		}
 		print total_ac hyp;
 
 		hypno ++;

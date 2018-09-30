@@ -2,9 +2,9 @@
  * StopNgramStats.h --
  *	N-gram statistics with contexts excluding stop words
  *
- * Copyright (c) 1996, SRI International.  All Rights Reserved.
+ * Copyright (c) 1996,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.h,v 1.1 1996/12/10 09:28:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.h,v 1.2 2002/08/09 08:46:54 stolcke Exp $
  *
  */
 
@@ -19,12 +19,12 @@ class StopNgramStats: public NgramStats
 public:
     StopNgramStats(Vocab &vocab, SubVocab &stopWords, unsigned maxOrder);
 
-    virtual unsigned int countSentence(const VocabIndex *word);
+    virtual unsigned countSentence(const VocabIndex *words, NgramCount factor);
 
     const SubVocab &stopWords;		/* stop word set */
 
 protected:
-    void incrementCounts(const VocabIndex *words);
+    void incrementCounts(const VocabIndex *words, NgramCount factor);
 };
 
 #endif /* _StopNgramStats_h_ */

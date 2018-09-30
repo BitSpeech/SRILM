@@ -9,15 +9,16 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.9 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.13 2003/02/21 22:30:00 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
-   CC = gcc -mcpu=i686 -V2.8.1
-   CXX = g++ -mcpu=i686 -V2.8.1
+   GCC_FLAGS = -V2.8.1 -mcpu=pentiumpro -Wreturn-type -Wimplicit
+   CC = gcc $(GCC_FLAGS)
+   CXX = g++ -Wno-deprecated $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
-   OPTIMIZE_FLAGS = -g -O2
+   OPTIMIZE_FLAGS = -g -O2 -malign-double 
    DEBUG_FLAGS = -g -DDEBUG
    PROFILE_FLAGS = -g -pg -O2
 else
@@ -62,7 +63,8 @@ endif
    ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
 
    # Tcl support
-   TCL_INCLUDE = -I/usr/local/include
+   # includ not needed for gcc
+   TCL_INCLUDE = # -I/usr/local/include
    TCL_LIBRARY = -L/usr/local/lib -ltcl -R/usr/local/lib
 
    # run-time linker path flag

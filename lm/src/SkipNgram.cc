@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.6 2000/01/13 04:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.7 2003/02/15 06:19:14 stolcke Exp $";
 #endif
 
 #include <iostream.h>
@@ -81,12 +81,12 @@ SkipNgram::wordProb(VocabIndex word, const VocabIndex *context)
 }
 
 Boolean
-SkipNgram::read(File &file)
+SkipNgram::read(File &file, Boolean limitVocab)
 {
     /*
      * First read the ngram data in standard format
      */
-    if (!Ngram::read(file)) {
+    if (!Ngram::read(file, limitVocab)) {
 	return false;
     }
 	

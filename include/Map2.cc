@@ -8,8 +8,8 @@
 #define _Map2_cc_
 
 #ifndef lint
-static char Map2_Copyright[] = "Copyright (c) 1999 SRI International.  All Rights Reserved.";
-static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.7 2000/08/05 19:47:08 stolcke Exp $";
+static char Map2_Copyright[] = "Copyright (c) 1999,2002 SRI International.  All Rights Reserved.";
+static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.8 2002/07/18 20:59:22 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -173,6 +173,34 @@ Map2<Key1T,Key2T,DataT>::remove(Key1T key1, Boolean &foundP)
 	sub.remove(key1);
     }
     return foundP;
+}
+
+template <class Key1T, class Key2T, class DataT>
+void
+Map2<Key1T,Key2T,DataT>::clear()
+{
+    MAP2_ITER_T<Key1T, MAP2_INDEX_T<Key2T,DataT> > iter1(sub);
+
+    Key1T key1;
+    MAP2_INDEX_T<Key2T,DataT> *row;
+
+    /*
+     * Remove all row vectors
+     */
+    while (row = iter1.next(key1)) {
+#if __GNUC__ == 2 && __GNUC_MINOR__ == 8
+	/* workaround for buggy gcc 2.8.1 */
+	row->clear(0);
+#else
+	row->~MAP2_INDEX_T();
+#endif
+	sub.remove(key1);
+    }
+
+    /*
+     * Remove the top-level vector
+     */
+    sub.clear(0);
 }
 
 #endif /* _Map2_cc_ */

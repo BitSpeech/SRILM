@@ -2,9 +2,9 @@
  * ClassNgram.h --
  *	N-gram model over word classes
  *
- * Copyright (c) 1999, SRI International.  All Rights Reserved.
+ * Copyright (c) 1999-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.h,v 1.7 1999/10/16 16:59:57 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.h,v 1.11 2003/02/15 06:56:29 stolcke Exp $
  *
  */
 
@@ -54,17 +54,20 @@ public:
      */
     LogP wordProb(VocabIndex word, const VocabIndex *context);
     LogP wordProbRecompute(VocabIndex word, const VocabIndex *context);
-    void *contextID(const VocabIndex *context, unsigned &length);
+    void *contextID(VocabIndex word, const VocabIndex *context,
+							unsigned &length);
+    LogP contextBOW(const VocabIndex *context, unsigned length);
+
     Boolean isNonWord(VocabIndex word);
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
-    Boolean read(File &file);
+    Boolean read(File &file, Boolean limitVocab = false);
     void write(File &file);
 
     /*
      * I/O of class definitions
      */
-    Boolean readClasses(File &file);
+    virtual Boolean readClasses(File &file);
     void writeClasses(File &file);
 
     /*
@@ -73,6 +76,8 @@ public:
     Ngram *expand(unsigned newOrder = 0, unsigned expandExact = 0);
 
 protected:
+    void clearClasses();		/* remove class definitions */
+
     Map2<VocabIndex, ClassExpansion, Prob> classDefs;
 					/* class expansions:
 					 *	Class x Wordstring -> Prob */

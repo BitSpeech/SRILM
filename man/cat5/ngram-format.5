@@ -47,8 +47,10 @@ DDEESSCCRRIIPPTTIIOONN
        weights (they would be useless).
 
        Since  log(0) (minus infinity) has no portable representa-
-       tion, such values are mapped to a  large  negative  number
-       (typically -99).
+       tion, such values are mapped to a large  negative  number.
+       However,  the  designated  dummy  value  (-99 in SRILM) is
+       interpreted as log(0) when read back from file  into  mem-
+       ory.
 
        The  correctness  of  the N-gram counts _n_1, _n_2, ... in the
        header is not enforced by SRILM software when reading mod-
@@ -90,4 +92,4 @@ AAUUTTHHOORR
 
 
 
-SRILM File Formats $Date: 2000/01/21 03:40:22 $   ngram-format(5)
+SRILM File Formats $Date: 2002/07/27 20:49:37 $   ngram-format(5)

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1998-2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.14 2001/10/31 00:53:40 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.15 2002/04/24 14:28:44 stolcke Exp $
  *
  */
 
@@ -36,6 +36,8 @@ public:
 				Prob *wordScores = 0, const HypID *hypID = 0);
     void alignWords(const NBestWordInfo *winfo, Prob score,
 				Prob *wordScores = 0, const HypID *hypID = 0);
+    void alignAlignment(MultiAlign &alignment, Prob score,
+							Prob *alignScores = 0);
 
     unsigned wordError(const VocabIndex *words,
 				unsigned &sub, unsigned &ins, unsigned &del);
@@ -50,6 +52,13 @@ public:
     VocabIndex deleteIndex;		// pseudo-word representing deletions
 
 private:
+    double alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word);
+					// error from aligning word to column
+    double alignError(const LHash<VocabIndex,Prob>* column1,
+		      const LHash<VocabIndex,Prob>* column2,
+		      Prob totalPosterior2 = 1.0);
+					// error from aligning two columns
+
     Array< LHash<VocabIndex,Prob>* > aligns;	// alignment columns
     Array< LHash<VocabIndex,NBestWordInfo>* > wordInfo;
 					// word backtrace info

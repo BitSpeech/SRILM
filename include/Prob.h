@@ -4,25 +4,18 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.18 2001/06/28 23:02:32 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.23 2002/05/28 04:03:57 stolcke Exp $
  *
  */
 
 #ifndef _Prob_h_
 #define _Prob_h_
 
+#include <stdlib.h>		/* for atof() */
 #include <math.h>
 #include <assert.h>
 
 #include "Boolean.h"
-
-extern "C" {
-    double atof(const char *)
-#ifdef __THROW
-    __THROW __attribute_pure__
-#endif
-    ;	/* might be missing from math.h or stdlib.h */
-}
 
 /*
  * Types
@@ -51,7 +44,7 @@ extern const Prob Prob_Epsilon;		/* probability sum considered not
 
 Boolean parseLogP(const char *string, LogP &prob);
 
-inline Prob LogPtoProb(LogP prob)
+inline Prob LogPtoProb(LogP2 prob)
 {
     if (prob == LogP_Zero) {
     	return 0;
@@ -102,6 +95,18 @@ inline LogP2 SubLogP(LogP2 x, LogP2 y)
     }
 }
 
+inline LogP weightLogP(double weight, LogP prob)
+{
+    /*
+     * avoid NaN if weight == 0 && prob == -Infinity
+     */
+    if (weight == 0.0) {
+	return 0.0;
+    } else {
+	return weight * prob;
+    }
+}
+
 /*
  * Bytelogs and Intlogs are scaled log probabilities used in the SRI
  * DECIPHER(TM) recognizer. 
@@ -131,7 +136,16 @@ inline Intlog LogPtoIntlog(LogP prob)
     return (int)rint(prob * (M_LN10 * 10000.5));
 }
 
-inline LogP BytelogToLogP(Bytelog bytelog)
+inline LogP IntlogToLogP(double prob)	/* use double argument to avoid loss
+					 * of information when converting from
+					 * floating point values */
+{
+    return prob/(M_LN10 * 10000.5);
+}
+
+inline LogP BytelogToLogP(double bytelog) /* use double argument so we can
+					 * scale float values without loss of
+					 * precision */
 {
     return bytelog * (1024.0 / 10000.5 / M_LN10);
 }

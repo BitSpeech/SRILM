@@ -2,9 +2,9 @@
  * TaggedNgramStats.h --
  *	N-gram statistics on word/tag pairs
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/TaggedNgramStats.h,v 1.1 1995/08/23 03:19:03 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.h,v 1.2 2002/08/09 08:46:54 stolcke Exp $
  *
  */
 
@@ -19,12 +19,12 @@ class TaggedNgramStats: public NgramStats
 public:
     TaggedNgramStats(TaggedVocab &vocab, unsigned int maxOrder);
 
-    virtual unsigned int countSentence(const VocabIndex *word);
+    virtual unsigned countSentence(const VocabIndex *words, NgramCount factor);
 
     TaggedVocab &vocab;			/* vocabulary */
 
 protected:
-    void incrementTaggedCounts(const VocabIndex *words);
+    void incrementTaggedCounts(const VocabIndex *words, NgramCount factor);
 };
 
 #endif /* _TaggedNgramStats_h_ */

@@ -4,16 +4,21 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-optimize.cc,v 1.28 2001/10/31 07:00:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-optimize.cc,v 1.32 2003/02/21 22:07:41 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <iostream.h>
 #include <locale.h>
 #include <unistd.h>
 #include <math.h>
+
+extern "C" {
+    int isnan(double);		// not always defined in <math.h>
+}
 
 #include "option.h"
 #include "File.h"
@@ -70,6 +75,9 @@ static char *errorsDir = 0;
 static char *nbestFiles = 0;
 static unsigned maxNbest = 0;
 static char *printHyps = 0;
+static char *nbestDirectory = 0;
+static char **scoreDirectories = 0;
+static char *writeRoverControl = 0;
 static int quickprop = 0;
 
 static double rescoreLMW = 8.0;
@@ -104,6 +112,7 @@ static Option options[] = {
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
+    { OPT_STRING, "write-rover-control", &writeRoverControl, "nbest-rover control output file" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
@@ -209,7 +218,7 @@ hypScore(unsigned hyp, NBestScore **scores)
     double *weights = lambdas.data(); /* bypass index range check for speed */
 
     for (unsigned i = 0; i < numScores; i ++) {
-	score += weights[i] * scores[i][hyp];
+	score += weightLogP(weights[i], scores[i][hyp]);
     }
     return ((*cachedScores)[hyp] = score);
 }
@@ -246,7 +255,7 @@ wordScore(Array<HypID> &hyps, NBestScore **scores, Boolean &isCorrect,
 	    totalScore += score;
 	    if (a != 0) {
 		for (unsigned i = 0; i < numScores; i ++) {
-		    a[i] += score * scores[i][hyps[k]];
+		    a[i] += weightLogP(score, scores[i][hyps[k]]);
 		}
 	    }
 	}
@@ -526,15 +535,16 @@ computeErrors(NBestSet &nbestSet, double *weights)
 }
 
 /*
- * print lambdas
+ * print lambdas, and optionally write nbest-rover control file
  */
 void
-printLambdas(ostream &str, Array<double> &lambdas)
+printLambdas(ostream &str, Array<double> &lambdas, const char *controlFile = 0)
 {
+    unsigned i;
     double normalizer = 0.0;
 
     str << "   weights =";
-    for (unsigned i = 0; i < numScores; i ++) {
+    for (i = 0; i < numScores; i ++) {
 	if (normalizer == 0.0 && lambdas[i] != 0.0) {
 	    normalizer = lambdas[i];
 	}
@@ -551,6 +561,29 @@ printLambdas(ostream &str, Array<double> &lambdas)
 
     str << "   scale = " << 1/normalizer
 	<< endl;
+
+    if (controlFile) {
+	File file(controlFile, "w");
+
+	/*
+	 * write additional score dirs and weights
+	 */
+	for (i = 3; i < numScores; i ++) {
+	    fprintf(file, "%s\t%lg +\n",
+			scoreDirectories[i-3],
+			lambdas[i]/normalizer);
+	}
+
+	/*
+	 * write main score dir and weights
+	 */
+	fprintf(file, "%s\t%lg %lg 1.0 %d %lg\n",
+			nbestDirectory,
+			lambdas[1]/normalizer,
+			lambdas[2]/normalizer,
+			maxNbest,
+			1/normalizer);
+    }
 }
 
 /*
@@ -621,7 +654,7 @@ train(NBestSet &nbestSet)
 	if (iter == 1 || !isnan(totalLoss) && totalError < bestError) {
 	    cerr << "NEW BEST ERROR: " << totalError 
 		 << " (" << ((double)totalError/numRefWords) << "/word)\n";
-	    printLambdas(cerr, lambdas);
+	    printLambdas(cerr, lambdas, writeRoverControl);
 
 	    bestError = totalError;
 	    bestLambdas = lambdas;
@@ -695,7 +728,7 @@ amoebaComputeErrors(NBestSet &nbestSet, double *p)
     if (error < bestError) {
 	cerr << "NEW BEST ERROR: " << error
 	     << " (" << ((double)error/numRefWords) << "/word)\n";
-	printLambdas(cerr, weights);
+	printLambdas(cerr, weights, writeRoverControl);
 
 	bestError = (int) error;
 	bestLambdas = weights;
@@ -798,7 +831,13 @@ amoeba(NBestSet &nbest, double **p, double *y, unsigned ndim, double ftol,
 	    cerr << "Current next high " << y[inhi] << endl;
 	}
 
-	rtol = 2.0 * fabs(y[ihi] - y[ilo]) / (fabs(y[ihi]) + fabs(y[ilo]));
+	double denom = fabs(y[ihi]) + fabs(y[ilo]);
+	if (denom == 0.0) {
+	    rtol = 0.0;
+	} else {
+	    rtol = 2.0 * fabs(y[ihi] - y[ilo]) / denom;
+	}
+
 	if (ylo_pre == y[ilo] && rtol < converge) {
 	    unchanged++;
 	} else {
@@ -1482,6 +1521,32 @@ main(int argc, char **argv)
     }
 
     /*
+     * Store directory names needed to write nbest-rover file
+     */
+    {
+	/*
+	 * infer nbest directory name from first file in list
+	 */
+	NBestSetIter iter(trainSet);
+	RefString id;
+	const char *nbestFilename = iter.nextFile(id);
+	if (nbestFilename) {
+	    nbestDirectory = strdup(nbestFilename);
+	    assert(nbestDirectory != 0);
+
+	    char *basename = strrchr(nbestDirectory, '/');
+	    if (basename != 0) {
+		*basename = '\0';
+	    } else {
+		strcpy(nbestDirectory, ".");
+	    }
+	} else {
+	    nbestDirectory = ".";
+	}
+    }
+    scoreDirectories = &argv[1];
+
+    /*
      * Initialize lambdas from command line values if specified
      */
     if (initLambdas) {
@@ -1777,7 +1842,7 @@ main(int argc, char **argv)
     cout << "best errors = " << bestError
 	 << " (" << ((double)bestError/numRefWords) << "/word)" 
 	 << endl;
-    printLambdas(cout, bestLambdas);
+    printLambdas(cout, bestLambdas, writeRoverControl);
 
     if (printHyps) {
 	File file(printHyps, "w");

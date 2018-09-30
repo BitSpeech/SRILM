@@ -1,0 +1,278 @@
+numaligns 16
+posterior 1
+align 0 *DELETE* 0.999432 uhhuh 0.000568308
+reference 0 *DELETE*
+info 0 uhhuh 0.55 0.54 -401.471 -14.9418 m:hh:pum 3:43:8
+align 1 uhhuh 0.980419 um 0.0142538 uh 0.00396226 huh 0.00136448 *DELETE* 0
+reference 1 *DELETE*
+info 1 uhhuh 0.55 0.54 -401.471 -14.9418 m:hh:pum 3:43:8
+info 1 um 0.58 0.21 -154.354 -13.163 puh_f:pum_f 18:3
+info 1 uh 0.58 0.43 -308.707 -17.7878 puh 43
+info 1 huh 0.57 0.22 -170.807 -17.7878 hh:pum 12:10
+align 2 *DELETE* 0.999979 [laugh] 2.11789e-05
+reference 2 *DELETE*
+info 2 [laugh] 1.08 0.17 -160.491 -18.1436 lau:lau 14:3
+align 3 [mouth] 0.487489 *DELETE* 0.408532 [laugh] 0.0689645 uhhuh 0.0198465 [noise] 0.0126059 yeah 0.000803672 that's 0.00049998 that 0.000439506 is 0.000406729 oh 0.000371944 huh 2.8964e-05 it's 1.08876e-05 it 5.15819e-07 @reject@ 4.24016e-07
+reference 3 *DELETE*
+info 3 [mouth] 0.79 0.35 -237.645 -18.1436 mtn:mtn 21:14
+info 3 [laugh] 1.08 0.27 -240.536 -17.0763 lau:lau 14:13
+info 3 uhhuh 1.09 0.15 -150.174 0 ax_f:hh_f:puh_f 3:3:9
+info 3 [noise] 1.03 0.32 -277.134 -14.9418 bgn:bgn 8:24
+info 3 yeah 1.13 0.09 -100.99 0 y_f:ae_f 3:6
+info 3 that's 1.36 0.29 -239.068 -32.0181 dh_f:ae_f:t_f:s_f 6:6:5:12
+info 3 that 1.36 0.17 -150.974 -28.8163 dh_f:ae_f:t_f 6:6:5
+info 3 is 1.13 0.22 -219.457 -36.6429 ax:z 6:16
+info 3 oh 1.1 0.14 -148.928 0 ow_f 14
+info 3 huh 1.1 0.21 -208.829 0 hh_f:ah_f 18:3
+info 3 it's 1.36 0.29 -254.366 -27.749 ax:t:s 13:4:12
+info 3 it 1.1 0.14 -140.257 0 ax:t 10:4
+info 3 @reject@ 1.1 0.14 -142.925 0 rej:rej 4:10
+align 4 *DELETE* 1 [laugh] 1.35954e-08
+reference 4 *DELETE*
+info 4 [laugh] 1.14 0.16 -161.291 -30.2393 lau:lau 8:8
+align 5 *DELETE* 0.980958 in 0.00934482 of 0.00408356 and 0.00125603 to 0.000971942 so 0.000857253 [mouth] 0.000795768 [laugh] 0.000763346 uh 0.000535473 that's 0.000170004 [noise] 9.3324e-05 at 7.81857e-05 oh 4.68489e-05 is 4.56716e-05 if 6.70635e-08 i've 2.00679e-08
+reference 5 *DELETE*
+info 5 in 1.35 0.0699999 -71.507 -24.9029 ax_f:n_f 4:3
+info 5 of 1.32 0.03 -24.7251 -27.3932 ax_f 3
+info 5 and 1.35 0.0799999 -79.6005 -35.5756 ax_f:n_f 5:3
+info 5 to 1.29 0.0600001 -51.5402 -22.7684 t_f:ax_f 3:3
+info 5 so 1.3 0.0600001 -52.1628 -25.2587 s_f:ax_f 3:3
+info 5 [mouth] 1.21 0.14 -118.689 -18.8551 mtn_f:mtn_f 6:8
+info 5 [laugh] 1.14 0.21 -196.022 -17.0763 lau:lau 8:13
+info 5 uh 1.32 0.03 -31.1287 -11.74 puh_f 3
+info 5 that's 1.35 0.29 -242.67 -30.2393 dh_f:ae_f:t_f:s_f 7:6:5:11
+info 5 [noise] 1.3 0.0600001 -50.6063 -14.9418 bgn_f:bgn_f 3:3
+info 5 at 1.31 0.0600001 -59.1 -33.4411 ax_f:t_f 3:3
+info 5 oh 1.34 0.03 -40.1115 -16.009 ow_f 3
+info 5 is 1.29 0.0600001 -54.3862 -34.8641 ax_f:z_f 3:3
+info 5 if 1.15 0.09 -93.0747 0 ax_f:f_f 4:5
+info 5 i've 1.13 0.22 -206.739 -25.2587 ay:v 3:19
+align 6 the 0.484136 that's 0.456561 that 0.0311878 this 0.0157805 *DELETE* 0.00302025 a 0.00228184 [laugh] 0.00217726 they 0.000890983 and 0.000761044 sound 0.000425669 how 0.000344431 to 0.00028517 in 0.000279229 i 0.00026721 us 0.00023984 nice 0.000234953 it's 0.000230474 pests 0.000219561 of 0.000207792 pass 0.000206016 else 0.000147701 myself 5.62299e-05 itself 2.61711e-05 sell 1.50512e-05 out 1.08876e-05 now 4.85117e-06 house 1.78229e-06
+reference 6 that
+info 6 the 1.41 0.0800001 -68.661 0 ax_f 8
+info 6 that's 1.36 0.29 -236.178 0 dh_f:ae_f:t_f:s_f 6:6:5:12
+info 6 that 1.35 0.18 -154.976 0 dh_f:ae_f:t_f 7:6:5
+info 6 this 1.35 0.3 -256.678 -29.5278 dh:ih:s 9:5:16
+info 6 a 1.42 0.0700001 -61.6348 0 ax_f 7
+info 6 [laugh] 1.08 0.27 -240.536 -34.1526 lau:lau 14:13
+info 6 they 1.35 0.14 -127.716 -26.6817 dh:ey 10:4
+info 6 and 1.35 0.18 -194.421 -28.1047 ax_f:n_f:d_f 10:3:5
+info 6 sound 1.53 0.29 -244.093 -50.1616 s_f:aw_f:n_f:d_f 12:11:3:3
+info 6 how 1.64 0.17 -147.772 -53.0077 hh_f:aw_f 4:13
+info 6 to 1.36 0.13 -122.603 -26.6817 t:ax 6:7
+info 6 in 1.35 0.06 -64.6587 -24.9029 ax_f:n_f 3:3
+info 6 i 1.43 0.0500001 -46.026 0 ay_f 5
+info 6 us 1.35 0.3 -276.156 -19.5666 ah:s 14:16
+info 6 nice 1.36 0.29 -254.054 -23.1242 n_f:ay_f:s_f 6:6:17
+info 6 it's 1.36 0.29 -254.366 -27.749 ax:t:s 13:4:12
+info 6 pests 1.35 0.3 -256.5 -7.47088 p_f:eh_f:s_f:t_f:s_f 3:10:4:3:10
+info 6 of 1.35 0.14 -141.858 -27.0375 ax_f:v_f 10:4
+info 6 pass 1.35 0.3 -270.241 -15.2975 p:ae:s 5:8:17
+info 6 else 1.65 0.25 -221.014 -48.3829 eh_f:l_f:s_f 10:4:11
+info 6 myself 1.35 0.48 -429.976 -54.075 m_f:ay_f:s_f:eh_f:l_f:f_f 5:8:17:10:5:3
+info 6 itself 1.36 0.51 -453.901 -49.8059 ax:t:s:eh:l:f 13:4:12:8:7:7
+info 6 sell 1.56 0.25 -199.935 -50.8731 s:eh:l 9:8:8
+info 6 out 1.65 0.17 -138.211 -50.5174 aw:t 14:3
+info 6 now 1.65 0.14 -121.046 -50.5174 n_f:aw_f 3:11
+info 6 house 1.64 0.21 -190.774 -50.1616 hh_f:aw_f:s_f 4:11:6
+align 7 *DELETE* 0.999998 a 1.87904e-06
+reference 7 *DELETE*
+info 7 a 1.64 0.03 -38.2883 0 ax_f 3
+align 8 south 0.549359 our 0.186612 out 0.15027 that's 0.040087 how 0.0205172 house 0.010411 else 0.00756766 self 0.00656282 sell 0.00611333 not 0.00334542 the 0.00315082 myself 0.00303202 itself 0.00250318 after 0.00219198 sound 0.00129346 *DELETE* 0.00109976 have 0.00107841 streep 0.000876404 that 0.000642158 cell 0.00054472 sells 0.000469481 now 0.000463277 salad 0.00039932 stuff 0.000344284 ouster 0.000167868 trooper 0.000131385 dallas 0.000125587 shelf 0.000116422 shell 0.000107273 sow 9.96644e-05 tough 9.69992e-05 half 6.04874e-05 sao 5.45008e-05 all 3.63117e-05 alfred 2.24239e-05 uh 2.138e-05 streets 1.17447e-05 troop 7.12382e-06 street 4.95053e-06 troops 1.16588e-06
+reference 8 south
+info 8 south 1.55 0.29 -232.887 -30.595 s:aw:th 10:15:4
+info 8 our 1.65 0.15 -131.897 -33.0853 aw_f:er_f 11:4
+info 8 out 1.67 0.15 -121.847 -33.7968 aw_f:t_f 11:4
+info 8 that's 1.62 0.28 -265.661 -12.4515 dh_f:ae_f:t_f:s_f 4:11:5:8
+info 8 how 1.64 0.17 -147.772 -35.9314 hh_f:aw_f 4:13
+info 8 house 1.64 0.28 -246.895 -29.5278 hh_f:aw_f:s_f 4:11:13
+info 8 else 1.67 0.23 -199.49 -48.3829 eh_f:l_f:s_f 5:7:11
+info 8 self 1.53 0.3 -250.008 -35.9314 s_f:eh_f:l_f:f_f 12:10:5:3
+info 8 sell 1.56 0.23 -181.747 -36.9986 s:eh:l 9:8:6
+info 8 not 1.65 0.17 -159.023 0 n_f:aa_f:t_f 3:10:4
+info 8 the 1.62 0.18 -180.68 0 dh_f:ah_f 3:15
+info 8 myself 1.35 0.48 -429.976 -36.2871 m_f:ay_f:s_f:eh_f:l_f:f_f 5:8:17:10:5:3
+info 8 itself 1.41 0.5 -435.09 -29.8835 ax:t:s:eh:l:f 7:5:12:8:7:11
+info 8 after 1.66 0.36 -319.647 -11.74 ae_f:f_f:t_f:er_f 11:13:5:7
+info 8 sound 1.53 0.29 -244.093 -50.1616 s_f:aw_f:n_f:d_f 12:11:3:3
+info 8 have 1.57 0.25 -216.122 -34.5084 hh:ae:v 11:9:5
+info 8 streep 1.87 0.28 -200.647 -35.9314 s:t:r:iy:p 3:5:6:4:10
+info 8 that 1.62 0.11 -93.8307 -33.7968 dh_f:ae_f 4:7
+info 8 cell 1.53 0.26 -207.851 -34.8641 s:eh:l 12:8:6
+info 8 sells 1.53 0.3 -254.054 -32.0181 s_f:eh_f:l_f:z_f 12:10:5:3
+info 8 now 1.65 0.12 -102.858 -32.3738 n_f:aw_f 3:9
+info 8 salad 1.53 0.29 -239.024 -32.3738 s_f:ae_f:l_f:ax_f:d_f 12:8:3:3:3
+info 8 stuff 1.54 0.33 -300.169 -33.7968 s_f:t_f:ah_f:f_f 8:4:13:8
+info 8 ouster 1.65 0.37 -307.551 -16.009 aw_f:s_f:t_f:er_f 14:11:5:7
+info 8 trooper 1.9 0.39 -260.147 -18.4993 t_f:r_f:uw_f:p_f:er_f 5:6:4:11:13
+info 8 dallas 1.62 0.23 -205.316 -31.6623 d_f:ae_f:l_f:ax_f:s_f 3:8:4:4:4
+info 8 shelf 1.49 0.34 -303.104 -35.2199 sh_f:eh_f:l_f:f_f 18:6:7:3
+info 8 shell 1.49 0.3 -261.258 -34.5084 sh_f:eh_f:l_f 18:6:6
+info 8 sow 1.53 0.26 -200.869 -31.6623 s:aw 12:14
+info 8 tough 1.62 0.33 -306.528 -29.5278 t_f:ah_f:f_f 4:13:16
+info 8 half 1.57 0.34 -302.437 -30.2393 hh:ae:f 11:9:14
+info 8 sao 1.55 0.24 -180.013 -33.0853 s:aw 10:14
+info 8 all 1.66 0.13 -127.45 0 ao_f:l_f 10:3
+info 8 alfred 1.65 0.49 -435.001 -36.6429 ae:l:f:r:ax:d 8:5:17:5:5:9
+info 8 uh 1.67 0.12 -126.338 -49.4501 puh_f 12
+info 8 streets 1.81 0.33 -274.955 -36.9986 s_f:t_f:r_f:iy_f:t_f:s_f 9:5:6:4:6:3
+info 8 troop 1.9 0.25 -186.461 -35.9314 t_f:r_f:uw_f:p_f 5:6:4:10
+info 8 street 1.83 0.3 -242.226 -37.3544 s_f:t_f:r_f:iy_f:t_f 7:5:6:4:8
+info 8 troops 1.9 0.24 -192.686 -36.2871 t_f:r_f:uw_f:p_f:s_f 5:6:6:4:3
+align 9 *DELETE* 0.9644 korea 0.0323057 a 0.00141677 true 0.000740999 trooper 0.000656596 was 0.000242966 streets 0.00023249 through 3.693e-06 korea's 6.4555e-07 troop 3.33959e-08
+reference 9 *DELETE*
+info 9 korea 1.9 0.18 -148.439 -11.3842 k:r:iy:ax 3:8:3:4
+info 9 a 1.75 0.04 -35.8869 -28.8163 ax_f 4
+info 9 true 1.9 0.14 -104.726 -19.5666 t_f:r_f:uw_f 5:6:3
+info 9 trooper 1.9 0.39 -260.147 -18.4993 t_f:r_f:uw_f:p_f:er_f 5:6:4:11:13
+info 9 was 1.73 0.1 -92.9413 0 w_f:ax_f:z_f 4:3:3
+info 9 streets 1.85 0.29 -231.642 -36.9986 s_f:t_f:r_f:iy_f:t_f:s_f 5:5:6:4:6:3
+info 9 through 1.92 0.12 -93.6528 -11.3842 th_f:r_f:uw_f 3:6:3
+info 9 korea's 1.9 0.23 -192.464 -35.2199 k_f:r_f:iy_f:ax_f:z_f 3:8:3:4:5
+info 9 troop 1.9 0.25 -186.461 -35.9314 t_f:r_f:uw_f:p_f 5:6:4:10
+align 10 street 0.634549 free 0.191665 three 0.0725781 for 0.0359727 true 0.0306588 streep 0.018726 trooper 0.00419388 a 0.00243426 tree 0.00200358 streets 0.00187005 korea's 0.00173388 rich 0.00116455 jeffrey 0.000807615 it's 0.000780415 troop 0.000221439 through 0.00015748 alfred 0.000153205 geoffrey 0.000138942 group 9.91646e-05 of 4.46692e-05 troops 2.96159e-05 re 1.7648e-05
+reference 10 street
+info 10 street 1.87 0.21 -157.733 -30.2393 s:t:r:iy:t 4:4:6:4:3
+info 10 free 1.91 0.14 -92.5411 -40.5562 f_f:r_f:iy_f 4:6:4
+info 10 three 1.92 0.13 -87.7384 -41.2677 th_f:r_f:iy_f 3:6:4
+info 10 for 2.08 0.21 -139.501 -23.4799 f:er 8:13
+info 10 true 1.9 0.18 -133.942 -41.2677 t_f:r_f:uw_f 5:6:7
+info 10 streep 1.87 0.28 -200.647 -35.9314 s:t:r:iy:p 3:5:6:4:10
+info 10 trooper 1.9 0.39 -260.147 -18.4993 t_f:r_f:uw_f:p_f:er_f 5:6:4:11:13
+info 10 a 2.02 0.03 -24.4138 -31.6623 ax_f 3
+info 10 tree 1.9 0.15 -99.4783 -25.6145 t:r:iy 5:6:4
+info 10 streets 1.85 0.29 -231.642 -36.9986 s_f:t_f:r_f:iy_f:t_f:s_f 5:5:6:4:6:3
+info 10 korea's 1.9 0.2 -163.87 -37.7102 k_f:r_f:iy_f:ax_f:z_f 3:8:3:3:3
+info 10 rich 2.15 0.47 -370.387 -23.4799 r:ih:ch 13:8:26
+info 10 jeffrey 1.61 0.44 -378.969 -39.4889 jh:eh:f:r:iy 6:10:18:6:4
+info 10 it's 2.29 0.34 -313.644 0 ih:t:s 6:5:23
+info 10 troop 1.9 0.25 -186.461 -35.9314 t_f:r_f:uw_f:p_f 5:6:4:10
+info 10 through 1.92 0.16 -122.869 -40.2005 th_f:r_f:uw_f 3:6:7
+info 10 alfred 1.65 0.43 -375.945 -39.4889 ae:l:f:r:ax:d 8:5:17:5:5:3
+info 10 geoffrey 1.61 0.44 -378.969 -38.4217 jh:eh:f:r:iy 6:10:18:6:4
+info 10 group 1.93 0.22 -177.256 -37.3544 g_f:r_f:uw_f:p_f 3:5:4:10
+info 10 of 2.02 0.06 -52.2072 -39.1332 ax_f:v_f 3:3
+info 10 troops 1.9 0.24 -192.686 -36.2871 t_f:r_f:uw_f:p_f:s_f 5:6:6:4:3
+info 10 re 1.95 0.0999999 -57.9438 -38.4217 r_f:iy_f 6:4
+align 11 *DELETE* 0.997306 a 0.00269378
+reference 11 *DELETE*
+info 11 a 2.01 0.04 -32.3738 -31.6623 ax 4
+align 12 bridge 0.934904 its 0.0328228 rich 0.0252173 it's 0.00402283 [laugh] 0.00110865 branch 0.000955401 uh 0.000475137 @reject@ 9.52471e-05 fridge 9.43722e-05 a 8.2158e-05 ridge 7.88981e-05 [noise] 6.89544e-05 [mouth] 1.85076e-05 it 1.4029e-05 uhhuh 1.35496e-05 time 4.96758e-06 inch 3.65575e-06 the 2.95689e-06 so 2.53071e-06 in 1.72555e-06 huh 1.71867e-06 um 1.51157e-06 him 1.41409e-06 i 9.58381e-07 that 8.13638e-07 no 8.03784e-07 oh 7.77476e-07 at 6.96366e-07 on 6.52795e-07 this 6.46874e-07 too 6.08203e-07 yeah 4.22283e-07 up 3.43275e-07 i'm 3.31021e-07 out 3.01014e-07 if 2.89112e-07 right 2.0902e-07 us 1.71292e-07 is 9.65799e-08
+reference 12 bridge
+info 12 bridge 2.05 0.39 -303.193 -18.4993 b:r:ih:jh 11:12:7:9
+info 12 its 2.29 0.34 -313.644 0 ih:t:s 6:5:23
+info 12 rich 2.14 0.48 -376.968 -23.4799 r:ih:ch 14:8:26
+info 12 it's 2.29 0.34 -313.644 0 ih:t:s 6:5:23
+info 12 [laugh] 2.59 0.25 -243.826 0 lau:lau 21:4
+info 12 branch 2.05 0.57 -483.606 0 b:r:ae:n:ch 11:13:4:4:25
+info 12 uh 2.72 0.11 -102.324 0 puh_f 11
+info 12 @reject@ 2.68 0.15 -162.314 0 rej:rej 5:10
+info 12 fridge 2.11 0.51 -417.747 0 f:r:ih:jh 5:12:8:26
+info 12 a 2.71 0.11 -112.063 0 ax_f 11
+info 12 ridge 2.15 0.47 -383.861 0 r:ih:jh 13:8:26
+info 12 [noise] 2.62 0.22 -215.188 0 bgn_f:bgn_f 19:3
+info 12 [mouth] 2.71 0.18 -147.461 0 mtn_f:mtn_f 10:8
+info 12 it 2.71 0.11 -111.218 0 ax_f:t_f 8:3
+info 12 uhhuh 2.68 0.15 -166.227 0 ax_f:hh_f:puh_f 3:3:9
+info 12 time 2.71 0.11 -112.908 0 t_f:ay_f:m_f 3:3:5
+info 12 inch 2.29 0.33 -302.704 0 ih:n:ch 5:3:25
+info 12 the 2.71 0.11 -112.419 0 dh_f:ax_f 5:6
+info 12 so 2.71 0.11 -112.73 0 s_f:ow_f 3:8
+info 12 in 2.66 0.0699999 -81.4682 0 ax_f:n_f 3:4
+info 12 huh 2.71 0.0999999 -106.46 0 hh_f:ah_f 6:4
+info 12 um 2.71 0.11 -118.422 0 puh_f:pum_f 7:4
+info 12 him 2.71 0.11 -109.262 0 ax_f:m_f 7:4
+info 12 i 2.71 0.0999999 -102.991 0 ay_f 10
+info 12 that 2.71 0.11 -114.865 0 dh_f:ax_f:t_f 5:3:3
+info 12 no 2.68 0.14 -159.957 0 n_f:ow_f 3:11
+info 12 oh 2.67 0.15 -165.96 0 ow_f 15
+info 12 at 2.67 0.0699999 -87.6494 0 ae_f:t_f 3:4
+info 12 on 2.71 0.11 -116.11 0 aa_f:n_f 6:5
+info 12 this 2.71 0.13 -125.137 0 dh_f:ax_f:s_f 7:3:3
+info 12 too 2.71 0.0999999 -111.885 0 t_f:uw_f 5:5
+info 12 yeah 2.71 0.0999999 -113.975 0 y_f:ae_f 5:5
+info 12 up 2.71 0.11 -116.065 0 ah_f:p_f 8:3
+info 12 i'm 2.71 0.11 -105.393 0 ay_f:m_f 6:5
+info 12 out 2.68 0.06 -79.3781 0 aw_f:t_f 3:3
+info 12 if 2.71 0.13 -119.445 0 ax_f:f_f 9:4
+info 12 right 2.64 0.0999999 -121.491 0 r_f:ay_f:t_f 3:3:4
+info 12 us 2.71 0.12 -120.335 0 ah_f:s_f 8:4
+info 12 is 2.68 0.15 -160.757 0 ax_f:z_f 11:4
+align 13 *DELETE* 0.99999 or 2.73832e-06 so 2.10344e-06 @reject@ 1.55797e-06 in 1.17762e-06 [noise] 1.07953e-06 to 8.4887e-07 are 2.45858e-08
+reference 13 *DELETE*
+info 13 or 2.68 0.04 -55.0533 0 er_f 4
+info 13 so 2.44 0.28 -268.151 0 s:ow 22:6
+info 13 @reject@ 2.68 0.12 -137.5 -17.7878 rej:rej 5:7
+info 13 in 2.65 0.0699999 -80.223 0 ax_f:n_f 4:3
+info 13 [noise] 2.62 0.21 -208.784 -15.6533 bgn_f:bgn_f 18:3
+info 13 to 2.71 0.06 -71.1957 -13.5187 t_f:ax_f 3:3
+info 13 are 2.68 0.04 -55.0533 0 er_f 4
+align 14 *DELETE* 0.972671 [laugh] 0.00851025 and 0.00332084 so 0.00292394 uh 0.0022063 [mouth] 0.00174344 [noise] 0.00119525 it 0.00108047 uhhuh 0.000775694 is 0.000644132 or 0.000599775 to 0.000561652 @reject@ 0.000457036 that 0.000453601 but 0.000299144 oh 0.00028088 of 0.000249724 huh 0.000248435 yeah 0.000247275 in 0.00023632 i 0.000203517 him 0.000134499 time 0.000118574 the 7.64258e-05 this 7.26442e-05 now 7.26073e-05 know 5.11118e-05 um 4.69856e-05 right 3.71678e-05 was 3.36506e-05 at 3.35107e-05 i'm 3.18261e-05 you 2.71929e-05 too 2.66114e-05 a 2.51258e-05 up 2.46733e-05 if 2.43494e-05 with 2.37479e-05 that's 2.34349e-05 on 2.23111e-05 it's 2.13828e-05 out 1.81304e-05 are 1.81184e-05 though 1.76535e-05 no 1.52324e-05 us 1.44566e-05 i've 1.17931e-05 for 1.09389e-05 say 9.05278e-06 has 8.31908e-06 some 7.49161e-06 me 6.38657e-06 as 5.5482e-06 uhuh 4.50637e-06 stuff 3.28374e-06 like 3.14005e-06 an 2.90518e-06 okay 2.60619e-06 who 2.21254e-06 his 1.23811e-06
+reference 14 *DELETE*
+info 14 [laugh] 2.59 0.0600002 -53.4968 0 lau:lau 3:3
+info 14 and 2.71 0.12 -121.98 0 ax_f:n_f:d_f 6:3:3
+info 14 so 2.44 0.28 -268.151 0 s:ow 22:6
+info 14 uh 2.77 0.06 -54.3862 0 puh_f 6
+info 14 [mouth] 2.84 0.0700002 -37.0431 0 mtn_f:mtn_f 3:4
+info 14 [noise] 2.74 0.0899999 -82.9801 0 bgn_f:bgn_f 3:6
+info 14 it 2.77 0.06 -56.1205 0 ax_f:t_f 3:3
+info 14 uhhuh 2.68 0.15 -166.227 0 ax_f:hh_f:puh_f 3:3:9
+info 14 is 2.68 0.15 -160.757 0 ax_f:z_f 11:4
+info 14 or 2.68 0.06 -78.0885 0 er_f 6
+info 14 to 2.71 0.11 -112.552 0 t_f:ax_f 4:7
+info 14 @reject@ 2.68 0.15 -162.314 0 rej:rej 5:10
+info 14 that 2.71 0.11 -114.865 0 dh_f:ax_f:t_f 5:3:3
+info 14 but 2.72 0.0999999 -99.0781 0 b_f:ax_f:t_f 4:3:3
+info 14 oh 2.67 0.15 -165.96 0 ow_f 15
+info 14 of 2.71 0.13 -119.312 0 ax:v 7:6
+info 14 huh 2.71 0.0999999 -106.46 0 hh_f:ah_f 6:4
+info 14 yeah 2.71 0.0999999 -113.975 0 y_f:ae_f 5:5
+info 14 in 2.65 0.0799999 -90.7178 0 ax_f:n_f 4:4
+info 14 i 2.71 0.0999999 -102.991 0 ay_f 10
+info 14 him 2.71 0.11 -109.262 0 ax_f:m_f 7:4
+info 14 time 2.71 0.11 -112.908 0 t_f:ay_f:m_f 3:3:5
+info 14 the 2.71 0.11 -112.419 0 dh_f:ax_f 5:6
+info 14 this 2.71 0.13 -125.137 0 dh_f:ax_f:s_f 7:3:3
+info 14 now 2.71 0.0999999 -112.641 0 n_f:aw_f 4:6
+info 14 know 2.68 0.14 -159.957 0 n_f:ow_f 3:11
+info 14 um 2.71 0.11 -118.422 0 puh_f:pum_f 7:4
+info 14 right 2.64 0.0999999 -121.491 0 r_f:ay_f:t_f 3:3:4
+info 14 was 2.71 0.12 -122.603 0 w_f:ax_f:z_f 5:3:4
+info 14 at 2.67 0.0699999 -87.6494 0 ae_f:t_f 3:4
+info 14 i'm 2.71 0.11 -105.393 0 ay_f:m_f 6:5
+info 14 you 2.71 0.0999999 -111.574 0 y_f:uw_f 6:4
+info 14 too 2.71 0.0999999 -111.885 0 t_f:uw_f 5:5
+info 14 a 2.71 0.11 -112.063 0 ax_f 11
+info 14 up 2.71 0.11 -116.065 0 ah_f:p_f 8:3
+info 14 if 2.71 0.13 -119.445 0 ax_f:f_f 9:4
+info 14 with 2.71 0.13 -126.516 0 w_f:ax_f:th_f 6:3:4
+info 14 that's 2.71 0.13 -130.785 0 dh_f:ae_f:t_f:s_f 4:3:3:3
+info 14 on 2.71 0.11 -116.11 0 aa_f:n_f 6:5
+info 14 it's 2.71 0.13 -124.381 0 ax_f:t_f:s_f 7:3:3
+info 14 out 2.68 0.06 -79.3781 0 aw_f:t_f 3:3
+info 14 are 2.68 0.06 -78.0885 0 er_f 6
+info 14 though 2.71 0.11 -114.198 0 dh_f:ow_f 5:6
+info 14 no 2.68 0.14 -159.957 0 n_f:ow_f 3:11
+info 14 us 2.71 0.12 -120.335 0 ah_f:s_f 8:4
+info 14 i've 2.71 0.11 -107.349 0 ay_f:v_f 7:4
+info 14 for 2.71 0.0999999 -110.151 0 f_f:er_f 6:4
+info 14 say 2.44 0.3 -291.498 0 s:ey 24:6
+info 14 has 2.71 0.12 -118.556 0 hh_f:ax_f:z_f 5:3:4
+info 14 some 2.71 0.11 -118.912 0 s_f:ah_f:m_f 5:3:3
+info 14 me 2.65 0.0899999 -109.795 0 m_f:iy_f 3:6
+info 14 as 2.71 0.12 -119.623 0 eh_f:z_f 6:6
+info 14 uhuh 2.71 0.0899999 -98.2332 0 ah_f:ah_f 6:3
+info 14 stuff 2.67 0.17 -186.016 0 s_f:t_f:ah_f:f_f 4:5:3:5
+info 14 like 2.65 0.0899999 -112.419 0 l_f:ay_f:k_f 3:3:3
+info 14 an 2.65 0.0799999 -90.7178 0 ax_f:n_f 4:4
+info 14 okay 2.67 0.11 -139.812 0 ow_f:k_f:ey_f 4:4:3
+info 14 who 2.71 0.0999999 -106.816 0 hh_f:uw_f 5:5
+info 14 his 2.71 0.12 -118.556 0 hh_f:ax_f:z_f 5:3:4
+align 15 *DELETE* 0.99996 [mouth] 2.59968e-05 uh 1.17889e-05 it 8.06257e-07 @reject@ 6.52445e-07 [noise] 2.39699e-07 oh 7.64788e-08
+reference 15 *DELETE*
+info 15 [mouth] 2.84 0.0700002 -37.0431 0 mtn_f:mtn_f 3:4
+info 15 uh 2.75 0.0799999 -73.8194 0 puh_f 8
+info 15 it 2.76 0.06 -57.0099 0 ax_f:t_f 3:3
+info 15 @reject@ 2.68 0.15 -162.314 0 rej:rej 5:10
+info 15 [noise] 2.76 0.0799999 -71.5515 0 bgn_f:bgn_f 5:3
+info 15 oh 2.68 0.14 -155.332 0 ow_f 14

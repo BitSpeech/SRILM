@@ -3,13 +3,16 @@
 # merge-nbest --
 #	merge hyps from multiple N-best lists into a single list
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.2 2001/06/22 00:59:42 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.4 2002/04/22 03:29:13 stolcke Exp $
 #
 
 BEGIN {
-	bytelogscale = 2.30258509299404568402 * 10000.5 / 1024.0;
+	M_LN10 = 2.30258509299404568402;	# from <math.h>
+	logINF = -320;
+	bytelogscale = M_LN10 * 10000.5 / 1024.0;
 
 	use_orig_hyps = 1;
+	add_scores = 0;
 	last_nbestformat = -1;
 
 	nbestmagic1 = "NBestList1.0";
@@ -19,6 +22,23 @@ BEGIN {
 	max_nbest = 0;
 	multiwords = 0;
 	nopauses = 0;
+}
+
+function log10(x) {
+	return log(x) / M_LN10;
+}
+function exp10(x) {
+	if (x < logINF) {
+		return 0;
+	} else {
+		return exp(x * M_LN10);
+	}
+}
+function addlogs(x,y) {
+    if (x<y) {
+	temp = x; x = y; y = temp;
+    }
+    return x + log10(1 + exp10(y - x));
 }
 
 function process_nbest(file) {
@@ -38,6 +58,7 @@ function process_nbest(file) {
 		nbestformat = 2;
 	    } else {
 		words = "";
+		num_words = 0;
 		num_hyps ++;
 
 		if (max_nbest > 0 && num_hyps > max_nbest) {
@@ -47,8 +68,10 @@ function process_nbest(file) {
 		if (nbestformat == 1) {
 		    for (i = 2; i <= NF; i++) {
 			words = words " " $i;
+			if ($i != pause) num_words ++;
 		    }
-		    score = $1;
+		    score = substr($1, 2, length($1)-2)/bytelogscale;
+		    num_words = 1;
 		} else if (nbestformat == 2) {
 		    prev_end_time = -1;
 		    for (i = 2; i <= NF; i += 11) {
@@ -59,20 +82,17 @@ function process_nbest(file) {
 			# (this eliminates phone and state symbols)
 			if (start_time > prev_end_time) {
 			    words = words " " $i;
-
-			    ac_score += $(i + 9);
-			    lm_score += $(i + 7);
-
+			    if ($i != pause) num_words ++;
 			    prev_end_time = end_time;
 			}
 		    }
-		    score = $1;
+		    score = substr($1, 2, length($1)-2)/bytelogscale;
 		} else {
 		    for (i = 4; i <= NF; i++) {
 			words = words " " $i;
 		    }
-		    score = "(" (($1 + 8 * $2) * bytelogscale) ")";
-
+		    score = $1 + 8 * $2;
+		    num_words = $3;
 		}
 
 		# resolve multiwords and eliminate pauses if so desired
@@ -87,6 +107,9 @@ function process_nbest(file) {
 		if (!(words in scores)) {
 		    scores[words] = score;
 		    hyps[words] = $0;
+		    nwords[words] = num_words;
+		} else if (add_scores) {
+		    scores[words] = addlogs(scores[words], score);
 		}
 
 	        if (last_nbestformat < 0) {
@@ -112,10 +135,12 @@ function output_nbest() {
 	}
 
 	for (words in scores) {
-	    if (use_orig_hyps) {
+	    if (add_scores) {
+		print scores[words], 0, nwords[words], words;
+	    } else if (use_orig_hyps) {
 		print hyps[words];
 	    } else {
-		print score words;
+		print "(" (scores[words] * bytelogscale) ")" words;
 	    }
 	}
 }
@@ -140,6 +165,8 @@ BEGIN {
 		    nopauses = val + 0;
 		} else if (var == "use_orig_hyps") {
 		    use_orig_hyps = val + 0;
+		} else if (var == "add_scores") {
+		    add_scores = val + 0;
 		} 
 	    } else {
 	        process_nbest(ARGV[arg]);

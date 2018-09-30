@@ -17,22 +17,14 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.21 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.23 2003/02/21 20:20:10 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
 include $(SRILM)/common/Makefile.common.variables
 
-ifneq ($(CC), $(subst gcc,,$(CC)))
-CC += -Wreturn-type 
-endif
-
-ifneq ($(CXX), $(subst g++,,$(CXX)))
-CXX += -Wreturn-type -DINSTANTIATE_TEMPLATES
-endif
-
-# Use SArray to save space, LHash for speed
-ADDITIONAL_CXXFLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+# Flags for generating "compact" data structures
+COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Define variables.
 

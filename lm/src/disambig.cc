@@ -5,13 +5,14 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-8 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.28 2001/08/18 04:29:09 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.35 2003/01/28 17:34:25 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream.h>
+#include <locale.h>
 
 #include "option.h"
 #include "File.h"
@@ -27,7 +28,9 @@ typedef const VocabIndex *VocabContext;
 
 #define DEBUG_ZEROPROBS		1
 #define DEBUG_TRANSITIONS	2
+#define DEBUG_TRELLIS	        3
 
+static unsigned numNbest = 1;
 static unsigned order = 2;
 static unsigned debug = 0;
 static int scale = 0;
@@ -46,6 +49,7 @@ static double mapw = 1.0;
 static int fb = 0;
 static int fwOnly = 0;
 static int posteriors = 0;
+static int totals = 0;
 static int logMap = 0;
 static int noEOS = 0;
 static int continuous = 0;
@@ -54,6 +58,7 @@ const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
+    { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "write-vocab1", &vocab1File, "output observable vocabulary" },
     { OPT_STRING, "write-vocab2", &vocab2File, "output hidden vocabulary" },
@@ -71,6 +76,7 @@ static Option options[] = {
     { OPT_TRUE, "fb", &fb, "use forward-backward algorithm" },
     { OPT_TRUE, "fwOnly", &fwOnly, "use forward probabilities only" },
     { OPT_TRUE, "posteriors", &posteriors, "output posterior probabilities" },
+    { OPT_TRUE, "totals", &totals, "output total string probabilities" },
     { OPT_TRUE, "no-eos", &noEOS, "don't assume end-of-sentence token" },
     { OPT_TRUE, "continuous", &continuous, "read input without line breaks" },
     { OPT_UINT, "debug", &debug, "debugging level for lm" },
@@ -80,14 +86,16 @@ static Option options[] = {
  * Disambiguate a sentence by finding the hidden tag sequence compatible with
  * it that has the highest probability
  */
-Boolean
-disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
-			VocabMap &map, LM &lm, Boolean positionMapped = false)
+unsigned
+disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
+		     LogP totalProb[], VocabMap &map, LM &lm,
+		     unsigned numNbest, Boolean positionMapped = false)
 {
     static VocabIndex emptyContext[] = { Vocab_None };
     unsigned len = Vocab::length(wids);
+    assert(len > 0);
 
-    Trellis<VocabContext> trellis(len);
+    Trellis<VocabContext> trellis(len, numNbest);
 
     /*
      * Prime the trellis with the tag likelihoods of the first position
@@ -193,16 +201,46 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 		}
 
 		trellis.update(prevContext, newContext,
-					    lmw * transProb + mapw * localProb);
+			       weightLogP(lmw, transProb) +
+			       weightLogP(mapw, localProb));
 	    }
 	}
 
 	pos ++;
     }
 
-    if (fb || fwOnly || posteriors) {
+    if (debug >= DEBUG_TRELLIS) {
+	cerr << "Trellis:\n" << trellis << endl;
+    }
+
+    /*
+     * Check whether viterbi-nbest (default) is asked for.  If so,
+     * do it and return. Otherwise do forward-backward.
+     */
+    if (!fb && !fwOnly && !posteriors) {
+	VocabContext hiddenContexts[numNbest][len + 1];
+
+	for (unsigned n = 0; n < numNbest; n++) {
+	    if (trellis.nbest_viterbi(hiddenContexts[n], len,
+						n, totalProb[n]) != len)
+	    {
+		return n;
+	    }
+	      
+	    /*
+	     * Transfer the first word of each state (word context) into the
+	     * word index string
+	     */
+	    for (unsigned i = 0; i < len; i ++) {
+		hiddenWids[n][i] = hiddenContexts[n][i][0];
+	    }
+	    hiddenWids[n][len] = Vocab_None;
+	}
+	return numNbest;
+    } else {
 	/*
-	 * Forward-backward algorithm: compute backward scores
+	 * Viterbi-nbest wasn't asked for.  We run the Forward-backward
+	 * algorithm: compute backward scores, but only get the 1st best.
 	 */
 	pos --;
 	trellis.initBack(pos);
@@ -295,7 +333,8 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 		    newContext[usedLength > 0 ? usedLength : 1] = Vocab_None;
 
 		    trellis.updateBack(prevContext, newContext,
-					    lmw * transProb + mapw * localProb);
+				       weightLogP(lmw, transProb) +
+				       weightLogP(mapw, localProb));
 
 		    if (debug >= DEBUG_TRANSITIONS) {
 			cerr << "backward position = " << pos
@@ -367,10 +406,10 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 	    if (bestSymbol == Vocab_None) {
 		cerr << "no forward-backward state for position "
 		     << pos << endl;
-		return false;
+		return 0;
 	    }
 
-	    hiddenWids[pos] = bestSymbol;
+	    hiddenWids[0][pos] = bestSymbol;
 
 	    /*
 	     * Print posterior probabilities
@@ -388,27 +427,14 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids,
 		cout << endl;
 	    }
 	}
-    } else {
-	VocabContext hiddenContexts[len + 1];
 
-	/*
-	 * Run Viterbi to get most likely state sequence
+        /*
+	 * Return total string probability summing over all paths
 	 */
-	if (trellis.viterbi(hiddenContexts, len) != len) {
-	    return false;
-	}
-
-	/*
-	 * Transfer the first word of each state (word context) into the
-	 * word index string
-	 */
-	for (unsigned i = 0; i < len; i ++) {
-	    hiddenWids[i] = hiddenContexts[i][0];
-	}
+	totalProb[0] = trellis.sumLogP(len-1);
+	hiddenWids[0][len] = Vocab_None;
+	return 1;
     }
-
-    hiddenWids[len] = Vocab_None;
-    return true;
 }
 
 /*
@@ -429,13 +455,10 @@ disambiguateFile(File &file, VocabMap &map, LM &lm)
 	} else {
 	    VocabIndex wids[maxWordsPerLine + 2];
 
-	    VocabIndex hiddenWids[maxWordsPerLine + 2];
-	    VocabString hiddenWords[maxWordsPerLine + 2];
-
 	    map.vocab1.getIndices(sentence, &wids[1], maxWordsPerLine,
 						    map.vocab1.unkIndex);
-
 	    wids[0] = map.vocab1.ssIndex;
+
 	    if (noEOS) {
 		wids[numWords + 1] = Vocab_None;
 	    } else {
@@ -443,25 +466,51 @@ disambiguateFile(File &file, VocabMap &map, LM &lm)
 		wids[numWords + 2] = Vocab_None;
 	    }
 
-	    if (!disambiguateSentence(map.vocab1, wids, hiddenWids, map, lm)) {
-		file.position() << "viterbi failed\n";
-	    } else {
-		map.vocab2.getWords(hiddenWids, hiddenWords,
-						maxWordsPerLine + 2);
-		if (keepUnk) {
-		    /*
-		     * Look for <unk> symbols in the output and replace
-		     * them with the corresponding input tokens
-		     */
-		    for (unsigned i = 0; hiddenWids[i] != Vocab_None; i++) {
-			if (i > 0 && hiddenWids[i] == map.vocab2.unkIndex) {
-			    hiddenWords[i] = sentence[i - 1];
+	    VocabIndex *hiddenWids[numNbest];
+	    VocabString hiddenWords[maxWordsPerLine + 2];
+
+	    for (unsigned n = 0; n < numNbest; n++) {
+		hiddenWids[n] = new VocabIndex[maxWordsPerLine + 2];
+	    }
+
+	    LogP totalProb[numNbest];
+	    unsigned numHyps =
+			disambiguateSentence(map.vocab1, wids, hiddenWids,
+						totalProb, map, lm, numNbest);
+	    if (!numHyps) {
+		file.position() << "Disambiguation failed\n";
+	    } else if (totals) {
+		cout << totalProb[0] << endl;
+	    } else if (!posteriors) {
+		for (unsigned n = 0; n < numHyps; n++) {
+		    map.vocab2.getWords(hiddenWids[n], hiddenWords,
+							maxWordsPerLine + 2);
+		    if (numNbest > 1) {
+		      cout << "NBEST_" << n << " " << totalProb[n] << " ";
+		    }
+
+		    if (keepUnk) {
+			/*
+			 * Look for <unk> symbols in the output and replace
+			 * them with the corresponding input tokens
+			 */
+			for (unsigned i = 0;
+			     hiddenWids[n][i] != Vocab_None;
+			     i++)
+			{
+			    if (i > 0 &&
+				hiddenWids[n][i] == map.vocab2.unkIndex)
+			    {
+				hiddenWords[i] = sentence[i - 1];
+			    }
 			}
 		    }
-		}
-		if (!posteriors) {
 		    cout << (map.vocab2.use(), hiddenWords) << endl;
 		}
+	    }
+
+	    for (unsigned n = 0; n < numNbest; n++) {
+		delete [] hiddenWids[n];
 	    }
 	}
     }
@@ -497,24 +546,44 @@ disambiguateFileContinuous(File &file, VocabMap &map, LM &lm)
 	}
     }
 
-    if (lineStart == 0) {
-	// empty input -- nothing to do
+    if (lineStart == 0) {		  // empty input -- nothing to do
 	return;
     }
 
-    Array<VocabIndex> hiddenWids;
-    // This implicitly allocates enough space for the posterior vector
-    hiddenWids[lineStart] = Vocab_None;
+    VocabIndex *hiddenWids[numNbest];
+    VocabString hiddenWords[maxWordsPerLine + 2];
 
-    if (!disambiguateSentence(map.vocab1, &wids[0], &hiddenWids[0], map, lm)) {
-	file.position() << "viterbi failed\n";
-    } else {
-	if (!posteriors) {
-	    for (unsigned i = 0; hiddenWids[i] != Vocab_None; i++) {
-		// XXX: keepUnk not implemented yet.
-		cout << map.vocab2.getWord(hiddenWids[i]) << endl;
+    for (unsigned n = 0; n < numNbest; n++) {
+	hiddenWids[n] = new VocabIndex[lineStart + 1];
+	hiddenWids[n][lineStart] = Vocab_None;
+    }
+
+    LogP totalProb[numNbest];
+    unsigned numHyps = disambiguateSentence(map.vocab1, &wids[0], hiddenWids,
+					    totalProb, map, lm, numNbest);
+
+    if (!numHyps) {
+	file.position() << "Disambiguation failed\n";
+    } else if (totals) {
+	cout << totalProb[0] << endl;
+    } else if (!posteriors) {
+	for (unsigned n = 0; n < numHyps; n++) {
+	    map.vocab2.getWords(hiddenWids[n], hiddenWords,
+							maxWordsPerLine + 2);
+	    if (numNbest > 1) {
+	      cout << "NBEST_" << n << " " << totalProb[n] << " ";
 	    }
+
+	    for (unsigned i = 0; hiddenWids[n][i] != Vocab_None; i++) {
+		// XXX: keepUnk not implemented yet.
+		cout << map.vocab2.getWord(hiddenWids[n][i]) << " ";
+	    }
+	    cout << endl;
 	}
+    }
+
+    for (unsigned n = 0; n < numNbest; n++) {
+	delete [] hiddenWids[n];
     }
 }
 
@@ -540,7 +609,7 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm)
 	Array<VocabIndex> wids;
 
 	/*
-	 * Process one sentences
+	 * Process one sentence
 	 */
 	do {
 	    /*
@@ -583,26 +652,39 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm)
 	    }
 	} while (wids[numWords ++] != vocab.seIndex && (line = file.getline()));
 
-	if (numWords == 0) {
-	    // empty input -- nothing to do
-	   break;
-	}
+	if (numWords > 0) {
+	    wids[numWords] = Vocab_None;
 
-	wids[numWords] = Vocab_None;
+	    VocabIndex *hiddenWids[numNbest];
+	    for (unsigned n = 0; n < numNbest; n++) {
+		hiddenWids[n] = new VocabIndex[numWords + 1];
+		hiddenWids[n][numWords] = Vocab_None;
+	    }
 
-	Array<VocabIndex> hiddenWids;
-	// This implicitly allocates enough space for the posterior vector
-	hiddenWids[numWords] = Vocab_None;
+	    LogP totalProb[numNbest];
+	    unsigned numHyps =
+		    disambiguateSentence(vocab, &wids[0], hiddenWids, totalProb,
+						    map, lm, numNbest, true);
 
-	if (!disambiguateSentence(vocab, &wids[0], &hiddenWids[0], map, lm,
-									true))
-	{
-	    file.position() << "viterbi failed\n";
-	} else {
-	    if (!posteriors) {
-		for (unsigned i = 0; hiddenWids[i] != Vocab_None; i++) {
-		    cout << map.vocab2.getWord(hiddenWids[i]) << endl;
+	    if (!numHyps) {
+		file.position() << "Disambiguation failed\n";
+	    } else if (totals) {
+		cout << totalProb[0] << endl;
+	    } else if (!posteriors) {
+		for (unsigned n = 0; n < numHyps; n++) {
+		    if (numNbest > 1) {
+			cout << "NBEST_" << n << " " << totalProb[n] << " ";
+		    }
+
+		    for (unsigned i = 0; hiddenWids[n][i] != Vocab_None; i++) {
+			cout << map.vocab2.getWord(hiddenWids[n][i]) << " ";
+		    }
+		    cout << endl;
 		}
+	    }
+
+	    for (unsigned n = 0; n < numNbest; n++) {
+		delete [] hiddenWids[n];
 	    }
 	}
     }
@@ -611,12 +693,14 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm)
 int
 main(int argc, char **argv)
 {
+    setlocale(LC_CTYPE, "");
+    setlocale(LC_COLLATE, "");
+
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
     /*
      * Construct language model
      */
-
     Vocab hiddenVocab;
     Vocab vocab;
     LM    *hiddenLM;
@@ -625,6 +709,7 @@ main(int argc, char **argv)
 
     vocab.toLower = tolower1? true : false;
     hiddenVocab.toLower = tolower2 ? true : false;
+    hiddenVocab.unkIsWord = keepUnk ? true : false;
 
     if (mapFile) {
 	File file(mapFile, "r");

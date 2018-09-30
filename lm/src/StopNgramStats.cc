@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char TaggedNgramStats_Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.2 2000/01/13 04:06:34 stolcke Exp $";
+static char TaggedNgramStats_Copyright[] = "Copyright (c) 1996,2002 SRI International.  All Rights Reserved.";
+static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.3 2002/08/09 08:46:54 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -21,15 +21,15 @@ StopNgramStats::StopNgramStats(Vocab &vocab, SubVocab &stopWords,
 }
 
 void
-StopNgramStats::incrementCounts(const VocabIndex *words)
+StopNgramStats::incrementCounts(const VocabIndex *words, NgramCount factor)
 {
     while (*words != Vocab_None) {
-	counts.insertTrie(words ++)->value() ++;
+	counts.insertTrie(words ++)->value() += factor;
     }
 }
 
-unsigned int
-StopNgramStats::countSentence(const VocabIndex *words)
+unsigned
+StopNgramStats::countSentence(const VocabIndex *words, NgramCount factor)
 {
     unsigned sentLength = Vocab::length(words);
 
@@ -44,9 +44,9 @@ StopNgramStats::countSentence(const VocabIndex *words)
 	countWords[countPos] = words[nextPos];
 	countWords[countPos + 1] = Vocab_None;
 	if (countPos + 1 >= order) {
-	    incrementCounts(&countWords[countPos + 1 - order]);
+	    incrementCounts(&countWords[countPos + 1 - order], factor);
 	} else {
-	    incrementCounts(countWords);
+	    incrementCounts(countWords, factor);
 	}
 
 	/*

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LM.cc,v 1.39 2000/05/07 01:23:53 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LM.cc,v 1.43 2003/02/15 06:56:29 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -368,7 +368,10 @@ LM::countsProb(NgramStats &counts, TextStats &stats, unsigned countorder)
      * Enumerate all counts up the order indicated
      */
     for (unsigned i = 1; i <= countorder; i++ ) {
-	NgramsIter ngramIter(counts, ngram, i, vocab.compareIndex());
+	// use sorted enumeration in debug mode only
+	NgramsIter ngramIter(counts, ngram, i,
+					!debug(DEBUG_PRINT_WORD_PROBS) ? 0 :
+							vocab.compareIndex());
 
 	NgramCount *count;
 
@@ -460,7 +463,108 @@ LM::countsProb(NgramStats &counts, TextStats &stats, unsigned countorder)
 }
 
 /*
- * Perplexity
+ * Perplexity from counts
+ *	The escapeString is an optional line prefix that marks information
+ *	that should be passed through unchanged.  This is useful in
+ *	constructing rescoring filters that feed hypothesis strings to
+ *	pplCountsFile(), but also need to pass other information to downstream
+ *	processing.
+ */
+unsigned int
+LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
+						const char *escapeString)
+{
+    char *line;
+    unsigned escapeLen = escapeString ? strlen(escapeString) : 0;
+    unsigned stateTagLen = stateTag ? strlen(stateTag) : 0;
+
+    VocabString words[maxNgramOrder + 1];
+    VocabIndex wids[order + 1];
+    NgramStats *counts = 0;
+    TextStats sentenceStats;
+
+    while (line = file.getline()) {
+
+	if (escapeString && strncmp(line, escapeString, escapeLen) == 0) {
+	    /*
+	     * Output sentence-level statistics before each escaped line
+	     */
+	    if (counts) {
+		countsProb(*counts, sentenceStats, order);
+
+		if (debug(DEBUG_PRINT_SENT_PROBS)) {
+		    dout() << sentenceStats << endl;
+		}
+
+		stats.increment(sentenceStats);
+		sentenceStats.reset();
+
+		delete counts;
+		counts = 0;
+	    }
+	    dout() << line;
+	    continue;
+	}
+
+	/*
+	 * check for directives to change the global LM state
+	 */
+	if (stateTag && strncmp(line, stateTag, stateTagLen) == 0) {
+	    /*
+	     * pass the state info the lm to let it do whatever
+	     * it wants with it
+	     */
+	    setState(&line[stateTagLen]);
+	    continue;
+	}
+
+	if (!counts) {
+	    counts = new NgramStats(vocab, order);
+	    assert(counts != 0);
+	}
+
+	NgramCount count;
+	unsigned howmany =
+		    counts->parseNgram(line, words, maxNgramOrder + 1, count);
+
+	/*
+	 * Skip this entry if the length of the ngram exceeds our 
+	 * maximum order
+	 */
+	if (howmany > order) {
+	    continue;
+	}
+
+	/* 
+	 * Map words to indices
+	 */
+	vocab.getIndices(words, wids, order + 1, vocab.unkIndex);
+
+	/*
+	 *  Update the counts
+	 */
+	*counts->insertCount(wids) += count;
+    }
+
+    /* 
+     * Output and update final sentence-level statistics
+     */
+    if (counts) {
+	countsProb(*counts, sentenceStats, order);
+
+	if (debug(DEBUG_PRINT_SENT_PROBS)) {
+	    dout() << sentenceStats << endl;
+	}
+
+	stats.increment(sentenceStats);
+	delete counts;
+    }
+
+    return stats.numWords;
+}
+
+/*
+ * Perplexity from text
  *	The escapeString is an optional line prefix that marks information
  *	that should be passed through unchanged.  This is useful in
  *	constructing rescoring filters that feed hypothesis strings to
@@ -480,7 +584,7 @@ LM::pplFile(File &file, TextStats &stats, const char *escapeString)
     while (line = file.getline()) {
 
 	if (escapeString && strncmp(line, escapeString, escapeLen) == 0) {
-	    dout() << line << endl;
+	    dout() << line;
 	    continue;
 	}
 
@@ -697,10 +801,22 @@ LM::generateSentence(unsigned maxWords, VocabString *sentence)
  *	The default is to return 0, to indicate all contexts are unique.
  */
 void *
-LM::contextID(const VocabIndex *context, unsigned &length)
+LM::contextID(VocabIndex word, const VocabIndex *context, unsigned &length)
 {
     length = Vocab::length(context);
     return 0;
+}
+
+/*
+ * Back-off weight
+ *	Computes the backoff weight applied to probabilities that are 
+ *	computed from a truncated context.  Used for weight computation in
+ *	lattice expansion (see Lattice::expandNodeToLM()).
+ */
+LogP
+LM::contextBOW(const VocabIndex *context, unsigned length)
+{
+    return LogP_One;
 }
 
 /*
@@ -715,7 +831,7 @@ LM::setState(const char *state)
  * LM reading/writing (dummy)
  */
 Boolean
-LM::read(File &file)
+LM::read(File &file, Boolean limitVocab)
 {
     cerr << "read() method not implemented\n";
     return false;

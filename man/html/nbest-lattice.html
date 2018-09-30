@@ -1,4 +1,4 @@
-<! $Id: nbest-lattice.1,v 1.28 2001/08/11 18:12:23 stolcke Exp $>
+<! $Id: nbest-lattice.1,v 1.33 2003/02/15 09:20:36 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-lattice</TITLE>
@@ -82,6 +82,20 @@ A synonym for
 <DD>
 Outputs the N-best list to a file, after sorting and processing 
 (for validation or format conversion purposes).
+<DT><B>-nbest-files</B><I> file-list</I><B></B>
+<DD>
+Rescores multiple N-best lists whose filenames are read from
+<I>file-list</I>.<I></I>
+<DT><B>-write-nbest-dir</B><I> directory</I><B></B>
+<DD>
+Outputs N-best lists to
+<I>directory</I>,<I></I>
+to files named after the input N-best lists,
+for when multiple N-best lists are processed (see
+<B>-nbest-files</B>).<B></B>
+<DT><B>-write-vocab</B><I> file</I><B></B>
+<DD>
+Outputs vocabulary used in N-best list.
 <DT><B> -decipher-nbest </B>
 <DD>
 Output N-best list in Decipher
@@ -93,10 +107,6 @@ rather than the default native SRILM format.
 Suppress rescoring of lattices;
 useful if only the operations of lattice/N-best list reading/writing
 are desired.
-<DT><B>-nbest-files</B><I> file-list</I><B></B>
-<DD>
-Rescores multiple N-best lists whose filenames are read from
-<I>file-list</I>.<I></I>
 <DT><B>-max-nbest</B><I> n</I><B></B>
 <DD>
 Limits the number of hypotheses read from each N-best list to the first
@@ -149,6 +159,16 @@ probabilities with acoustic log probabilities
 Sets the word transition weight used to weight the number of words relative to
 the acoustic log probabilities
 (only relevant if separate scores are given in the N-best input).
+<BR>
+If
+<B> -no-reorder </B>
+is not specified, and either 
+<I> lmw </I>
+or
+<I> wtw </I>
+are specified to be non-zero, the aggregate scores are recomputed using 
+those weights; otherwise aggregate scores supplied in the input N-best lists
+are used to sort hypotheses.
 <DT><B>-posterior-scale</B><I> scale</I><B></B>
 <DD>
 Divide the total weighted log score by 
@@ -176,6 +196,14 @@ The default is to use whatever was specified for
 Sets the word transition weight for computing posteriors.
 The default is to use whatever was specified for
 <B>-rescore-wtw</B>.<B></B>
+<BR>
+If all three of
+<I>amw</I>,<I></I>
+<I>lmw</I>,<I></I>
+and 
+<I> wtw </I>
+are set to zero the posteriors are computed directly from the 
+aggregate scores stored in the N-best input.
 <DT><B>-vocab</B><I> file</I><B></B>
 <DD>
 Read the N-best list vocabulary from 
@@ -269,6 +297,14 @@ Reads an initial lattice from
 <I>file</I>,<I></I>
 to be merged with additional paths constructed from the 
 N-best hypotheses.
+<DT><B>-lattice-files</B><I> file</I><B></B>
+<DD>
+Reads the names of one or more lattices from 
+<I> file </I>
+and aligns those lattices with the main lattice being built.
+Each line of 
+<I> file </I>
+must contain a lattice filename, optionally followed by a weight.
 <DT><B>-write</B><I> file</I><B></B>
 <DD>
 Writes the resulting word posterior lattice or mesh to
@@ -296,6 +332,11 @@ but uses the top-ranked sentence hypothesis for priming.
 (Experience shows that 
 <B> -no-reorder -prime-lattice </B>
 gives best results.)
+<DT><B> -prime-with-refs </B>
+<DD>
+Similar to 
+<B>-prime-lattice</B>,<B></B>
+but uses the reference words for priming.
 <DT><B> -no-merge </B>
 <DD>
 Build a lattice from the N-best hypotheses without merging edges
@@ -342,6 +383,7 @@ vol. 1, 495-498, 1999.
 <H2> BUGS </H2>
 Several functions are not uniformly implemented for all rescoring modes
 (e.g., 
+<B>-lattice-files</B>,<B></B>
 <B>-dictionary</B>,<B></B>
 <B>-record-hyps</B>,<B></B>
 and 
@@ -350,6 +392,6 @@ are currently effective only in mesh-lattice mode).
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1996-2001 SRI International
+Copyright 1996-2002 SRI International
 </BODY>
 </HTML>
