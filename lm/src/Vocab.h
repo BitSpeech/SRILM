@@ -76,9 +76,9 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.41 2010/06/02 05:49:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.42 2011/11/20 20:03:02 stolcke Exp $
  *
  */
 
@@ -238,9 +238,13 @@ public:
 
     virtual void memStats(MemStats &stats) const;
 
+    static VocabString mapToLower(VocabString name);
+
     static Vocab *outputVocab;  /* implicit parameter to operator<< */
 
     static Vocab *compareVocab;	/* implicit parameter to compare() */
+
+   
 protected:
     LHash<VocabString,VocabIndex> byName;
     Array<VocabString> byIndex;

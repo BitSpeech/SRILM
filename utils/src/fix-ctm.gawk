@@ -5,13 +5,14 @@
 # (This requires that the waveform names conform to our standard
 # formats, the same as in sentid-to-ctm.)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fix-ctm.gawk,v 1.6 2009/11/19 00:10:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/fix-ctm.gawk,v 1.7 2011/11/20 19:58:52 stolcke Exp $
 #
 BEGIN {
         # time to add to word start times (should be about half FE window size)
         phase_shift = 0.01;
 
 	tag_pat = "^<.*>$";
+	htk_tag_pat = "^null|^!sent_start|^!sent_end";
 	noise_pat = "^\\[.*\\]$";
         fragment_pat = "-$";
 	pause = "-pau-";
@@ -43,6 +44,16 @@ BEGIN {
 	duration = $4;
 	word = $5;
 	confidence = $6;
+
+	# HTK stuff: strip quotes
+	sub("\"", "", sentid);
+	sub("\"", "", sentid);
+	# archive aliasing info
+	sub("=.*\\[.*\\]$", "", sentid);
+	# standard input file suffixes.
+	sub("\\.plp$", "", sentid);
+	sub("\\.wav$", "", sentid);
+	sub("\\.sph$", "", sentid);
 
 	if (sentid == last_sentid && start_time == "?") {
 		start_time = last_end_time;
@@ -77,6 +88,7 @@ BEGIN {
 
 	# exclude sentence start/end tags
 	if (word ~ tag_pat) next;
+	if (tolower(word) ~ htk_tag_pat) next;
 
 	speaker_id = conv "_" channel;
 

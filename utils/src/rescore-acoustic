@@ -4,7 +4,7 @@
 #       Replace acoustic Nbest scores with a weighted combination of
 #       old and new acoustic scores
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-acoustic,v 1.7 2009/11/19 00:33:26 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rescore-acoustic,v 1.7 2009/11/19 00:33:26 stolcke Exp $
 #
 
 if [ $# -lt 5 ]; then

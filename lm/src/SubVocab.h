@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,1999,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.h,v 1.4 2003/10/10 01:23:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.h,v 1.4 2003/10/10 01:23:39 stolcke Exp $
  *
  */
 

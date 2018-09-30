@@ -4,7 +4,7 @@
 #	Remove ngrams from a backoff LM that have lower prob than their
 #	backoff paths.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/remove-lowprob-ngrams.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/remove-lowprob-ngrams.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
 #
 
 NF == 0 {

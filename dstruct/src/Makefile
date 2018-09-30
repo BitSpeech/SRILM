@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.33 2010/02/17 21:20:53 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/dstruct/src/Makefile,v 1.34 2011/07/19 16:43:14 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -42,7 +42,7 @@ TEMPLATE_SOURCES =	\
 	$(SRCDIR)/LHash.cc \
 	$(SRCDIR)/Map2.cc \
 	$(SRCDIR)/Trie.cc \
-	$(SRCDIR)/CachedMem.cc \
+	$(SRCDIR)/CachedMem.cc
 
 # Example Library declarations files.
 
@@ -56,6 +56,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Map2.h		\
 	$(SRCDIR)/Trie.h		\
 	$(SRCDIR)/CachedMem.h		\
+	$(SRCDIR)/BlockMalloc.h		\
 	$(TEMPLATE_SOURCES)
 
 INTERNAL_LIB_HEADERS = 
@@ -66,6 +67,7 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/MemStats.cc \
 	$(SRCDIR)/LHashTrie.cc \
 	$(SRCDIR)/SArrayTrie.cc \
+	$(SRCDIR)/BlockMalloc.c \
 	$(TEMPLATE_SOURCES)
 
 # Example Library object files.
@@ -96,7 +98,8 @@ PROGRAM_NAMES = \
 		benchHash \
 		testHash \
 		testSizes \
-		testCachedMem
+		testCachedMem \
+		testBlockMalloc
 
 ifeq ($(NO_TCL), )
 PROGRAM_NAMES += \

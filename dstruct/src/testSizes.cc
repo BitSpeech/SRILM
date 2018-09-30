@@ -42,6 +42,7 @@ int main()
 
 	printf("sizeof Trie<short,short> = %lu\n", (unsigned long)sizeof(Trie<short,short>));
 	printf("sizeof Trie<int,int> = %lu\n", (unsigned long)sizeof(Trie<int,int>));
+	printf("sizeof Trie<long,long> = %lu\n", (unsigned long)sizeof(Trie<long,long>));
 	printf("sizeof Trie<unsigned,Count> = %lu\n", (unsigned long)sizeof(Trie<unsigned,Count>));
 	printf("sizeof Trie<unsigned,XCount> = %lu\n", (unsigned long)sizeof(Trie<unsigned,XCount>));
 	printf("sizeof Trie<short,double> = %lu\n", (unsigned long)sizeof(Trie<short,double>));

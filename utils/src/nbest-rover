@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.31 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-rover,v 1.31 2010/08/20 00:17:18 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then

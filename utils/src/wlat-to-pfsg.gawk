@@ -5,7 +5,7 @@
 #
 # usage: wlat-to-pfsg word-lattice> pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-pfsg.gawk,v 1.6 2009/06/07 17:33:09 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/wlat-to-pfsg.gawk,v 1.6 2009/06/07 17:33:09 stolcke Exp $
 #
 
 #########################################

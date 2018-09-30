@@ -2,7 +2,7 @@
  * tclmain.c --
  *	main() function for tcl clients
  *
- * $Header: /home/srilm/devel/misc/src/RCS/tclmain.cc,v 1.6 2003/07/01 02:54:12 stolcke Exp $
+ * $Header: /home/srilm/CVS/srilm/misc/src/tclmain.cc,v 1.6 2003/07/01 02:54:12 stolcke Exp $
  */
 
 #include <tcl.h>

@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramSpecs.cc,v 1.18 2010/06/02 06:33:08 stolcke Exp $";
+static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.18 2010/06/02 06:33:08 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.16 2007/10/18 05:07:11 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiAlign.h,v 1.16 2007/10/18 05:07:11 stolcke Exp $
  *
  */
 

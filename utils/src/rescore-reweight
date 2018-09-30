@@ -3,7 +3,7 @@
 # rescore-reweight
 #	reweight nbest-list scores and select top hyps
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.19 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rescore-reweight,v 1.19 2010/08/20 00:17:18 stolcke Exp $
 #
 
 multiwords=0

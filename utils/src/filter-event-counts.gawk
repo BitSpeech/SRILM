@@ -12,7 +12,7 @@
 #
 # 	yield the same result.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/filter-event-counts.gawk,v 1.2 2009/09/25 00:06:50 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/filter-event-counts.gawk,v 1.2 2009/09/25 00:06:50 stolcke Exp $
 #
 BEGIN {
 	order = 3;

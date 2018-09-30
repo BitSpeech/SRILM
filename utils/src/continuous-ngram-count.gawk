@@ -5,7 +5,7 @@
 #	
 # usage: continous-ngram-count order=ORDER textfile | ngram-count -read -
 #
-# $Header: /home/srilm/devel/utils/src/RCS/continuous-ngram-count,v 1.1 1998/08/24 00:52:30 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/continuous-ngram-count.gawk,v 1.1 1998/08/24 00:52:30 stolcke Exp $
 #
 BEGIN {
 	order = 3;

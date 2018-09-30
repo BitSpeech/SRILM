@@ -12,7 +12,7 @@
 #	normalize=<0|1>	normalize counts to probabilities (default = 1)
 #	addone=<count>	value to add to counts for probability smoothing (1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/replace-words-with-classes.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/replace-words-with-classes.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
 #
 
 function read_classes(file) {

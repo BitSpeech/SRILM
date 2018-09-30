@@ -1730,31 +1730,33 @@ Version History
 
 	Bug fixes:
 
-	* Fixes to compile cleanly with gcc -Wall -Wno-unused-variable -Wno-uninitialized.
+	* Fixes to compile cleanly with gcc -Wall -Wno-unused-variable
+	-Wno-uninitialized.
 	* Fixed a problem with gcc-4.4 compiles.
 	* Fixed a problem with macro definition of fseeko() ftello().
-	* Fixed a problem with the lm/ngram-count-wb-subset test, which could fail
-	after the test data is uncompressed.
+	* Fixed a problem with the lm/ngram-count-wb-subset test, which could
+	fail after the test data is uncompressed.
 	* Use gzip -d to read gzipped files, avoids shell wrapper overhead.
 
 1.5.12  20 Jan 2011
 
 	Functionality:
 
-	* Enable lattice-tool -old-decoding if -nbest-duplicates is specified (and
-	warn about it).  
+	* Enable lattice-tool -old-decoding if -nbest-duplicates is specified
+	(and warn about it).  
 	* Support make-big-lm -wbdiscount option.
-	* New option ngram -prune-history-lm, for specifying a separate LM that computes
-	the history marginal probablities needed for N-gram pruning purposes.
-	Inspired by C. Chelba et al., "Study on Interaction Between Entropy Pruning and
-	Kneser-Ney Smoothing", Proc. Interspeech-2010.
-	* Added optional limitVocab argument to VocabMultiMap::read() function. This
-	is now used by lattice-tool -limit-vocab to avoid reading parts of the dictionary
-	that are not used in the input.
-	* Added an option -zeroprob-word to ngram and lattice-tool.  It specifies a 
-	word that should be used as a replacement if the current word has probability 
-	zero.  This is different from -map-unk which only applies to OOV words and 
-	actually replaces the word label in the output lattice, if any.
+	* New option ngram -prune-history-lm, for specifying a separate LM that
+	computes the history marginal probablities needed for N-gram pruning
+	purposes.  Inspired by C. Chelba et al., "Study on Interaction Between
+	Entropy Pruning and Kneser-Ney Smoothing", Proc. Interspeech-2010.
+	* Added optional limitVocab argument to VocabMultiMap::read() function.
+	This is now used by lattice-tool -limit-vocab to avoid reading parts of
+	the dictionary that are not used in the input.
+	* Added an option -zeroprob-word to ngram and lattice-tool. It
+	specifies a word that should be used as a replacement if the current
+	word has probability zero.  This is different from -map-unk which only
+	applies to OOV words and actually replaces the word label in the output
+	lattice, if any.
 	* Added new wrapper LM class NonzeroLM, to implement the above.
 
 	Portability:
@@ -1766,15 +1768,69 @@ Version History
 
 	Bug fixes:
 
-	* Prob.h: guard against under/overflow in intlog and bytelog conversions.
+	* Prob.h: guard against under/overflow in intlog and bytelog
+	conversions.
 	* Replaced gunzip with gzip -d in all scripts (for efficiency).
-	* Better option checking in make-big-lm, disallowing mixing of discounting 
-	methods and use of discounting flags that are not supported.
+	* Better option checking in make-big-lm, disallowing mixing of
+	discounting methods and use of discounting flags that are not supported.
 	* Undefine max() macro in Trellis.h to avoid conflict with some system
 	header files.
-	* Better support for recent MSVC versions in common/Makefile.machine.msvc
-	(from Mile Frandsen).
+	* Better support for recent MSVC versions in
+	common/Makefile.machine.msvc (from Mile Frandsen).
 	* add-pauses-to-pfsg: prevent existing pause nodes from being processed.
 
-$Date: 2011/01/20 23:28:56 $
+1.6.0  8 December 2011
+
+	Functionality:
+
+	* Added lattice-tool -loglinear-mix option.
+	* Add platform-independent strtok_r() function, and replaced all
+	instances of strtok().
+	  Eventual goal is thread safety and re-entrance.
+	* Modified File object to allow I/O to/from strings as well as files.
+	* Modified code for reading and writing HTK lattices and NBest lists to
+	enable I/O to/from strings as well as files, for in-memory processing.
+	* Added special-purpose malloc/free implementation for SArray and LHash
+	data structures, to reduce overhead for small allocation chunks.  Also
+	added some allocation statistics reporting (enabled by ngram -memuse
+	-debug 1).
+	* Added the metadb config file lookup tool.
+	* Cumulative binomial script (cumbin) command accepts optional 3rd
+	argument to set p parameter.
+
+	Bug fixes:
+	
+	* Correctly handle lattice-tool -use-server when generating nbest lists
+	(server- based LM was previously ignored).
+	* lattice-tool -split-multiwords no longer splits words appearing in 
+	-ignore-vocab.
+	* lattice-tool allowed to operate on HTK lattices containing unrecognized
+	header fields (but warn about them).
+	* Updated reference output for many build platforms to avoid spurious
+	test failures.
+	* Avoid abnormal backoff weights when lower-order probabilities sum to
+	almost one.
+	* Avoid test failures for merge-batch-counts and make-ngram-pfsg due to
+	locale differences.
+	* Fix maxalloc for 64bit systems where "long" is still 32 bits.
+
+	Building:
+
+	* Added Microsoft Visual Studio 2005 projects, see
+	doc/README.windows-msvc-visual-studio for more information.
+	* Added new Makefile targets superclean and pristine to return
+	SRILM to pre-build state.
+	* Add Makefiles for MACHINE_TYPE macosx-m32 and macosx-m64 to
+	allow explicit 32- or 64-bit compilation on MacOS X 10.6.  Updated
+	GAWK location to allow tests to succeed.
+	* Replaced various C-shell helper scripts in sbin/ with Bourne-shell 
+	versions, for greater portability.
+	* New MACHINE_TYPE=msvc64 for 64bit builds with Visual Studio.
+
+	Documentation:
+
+	* Added doc/asru2011-srilm.pdf, a paper describing SRILM updates since
+	2002.  Old ICSLP paper renamed to doc/icslp2002-srilm.pdf .
+
+$Date: 2011/12/08 19:32:49 $
 

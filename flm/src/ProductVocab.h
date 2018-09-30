@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductVocab.h,v 1.9 2006/08/11 20:47:15 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductVocab.h,v 1.9 2006/08/11 20:47:15 stolcke Exp $
  *
  */
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-find ../nbest-rover/nbest-lists -type f -print | sort > nbest.files
+find ../nbest-rover/nbest-lists -type f -print | grep -v CVS | sort > nbest.files
 
 nbest-optimize -debug 0 \
 	-write-rover-control rover.control \

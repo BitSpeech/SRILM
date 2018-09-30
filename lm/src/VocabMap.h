@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995,1998,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.8 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMap.h,v 1.8 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 

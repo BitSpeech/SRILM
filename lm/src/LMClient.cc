@@ -5,14 +5,15 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2007-2008 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LMClient.cc,v 1.15 2009/10/15 18:58:36 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2007-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.17 2011/03/11 00:21:37 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <assert.h>
 
 #if !defined(_MSC_VER) && !defined(WIN32)
 #include <unistd.h>
@@ -79,7 +80,8 @@ LMClient::LMClient(Vocab &vocab, const char *server,
 	    return;
 	}
 
-	memcpy(&serverAddr, host->h_addr, sizeof(host->h_addr));
+	assert((unsigned)host->h_length <= sizeof(serverAddr));
+	memcpy(&serverAddr, host->h_addr, host->h_length);
     }
 
     memset(&sockName, 0, sizeof(sockName));

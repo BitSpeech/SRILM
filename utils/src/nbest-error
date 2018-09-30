@@ -3,7 +3,7 @@
 # nbest-error --
 #	compute minimum error of nbest lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-error,v 1.5 2003/01/11 01:25:44 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-error,v 1.5 2003/01/11 01:25:44 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then

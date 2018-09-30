@@ -2,7 +2,7 @@
 #
 # Map words in a text file to zero of more expansions
 #
-# $Header: /home/srilm/devel/utils/src/RCS/prettify.gawk,v 1.1 2001/03/24 06:41:31 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/prettify.gawk,v 1.1 2001/03/24 06:41:31 stolcke Exp $
 #
 NR == 1 {
 	# read pretty map file

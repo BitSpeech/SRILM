@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2007, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/RemoteLM.h,v 1.1 2007/12/04 00:13:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RemoteLM.h,v 1.1 2007/12/04 00:13:59 stolcke Exp $
  *
  */
 

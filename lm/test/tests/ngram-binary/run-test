@@ -10,14 +10,21 @@ smooth=""
 
 test=../ngram-count-gt/eval97.text
 
+ngram-count \
+	-text $test \
+	-write-vocab test.vocab
+
+# test reading pre-build binary LM
+ngram -debug 0 \
+	-lm swbd.2bin \
+	-vocab test.vocab \
+	-limit-vocab \
+	-ppl $test
+
 # create LM from counts
 ngram -debug 1 \
 	-lm ../ngram-count-gt/swbd.3bo$gz \
 	-write-bin-lm swbd.3bin
-
-ngram-count \
-	-text $test \
-	-write-vocab test.vocab
 
 ngram -debug 0 \
 	-lm swbd.3bin \
@@ -25,5 +32,5 @@ ngram -debug 0 \
 	-limit-vocab \
 	-ppl $test
 
-rm -f test.vocab swbd.3bin*
+rm -f test.vocab swbd.3bin
 

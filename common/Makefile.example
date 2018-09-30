@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.example,v 1.12 2006/01/09 22:47:37 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.example,v 1.12 2006/01/09 22:47:37 stolcke Exp $
 #
 
 #MACHINE_TYPE := $(shell $(SRILM)/sbin/machine-type)

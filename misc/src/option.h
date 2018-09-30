@@ -12,7 +12,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.12 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/CVS/srilm/misc/src/option.h,v 1.12 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _OPTION

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LoglinearMix.h,v 1.2 2007/12/29 08:39:12 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LoglinearMix.h,v 1.2 2007/12/29 08:39:12 stolcke Exp $
  *
  */
 

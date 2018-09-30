@@ -2,7 +2,7 @@
 #
 # Restore third-party code
 #
-# $Header: /home/srilm/devel/sbin/RCS/desanitize-3rdparty,v 1.1 2004/12/03 02:43:38 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/desanitize-3rdparty,v 1.1 2004/12/03 02:43:38 stolcke Exp $
 #
 
 for file

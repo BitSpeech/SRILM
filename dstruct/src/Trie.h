@@ -78,7 +78,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.20 2009/08/31 20:10:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.20 2009/08/31 20:10:10 stolcke Exp $
  *
  */
 

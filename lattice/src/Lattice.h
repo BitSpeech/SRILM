@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1997-2010, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.h,v 1.100 2010/06/02 08:02:31 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lattice/src/Lattice.h,v 1.100 2010/06/02 08:02:31 stolcke Exp $
  *
  */
 

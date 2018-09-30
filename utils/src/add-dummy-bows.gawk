@@ -6,7 +6,7 @@
 #	(Normally a backoff weight is only required for ngrams that
 #	are prefixes of longer ngrams.)
 #
-# $Header: /home/srilm/latest/lm/src/scripts/RCS/add-dummy-bows,v 1.1 1995/09/20 17:36:30 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/add-dummy-bows.gawk,v 1.1 1995/09/20 17:36:30 stolcke Exp $
 #
 
 NF==0 {

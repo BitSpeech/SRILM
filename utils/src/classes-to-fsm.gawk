@@ -6,7 +6,7 @@
 # where ISYMBOLS is the input symbol table, OSYMBOLS is the output symbol table
 # VOCAB is the word list 
 #
-# $Header: /home/srilm/devel/utils/src/RCS/classes-to-fsm,v 1.1 1999/09/27 01:10:27 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/classes-to-fsm.gawk,v 1.1 1999/09/27 01:10:27 stolcke Exp $
 # 
 BEGIN {
     empty_input = "NULL";

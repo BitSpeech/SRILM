@@ -4,7 +4,7 @@
 #	split ngram count file into an indexed directory structure
 # 	compatible with the Google ngrams distributed by LDC
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-google-ngrams.gawk,v 1.6 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-google-ngrams.gawk,v 1.6 2010/08/20 00:17:18 stolcke Exp $
 #
 # usage: zcat counts.gz | make-google-ngrams [dir=DIR] [per_file=N] [gzip=0] [yahoo=1]
 #

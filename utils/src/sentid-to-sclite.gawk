@@ -3,7 +3,7 @@
 # sentid-to-sclite --
 #	convert sentid transcription format to sclite 'trn' format
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-sclite.gawk,v 1.4 2001/03/27 07:32:25 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/sentid-to-sclite.gawk,v 1.4 2001/03/27 07:32:25 stolcke Exp $
 #
 # i.e.:
 #	sentid word1 word2 ....

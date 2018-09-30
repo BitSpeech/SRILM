@@ -12,7 +12,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.33 2009/10/05 18:31:14 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.targets,v 1.35 2011/07/19 16:37:39 stolcke Exp $
 #
 
 
@@ -22,8 +22,8 @@ init:
 	$(MAKE) $(OBJDIR_STAMP) $(BINDIR_STAMP)
 
 # Delete all of the files which can be automatically regenerated.
-pristine:
-	-cd ..; $(SRILM)/sbin/remove-standard-directories
+#pristine:
+#	-cd ..; $(SRILM)/sbin/remove-standard-directories
 
 # Make all, using optimize options.
 optimize:
@@ -154,10 +154,10 @@ $(SRILM_BIN)/%:	%
 depend:
 	$(RM) $(DEPENDENCIES)
 ifneq ($(filter %.c,$(ALL_SOURCES)), )
-	$(GEN_DEP) $(filter %.c,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
+	$(GEN_DEP) $(filter -D%,$(OPTION_FLAGS)) $(filter %.c,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 endif
 ifneq ($(filter %.cc,$(ALL_SOURCES)), )
-	$(GEN_DEP.cc) $(filter %.cc,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
+	$(GEN_DEP.cc) $(filter -D%,$(OPTION_FLAGS)) $(filter %.cc,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 endif
 	$(SRILM)/sbin/generate-program-dependencies $(BASE_BINDIR) $(BASE_OBJDIR) "$(EXE_SUFFIX)" $(ALL_PROGRAM_NAMES) | sed -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 
@@ -165,6 +165,11 @@ endif
 clean:		remove-objects
 cleaner:	clean remove-dependencies remove-libraries
 cleanest:	cleaner remove-programs
+superclean:	cleanest remove-exported-headers remove-exported-libraries remove-exported-programs remove-exported-scripts
+# Delete bin and obj directories and files which can be automatically regenerated.  
+# Note that bin and obj directories are only removed when last
+# machine-dependent subdirectory is removed
+pristine:	superclean remove-bin-directory remove-obj-directory
 
 remove-objects:
 	-$(RM) $(OBJDIR)/*$(OBJ_SUFFIX) $(EXTRA_REMOVE_OBJECTS)
@@ -177,6 +182,38 @@ remove-libraries:
 
 remove-programs:
 	-$(RM) $(ALL_PROGRAMS) $(EXTRA_REMOVE_PROGRAMS)
+
+remove-exported-headers:
+ifneq ($(RELEASED_HEADERS), )
+	-$(RM) $(RELEASED_HEADERS)
+endif
+
+remove-exported-libraries:
+ifneq ($(RELEASED_LIBRARIES), )
+	-$(RM) $(RELEASED_LIBRARIES)
+endif
+
+remove-exported-programs:
+ifneq ($(RELEASED_PROGRAMS), )
+	-$(RM) $(RELEASED_PROGRAMS)
+endif
+
+remove-exported-scripts:
+ifneq ($(RELEASED_SCRIPTS), )
+	-$(RM) $(RELEASED_SCRIPTS)
+endif
+
+# bin and obj directories only removed when last machine-dependent subdirectory is removed:
+remove-bin-directory:
+	-$(RM) $(BINDIR_STAMP)
+	-$(RMDIR) $(BINDIR)
+	-$(RMDIR) ../bin
+
+remove-obj-directory:
+	-$(RM) $(OBJDIR_STAMP)
+	-$(RMDIR) $(OBJDIR)
+	-$(RMDIR) ../obj
+
 
 sanitize:
 	$(SRILM)/sbin/sanitize-3rdparty /dev/null $(ALL_HEADERS) $(ALL_SOURCES)

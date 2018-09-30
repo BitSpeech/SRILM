@@ -10,7 +10,7 @@
 #
 # Copyright (c) 1995, SRI International.  All Rights Reserved
 #
-# $Header: /home/speech/stolcke/project/srilm/devel/lm/src/../../utils/src/RCS/hits-from-log,v 1.3 1995/10/28 03:59:31 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/hits-from-log.gawk,v 1.3 1995/10/28 03:59:31 stolcke Exp $
 #
 BEGIN {
 	M_LN10 = 2.30258509299404568402;	# from <math.h>

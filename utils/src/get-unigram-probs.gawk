@@ -5,7 +5,7 @@
 #
 # usage: get-unigram-probs bo-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/get-unigram-probs.gawk,v 1.2 2007/07/13 23:25:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/get-unigram-probs.gawk,v 1.2 2007/07/13 23:25:02 stolcke Exp $
 #
 
 BEGIN {

@@ -3,7 +3,7 @@
 # merge-batch-counts --
 #	combine batch count files into a single count file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-batch-counts,v 1.8 2008/12/22 00:36:01 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/merge-batch-counts,v 1.8 2008/12/22 00:36:01 stolcke Exp $
 # 
 
 merge_options=

@@ -17,3 +17,5 @@ ngram-class -debug 1 \
         -classes - | \
 sort +2 -3
 
+rm min5.vocab
+

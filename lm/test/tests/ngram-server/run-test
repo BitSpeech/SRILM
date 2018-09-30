@@ -12,14 +12,14 @@ ngram -debug 1 -lm ../ngram-count-gt/swbd.3bo$gz \
 serverpid=$!
 
 # wait for server to start up, but only if it hasn't died yet
-while kill -0 $serverpid; do
+while kill -0 $serverpid 2>/dev/null; do
 	if [ -f server.log ]; then
 		break
 	fi
 	sleep 3
 done
 
-while kill -0 $serverpid; do
+while kill -0 $serverpid 2>/dev/null; do
 	case `tail -1 server.log` in
 	'starting prob server'*) break ;;
 	esac
@@ -37,5 +37,5 @@ sed 's,client .*@,client @,' server.log
 
 rm -f server.log
 
-kill $serverpid
+kill $serverpid 2>/dev/null
 

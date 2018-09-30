@@ -6,7 +6,7 @@
 #
 # usage: uniform-clases CLASSFILE > UNIFORM-CLASSFILE
 #
-# $Header: /home/srilm/devel/utils/src/RCS/uniform-classes.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/uniform-classes.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {

@@ -3,7 +3,7 @@
  *	Fake the *rand48 functions based on srand() and rand()
  *	(for systems that don't have them)
  *
- * $Header: /home/srilm/devel/misc/src/RCS/fake-rand48.c,v 1.2 2005/07/29 03:23:57 stolcke Exp $
+ * $Header: /home/srilm/CVS/srilm/misc/src/fake-rand48.c,v 1.2 2005/07/29 03:23:57 stolcke Exp $
  */
 
 #ifdef NEED_RAND48

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2000 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.h,v 1.4 2011/01/12 20:10:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMultiMap.h,v 1.4 2011/01/12 20:10:59 stolcke Exp $
  *
  */
 

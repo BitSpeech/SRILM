@@ -9,7 +9,7 @@
 # scale=S		sets transition weight scaling factor to S
 #			(default -1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.8 2009/09/08 18:16:40 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/fsm-to-pfsg.gawk,v 1.8 2009/09/08 18:16:40 stolcke Exp $
 #
 BEGIN {
 	pfsg_name = "from_fsm";

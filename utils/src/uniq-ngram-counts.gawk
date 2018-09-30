@@ -3,7 +3,7 @@
 # uniq-ngram-counts --
 #	Collapse identical successive N-grams in counts file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/uniq-ngram-counts.gawk,v 1.2 2007/07/13 23:50:28 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/uniq-ngram-counts.gawk,v 1.2 2007/07/13 23:50:28 stolcke Exp $
 #
 {
 	if (NF == 1) {

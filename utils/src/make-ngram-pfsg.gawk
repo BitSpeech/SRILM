@@ -5,7 +5,7 @@
 #
 # usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] [no_empty_bo=1] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.30 2006/10/05 19:38:56 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-ngram-pfsg.gawk,v 1.30 2006/10/05 19:38:56 stolcke Exp $
 #
 
 #########################################

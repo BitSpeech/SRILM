@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.h,v 1.21 2010/06/02 04:57:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.h,v 1.21 2010/06/02 04:57:29 stolcke Exp $
  *
  */
 

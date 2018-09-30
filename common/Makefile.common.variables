@@ -11,7 +11,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.31 2009/06/28 08:47:03 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.variables,v 1.32 2011/02/03 21:25:32 victor Exp $
 #
 
 
@@ -55,6 +55,9 @@ PURIFY_FLAGS = -best-effort
 # omit third-party functionality and strip binaries
 EXPORT_FLAGS = -DEXCLUDE_CONTRIB
 EXPORT_LDFLAGS = -s
+
+# How to remove directories
+RMDIR = rmdir
 
 # How to create an archive library
 ARCHIVE = $(AR) ruv

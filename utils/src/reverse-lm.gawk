@@ -5,7 +5,7 @@
 #
 # usage: reverse-lm lm-file > rev-lm-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/reverse-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/reverse-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {

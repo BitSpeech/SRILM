@@ -3,7 +3,7 @@
 # add-pauses-to-pfsg --
 #	Modify Decipher PFSG to allow pauses between words
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg.gawk,v 1.13 2011/01/12 04:06:31 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/add-pauses-to-pfsg.gawk,v 1.14 2011/01/27 05:38:08 stolcke Exp $
 #
 BEGIN {
 	pause = "-pau-";
@@ -71,14 +71,13 @@ function print_word_wrapper(word) {
 #
 function print_pause_filler() {
 	print "name " pause_filler_name;
-	print "nodes 4 " null " " null " " pause " " null;
+	print "nodes 3 " null " " pause " " null;
 	print "initial 0";
-	print "final 3";
-	print "transitions 4";
+	print "final 2";
+	print "transitions 3";
 	print "0 1 0";
+	print "1 1 0";
 	print "1 2 0";
-	print "2 3 0";
-	print "2 1 0";
 }
 
 NF == 0 {

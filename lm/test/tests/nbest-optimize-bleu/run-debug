@@ -1,6 +1,6 @@
 #!/bin/sh
 
-find tune.scores -type f | sort > nbestfiles
+find tune.scores -type f | grep -v CVS | sort > nbestfiles
 
 $SRILM/lm/bin/i686-gcc4/nbest-optimize -maxiters 5 \
 	-converge 0.01 \

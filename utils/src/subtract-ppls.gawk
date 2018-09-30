@@ -8,7 +8,7 @@
 #
 # Copyright (c) 1995, SRI International.  All Rights Reserved
 #
-# $Header: /home/spot71/srilm/devel/utils/src/RCS/subtract-ppls,v 1.2 1997/07/12 05:01:08 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/subtract-ppls.gawk,v 1.2 1997/07/12 05:01:08 stolcke Exp $
 #
 /^file .*: .* sentences/ {
 	if (ARGIND == 1) {

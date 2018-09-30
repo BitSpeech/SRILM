@@ -13,6 +13,7 @@ disambig (1)		- disambiguate text tokens using an N-gram model
 hidden-ngram (1)	- tag hidden events between words
 lattice-tool (1)	- manipulate word lattices
 lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, get-unigram-probs, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm (1) - manipulate N-gram language models
+metadb (1)		- retrieve configuration information
 multi-ngram (1) 	- build multiword N-gram models
 nbest-format (5)	- File formats for N-best hypotheses lists
 nbest-lattice (1)	- rescore N-best lists and lattices

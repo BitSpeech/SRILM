@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/flm/src/RCS/Makefile,v 1.11 2006/07/31 17:38:29 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/flm/src/Makefile,v 1.11 2006/07/31 17:38:29 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.

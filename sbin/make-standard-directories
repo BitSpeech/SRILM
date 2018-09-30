@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/sh
 #    File:   make-standard-directories
 #    Author: The SRI DECIPHER (TM) System
 #    Date:   Wed Nov  4 00:36:38 1992
@@ -7,27 +7,20 @@
 #	This script makes the standard directories for a submodule
 #	of the DECIPHER (TM) system.
 #
-#    Copyright (c) 1992, SRI International.  All Rights Reserved.
+#    Copyright (c) 1992-2011 SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: make-standard-directories,v 1.2 1995/03/28 23:27:57 leo Exp $
-#
-#    $Log: make-standard-directories,v $
-# Revision 1.2  1995/03/28  23:27:57  leo
-# Removed code to create subdirectories for each architecture.
-#
-# Revision 1.1  1995/03/28  23:20:15  leo
-# Initial revision
-#
+#    RCS ID: $Id: make-standard-directories,v 1.3 2011/10/21 21:25:58 stolcke Exp $
 #
 
 # If necessary, make the documentation directory.
-if (! -e doc) mkdir doc
+[ -d doc ] || mkdir doc
 
 # If necessary, make the source code directory.
-if (! -e src) mkdir src
+[ -d src ] || mkdir src
 
 # If necessary, make the object code directory.
-if (! -e obj) mkdir obj
+[ -d obj ] || mkdir obj
 
 # If necessary, make the binary code directory.
-if (! -e bin) mkdir bin
+[ -d bin ] || mkdir bin
+

@@ -5,7 +5,7 @@
 #
 # This duplicates the action of ModKneserNey::prepareCounts().
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-kn-counts.gawk,v 1.5 2007/06/16 04:51:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-kn-counts.gawk,v 1.5 2007/06/16 04:51:18 stolcke Exp $
 #
 BEGIN {
 	order = 3;

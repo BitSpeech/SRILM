@@ -8,7 +8,7 @@
 #	without ngram-count having to read all counts into memory.
 #	The output is compatible with the ngram-count -gt<n> options.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-gt-discounts.gawk,v 1.3 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-gt-discounts.gawk,v 1.3 2004/11/02 02:00:35 stolcke Exp $
 #
 # usage: make-gt-discounts min=<mincount> max=<maxcount> countfile
 #

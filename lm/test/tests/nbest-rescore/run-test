@@ -6,7 +6,7 @@ else
 	gz=
 fi
 
-find ../nbest-rover/nbest-lists -type f -print | sort > nbest.files
+find ../nbest-rover/nbest-lists -type f -print | grep -v CVS | sort > nbest.files
 
 mkdir -p nbest.scores
 

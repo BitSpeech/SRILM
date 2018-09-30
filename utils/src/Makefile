@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.62 2010/12/08 19:05:00 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/utils/src/Makefile,v 1.63 2011/11/26 05:42:01 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -86,6 +86,7 @@ EDIT_SCRIPTS = \
 	make-nbest-pfsg \
 	make-ngram-pfsg \
 	make-sub-lm \
+	metadb \
 	sort-lm \
 	reverse-lm \
 	merge-nbest \

@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.cc,v 1.48 2010/06/02 05:54:08 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/HTKLattice.cc,v 1.52 2011/11/20 21:42:04 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,6 +24,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice
 #include "Lattice.h"
 #include "MultiwordVocab.h"
 #include "NBest.h"		// for phoneSeparator and frameLength defn
+#include "MStringTokUtil.h"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_ARRAY(HTKWordInfo);
@@ -433,13 +434,14 @@ getHTKscore(const char *value, double logbase, File &file)
 /*
  * Output quoted version of string
  */
+// Use "stdio" functions in File() object to allow writing in-memory to File() string object.
 static void
-printQuoted(FILE *f, const char *name, Boolean useQuotes)
+printQuoted(File &file, const char *name, Boolean useQuotes)
 {
     Boolean octalPrinted = false;
 
     if (!useQuotes) {
-	fputs(name, f);
+	file.fputs(name);
     } else {
 	for (const char *cp = name; *cp != '\0'; cp ++) {
 	    if (*cp == ' ' || *cp == HTK_escape_quote ||
@@ -450,20 +452,20 @@ printQuoted(FILE *f, const char *name, Boolean useQuotes)
 		/*
 		 * This character needs to be quoted
 		 */
-		putc(HTK_escape_quote, f);
-		putc(*cp, f);
+		file.fputc(HTK_escape_quote);
+		file.fputc(*cp);
 		octalPrinted = false;
 	    } else if (!isprint(*cp) || isspace(*cp)) {
 		/*
 		 * Print as octal char code
 		 */
-		fprintf(f, "%c0%o", HTK_escape_quote, *cp);
+		file.fprintf("%c0%o", HTK_escape_quote, *cp);
 		octalPrinted = true;
 	    } else {
 		/*
 		 * Print as plain character
 		 */
-		putc(*cp, f);
+		file.fputc(*cp);
 		octalPrinted = false;
 	    }
 	}
@@ -1109,10 +1111,10 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		HTKnumnodes = atoi(value);
 	    } else if (keyis("LINKS") || keyis("L")) {
 		HTKnumlinks = atoi(value);
+	    } else if (keyis("engineconfig")) {
+		/* silently ignored */;
 	    } else {
-		file.position() << "unknown field name " << key << endl;
-		if (!useNullNodes) vocab.remove(HTKNodeDummy);
-		return false;
+		file.position() << "ignoring field name " << key << endl;
 	    }
 #undef keyis
 	}
@@ -1307,6 +1309,7 @@ scaleHTKScore(double score, double logscale)
     }
 }
 
+// Use "stdio" functions in File() object to allow writing in-memory to File() string object.
 static void
 writeScoreInfo(File &file, HTKWordInfo &htkinfo, HTKScoreMapping scoreMapping,
 								double logscale)
@@ -1314,68 +1317,69 @@ writeScoreInfo(File &file, HTKWordInfo &htkinfo, HTKScoreMapping scoreMapping,
     if (scoreMapping != mapHTKacoustic &&
 	  htkinfo.acoustic != HTK_undef_float)
     {
-	fprintf(file, "\ta=%lg", scaleHTKScore(htkinfo.acoustic, logscale));
+	file.fprintf("\ta=%lg", scaleHTKScore(htkinfo.acoustic, logscale));
     }
     if (htkinfo.pron != HTK_undef_float)
     {
-	fprintf(file, "\tr=%lg", scaleHTKScore(htkinfo.pron, logscale));
+	file.fprintf("\tr=%lg", scaleHTKScore(htkinfo.pron, logscale));
     }
     if (htkinfo.duration != HTK_undef_float)
     {
-	fprintf(file, "\tds=%lg", scaleHTKScore(htkinfo.duration, logscale));
+	file.fprintf("\tds=%lg", scaleHTKScore(htkinfo.duration, logscale));
     }
     if (htkinfo.xscore1 != HTK_undef_float)
     {
-	fprintf(file, "\tx1=%lg", scaleHTKScore(htkinfo.xscore1, logscale));
+	file.fprintf("\tx1=%lg", scaleHTKScore(htkinfo.xscore1, logscale));
     }
     if (htkinfo.xscore2 != HTK_undef_float)
     {
-	fprintf(file, "\tx2=%lg", scaleHTKScore(htkinfo.xscore2, logscale));
+	file.fprintf("\tx2=%lg", scaleHTKScore(htkinfo.xscore2, logscale));
     }
     if (htkinfo.xscore3 != HTK_undef_float)
     {
-	fprintf(file, "\tx3=%lg", scaleHTKScore(htkinfo.xscore3, logscale));
+	file.fprintf("\tx3=%lg", scaleHTKScore(htkinfo.xscore3, logscale));
     }
     if (htkinfo.xscore4 != HTK_undef_float)
     {
-	fprintf(file, "\tx4=%lg", scaleHTKScore(htkinfo.xscore4, logscale));
+	file.fprintf("\tx4=%lg", scaleHTKScore(htkinfo.xscore4, logscale));
     }
     if (htkinfo.xscore5 != HTK_undef_float)
     {
-	fprintf(file, "\tx5=%lg", scaleHTKScore(htkinfo.xscore5, logscale));
+	file.fprintf("\tx5=%lg", scaleHTKScore(htkinfo.xscore5, logscale));
     }
     if (htkinfo.xscore6 != HTK_undef_float)
     {
-	fprintf(file, "\tx6=%lg", scaleHTKScore(htkinfo.xscore6, logscale));
+	file.fprintf("\tx6=%lg", scaleHTKScore(htkinfo.xscore6, logscale));
     }
     if (htkinfo.xscore7 != HTK_undef_float)
     {
-	fprintf(file, "\tx7=%lg", scaleHTKScore(htkinfo.xscore7, logscale));
+	file.fprintf("\tx7=%lg", scaleHTKScore(htkinfo.xscore7, logscale));
     }
     if (htkinfo.xscore8 != HTK_undef_float)
     {
-	fprintf(file, "\tx8=%lg", scaleHTKScore(htkinfo.xscore8, logscale));
+	file.fprintf("\tx8=%lg", scaleHTKScore(htkinfo.xscore8, logscale));
     }
     if (htkinfo.xscore9 != HTK_undef_float)
     {
-	fprintf(file, "\tx9=%lg", scaleHTKScore(htkinfo.xscore9, logscale));
+	file.fprintf("\tx9=%lg", scaleHTKScore(htkinfo.xscore9, logscale));
     }
 }
 
+// Use "stdio" functions in File() object to allow writing in-memory to File() string object.
 static void
 writeWordInfo(File &file, HTKWordInfo &htkinfo)
 {
     if (htkinfo.var != HTK_undef_uint)
     {
-	fprintf(file, "\tv=%u", htkinfo.var);
+	file.fprintf("\tv=%u", htkinfo.var);
     }
     if (htkinfo.div != 0)
     {
-	fprintf(file, "\td=%s", htkinfo.div);
+	file.fprintf("\td=%s", htkinfo.div);
     }
     if (htkinfo.states != 0)
     {
-	fprintf(file, "\ts=%s", htkinfo.states);
+	file.fprintf("\ts=%s", htkinfo.states);
     }
 }
 
@@ -1396,20 +1400,21 @@ writeWordInfo(File &file, HTKWordInfo &htkinfo)
  *	- lattice transition weights are mapped to one of the
  *	  HTK score fields as indicated by the second argument.
  */
+// Use "stdio" functions in File() object to allow writing in-memory to File() string object.
 Boolean
 Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
-						    Boolean printPosteriors)
+                  Boolean printPosteriors)
 {
     if (debug(DebugPrintFunctionality)) {
 	dout()  << "Lattice::writeHTK: writing ";
     }
 
-    fprintf(file, "# Header (generated by SRILM)\n");
-    fprintf(file, "VERSION=%s\n", HTKLattice_Version);
-    fprintf(file, "UTTERANCE="); printQuoted(file, name, htkheader.useQuotes);
-    fputc('\n', file);
-    fprintf(file, "base=%g\n", htkheader.logbase);
-    fprintf(file, "dir=%s\n", "f");		// forward lattice
+    file.fprintf("# Header (generated by SRILM)\n");
+    file.fprintf("VERSION=%s\n", HTKLattice_Version);
+    file.fprintf("UTTERANCE="); printQuoted(file, name, htkheader.useQuotes);
+    file.fputc('\n');
+    file.fprintf("base=%g\n", htkheader.logbase);
+    file.fprintf("dir=%s\n", "f");		// forward lattice
 
     double logscale = 1.0 / ProbToLogP(htkheader.logbase);
 
@@ -1417,75 +1422,75 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
      * Ancillary header information preserved from readHTK()
      */
     if (htkheader.tscale != HTK_def_tscale) {
-	fprintf(file, "tscale=%g\n", htkheader.tscale);
+	file.fprintf("tscale=%g\n", htkheader.tscale);
     }
     if (htkheader.acscale != HTK_def_acscale) {
-	fprintf(file, "acscale=%g\n", htkheader.acscale);
+	file.fprintf("acscale=%g\n", htkheader.acscale);
     }
     if (htkheader.lmscale != HTK_def_lmscale) {
-	fprintf(file, "lmscale=%g\n", htkheader.lmscale);
+	file.fprintf("lmscale=%g\n", htkheader.lmscale);
     }
     if (htkheader.ngscale != HTK_def_ngscale) {
-	fprintf(file, "ngscale=%g\n", htkheader.ngscale);
+	file.fprintf("ngscale=%g\n", htkheader.ngscale);
     }
     if (htkheader.prscale != HTK_def_prscale) {
-	fprintf(file, "prscale=%g\n", htkheader.prscale);
+	file.fprintf("prscale=%g\n", htkheader.prscale);
     }
     if (htkheader.wdpenalty != HTK_def_wdpenalty) {
-	fprintf(file, "wdpenalty=%lg\n", scaleHTKScore(htkheader.wdpenalty, logscale));
+	file.fprintf("wdpenalty=%lg\n", scaleHTKScore(htkheader.wdpenalty, logscale));
     }
     if (htkheader.duscale != HTK_def_duscale) {
-	fprintf(file, "duscale=%g\n", htkheader.duscale);
+	file.fprintf("duscale=%g\n", htkheader.duscale);
     }
     if (htkheader.x1scale != HTK_def_xscale) {
-	fprintf(file, "x1scale=%g\n", htkheader.x1scale);
+	file.fprintf("x1scale=%g\n", htkheader.x1scale);
     }
     if (htkheader.x2scale != HTK_def_xscale) {
-	fprintf(file, "x2scale=%g\n", htkheader.x2scale);
+	file.fprintf("x2scale=%g\n", htkheader.x2scale);
     }
     if (htkheader.x3scale != HTK_def_xscale) {
-	fprintf(file, "x3scale=%g\n", htkheader.x3scale);
+	file.fprintf("x3scale=%g\n", htkheader.x3scale);
     }
     if (htkheader.x4scale != HTK_def_xscale) {
-	fprintf(file, "x4scale=%g\n", htkheader.x4scale);
+	file.fprintf("x4scale=%g\n", htkheader.x4scale);
     }
     if (htkheader.x5scale != HTK_def_xscale) {
-	fprintf(file, "x5scale=%g\n", htkheader.x5scale);
+	file.fprintf("x5scale=%g\n", htkheader.x5scale);
     }
     if (htkheader.x6scale != HTK_def_xscale) {
-	fprintf(file, "x6scale=%g\n", htkheader.x6scale);
+	file.fprintf("x6scale=%g\n", htkheader.x6scale);
     }
     if (htkheader.x7scale != HTK_def_xscale) {
-	fprintf(file, "x7scale=%g\n", htkheader.x7scale);
+	file.fprintf("x7scale=%g\n", htkheader.x7scale);
     }
     if (htkheader.x8scale != HTK_def_xscale) {
-	fprintf(file, "x8scale=%g\n", htkheader.x8scale);
+	file.fprintf("x8scale=%g\n", htkheader.x8scale);
     }
     if (htkheader.x9scale != HTK_def_xscale) {
-	fprintf(file, "x9scale=%g\n", htkheader.x9scale);
+	file.fprintf("x9scale=%g\n", htkheader.x9scale);
     }
     if (htkheader.amscale != HTK_undef_float && printPosteriors) {
-	fprintf(file, "amscale=%g\n", htkheader.amscale);
+	file.fprintf("amscale=%g\n", htkheader.amscale);
     }
     if (htkheader.hmms != 0) {
-	fprintf(file, "hmms=");
+	file.fprintf("hmms=");
 	printQuoted(file, htkheader.hmms, htkheader.useQuotes);
-	fputc('\n', file);
+	file.fputc('\n');
     }
     if (htkheader.lmname != 0) {
-	fprintf(file, "lmname=");
+	file.fprintf("lmname=");
 	printQuoted(file, htkheader.lmname, htkheader.useQuotes);
-	fputc('\n', file);
+	file.fputc('\n');
     }
     if (htkheader.ngname != 0) {
-	fprintf(file, "ngname=");
+	file.fprintf("ngname=");
 	printQuoted(file, htkheader.ngname, htkheader.useQuotes);
-	fputc('\n', file);
+	file.fputc('\n');
     }
     if (htkheader.vocab != 0) {
-	fprintf(file, "vocab=");
+	file.fprintf("vocab=");
 	printQuoted(file, htkheader.vocab, htkheader.useQuotes);
-	fputc('\n', file);
+	file.fputc('\n');
     }
 	
     /*
@@ -1535,29 +1540,29 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
     }
 
     if (initial != NoNode) {
-	fprintf(file, "start=%u\n",  *nodeMap.find(initial));
+	file.fprintf("start=%u\n",  *nodeMap.find(initial));
     }
     if (final != NoNode) {
-	fprintf(file, "end=%u\n",  *nodeMap.find(final));
+	file.fprintf("end=%u\n",  *nodeMap.find(final));
     }
-    fprintf(file, "NODES=%u LINKS=%u\n", numNodes, numTransitions);
+    file.fprintf("NODES=%u LINKS=%u\n", numNodes, numTransitions);
 
     if (debug(DebugPrintFunctionality)) {
       dout()  << numNodes << " nodes, "
 	      << numTransitions << " transitions\n";
     }
 
-    fprintf(file, "# Nodes\n");
+    file.fprintf("# Nodes\n");
 
     nodeIter.init(); 
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
         // skip printing this node if it can be treated as just a transition
         if (treatNodeAsTrans.find(nodeIndex)) continue;
 
-	fprintf(file, "I=%u", *nodeMap.find(nodeIndex));
+	file.fprintf("I=%u", *nodeMap.find(nodeIndex));
 
  	if (htkheader.wordsOnNodes) {
-	    fprintf(file, "\tW=");
+	    file.fprintf("\tW=");
 	    printQuoted(file, ((!printSentTags &&
 				    node->word == vocab.ssIndex()) ||
 			       (!printSentTags &&
@@ -1574,7 +1579,7 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    HTKWordInfo &htkinfo = *node->htkinfo;
 
 	    if (htkinfo.time != HTK_undef_float) {
-		fprintf(file, "\tt=%g", htkinfo.time);
+		file.fprintf("\tt=%g", htkinfo.time);
 	    }
 	    if (htkheader.scoresOnNodes) {
 		writeScoreInfo(file, htkinfo, scoreMapping, logscale);
@@ -1584,12 +1589,12 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    }
 	}
 	if (printPosteriors) {
-	    fprintf(file, "\tp=%lg", (double)LogPtoProb(node->posterior));
+	    file.fprintf("\tp=%lg", (double)LogPtoProb(node->posterior));
 	}
-	fprintf(file, "\n");
+	file.fprintf("\n");
     }
 
-    fprintf(file, "# Links\n");
+    file.fprintf("# Links\n");
 
     unsigned linkNumber = 0;
     nodeIter.init(); 
@@ -1619,10 +1624,10 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	unsigned *fromNodeId = nodeMap.find(prevIndex); 
 	assert(fromNodeId != 0);
 	
-	fprintf(file, "J=%u\tS=%u\tE=%u", linkNumber++, *fromNodeId, *toNodeId);
+	file.fprintf("J=%u\tS=%u\tE=%u", linkNumber++, *fromNodeId, *toNodeId);
 	
 	if (!htkheader.wordsOnNodes) {
-	    fprintf(file, "\tW=");
+	    file.fprintf("\tW=");
 	    printQuoted(file, ((!printSentTags &&
 				    node->word == vocab.ssIndex()) ||
 			       (!printSentTags &&
@@ -1644,12 +1649,12 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    if (scoreMapping != mapHTKngram &&
 		htkinfo.ngram != HTK_undef_float)
 	    {
-		fprintf(file, "\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
+		file.fprintf("\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
 	    }
 	    if (scoreMapping != mapHTKlanguage &&
 		htkinfo.language != HTK_undef_float)
 	    {
-		fprintf(file, "\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
+		file.fprintf("\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
 	    }
 	}
 	
@@ -1667,7 +1672,7 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    LogP combinedWeight = thisTrans->weight + 
 				  prevTrans->weight;
 
-	    fprintf(file, "\t%c=%lg",
+	    file.fprintf("\t%c=%lg",
 		    (scoreMapping == mapHTKacoustic ? 'a' :
 		     (scoreMapping == mapHTKngram ? 'n' :
 		      (scoreMapping == mapHTKlanguage ? 'l' : '?'))),
@@ -1675,10 +1680,10 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	}
 
 	if (printPosteriors) {
-	    fprintf(file, "\tp=%lg", (double)LogPtoProb(node->posterior));
+	    file.fprintf("\tp=%lg", (double)LogPtoProb(node->posterior));
 	}
 	
-	fprintf(file, "\n");
+	file.fprintf("\n");
       } else {
         // treat this node in the normal sense if it can't be treated solely
 	// as a trans (but we have to ignore transitions to nodes that were
@@ -1701,11 +1706,11 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    unsigned *toNodeId = nodeMap.find(toNodeIndex); 
 	    assert(toNodeId != 0);
 
-	    fprintf(file, "J=%u\tS=%u\tE=%u",
+	    file.fprintf("J=%u\tS=%u\tE=%u",
 				linkNumber++, *fromNodeId, *toNodeId);
 
 	    if (!htkheader.wordsOnNodes) {
-		fprintf(file, "\tW=");
+		file.fprintf("\tW=");
 		printQuoted(file, ((!printSentTags &&
 					toNode->word == vocab.ssIndex()) ||
 				   (!printSentTags &&
@@ -1731,12 +1736,12 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 		if (scoreMapping != mapHTKngram &&
 		    htkinfo.ngram != HTK_undef_float)
 		{
-		    fprintf(file, "\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
+		    file.fprintf("\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
 		}
 		if (scoreMapping != mapHTKlanguage &&
 		    htkinfo.language != HTK_undef_float)
 		{
-		    fprintf(file, "\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
+		    file.fprintf("\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
 		}
 	    }
 
@@ -1744,14 +1749,14 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	     * map transition weight to one of the standard HTK scores
 	     */
 	    if (scoreMapping != mapHTKnone) {
-		fprintf(file, "\t%c=%lg",
+		file.fprintf("\t%c=%lg",
 			    (scoreMapping == mapHTKacoustic ? 'a' :
 			     (scoreMapping == mapHTKngram ? 'n' :
 			      (scoreMapping == mapHTKlanguage ? 'l' : '?'))),
 			    scaleHTKScore(trans->weight, logscale));
 	    }
 
-	    fprintf(file, "\n");
+	    file.fprintf("\n");
 	  }
       }
     }
@@ -1802,10 +1807,11 @@ Lattice::scorePronunciations(VocabMultiMap &dictionary, Boolean intlogs)
 
 		Array<VocabIndex> phones;
 		unsigned numPhones = 0;
-
-		for (char *s = strtok(phoneString, phoneSeparator);
+		char *strtok_ptr = NULL;
+    
+		for (char *s = MStringTokUtil::strtok_r(phoneString, phoneSeparator, &strtok_ptr);
 		     s != 0;
-		     s = strtok(NULL, phoneSeparator))
+		     s = MStringTokUtil::strtok_r(NULL, phoneSeparator, &strtok_ptr))
 		{
 		    // skip empty components (at beginning and end)
 		    if (s[0] == '\0') continue;

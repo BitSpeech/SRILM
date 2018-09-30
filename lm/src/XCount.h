@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/XCount.h,v 1.12 2006/11/17 11:33:55 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.h,v 1.12 2006/11/17 11:33:55 stolcke Exp $
  *
  */
 

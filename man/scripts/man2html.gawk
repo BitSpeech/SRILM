@@ -1,6 +1,6 @@
 #!/usr/local/bin/gawk -f
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.9 2007/12/20 20:29:10 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/man/scripts/man2html.gawk,v 1.9 2007/12/20 20:29:10 stolcke Exp $
 #
 
 function getargs() {

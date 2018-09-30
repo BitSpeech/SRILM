@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2011 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NonzeroLM.h,v 1.1 2011/01/14 01:19:00 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NonzeroLM.h,v 1.1 2011/01/14 01:19:00 stolcke Exp $
  *
  */
 

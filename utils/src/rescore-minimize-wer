@@ -3,7 +3,7 @@
 # rescore-minimize-wer --
 #	minimize posterior expected WER in an nbest-list
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-minimize-wer,v 1.6 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rescore-minimize-wer,v 1.6 2010/08/20 00:17:18 stolcke Exp $
 #
 
 if [ $# -lt 1 ]; then

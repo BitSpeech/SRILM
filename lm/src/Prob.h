@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.26 2010/08/03 04:57:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.26 2010/08/03 04:57:39 stolcke Exp $
  *
  */
 

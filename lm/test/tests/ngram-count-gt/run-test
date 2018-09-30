@@ -8,6 +8,10 @@ fi
 
 smooth=""
 
+if [ -f swbd.3bo$gz ]; then
+	mv swbd.3bo$gz swbd.3bo$gz.SAVED
+fi
+
 # create LM from counts
 ngram-count -debug 1 \
 	$smooth \
@@ -19,5 +23,7 @@ ngram -debug 0 \
 	-lm swbd.3bo$gz \
 	-ppl eval97.text
 
-# rm -f swbd.3bo$gz
+if [ -f swbd.3bo$gz.SAVED ]; then
+	mv swbd.3bo$gz.SAVED swbd.3bo$gz
+fi
 

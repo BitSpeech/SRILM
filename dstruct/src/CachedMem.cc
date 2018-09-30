@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char CachedMem_Copyright[] = "Copyright (c) 2008-2010 SRI International.  All Rights Reserved.";
-static char CachedMem_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/CachedMem.cc,v 1.2 2010/08/03 17:14:55 stolcke Exp $";
+static char CachedMem_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/CachedMem.cc,v 1.2 2010/08/03 17:14:55 stolcke Exp $";
 #endif
 
 #include "CachedMem.h"

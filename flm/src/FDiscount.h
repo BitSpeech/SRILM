@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FDiscount.h,v 1.9 2010/06/02 06:33:08 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FDiscount.h,v 1.9 2010/06/02 06:33:08 stolcke Exp $
  *
  *
  */

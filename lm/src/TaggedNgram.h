@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/TaggedNgram.h,v 1.1 1995/08/23 03:19:35 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedNgram.h,v 1.1 1995/08/23 03:19:35 stolcke Exp $
  *
  */
 

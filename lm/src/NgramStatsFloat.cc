@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStatsFloat.cc,v 1.4 1999/10/23 06:15:46 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStatsFloat.cc,v 1.4 1999/10/23 06:15:46 stolcke Exp $";
 #endif
 
 #include "NgramStats.cc"

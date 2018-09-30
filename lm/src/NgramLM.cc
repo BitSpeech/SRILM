@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramLM.cc,v 1.121 2010/09/28 20:17:24 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramLM.cc,v 1.122 2011/05/30 23:46:38 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -2039,7 +2039,7 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 	denominator = 0.0;
     }
 
-    if (denominator == 0.0 && numerator > Prob_Epsilon) {
+    if (denominator < Prob_Epsilon && numerator > Prob_Epsilon) {
 	/* 
 	 * Backoff distribution has no probability left.  To avoid wasting
 	 * probability mass scale the N-gram probabilities to sum to 1.
@@ -2055,6 +2055,7 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 	    *prob += scale;
 	}
 
+	denominator = 0.0;
 	numerator = 0.0;
 	return true;
     } else if (numerator < 0.0) {
@@ -2118,7 +2119,7 @@ Ngram::computeBOWs(unsigned order)
 	     */
 	    if (order == 0 /*&& numerator > 0.0*/) {
 		distributeProb(numerator, context);
-	    } else if (numerator == 0.0 && denominator == 0) {
+	    } else if (numerator == 0.0 && denominator == 0.0) {
 		node->bow = LogP_One;
 	    } else {
 		node->bow = ProbToLogP(numerator) - ProbToLogP(denominator);
@@ -2129,6 +2130,14 @@ Ngram::computeBOWs(unsigned order)
 	     */
 	    node->bow = LogP_Zero;
 	    result = false;
+	}
+
+	if (debug(DEBUG_ESTIMATES)) {
+	    dout() << "CONTEXT " << (vocab.use(), context)
+		   << " numerator " << numerator
+		   << " denominator " << denominator
+		   << " BOW " << node->bow
+		   << endl;
 	}
     }
 

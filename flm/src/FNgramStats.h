@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramStats.h,v 1.16 2009/06/11 05:30:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.h,v 1.16 2009/06/11 05:30:47 stolcke Exp $
  *
  */
 

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.h,v 1.13 2010/06/02 05:49:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/ClassNgram.h,v 1.13 2010/06/02 05:49:58 stolcke Exp $
  *
  */
 

@@ -3,7 +3,7 @@
 # wlat-stats --
 #	Compute statistics of word posterior lattices
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-stats.gawk,v 1.5 2005/02/10 23:34:50 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/wlat-stats.gawk,v 1.5 2005/02/10 23:34:50 stolcke Exp $
 #
 BEGIN {
 	name = "";

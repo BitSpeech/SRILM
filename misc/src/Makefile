@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.26 2006/08/11 20:32:22 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.28 2011/04/01 17:47:18 victor Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -35,6 +35,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Boolean.h		\
 	$(SRCDIR)/Debug.h		\
 	$(SRCDIR)/File.h		\
+	$(SRCDIR)/MStringTokUtil.h	\
 	$(SRCDIR)/version.h
 
 INTERNAL_LIB_HEADERS = 
@@ -47,6 +48,7 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/fake-rand48.c		\
 	$(SRCDIR)/Debug.cc		\
 	$(SRCDIR)/File.cc		\
+	$(SRCDIR)/MStringTokUtil.cc	\
 	$(SRCDIR)/version.c
 
 ifeq ($(NO_TCL), )
@@ -119,7 +121,7 @@ $(LIBRARY):	$(LIB_OBJECTS)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 SRILMversion.h:	$(SRILM)/RELEASE $(SRILM)/Copyright
-	echo '#define SRILM_RELEASE "'`cat $(SRILM)/RELEASE`'"' > $@
+	read version < $(SRILM)/RELEASE; echo "#define SRILM_RELEASE \"$$version\"" > $@
 	sed -f $(SRILM)/sbin/stringify-copyright $(SRILM)/Copyright >> $@
 
 # Variables and Targets for released system

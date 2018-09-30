@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1998-2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.h,v 1.22 2005/07/03 22:40:56 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.h,v 1.22 2005/07/03 22:40:56 stolcke Exp $
  *
  */
 

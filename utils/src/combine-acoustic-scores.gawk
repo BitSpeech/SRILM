@@ -9,7 +9,7 @@
 # than the nbest list is long, missing values are filled in with the
 # minimal score found in that file.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/combine-acoustic-scores.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/combine-acoustic-scores.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
 #
 function get_from_file(i) {
 	if (ARGV[i] ~ /\.gz$/) {

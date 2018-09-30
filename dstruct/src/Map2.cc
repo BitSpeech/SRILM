@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char Map2_Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
-static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.12 2010/06/02 04:52:43 stolcke Exp $";
+static char Map2_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.cc,v 1.12 2010/06/02 04:52:43 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

@@ -1,7 +1,7 @@
 #
 # Makefile for SRILM test suite 
 #
-# $Header: /home/srilm/devel/common/RCS/Makefile.test,v 1.14 2009/12/02 21:34:22 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/common/Makefile.test,v 1.16 2011/10/12 06:00:50 stolcke Exp $
 #
 
 TEST=*
@@ -12,6 +12,7 @@ test:
 	@PATH=$$SRILM/bin/$${MACHINE_TYPE}${OPTION}:$$SRILM/bin:$$PATH; export PATH; \
 	$(SRILM)/sbin/go.unzip; \
 	for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		$(SRILM)/sbin/go.run-test $$testdir; \
 	done
 
@@ -19,6 +20,7 @@ profile:
 	@PATH=$$PWD/../bin/$${MACHINE_TYPE}_p:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
 	$(SRILM)/sbin/go.unzip; \
 	for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		$(SRILM)/sbin/go.run-test $$testdir; \
 	done
 
@@ -26,6 +28,7 @@ pure:
 	@PATH=$$PWD/../bin/$${MACHINE_TYPE}_pure:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
 	$(SRILM)/sbin/go.unzip; \
 	for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		$(SRILM)/sbin/go.run-test $$testdir; \
 	done
 
@@ -34,6 +37,7 @@ try:
 	echo PATH=$$PATH; \
 	$(SRILM)/sbin/go.unzip; \
 	for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		$(SRILM)/sbin/go.run-test $$testdir; \
 	done
 
@@ -42,6 +46,7 @@ try-output:
 	echo PATH=$$PATH; \
 	$(SRILM)/sbin/go.unzip; \
 	for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		(cd tests/$(TEST); sh -x run-test); \
 	done
 
@@ -49,8 +54,12 @@ refs:
 	[ ! -d reference -o -d reference.old ] || mv reference reference.old
 	mkdir -p reference
 	@for testdir in tests/$(TEST); do \
+	   [ $$testdir = tests/CVS ] || \
 		$(SRILM)/sbin/go.update-refs $$testdir; \
 	done
+
+gzip:
+	$(SRILM)/sbin/go.zip
 
 clean:
 	rm -f output/*

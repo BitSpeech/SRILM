@@ -1,5 +1,5 @@
-.\" $Id: lattice-tool.1,v 1.77 2011/01/14 01:35:13 stolcke Exp $
-.TH lattice-tool 1 "$Date: 2011/01/14 01:35:13 $" "SRILM Tools"
+.\" $Id: lattice-tool.1,v 1.78 2011/01/29 06:30:16 stolcke Exp $
+.TH lattice-tool 1 "$Date: 2011/01/29 06:30:16 $" "SRILM Tools"
 .SH NAME
 lattice-tool \- manipulate word lattices
 .SH SYNOPSIS
@@ -806,6 +806,10 @@ and
 .B \-mix-lambda2
 through
 .BR \-mix-lambda9 .
+.TP
+.B \-loglinear-mix
+Implement a log-linear (rather than linear) mixture LM, using the 
+parameters above.
 .TP
 .BI \-bayes " length"
 Set the context length used for Bayesian interpolation.

@@ -29,11 +29,7 @@ static  void		qst();
  * It's not...
  */
 void
-qsort(base, n, size, compar)
-	char	*base;
-	int	n;
-	int	size;
-	int	(*compar)();
+qsort(char *base, int n, int size, int (*compar)())
 {
 	register char c, *i, *j, *lo, *hi;
 	char *min, *max;
@@ -106,8 +102,7 @@ n
  */
 
 static void
-qst(base, max)
-	char *base, *max;
+qst(char *base, char *max)
 {
 	register char c, *i, *j, *jj;
 	register int ii;

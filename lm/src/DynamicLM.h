@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DynamicLM.h,v 1.2 2007/11/25 18:15:30 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/DynamicLM.h,v 1.2 2007/11/25 18:15:30 stolcke Exp $
  *
  */
 

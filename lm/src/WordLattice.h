@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.14 2003/11/01 07:07:21 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordLattice.h,v 1.14 2003/11/01 07:07:21 stolcke Exp $
  *
  */
 

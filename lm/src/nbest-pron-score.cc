@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2002-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.13 2011/04/06 23:49:03 victor Exp $";
 #endif
 
 #include <stdio.h>
@@ -26,6 +26,7 @@ static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.11 2010/06/02 05:49:58 s
 #include "Ngram.h"
 #include "VocabMultiMap.h"
 #include "RefList.h"
+#include "MStringTokUtil.h"
 
 #define DEBUG_SCORES	2
 
@@ -180,10 +181,11 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 		 */
 		Array<VocabIndex> phones;
 		unsigned numPhones = 0;
+                char *strtok_ptr = NULL;
 
-		for (char *s = strtok(phoneString, phoneSeparator);
+		for (char *s = MStringTokUtil::strtok_r(phoneString, phoneSeparator, &strtok_ptr);
 		     s != 0;
-		     s = strtok(NULL, phoneSeparator), numPhones ++)
+		     s = MStringTokUtil::strtok_r(NULL, phoneSeparator, &strtok_ptr), numPhones ++)
 		{
 		    phones[numPhones] = phoneVocab.addWord(s);
 		}
@@ -351,8 +353,10 @@ main (int argc, char *argv[])
     if (nbestFiles) {
 	File file(nbestFiles, "r");
 	char *line;
+        char *strtok_ptr = NULL;
 	while ((line = file.getline())) {
-	    char *fname = strtok(line, wordSeparators);
+	    strtok_ptr = NULL;
+	    char *fname = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	    if (!fname) continue;
 
 	    RefString sentid = idFromFilename(fname);

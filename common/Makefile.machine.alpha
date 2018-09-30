@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.alpha,v 1.8 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.alpha,v 1.8 2003/02/21 22:30:00 stolcke Exp $
 #
 
    GCC_FLAGS = -V2.8.1 -mieee-with-inexact -Wreturn-type -Wimplicit

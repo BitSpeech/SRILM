@@ -8,7 +8,7 @@
 #	without ngram-count having to read all counts into memory.
 #	The output is compatible with the ngram-count -kn<n> options.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-kn-discounts.gawk,v 1.4 2007/06/17 01:21:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-kn-discounts.gawk,v 1.4 2007/06/17 01:21:18 stolcke Exp $
 #
 # usage: make-kn-discounts min=<mincount> countfile
 #

@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.cc,v 1.16 2010/06/02 05:51:57 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.cc,v 1.18 2011/04/06 23:48:59 victor Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -27,6 +27,7 @@ using namespace std;
 #include "FNgramStats.h"
 #include "FNgramSpecs.h"
 #include "FactoredVocab.h"
+#include "MStringTokUtil.h"
 
 #include "LHash.cc"
 #include "Array.cc"
@@ -392,6 +393,7 @@ FactoredVocab::read(File &file)
 {
     char *line;
     unsigned int howmany = 0;
+    char *strtok_ptr = NULL;
 
     while ((line = file.getline())) {
 	/*
@@ -399,7 +401,8 @@ FactoredVocab::read(File &file)
 	 * will find at least one word.  Any further ones on that
 	 * line are ignored.
 	 */
-	VocabString word = strtok(line, wordSeparators);
+	strtok_ptr = NULL;
+	VocabString word = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 
 	Boolean tagfound;
 	if (addWord2(word, tagfound) == Vocab_None && tagfound) {

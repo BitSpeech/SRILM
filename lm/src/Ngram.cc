@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram.cc,v 1.113 2011/01/14 01:02:18 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: ngram.cc,v 1.116 2011/07/19 16:55:14 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -68,6 +68,8 @@ extern "C" {
 #include "RefList.h"
 #include "ProductNgram.h"
 #include "Array.cc"
+#include "MStringTokUtil.h"
+#include "BlockMalloc.h"
 
 static int version = 0;
 static unsigned order = defaultNgramOrder;
@@ -1017,7 +1019,15 @@ main(int argc, char **argv)
     if (memuse) {
 	MemStats memuse;
 	useLM->memStats(memuse);
+
+	if (debug == 0)  {
+	    memuse.clearAllocStats();
+	}
 	memuse.print();
+
+    	if (debug > 0) {
+	    BM_printstats();
+	}
     }
 
     /*
@@ -1118,8 +1128,10 @@ main(int argc, char **argv)
 	File file(nbestFiles, "r");
 
 	char *line;
+        char *strtok_ptr = NULL;
 	while ((line = file.getline())) {
-	    char *fname = strtok(line, wordSeparators);
+	    strtok_ptr = NULL;
+	    char *fname = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	    if (!fname) continue;
 
 	    RefString sentid = idFromFilename(fname);

@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2010 SRI International.  All Rights Reserved.
 
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.h,v 1.5 2010/06/02 04:52:43 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/IntervalHeap.h,v 1.5 2010/06/02 04:52:43 stolcke Exp $
  *
  *    Implementation started with the code from http://www.mhhe.com/engcs/compsci/sahni/enrich/c9/interval.pdf
  *      An online portion of the textbook "Data Structures, Algorithms, and Applications in C++" by Sartaj Sahni

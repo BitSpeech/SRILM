@@ -8,7 +8,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2004-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNBest.cc,v 1.28 2010/06/02 07:06:23 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/LatticeNBest.cc,v 1.29 2011/05/03 21:44:17 victor Exp $";
 #endif
 
 #include <stdio.h>
@@ -1118,6 +1118,7 @@ LatticeNBestHyp::~LatticeNBestHyp()
     }
 }
 
+// Use "stdio" functions in File() object to allow writing in-memory to File() string object.
 Boolean
 LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
 {
@@ -1132,8 +1133,9 @@ LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
   }
 
   assert(nbestOut.writingFiles);
-  if (nbestOut.nbestOutDir) {
-    fprintf(*nbestOut.nbest, "%g %g %u ", acoustic, language, wordCnt);
+  // Check both because nbestOut.nbestOutDir can be NULL when writing NBest list to memory
+  if (nbestOut.nbestOutDir || nbestOut.nbest) {
+      nbestOut.nbest->fprintf("%g %g %u ", acoustic, language, wordCnt);
 
     char *speaker, channel, *time, *session;
     float start_time;
@@ -1168,7 +1170,7 @@ LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
       assert(thisNode != 0 && prevNode != 0);
 
       if (thisNode->word != Vocab_None) {
-	fprintf(*nbestOut.nbest, "%s ", lat.getWord(thisNode->word));
+          nbestOut.nbest->fprintf("%s ", lat.getWord(thisNode->word));
 	
 	//LEXEME sw_47411 2 51.670 0.470 Yeah lex       SW_47411_B <NA>
 	//SU     sw_47411 2 52.140 1.930 <NA> statement SW_47411_B <NA>
@@ -1193,7 +1195,7 @@ LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
 	}
       }
     }
-    fprintf(*nbestOut.nbest, "\n");
+    nbestOut.nbest->fprintf("\n");
 
     if (nbestOut.nbestRttm) {
       free(speaker);    

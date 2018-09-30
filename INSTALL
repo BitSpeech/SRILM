@@ -50,7 +50,6 @@ libraries.
 	  SRILM is occasionally tested with other compilers, see the 
 	  portability notes in the CHANGES file.
 	- GNU make 
-	- C shell (installed in /bin/csh)
 	- John Ousterhout's Tcl toolkit, version 7.3 or higher
 	  (this is currently used only for some test programs, but is needed
 	  for the build to go through without manual intervention).
@@ -159,5 +158,5 @@ libraries.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2010/02/03 19:11:40 $
+$Date: 2011/10/21 21:28:49 $
 

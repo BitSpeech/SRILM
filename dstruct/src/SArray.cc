@@ -8,8 +8,8 @@
 #define _SArray_cc_
 
 #ifndef lint
-static char SArray_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.cc,v 1.42 2010/06/02 04:52:43 stolcke Exp $";
+static char SArray_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.cc,v 1.44 2011/07/20 01:05:07 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -23,6 +23,7 @@ static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SAr
 #include <assert.h>
 
 #include "SArray.h"
+#include "BlockMalloc.h"
 
 #undef INSTANTIATE_SARRAY
 #define INSTANTIATE_SARRAY(KeyT, DataT) \
@@ -36,6 +37,9 @@ DataT *SArray<KeyT,DataT>::removedData = 0;
 #endif /* __GNUG__ */
 
 #define BODY(b)	((SArrayBody<KeyT,DataT> *)b)
+
+#define BODY_SIZE(b, n)	\
+		(sizeof(*BODY(b)) + ((n) - 1) * sizeof(BODY(b)->data[0]))
 
 const double growSize = 1.1;
 
@@ -74,12 +78,15 @@ SArray<KeyT,DataT>::memStats(MemStats &stats) const
 
     if (body) {
 	unsigned maxEntries = BODY(body)->maxEntries;
-
-	stats.total += sizeof(*BODY(body)) +
-			sizeof(BODY(body)->data[0]) *
+	size_t mySize = sizeof(*BODY(body)) +
+			    sizeof(BODY(body)->data[0]) *
 				(maxEntries - 1);
+	stats.total += mySize;
 	stats.wasted += sizeof(BODY(body)->data[0]) *
 				(maxEntries - numEntries());
+
+	stats.allocStats[mySize > MAX_ALLOC_STATS ?
+			    MAX_ALLOC_STATS : mySize] += 1;
     }
 }
 
@@ -87,8 +94,7 @@ template <class KeyT, class DataT>
 void
 SArray<KeyT,DataT>::alloc(unsigned size)
 {
-    body = (SArrayBody<KeyT,DataT> *)malloc(sizeof(*BODY(body)) +
-			   (size - 1) * sizeof(BODY(body)->data[0]));
+    body = (SArrayBody<KeyT,DataT> *)BM_malloc(BODY_SIZE(body, size));
     assert(body != 0);
 
     BODY(body)->deleted = 0;
@@ -126,7 +132,7 @@ SArray<KeyT,DataT>::clear(unsigned size)
 	    }
 	    Map_freeKey(thisKey);
 	}
-	free(body);
+	BM_free(body, BODY_SIZE(body, maxEntries));
 	body = 0;
     }
     if (size != 0) {
@@ -347,28 +353,44 @@ SArray<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 	 * First, enlarge array if necessary
 	 */
 	if (nEntries == maxEntries) {
-	    maxEntries = (int)(maxEntries * growSize);
-	    if (maxEntries == nEntries) {
-		maxEntries ++;
+	    unsigned newMaxEntries = (unsigned)(maxEntries * growSize);
+	    if (newMaxEntries == nEntries) {
+		newMaxEntries ++;
 	    }
-	    body = (SArrayBody<KeyT,DataT> *)realloc(body,
-			sizeof(*BODY(body)) +
-			   (maxEntries - 1) * sizeof(BODY(body)->data[0]));
-	    assert(body != 0);
+	    void *newBody =
+		(SArrayBody<KeyT,DataT> *)BM_malloc(BODY_SIZE(body, newMaxEntries));
+	    assert(newBody != 0);
+
+	    BODY(newBody)->deleted = BODY(body)->deleted;
+	    BODY(newBody)->maxEntries = newMaxEntries;
+
+	    /* 
+	     * copy old data, before and after the new entry
+	     */
+	    memcpy(&(BODY(newBody)->data[0]),
+		   &(BODY(body)->data[0]),
+		   index * sizeof(BODY(body)->data[0]));
+	    memcpy(&(BODY(newBody)->data[index + 1]),
+		   &(BODY(body)->data[index]),
+		   (maxEntries - index) * sizeof(BODY(body)->data[0]));
 
 	    /*
 	     * Fill new space with dummy keys
 	     */
-	    for (unsigned i = BODY(body)->maxEntries; i < maxEntries; i ++) {
-		Map_noKey(BODY(body)->data[i].key);
+	    for (unsigned i = maxEntries + 1; i < newMaxEntries; i ++) {
+		Map_noKey(BODY(newBody)->data[i].key);
 	    }
 
-	    BODY(body)->maxEntries = maxEntries;
+	    BM_free(body, BODY_SIZE(body, maxEntries));
+	    body = newBody;
+	} else {
+	    /*
+	     * Move data above the inserted item
+	     */
+	    memmove(&(BODY(body)->data[index + 1]),
+		    &(BODY(body)->data[index]),
+		    (nEntries - index) * sizeof(BODY(body)->data[0]));
 	}
-
-	memmove(&(BODY(body)->data[index + 1]),
-		&(BODY(body)->data[index]),
-		(nEntries - index) * sizeof(BODY(body)->data[0]));
 
 	BODY(body)->data[index].key = Map_copyKey(key);
 
@@ -597,5 +619,6 @@ SArrayIter<KeyT,DataT>::next(KeyT &key)
 }
 
 #undef BODY
+#undef BODY_SIZE
 
 #endif /* _SArray_cc_ */

@@ -12,7 +12,7 @@
 #
 # Copyright (c) 1995, SRI International.  All Rights Reserved
 #
-# $Header: /home/speech/stolcke/project/srilm/devel/utils/src/RCS/ppl-from-log,v 1.3 1995/11/05 03:13:01 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/ppl-from-log.gawk,v 1.3 1995/11/05 03:13:01 stolcke Exp $
 #
 function result () {
 	ppl = exp(-sum/(sentences + words - oovs) * M_LN10);

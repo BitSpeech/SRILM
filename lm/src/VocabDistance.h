@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2000,2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.h,v 1.4 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.4 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 

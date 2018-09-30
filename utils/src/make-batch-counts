@@ -16,7 +16,7 @@
 # countdir	is the directory where count files are deposited
 # options	are arguments passed on to ngram-count
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-batch-counts,v 1.6 2008/12/21 18:34:59 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-batch-counts,v 1.6 2008/12/21 18:34:59 stolcke Exp $
 #
 
 if [ $# -lt 1 ]; then

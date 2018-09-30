@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char SArrayTrie_Copyright[] = "Copyright (c) 1997, SRI International.  All Rights Reserved.";
-static char SArrayTrie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArrayTrie.cc,v 1.2 1998/07/29 08:37:32 stolcke Exp $";
+static char SArrayTrie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArrayTrie.cc,v 1.2 1998/07/29 08:37:32 stolcke Exp $";
 #endif
 
 #ifndef USE_SARRAY_TRIE

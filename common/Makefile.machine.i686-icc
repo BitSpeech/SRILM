@@ -10,7 +10,7 @@
 #
 #    Copyright (c) 2003 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686-icc,v 1.10 2009/09/30 03:51:03 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-icc,v 1.10 2009/09/30 03:51:03 stolcke Exp $
 #
 
 include $(SRILM)/common/Makefile.machine.i686

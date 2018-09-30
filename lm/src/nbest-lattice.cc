@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.87 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.90 2011/04/06 05:41:03 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -31,6 +31,7 @@ static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.87 2010/06/02 05:49:58 stol
 #include "RefList.h"
 #include "MultiwordVocab.h"	// for MultiwordSeparator
 #include "Array.cc"
+#include "MStringTokUtil.h"
 
 #define DEBUG_ERRORS		1
 #define DEBUG_POSTERIORS	2
@@ -471,12 +472,14 @@ void
 alignLattices(MultiAlign &lat, File &file)
 {
     char *line;
+
     while ((line = file.getline())) {
-	char *lname = strtok(line, wordSeparators);
+	char *strtok_ptr = NULL;
+	char *lname = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	if (!lname) continue;
 
 	double weight = 1.0;
-	char *wstring = strtok(0, wordSeparators);
+	char *wstring = MStringTokUtil::strtok_r(NULL, wordSeparators, &strtok_ptr);
 	if (wstring) {
 	    sscanf(wstring, "%lf", &weight);
 	}
@@ -797,7 +800,8 @@ main (int argc, char *argv[])
 	File file(nbestFiles, "r");
 	char *line;
 	while ((line = file.getline())) {
-	    char *fname = strtok(line, wordSeparators);
+	    char *strtok_ptr = NULL;
+	    char *fname = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	    if (!fname) continue;
 
 	    RefString sentid = idFromFilename(fname);

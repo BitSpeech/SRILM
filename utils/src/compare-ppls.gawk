@@ -11,7 +11,7 @@
 # models.  d is the minimum difference of logprobs for two probs to 
 # be considered different.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-ppls.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compare-ppls.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
 #
 function abs(x) {
 	return (x < 0) ? -x : x;

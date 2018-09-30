@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char LHashTrie_Copyright[] = "Copyright (c) 1997, SRI International.  All Rights Reserved.";
-static char LHashTrie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHashTrie.cc,v 1.1 1998/07/29 08:38:01 stolcke Exp $";
+static char LHashTrie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHashTrie.cc,v 1.1 1998/07/29 08:38:01 stolcke Exp $";
 #endif
 
 #ifdef USE_SARRAY_TRIE

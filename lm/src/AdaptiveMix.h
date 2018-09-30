@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.h,v 1.7 2007/01/24 19:47:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/AdaptiveMix.h,v 1.7 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 

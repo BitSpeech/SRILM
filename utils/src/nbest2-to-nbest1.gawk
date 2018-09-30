@@ -3,7 +3,7 @@
 # nbest2-to-nbest1 --
 #	Convert Decipher NBestList2.0 format to NBestList1.0 format
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest2-to-nbest1.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest2-to-nbest1.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	magic1 = "NBestList1.0";

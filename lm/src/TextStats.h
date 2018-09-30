@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.h,v 1.6 2009/09/25 23:22:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.6 2009/09/25 23:22:51 stolcke Exp $
  *
  */
 

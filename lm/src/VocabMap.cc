@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.cc,v 1.15 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabMap.cc,v 1.15 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

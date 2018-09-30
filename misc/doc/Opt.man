@@ -6,7 +6,7 @@
 '\" the suitability of this material for any purpose.  It is
 '\" provided "as is" without express or implied warranty.
 '\" 
-'\" $Header: /export/d/stolcke/project/srilm/src/misc/RCS/Opt.man,v 1.4 1991/01/28 17:00:56 kupfer Exp $ SPRITE (Berkeley)
+'\" $Header: /home/srilm/CVS/srilm/misc/doc/Opt.man,v 1.4 1991/01/28 17:00:56 kupfer Exp $ SPRITE (Berkeley)
 '/" 
 .so \*(]ltmac.sprite
 .HS Opt lib

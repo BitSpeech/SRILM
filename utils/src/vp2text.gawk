@@ -8,7 +8,7 @@
 #	"sgml2text" utilities (except for case mapping).  No <s> and </s>
 #	tags are retained, since our LM software doesn't need them.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/vp2text,v 1.2 1996/09/17 21:59:57 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/vp2text.gawk,v 1.2 1996/09/17 21:59:57 stolcke Exp $
 #
 
 BEGIN {

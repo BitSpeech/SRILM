@@ -1,7 +1,7 @@
 //
 // Benchmarking for Hash and Trie datastructures
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/benchHash.cc,v 1.6 2006/01/09 17:45:45 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/benchHash.cc,v 1.6 2006/01/09 17:45:45 stolcke Exp $
 //
 
 #include <stdio.h>

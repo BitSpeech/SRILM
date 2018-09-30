@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris_spro,v 1.5 2009/06/28 09:04:32 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i386-solaris_spro,v 1.5 2009/06/28 09:04:32 stolcke Exp $
 #
 
    # Use the Sun Studio compilers

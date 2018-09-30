@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995-2011 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.57 2011/01/14 01:01:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.57 2011/01/14 01:01:39 stolcke Exp $
  *
  */
 

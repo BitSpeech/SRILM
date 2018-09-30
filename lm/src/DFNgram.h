@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.h,v 1.11 2002/08/25 17:27:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/DFNgram.h,v 1.11 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 

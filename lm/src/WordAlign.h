@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,1997 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.h,v 1.4 2000/06/12 06:00:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.h,v 1.4 2000/06/12 06:00:27 stolcke Exp $
  *
  */
 

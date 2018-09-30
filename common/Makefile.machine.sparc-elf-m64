@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2009 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf-m64,v 1.1 2009/07/29 18:36:33 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.sparc-elf-m64,v 1.1 2009/07/29 18:36:33 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )

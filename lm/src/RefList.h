@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.6 2006/08/12 06:46:11 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.h,v 1.6 2006/08/12 06:46:11 stolcke Exp $
  *
  */
 

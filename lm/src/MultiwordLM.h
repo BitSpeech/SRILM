@@ -11,7 +11,7 @@
  *
  * Copyright (c) 2001,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.h,v 1.6 2007/12/05 00:31:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordLM.h,v 1.6 2007/12/05 00:31:04 stolcke Exp $
  *
  */
 

@@ -5,7 +5,7 @@
 #
 # usage: htklat-vocab HTK-LATTICE ... > VOCAB
 #
-# $Header: /home/srilm/devel/utils/src/RCS/htklat-vocab.gawk,v 1.3 2004/02/27 21:42:28 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/htklat-vocab.gawk,v 1.3 2004/02/27 21:42:28 stolcke Exp $
 #
 
 BEGIN {

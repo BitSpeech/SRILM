@@ -12,7 +12,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.31 2007/07/16 23:41:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.h,v 1.31 2007/07/16 23:41:39 stolcke Exp $
  *
  */
 

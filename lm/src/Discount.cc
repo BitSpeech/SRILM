@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.26 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.cc,v 1.27 2011/05/04 08:01:06 stolcke Exp $";
 #endif
 
 #include <math.h>
@@ -96,8 +96,8 @@ GoodTuring::nodiscount()
 void
 GoodTuring::write(File &file)
 {
-    fprintf(file, "mincount %ld\n", minCount);
-    fprintf(file, "maxcount %ld\n", maxCount);
+    fprintf(file, "mincount %s\n", countToString(minCount));
+    fprintf(file, "maxcount %s\n", countToString(maxCount));
 
     for (unsigned i = 1; !file.error() && i <= maxCount; i++) {
 	fprintf(file , "discount %u %lf\n", i, discountCoeffs[i]);
@@ -300,7 +300,7 @@ KneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 KneserNey::write(File &file)
 {
-    fprintf(file, "mincount %ld\n", minCount);
+    fprintf(file, "mincount %s\n", countToString(minCount));
     fprintf(file, "discount1 %lf\n", discount1);
 }
 
@@ -483,7 +483,7 @@ ModKneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 ModKneserNey::write(File &file)
 {
-    fprintf(file, "mincount %ld\n", minCount);
+    fprintf(file, "mincount %s\n", countToString(minCount));
     fprintf(file, "discount1 %lf\n", discount1);
     fprintf(file, "discount2 %lf\n", discount2);
     fprintf(file, "discount3+ %lf\n", discount3plus);

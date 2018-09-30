@@ -3,7 +3,7 @@
 //
 // Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/testArray.cc,v 1.13 2010/06/02 04:52:43 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/testArray.cc,v 1.13 2010/06/02 04:52:43 stolcke Exp $
 //
 
 #ifdef PRE_ISO_CXX

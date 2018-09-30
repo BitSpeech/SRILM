@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1995,2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/Boolean.h,v 1.5 2006/01/09 17:39:03 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/Boolean.h,v 1.5 2006/01/09 17:39:03 stolcke Exp $
  *
  */
 

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/VarNgram.h,v 1.1 1995/08/03 03:31:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VarNgram.h,v 1.1 1995/08/03 03:31:29 stolcke Exp $
  *
  */
 

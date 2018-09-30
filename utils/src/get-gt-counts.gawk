@@ -6,7 +6,7 @@
 #
 # usage: get-gt-counts max=<number> out=<name> file ...
 #
-# $Header: /home/srilm/devel/utils/src/RCS/get-gt-counts.gawk,v 1.4 2002/07/17 00:38:40 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/get-gt-counts.gawk,v 1.4 2002/07/17 00:38:40 stolcke Exp $
 #
 BEGIN {
 	max = 10

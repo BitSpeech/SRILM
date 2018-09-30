@@ -6,7 +6,9 @@ if [ -f ../fngram-count/ch_lm_train100.noamp.decomposed.txt.gz ]; then
 	gz=.gz
 else
 	gz=
-	sed 's,\.gz,,g' test.flm > test.flm.nogz && mv test.flm.nogz test.flm
+	sed 's,\.gz,,g' test.flm > test.flm.nogz && \
+	mv test.flm test.flm-gz && \
+	mv test.flm.nogz test.flm
 fi
 
 fngram-count $flags -debug 2 -factor-file test.flm -text ../fngram-count/ch_lm_train100.noamp.decomposed.txt$gz -write-counts -lm -unk -nonull
@@ -14,4 +16,8 @@ fngram-count $flags -debug 2 -factor-file test.flm -text ../fngram-count/ch_lm_t
 ngram -debug 0 -order 2 -factored -lm test.flm -ppl ../fngram-count/ch_lm_dev.noamp.decomposed.txt$gz -unk -nonull
 
 rm -f dev.count$gz dev.lm$gz
+
+if [ -f test.flm-gz ]; then
+	mv test.flm-gz test.flm
+fi
 

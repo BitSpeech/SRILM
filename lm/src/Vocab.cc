@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.43 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.46 2011/11/20 20:03:02 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -24,6 +24,7 @@ using namespace std;
 
 #include "LHash.cc"
 #include "Array.cc"
+#include "MStringTokUtil.h"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(VocabString,VocabIndex);
@@ -83,8 +84,8 @@ Vocab::memStats(MemStats &stats) const
 
 // map word string to lowercase
 // returns a static buffer
-static VocabString
-mapToLower(VocabString name)
+VocabString
+Vocab::mapToLower(VocabString name)
 {
     static char lower[maxWordLength + 1];
 
@@ -409,10 +410,11 @@ Vocab::parseWords(char *sentence, VocabString *words, unsigned int max)
 {
     char *word;
     unsigned i;
+    char *strtok_ptr = NULL;
 
-    for (i = 0, word = strtok(sentence, wordSeparators);
+    for (i = 0, word = MStringTokUtil::strtok_r(sentence, wordSeparators, &strtok_ptr);
 	 i < max && word != 0;
-	 i++, word = strtok(0, wordSeparators))
+	 i++, word = MStringTokUtil::strtok_r(0, wordSeparators, &strtok_ptr))
     {
 	words[i] = word;
     }
@@ -666,6 +668,7 @@ Vocab::read(File &file)
 {
     char *line;
     unsigned int howmany = 0;
+    char *strtok_ptr = NULL;
 
     while ((line = file.getline())) {
 	/*
@@ -673,7 +676,8 @@ Vocab::read(File &file)
 	 * will find at least one word.  Any further ones on that line
 	 * are ignored.
 	 */
-	VocabString word = strtok(line, wordSeparators);
+	strtok_ptr = NULL;
+	VocabString word = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 
 	if (addWord(word) == Vocab_None) {
 	    file.position() << "warning: failed to add " << word
@@ -691,6 +695,7 @@ Vocab::readAliases(File &file)
 {
     char *line;
     unsigned int howmany = 0;
+    char *strtok_ptr = NULL;
 
     while ((line = file.getline())) {
 	/*
@@ -698,8 +703,9 @@ Vocab::readAliases(File &file)
 	 * will find at least one word.  Anything after the second word
 	 * is ignored.
 	 */
-	VocabString alias = strtok(line, wordSeparators);
-	VocabString word = strtok(0, wordSeparators);
+	strtok_ptr = NULL;
+	VocabString alias = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
+	VocabString word = MStringTokUtil::strtok_r(0, wordSeparators, &strtok_ptr);
 
 	if (word == 0) {
 	    file.position() << "warning: line contains only one token\n";
@@ -827,6 +833,7 @@ Boolean
 Vocab::readIndexMap(File &file, Array<VocabIndex> &map, Boolean limitVocab)
 {
     char *line;
+    char *strtok_ptr = NULL;
 
     while ((line = file.getline())) {
 	VocabIndex id, newid;
@@ -836,9 +843,9 @@ Vocab::readIndexMap(File &file, Array<VocabIndex> &map, Boolean limitVocab)
 	 * will find at least one word.  Anything after the second word
 	 * is ignored.
 	 */
-	
-	VocabString idstring = strtok(line, wordSeparators);
-	VocabString word = strtok(0, wordSeparators);
+	strtok_ptr = NULL;
+	VocabString idstring = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
+	VocabString word = MStringTokUtil::strtok_r(0, wordSeparators, &strtok_ptr);
 
 	if (idstring[0] == '.' && idstring[1] == '\0' && word == 0) {
 	    // end of vocabulary table

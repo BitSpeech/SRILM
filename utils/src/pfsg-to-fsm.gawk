@@ -12,7 +12,7 @@
 #			(default -1)
 # 
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm.gawk,v 1.14 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/pfsg-to-fsm.gawk,v 1.14 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	empty_output = "NULL";

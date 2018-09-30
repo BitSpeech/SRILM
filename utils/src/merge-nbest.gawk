@@ -3,7 +3,7 @@
 # merge-nbest --
 #	merge hyps from multiple N-best lists into a single list
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/merge-nbest.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
 #
 
 BEGIN {

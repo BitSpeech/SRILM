@@ -5,7 +5,7 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  * Kevin Duh <duh@ee.washington.edu>
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.h,v 1.17 2009/05/07 05:27:22 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.h,v 1.17 2009/05/07 05:27:22 stolcke Exp $
  *
  */
 

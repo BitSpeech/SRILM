@@ -4,7 +4,7 @@
 #	compute word error rate from a sentid hyp file and a sentid reference
 #	file, using the NIST 'sclite' program
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-sclite,v 1.41 2009/11/19 00:10:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-sclite,v 1.41 2009/11/19 00:10:02 stolcke Exp $
 #
 
 # enforce proper sorting order

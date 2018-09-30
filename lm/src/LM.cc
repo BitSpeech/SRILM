@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char LM_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char LM_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LM.cc,v 1.76 2011/01/14 01:05:10 stolcke Exp $";
+static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.77 2011/11/21 08:36:49 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -561,11 +561,11 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
  * instantiate countsProb() for count types used
  */
 template LogP
-LM::countsProb(NgramCounts<NgramCount> &counts, TextStats &stats,
-                                    unsigned order, Boolean entropy);
-#ifdef USE_LONGLONG_COUNTS
-template LogP
 LM::countsProb(NgramCounts<Count> &counts, TextStats &stats,
+                                    unsigned order, Boolean entropy);
+#ifdef USE_XCOUNTS
+template LogP
+LM::countsProb(NgramCounts<NgramCount> &counts, TextStats &stats,
                                     unsigned order, Boolean entropy);
 #endif
 template LogP
@@ -704,15 +704,15 @@ LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
 /*
  * instantiate pplCountsFile() for count types used
  */
-template NgramCount
-LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
-			const char *escapeString, Boolean entropy,
-			NgramCounts<NgramCount> *counts);
-#ifdef USE_LONGLONG_COUNTS
 template Count
 LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
 			const char *escapeString, Boolean entropy,
 			NgramCounts<Count> *counts);
+#ifdef USE_XCOUNTS
+template NgramCount
+LM::pplCountsFile(File &file, unsigned order, TextStats &stats,
+			const char *escapeString, Boolean entropy,
+			NgramCounts<NgramCount> *counts);
 #endif
 template FloatCount
 LM::pplCountsFile(File &file, unsigned order, TextStats &stats,

@@ -7,18 +7,22 @@
 # This program is in the public domain.  It was written
 # by Brett Kessler and David Gelbart.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/cumbin.pl,v 1.1 2008/11/05 19:03:43 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/cumbin.pl,v 1.2 2011/11/26 21:28:04 stolcke Exp $
 #
 
 use strict;
 use POSIX;
 
-if (@ARGV != 2) {
-  die "Usage: $0 n k\n";
+if (@ARGV != 2 && @ARGV != 3) {
+  die "Usage: $0 n k [p]\n";
 }
 my $n = $ARGV[0];
 my $k = $ARGV[1];
-my $p = 0.5;
+my $p = $ARGV[2];
+
+if (!(defined $p)) {
+  $p = 0.5;
+}
 
 if (($n - $k) > $k) {
   die "Did you choose the right value of k?\n";

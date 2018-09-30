@@ -50,6 +50,7 @@ make-ngram-pfsg pfsg-scripts (1)    - create and manipulate finite-state network
 make-sub-lm	lm-scripts (1)	- manipulate N-gram language models
 merge-batch-counts		training-scripts (1)	- miscellaneous conveniences for language model training
 merge-nbest	nbest-scripts (1)   - rescore and evaluate N-best lists
+metadb		metadb (1)	- retrieve configuration information
 multi-ngram	multi-ngram (1) - build multiword N-gram models
 nbest-error	nbest-scripts (1)   - rescore and evaluate N-best lists
 nbest-format	nbest-format (5)    - File formats for N-best hypotheses lists

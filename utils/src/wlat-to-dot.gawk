@@ -6,7 +6,7 @@
 #
 # usage: wlat-to-dot [show_probs=1] file.wlat > file.dot
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-dot.gawk,v 1.6 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/wlat-to-dot.gawk,v 1.6 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	name = "WLAT"; 

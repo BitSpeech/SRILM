@@ -16,7 +16,7 @@
  *
  * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.9 2007/12/05 00:31:49 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.9 2007/12/05 00:31:49 stolcke Exp $
  *
  */
 

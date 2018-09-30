@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.37 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rescore-decipher,v 1.37 2010/08/20 00:17:18 stolcke Exp $
 #
 
 bytelog=0

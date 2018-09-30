@@ -10,7 +10,7 @@
 # models.  li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-best-mix.gawk,v 1.9 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-best-mix.gawk,v 1.9 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;

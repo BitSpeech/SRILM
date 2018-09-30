@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.69 2009/06/11 05:08:30 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.70 2011/07/19 16:55:15 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -35,6 +35,7 @@ using namespace std;
 #include "Discount.h"
 #include "NgramCountLM.h"
 #include "Array.cc"
+#include "BlockMalloc.h"
 
 const unsigned maxorder = 9;		/* this is only relevant to the 
 					 * the -gt<n> and -write<n> flags */
@@ -453,7 +454,15 @@ main(int argc, char **argv)
     if (memuse) {
 	MemStats memuse;
 	USE_STATS(memStats(memuse));
+
+	if (debug == 0)  {
+	    memuse.clearAllocStats();
+	}
 	memuse.print();
+
+    	if (debug > 0) {
+	    BM_printstats();
+	}
     }
 
     if (recompute) {

@@ -15,7 +15,7 @@
 # (This is useful to combine multiple nbest lists in a weighted fashion).
 # The input should be in SRILM nbest-format.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-posteriors.gawk,v 1.12 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-posteriors.gawk,v 1.12 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {

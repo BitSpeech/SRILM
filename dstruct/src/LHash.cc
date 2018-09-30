@@ -8,8 +8,8 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.53 2010/06/02 04:52:43 stolcke Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.54 2011/07/19 16:44:38 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -25,6 +25,7 @@ using namespace std;
 #include <assert.h>
 
 #include "LHash.h"
+#include "BlockMalloc.h"
 
 #undef INSTANTIATE_LHASH
 #define INSTANTIATE_LHASH(KeyT, DataT) \
@@ -49,6 +50,9 @@ const float fillRatio = 0.8f;		/* fill ration at which the table is
 					 * expanded and rehashed */
 
 #define BODY(b)	((LHashBody<KeyT,DataT> *)b)
+
+#define BODY_SIZE(b, n) \
+		(sizeof(*BODY(b)) + ((n) - 1) * sizeof(BODY(b)->data[0]))
 
 /*
  * Dump the entire hash array to cerr.  Unused slots are printed as "FREE".
@@ -89,12 +93,15 @@ LHash<KeyT,DataT>::memStats(MemStats &stats) const
     stats.total += sizeof(*this);
     if (body) {
         unsigned maxEntries = hashSize(BODY(body)->maxBits);
-
-	stats.total += sizeof(*BODY(body)) +
-			sizeof(BODY(body)->data[0]) *
+	size_t mySize = sizeof(*BODY(body)) +
+			    sizeof(BODY(body)->data[0]) *
 				(maxEntries - 1);
+	stats.total += mySize;
 	stats.wasted += sizeof(BODY(body)->data[0]) *
 				(maxEntries - BODY(body)->nEntries);
+
+	stats.allocStats[mySize > MAX_ALLOC_STATS ?
+			    MAX_ALLOC_STATS : mySize] += 1;
     }
 }
 
@@ -133,8 +140,7 @@ LHash<KeyT,DataT>::alloc(unsigned size)
     //	 << ", requested " << size 
     //	 << ", allocating " << maxEntries << " (" << maxBits << ")\n";
 
-    body = (LHashBody<KeyT,DataT> *)malloc(sizeof(*BODY(body)) +
-			       (maxEntries - 1) * sizeof(BODY(body)->data[0]));
+    body = (LHashBody<KeyT,DataT> *)BM_malloc(BODY_SIZE(body, maxEntries));
     assert(body != 0);
 
     BODY(body)->maxBits = maxBits;
@@ -174,7 +180,7 @@ LHash<KeyT,DataT>::clear(unsigned size)
 		Map_freeKey(BODY(body)->data[i].key);
 	    }
 	}
-	free(body);
+	BM_free(body, BODY_SIZE(body, maxEntries));
 	body = 0;
     }
     if (size != 0) {
@@ -401,7 +407,7 @@ LHash<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 		    }
 		}
 	    }
-	    free(oldBody);
+	    BM_free(oldBody, BODY_SIZE(oldBody, maxEntries));
 
 	    /*
 	     * Entries have been moved, so have to re-locate key

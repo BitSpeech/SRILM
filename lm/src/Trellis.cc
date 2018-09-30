@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.23 2010/06/02 05:49:58 stolcke Exp $";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.23 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

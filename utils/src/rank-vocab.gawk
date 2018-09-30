@@ -7,7 +7,7 @@
 #
 # usage: rank-vocab counts words1 words2 ... worksK
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rank-vocab.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rank-vocab.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {

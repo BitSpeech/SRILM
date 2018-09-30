@@ -2,7 +2,7 @@
 #
 # Test for classname heuristic used in add-pauses-to-pfsg.gawk
 #
-# $Header: /home/srilm/devel/utils/src/RCS/isclassname.gawk,v 1.1 2007/10/19 04:16:25 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/isclassname.gawk,v 1.1 2007/10/19 04:16:25 stolcke Exp $
 # 
 
 function is_classname(w) {

@@ -1,6 +1,6 @@
 #!/bin/sed -f
 #
-# $Header: /home/srilm/devel/sbin/RCS/stringify-copyright,v 1.1 2004/12/03 20:33:46 stolcke Exp $:
+# $Header: /home/srilm/CVS/srilm/sbin/stringify-copyright,v 1.1 2004/12/03 20:33:46 stolcke Exp $:
 #
 1i\
 #define SRILM_COPYRIGHT "\\n\\

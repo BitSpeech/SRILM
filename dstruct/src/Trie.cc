@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char Trie_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.cc,v 1.20 2010/06/02 04:52:43 stolcke Exp $";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.20 2010/06/02 04:52:43 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

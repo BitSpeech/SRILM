@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2006-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramCountLM.h,v 1.6 2007/01/24 19:47:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.h,v 1.6 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 

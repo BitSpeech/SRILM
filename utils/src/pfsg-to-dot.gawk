@@ -5,7 +5,7 @@
 #
 # usage: pfsg-to-dot [show_probs=1] [show_nums=1] file.pfsg > file.dot
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-dot.gawk,v 1.5 2003/07/10 21:09:15 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/pfsg-to-dot.gawk,v 1.5 2003/07/10 21:09:15 stolcke Exp $
 #
 BEGIN {
 	show_probs = 0;

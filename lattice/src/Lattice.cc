@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1997-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.cc,v 1.128 2010/06/02 07:06:23 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/Lattice.cc,v 1.129 2011/11/20 20:04:15 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -4008,7 +4008,7 @@ Lattice::splitMultiwordNodes(MultiwordVocab &vocab, LM &lm)
       /*
        * We don't split multiwords that are in the LM
        */
-      if (expandedLength < 2) {
+      if (expandedLength < 2 || ignoreWord(node->word)) {
 	;;	// nothing to do
       } else if (lm.wordProb(node->word, emptyContext) > LogP_Zero) {
 	VocabString w = vocab.getWord(node->word);

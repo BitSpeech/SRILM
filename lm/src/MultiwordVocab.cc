@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2001-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.cc,v 1.5 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.cc,v 1.7 2011/04/06 23:49:03 victor Exp $";
 #endif
 
 #include <string.h>
@@ -17,6 +17,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.
 
 #include "LHash.cc"
 #include "Array.cc"
+#include "MStringTokUtil.h"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(VocabIndex, VocabIndex *);
@@ -66,7 +67,9 @@ MultiwordVocab::addWord(VocabString name)
 
 	strcpy(wordString, name);
 
-	char *cp = strtok(wordString, multiChar);
+	char *strtok_ptr = NULL;
+    
+	char *cp = MStringTokUtil::strtok_r(wordString, multiChar, &strtok_ptr);
 	assert(cp != 0);
 
 	unsigned numWords = 0;
@@ -88,7 +91,7 @@ MultiwordVocab::addWord(VocabString name)
 	    }
 
 	    numWords ++;
-	} while ((cp = strtok((char *)0, multiChar)));
+	} while ((cp = MStringTokUtil::strtok_r((char *)0, multiChar, &strtok_ptr)));
 
 	widString[numWords] = Vocab_None;
 

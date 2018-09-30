@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1999-2006 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.cygwin,v 1.14 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.cygwin,v 1.14 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.

@@ -3,7 +3,7 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.21 2008/11/05 19:10:12 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compare-sclite,v 1.21 2008/11/05 19:10:12 stolcke Exp $
 #
 
 # enforce proper sorting order

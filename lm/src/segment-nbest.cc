@@ -7,7 +7,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: segment-nbest.cc,v 1.27 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: segment-nbest.cc,v 1.29 2011/04/06 23:49:04 victor Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -32,6 +32,7 @@ using namespace std;
 #include "BayesMix.h"
 #include "Trellis.cc"
 #include "Array.cc"
+#include "MStringTokUtil.h"
 
 #define DEBUG_PROGRESS		1
 #define DEBUG_TRANSITIONS	2
@@ -761,8 +762,10 @@ processNbestLists(const char *fileList, LM &lm, LM &oldLM,
 	File file(fileList, "r");
 
 	char *line;
+        char *strtok_ptr = NULL;
 	while ((line = file.getline())) {
-	    char *fname = strtok(line, wordSeparators);
+	    strtok_ptr = NULL;
+	    char *fname = MStringTokUtil::strtok_r(line, wordSeparators, &strtok_ptr);
 	    if (fname) {
 		nbestFileList[numNbestLists] = strdup(fname);
 		assert(nbestFileList[numNbestLists] != 0);

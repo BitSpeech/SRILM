@@ -1,6 +1,6 @@
 #!/bin/sed -f
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html.sed,v 1.6 2008/02/06 18:18:44 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/man/scripts/man2html.sed,v 1.6 2008/02/06 18:18:44 stolcke Exp $
 #
 
 s,\\-,-,g

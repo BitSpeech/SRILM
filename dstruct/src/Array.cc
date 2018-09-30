@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International.  All Rights Reserved.";
-static char Array_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.cc,v 1.11 2005/07/17 22:19:12 stolcke Exp $";
+static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.cc,v 1.12 2011/07/19 16:41:57 stolcke Exp $";
 #endif
 
 #include <assert.h>
@@ -55,8 +55,13 @@ template <class DataT>
 void
 Array<DataT>::memStats(MemStats &stats) const
 {
-    stats.total += _size * sizeof(_data[0]);
+    size_t mySize = alloc_size * sizeof(_data[0]);
+
+    stats.total += mySize;
     stats.wasted += (alloc_size - _size) * sizeof(_data[0]);
+
+    stats.allocStats[mySize > MAX_ALLOC_STATS ?
+			    MAX_ALLOC_STATS : mySize] += 1;
 }
 
 template <class DataT>

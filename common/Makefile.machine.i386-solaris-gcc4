@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris-gcc4,v 1.2 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i386-solaris-gcc4,v 1.2 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.

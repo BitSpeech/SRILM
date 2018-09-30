@@ -5,7 +5,7 @@
 #
 # usage: find-reference-posteriors posteriors_files=NBEST_POSTERIORS SAUSAGE
 #
-# $Header: /home/srilm/devel/utils/src/RCS/find-reference-posteriors.gawk,v 1.4 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/find-reference-posteriors.gawk,v 1.4 2010/08/20 00:17:18 stolcke Exp $
 #
 
 BEGIN {

@@ -14,7 +14,7 @@
 # 4 - ngrams ending in </s> get probability 1.
 #     this avoids an end-of-sentence penalty in rescoring.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-hiddens-lm.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-hiddens-lm.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	sent_start = "<s>";

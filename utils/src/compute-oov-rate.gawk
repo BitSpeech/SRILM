@@ -7,7 +7,7 @@
 #
 # Assumes unigram counts do not have repeated words.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-oov-rate.gawk,v 1.8 2003/03/08 03:59:39 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-oov-rate.gawk,v 1.8 2003/03/08 03:59:39 stolcke Exp $
 #
 
 BEGIN {

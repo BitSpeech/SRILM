@@ -1,7 +1,7 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.20 2009/01/27 05:23:22 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/man/Makefile,v 1.21 2011/11/26 05:41:15 stolcke Exp $
 #
 
 GROFF = gnroff -c -Tascii -mgan
@@ -27,7 +27,8 @@ MAN1PAGES = \
 	ppl-scripts \
 	pfsg-scripts \
 	nbest-scripts \
-	select-vocab
+	select-vocab \
+	metadb
 
 MAN3PAGES = \
 	Prob \

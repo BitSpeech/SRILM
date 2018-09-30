@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf-n32,v 1.2 2009/06/28 08:56:21 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.mips-elf-n32,v 1.2 2009/06/28 08:56:21 stolcke Exp $
 #
 
 include $(SRILM)/common/Makefile.machine.mips-elf

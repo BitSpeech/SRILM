@@ -10,7 +10,7 @@
 #define _IntervalHeap_cc_
 
 #ifndef lint
-static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.cc,v 1.6 2010/06/02 06:37:43 stolcke Exp $";
+static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/IntervalHeap.cc,v 1.6 2010/06/02 06:37:43 stolcke Exp $";
 #endif
 
 #include "IntervalHeap.h"

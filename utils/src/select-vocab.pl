@@ -16,7 +16,7 @@
 # Authors: Anand Venkataraman and Wen Wang
 # STAR Lab, SRI International, Menlo Park, CA 94025, USA.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/select-vocab.pl,v 1.4 2004/12/20 21:59:29 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/select-vocab.pl,v 1.4 2004/12/20 21:59:29 stolcke Exp $
 #
 my $Maxiter = 500;
 my $Heldout="";

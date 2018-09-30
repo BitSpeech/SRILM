@@ -12,7 +12,7 @@
 #	A b 10
 #	A B 10
 #
-# $Header: /home/srilm/devel/utils/src/RCS/split-tagged-ngrams.gawk,v 1.2 2006/02/11 01:31:32 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/split-tagged-ngrams.gawk,v 1.2 2006/02/11 01:31:32 stolcke Exp $
 #
 
 BEGIN {

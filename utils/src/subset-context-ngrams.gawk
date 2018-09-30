@@ -5,7 +5,7 @@
 #
 #	usage: subset-context-ngrams contexts=FILE COUNTS > SUBSET
 #
-# $Header: /home/srilm/devel/utils/src/RCS/subset-context-ngrams.gawk,v 1.1 2008/09/30 03:54:05 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/subset-context-ngrams.gawk,v 1.1 2008/09/30 03:54:05 stolcke Exp $
 #
 
 # read contexts

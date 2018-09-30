@@ -3,7 +3,7 @@
 # extract-skip-probs --
 #	Extract the skip probabilities from a Skip-Ngram model
 #
-# $Header: /home/speech/stolcke/project/srilm/devel/utils/src/RCS/extract-skip-probs,v 1.1 1996/05/20 21:22:09 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/extract-skip-probs.gawk,v 1.1 1996/05/20 21:22:09 stolcke Exp $
 #
 NF == 0 {
 	next;

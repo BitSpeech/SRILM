@@ -3,7 +3,7 @@
 # make-meta-counts --
 #	Apply N-gram count cut-offs and insert meta-counts (counts-of-counts)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-meta-counts.gawk,v 1.2 2002/07/22 21:24:45 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-meta-counts.gawk,v 1.2 2002/07/22 21:24:45 stolcke Exp $
 #
 BEGIN {
 	order = 3;

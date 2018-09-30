@@ -3,7 +3,7 @@
 //
 // Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/testMap2.cc,v 1.4 2010/06/02 04:52:43 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/testMap2.cc,v 1.4 2010/06/02 04:52:43 stolcke Exp $
 //
 
 #include <stdio.h>

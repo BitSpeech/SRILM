@@ -4,14 +4,10 @@ set -e
 
 if [ -f ../ngram-count-gt/swbd.3grams.gz ]; then
 	gz=.gz
-
-	ngram-count -read ../ngram-count-gt/swbd.3grams$gz -sort -write - | \
-	make-google-ngrams dir=google per_file=10000
+	gzip=1
 else
 	gz=
-
-	make-google-ngrams dir=google per_file=10000 gzip=0 \
-		../ngram-count-gt/swbd.3grams
+	gzip=0
 fi
 
 ngram-count -read ../ngram-count-gt/swbd.3grams$gz -sort -write - | \

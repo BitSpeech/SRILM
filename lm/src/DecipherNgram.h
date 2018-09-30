@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.h,v 1.4 2000/08/07 07:42:15 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/DecipherNgram.h,v 1.4 2000/08/07 07:42:15 stolcke Exp $
  *
  */
 

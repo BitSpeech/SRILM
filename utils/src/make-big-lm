@@ -13,7 +13,7 @@
 #	  into memory.
 #	- ngram-counts loads only those counts exceeding cutoff values.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.23 2010/08/21 07:55:09 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-big-lm,v 1.23 2010/08/21 07:55:09 stolcke Exp $
 #
 
 name=biglm

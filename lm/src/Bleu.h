@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2007, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Bleu.h,v 1.1 2007/10/30 05:15:32 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Bleu.h,v 1.1 2007/10/30 05:15:32 stolcke Exp $
  *
  */
 

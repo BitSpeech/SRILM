@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.msvc,v 1.10 2010/09/27 23:42:23 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.11 2011/11/22 06:37:22 stolcke Exp $
 #
 
    # Use the MSVC compiler (tested with Visual C++ 2005 Express Edition)
@@ -94,7 +94,7 @@
    CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) /LIBPATH:$(SRILM_LIBDIR) /FORCE:MULTIPLE /NOLOGO /IGNORE:4006 /IGNORE:4088 /IGNORE:4221
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) /LIBPATH:$(SRILM_LIBDIR) /STACK:5000000 /FORCE:MULTIPLE /NOLOGO /IGNORE:4006 /IGNORE:4088 /IGNORE:4221
 
 
    # Other useful compilation flags.

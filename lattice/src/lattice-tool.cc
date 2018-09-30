@@ -5,7 +5,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1997-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: lattice-tool.cc,v 1.154 2011/01/14 01:07:54 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: lattice-tool.cc,v 1.156 2011/04/21 06:12:49 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -43,6 +43,7 @@ using namespace std;
 #include "SimpleClassNgram.h"
 #include "ProductNgram.h"
 #include "BayesMix.h"
+#include "LoglinearMix.h"
 #include "RefList.h"
 #include "LatticeLM.h"
 #include "WordMesh.h"
@@ -138,6 +139,7 @@ static double mixLambda6 = 0.0;
 static double mixLambda7 = 0.0;
 static double mixLambda8 = 0.0;
 static double mixLambda9 = 0.0;
+static int loglinearMix = 0;
 static char *inLattice = 0; 
 static char *inLattice2 = 0; 
 static char *inLatticeList = 0; 
@@ -231,6 +233,7 @@ static Option options[] = {
     { OPT_FLOAT, "mix-lambda8", &mixLambda8, "mixture weight for -mix-lm8" },
     { OPT_STRING, "mix-lm9", &mixFile9, "ninth LM to mix in" },
     { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
+    { OPT_TRUE, "loglinear-mix", &loglinearMix, "use log-linear mixture LM" },
     { OPT_INT, "order", &order, "ngram order used for expansion or bigram weight substitution" },
     { OPT_TRUE, "no-expansion", &noExpansion, "do not apply expansion with LM" },
     { OPT_STRING, "ref-list", &refList, "reference file used for computing WER (lines starting with utterance id)" }, 
@@ -541,7 +544,7 @@ void processLattice(char *inLat, char *outLat, Lattice *lattice2,
     }
 
     if (viterbiDecode) {
-        LM *plm = lmFile ? &lm : 0;
+        LM *plm = (lmFile || useServer) ? &lm : 0;
 
 	if (outputCTM) {
 	    NBestWordInfo *bestwords = new NBestWordInfo[maxWordsPerLine + 1];
@@ -607,7 +610,7 @@ void processLattice(char *inLat, char *outLat, Lattice *lattice2,
 				 nbestMaxHyps, nbestDuplicates);
 	    }
 	} else {
-	    LM *plm = lmFile ? &lm : 0;	  
+	    LM *plm = (lmFile || useServer) ? &lm : 0;	  
 	    lat.decodeNBest(nbestDecode, nbestOut, noiseWords, plm,
 	    		    order, maxDegree, 
 			    beamwidth > 0.0 ?
@@ -1090,6 +1093,52 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
     }
 }
 
+LM *
+makeLoglinearMixLM(Array<const char *> filenames, Vocab &vocab,
+		   SubVocab *classVocab, unsigned order,
+		   LM *oldLM, Array<double> lambdas)
+{
+    Array<LM *> allLMs;
+    allLMs[0] = oldLM;
+
+    for (unsigned i = 1; i < filenames.size(); i++) {
+	const char *filename = filenames[i];
+	File file(filename, "r");
+
+	/*
+	 * create factored LM if -factored was specified, 
+	 * class-ngram if -classes were specified,
+	 * and otherwise a regular ngram
+	 */
+	Ngram *lm = factored ?
+		      new ProductNgram((ProductVocab &)vocab, order) :
+		      (classVocab != 0) ?
+			(simpleClasses ?
+			    new SimpleClassNgram(vocab, *classVocab, order) :
+			    new ClassNgram(vocab, *classVocab, order)) :
+			new Ngram(vocab, order);
+	assert(lm != 0);
+
+	if (!lm->read(file, limitVocab)) {
+	    cerr << "format error in mix-lm file " << filename << endl;
+	    exit(1);
+	}
+
+	/*
+	 * Each class LM needs to read the class definitions
+	 */
+	if (classesFile != 0) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)lm)->readClasses(file);
+	}
+	allLMs[i] = lm;
+    }
+
+    LM *newLM = new LoglinearMix(vocab, allLMs, lambdas);
+    assert(newLM != 0);
+
+    return newLM;
+}
 int 
 main (int argc, char *argv[])
 {
@@ -1310,7 +1359,7 @@ main (int argc, char *argv[])
 	useLM = ngram;
     }
 
-    if (mixFile) {
+    if (mixFile && !loglinearMix) {
 	/*
 	 * create a Bayes mixture LM 
 	 */
@@ -1370,6 +1419,58 @@ main (int argc, char *argv[])
 	    useLM = makeMixLM(mixFile9, *vocab, classVocab, order, useLM,
 				mixLambda9, 1.0);
 	}
+    } else if (mixFile && loglinearMix) {
+	/*
+	 * Create log-linear mixture LM
+	 */
+	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3
+			    - mixLambda4 - mixLambda5 - mixLambda6 - mixLambda7
+			    - mixLambda8 - mixLambda9;
+
+	Array<const char *> filenames;
+	Array<double> lambdas;
+
+	/* Add redundant filename entry for base LM to make filenames array 
+	 * symmetric with lambdas */
+	filenames[0] = "";
+	filenames[1] = mixFile;
+	lambdas[0] = mixLambda;
+	lambdas[1] = mixLambda1;
+
+	if (mixFile2) {
+	    filenames[2] = mixFile2;
+	    lambdas[2] = mixLambda2;
+	}
+	if (mixFile3) {
+	    filenames[3] = mixFile3;
+	    lambdas[3] = mixLambda3;
+	}
+	if (mixFile4) {
+	    filenames[4] = mixFile4;
+	    lambdas[4] = mixLambda4;
+	}
+	if (mixFile5) {
+	    filenames[5] = mixFile5;
+	    lambdas[5] = mixLambda5;
+	}
+	if (mixFile6) {
+	    filenames[6] = mixFile6;
+	    lambdas[6] = mixLambda6;
+	}
+	if (mixFile7) {
+	    filenames[7] = mixFile7;
+	    lambdas[7] = mixLambda7;
+	}
+	if (mixFile8) {
+	    filenames[8] = mixFile8;
+	    lambdas[8] = mixLambda8;
+	}
+	if (mixFile9) {
+	    filenames[9] = mixFile9;
+	    lambdas[9] = mixLambda9;
+	}
+	useLM = makeLoglinearMixLM(filenames, *vocab, classVocab, order,
+					useLM, lambdas);
     }
 
     /*

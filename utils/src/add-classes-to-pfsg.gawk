@@ -5,7 +5,7 @@
 #
 # usage: add-classes-to-pfsg classes=<expansions> pfsg > expanded-pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-classes-to-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/add-classes-to-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
 #
 
 function read_classes(file) {

@@ -5,7 +5,7 @@
 #
 # Copyright (c) 1995,1997 SRI International.  All Rights Reserved
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-ppls.gawk,v 1.2 1997/07/12 05:01:08 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/add-ppls.gawk,v 1.2 1997/07/12 05:01:08 stolcke Exp $
 #
 /^file .*: .* sentences/ {
 	totalsents += $3;

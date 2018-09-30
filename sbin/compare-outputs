@@ -2,7 +2,7 @@
 #
 # compare test outputs allowing for small numerical differences
 #
-# $Header: /home/srilm/1.5/test/RCS/compare-outputs,v 1.2 2006/08/11 23:52:53 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/compare-outputs,v 1.2 2006/08/11 23:52:53 stolcke Exp $
 #
 
 BEGIN {

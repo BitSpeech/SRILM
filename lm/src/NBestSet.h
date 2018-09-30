@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2008 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.9 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBestSet.h,v 1.9 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 

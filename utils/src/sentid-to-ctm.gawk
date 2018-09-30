@@ -7,7 +7,7 @@
 #	Note: this script makes assumptions about the structure of sentence
 #	ID, specifically, how they encode speakers and timemarks.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-ctm.gawk,v 1.10 2009/11/19 00:10:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/sentid-to-ctm.gawk,v 1.10 2009/11/19 00:10:02 stolcke Exp $
 #
 
 BEGIN {

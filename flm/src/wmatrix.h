@@ -3,7 +3,7 @@
  *
  * Jeff Bilmes  <bilmes@ee.washington.edu>
  * 
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/wmatrix.h,v 1.7 2006/08/12 06:26:03 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/wmatrix.h,v 1.7 2006/08/12 06:26:03 stolcke Exp $
  *
  */
 

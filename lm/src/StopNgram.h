@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgram.h,v 1.3 2002/08/25 17:27:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/StopNgram.h,v 1.3 2002/08/25 17:27:45 stolcke Exp $
  *
  */
 

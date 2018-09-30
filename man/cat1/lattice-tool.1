@@ -607,78 +607,82 @@ OOPPTTIIOONNSS
               --mmiixx--llmm model is 1 minus the sum  of  --llaammbbddaa  and  --mmiixx--llaammbbddaa22
               through --mmiixx--llaammbbddaa99.
 
+       --lloogglliinneeaarr--mmiixx
+              Implement  a  log-linear  (rather than linear) mixture LM, using
+              the parameters above.
+
        --bbaayyeess _l_e_n_g_t_h
-              Set  the  context  length  used for Bayesian interpolation.  The
-              default value is 0,  giving  the  standard  fixed  interpolation
+              Set the context length used  for  Bayesian  interpolation.   The
+              default  value  is  0,  giving  the standard fixed interpolation
               weight specified by --llaammbbddaa.
 
        --bbaayyeess--ssccaallee _s_c_a_l_e
-              Set  the  exponential  scale factor on the context likelihood in
+              Set the exponential scale factor on the  context  likelihood  in
               conjunction with the --bbaayyeess function.  Default value is 1.0.
 
        --ccoommppaacctt--eexxppaannssiioonn
-              Use a compact expansion algorithm that  uses  backoff  nodes  to
-              reduce  the  size  of  expanded  lattices  (see  paper reference
+              Use  a  compact  expansion  algorithm that uses backoff nodes to
+              reduce the  size  of  expanded  lattices  (see  paper  reference
               below).
 
        --oolldd--eexxppaannssiioonn
-              Use older versions of the  lattice  expansion  algorithms  (both
-              regular  and  compact),  that  handle  only  trigram  models and
-              require elimination of null and pause nodes prior to  expansion.
-              Not  recommended,  but  useful if full backward compatibility is
+              Use  older  versions  of  the lattice expansion algorithms (both
+              regular and  compact),  that  handle  only  trigram  models  and
+              require  elimination of null and pause nodes prior to expansion.
+              Not recommended, but useful if full  backward  compatibility  is
               required.
 
        --mmaaxx--nnooddeess _M
-              Abort lattices expansion when the  number  of  nodes  (including
-              null  and  pause nodes) exceeds _M.  This is another mechanism to
+              Abort  lattices  expansion  when  the number of nodes (including
+              null and pause nodes) exceeds _M.  This is another  mechanism  to
               avoid spending too much time on very large lattices.
 
 LLAATTTTIICCEE EEXXPPAANNSSIIOONN AALLGGOORRIITTHHMMSS
-       llaattttiiccee--ttooooll incorporates several  different  algorithms  to  apply  LM
+       llaattttiiccee--ttooooll  incorporates  several  different  algorithms  to apply LM
        weights to lattices.  This section explains what algorithms are applied
        given what options.
 
        CCoommppaacctt LLMM eexxppaannssiioonn
-              This expands the nodes and transitions  to  be  able  to  assign
-              higher-order  probabilities  to transitions.  Backoffs in the LM
+              This  expands  the  nodes  and  transitions to be able to assign
+              higher-order probabilities to transitions.  Backoffs in  the  LM
               are exploited in the expansion, thereby minimizing the number of
               added nodes (Weng et al., 1998).  This algorithm is triggered by
               --ccoommppaacctt--eexxppaannssiioonn For the resulting lattices to work correctly,
-              backoff  paths  in the LM must have lower weight than the corre-
-              sponding higher-order paths.   (For  N-gram  LMs,  this  can  be
-              achieved  using  the  nnggrraamm --pprruunnee--lloowwpprroobbss option.)  Pauses and
-              null nodes are handled during the expansion and do not  have  to
+              backoff paths in the LM must have lower weight than  the  corre-
+              sponding  higher-order  paths.   (For  N-gram  LMs,  this can be
+              achieved using the nnggrraamm --pprruunnee--lloowwpprroobbss  option.)   Pauses  and
+              null  nodes  are handled during the expansion and do not have to
               be removed and restored.
 
        GGeenneerraall LLMM eexxppaannssiioonn
-              This  expands the lattice to apply LMs of arbitrary order, with-
-              out use of backoff transitions.  This algorithm is  the  default
+              This expands the lattice to apply LMs of arbitrary order,  with-
+              out  use  of backoff transitions.  This algorithm is the default
               (no --ccoommppaacctt--eexxppaannssiioonn).
 
        UUnniiggrraamm wweeiigghhtt rreeppllaacceemmeenntt
-              This  simply  replaces  the  weights on lattice transitions with
-              unigram log  probabilities.   No  modification  of  the  lattice
+              This simply replaces the weights  on  lattice  transitions  with
+              unigram  log  probabilities.   No  modification  of  the lattice
               structure is required.  This algorithm is used if --oolldd--eexxppaannssiioonn
               and --oorrddeerr 11 are specified.
 
        BBiiggrraamm wweeiigghhtt rreeppllaacceemmeenntt
-              This replaces the transition weights with bigram log  probabili-
-              ties.   Pause  and null nodes have to be eliminated prior to the
-              operation, and are  restored  after  weight  replacement.   This
+              This  replaces the transition weights with bigram log probabili-
+              ties.  Pause and null nodes have to be eliminated prior  to  the
+              operation,  and  are  restored  after  weight replacement.  This
               algorithm is used if --oolldd--eexxppaannssiioonn and --oorrddeerr 22 are specified.
 
 HHTTKK LLAATTTTIICCEESS
-       llaattttiiccee--ttooooll  can  optionally read, process, and output lattices in HTK
-       Standard Lattice Format.  The following  options  control  HTK  lattice
+       llaattttiiccee--ttooooll can optionally read, process, and output lattices  in  HTK
+       Standard  Lattice  Format.   The  following options control HTK lattice
        processing.
 
        --rreeaadd--hhttkk
-              Read  input lattices in HTK format.  All lattices are internally
-              represented as PFSGs; to achieve this  HTK  lattices  links  are
+              Read input lattices in HTK format.  All lattices are  internally
+              represented  as  PFSGs;  to  achieve this HTK lattices links are
               mapped to PFSG nodes (with attached word and score information),
-              and HTK lattice nodes are mapped to PFSG  NULL  nodes.   Transi-
-              tions  are  created  so  as  to preserve words and scores of all
-              paths through the original lattice.  On output, this mapping  is
+              and  HTK  lattice  nodes are mapped to PFSG NULL nodes.  Transi-
+              tions are created so as to preserve  words  and  scores  of  all
+              paths  through the original lattice.  On output, this mapping is
               reversed, so as to create a compact encoding of PFSGs containing
               NULL nodes as HTK lattices.
 
@@ -701,93 +705,93 @@ HHTTKK LLAATTTTIICCEESS
 
        --hhttkk--wwddppeennaallttyy _S
               These options specify the weights for acoustic, LM, N-gram, pro-
-              nunciation,  and  duration  models,  up to nine extra scores, as
-              well as word transition penalties to be used for  combining  the
-              various  scores  contained in HTK lattices.  The combined scores
+              nunciation, and duration models, up to  nine  extra  scores,  as
+              well  as  word transition penalties to be used for combining the
+              various scores contained in HTK lattices.  The  combined  scores
               are then used to compute the transition weights for the internal
-              PFSG  representation.   Default  weights  are  obtained from the
+              PFSG representation.  Default  weights  are  obtained  from  the
               specifications in the lattice files themselves.
-              Word transition penalties are scaled according to the  log  base
+              Word  transition  penalties are scaled according to the log base
               used.  Values specified on the command line are scaled according
-              to --hhttkk--llooggbbaassee, or the default 10.  Word  transition  penalties
-              specified  in  the  lattice file are scaled according to the log
+              to  --hhttkk--llooggbbaassee,  or the default 10.  Word transition penalties
+              specified in the lattice file are scaled according  to  the  log
               base specified in the file, or the default _e.
 
        --hhttkk--llooggzzeerroo _Z
-              Replace HTK lattices score that are zero (minus infinity on  the
-              log  scale)  by the log-base-10 score _Z.  This is typically used
-              after rescoring with a language model that  assigns  probability
-              zero  to some words in the lattice, and allows meaningful compu-
-              tation of posterior probabilities  and  1-best  hypotheses  from
+              Replace  HTK lattices score that are zero (minus infinity on the
+              log scale) by the log-base-10 score _Z.  This is  typically  used
+              after  rescoring  with a language model that assigns probability
+              zero to some words in the lattice, and allows meaningful  compu-
+              tation  of  posterior  probabilities  and 1-best hypotheses from
               such lattices.
 
        --nnoo--hhttkk--nnuullllss
-              Eliminate  NULL nodes otherwise created by the conversion of HTK
+              Eliminate NULL nodes otherwise created by the conversion of  HTK
               lattices to PFSGs.  This creates additional links and may or may
               not reduce the overall processing time required.
 
        --ddiiccttiioonnaarryy _f_i_l_e
-              Read  a  dictionary  containing pronunciation probabilities from
+              Read a dictionary containing  pronunciation  probabilities  from
               _f_i_l_e, and add or replace the pronunciation scores in the lattice
-              accordingly.   This  requires  that  the  lattices contain phone
+              accordingly.  This requires  that  the  lattices  contain  phone
               alignment information.
 
        --iinnttllooggss
-              Assume the dictionary contains log probabilities encoded on  the
+              Assume  the dictionary contains log probabilities encoded on the
               int-log scale, as used by the SRI Decipher system.
 
        --wwrriittee--hhttkk
               Write output lattices in HTK format.  If the input lattices were
-              in PFSG format the original PFSG weights will be output  as  HTK
-              acoustic  scores.  However, LM rescoring will discard the origi-
-              nal PFSG weights and the results will be encoded as  LM  scores.
-              Pronunciation  scoring results will be encoded as pronunciations
+              in  PFSG  format the original PFSG weights will be output as HTK
+              acoustic scores.  However, LM rescoring will discard the  origi-
+              nal  PFSG  weights and the results will be encoded as LM scores.
+              Pronunciation scoring results will be encoded as  pronunciations
               scores.  If the --ccoommppuuttee--ppoosstteerriioorrss was used in lattice process-
-              ing  the output lattices will also contain node posterior proba-
+              ing the output lattices will also contain node posterior  proba-
               bilities.  If the input lattices were in HTK format, then acous-
-              tic  and  duration scores are preserved from the input lattices.
+              tic and duration scores are preserved from the  input  lattices.
               The score scaling factors in the lattice header will reflect the
               --hhttkk--**ssccaallee options given above.
 
        --hhttkk--llooggbbaassee _B
-              Modify  the  logarithm base in HTK lattices output.  The default
-              is to use logs base 10, as elsewhere in SRILM.  As  value  of  0
-              means  to  output  probabilities  instead  of log probabilities.
-              Note that the log base for input lattices  is  not  affected  by
-              this  option;  it  is  encoded  in  the lattices themselves, and
+              Modify the logarithm base in HTK lattices output.   The  default
+              is  to  use  logs base 10, as elsewhere in SRILM.  As value of 0
+              means to output  probabilities  instead  of  log  probabilities.
+              Note  that  the  log  base for input lattices is not affected by
+              this option; it is  encoded  in  the  lattices  themselves,  and
               defaults to _e according to the HTK SLF definition.
 
        --hhttkk--wwoorrddss--oonn--nnooddeess
-              Output word labels and other  word-related  information  on  HTK
-              lattice  nodes,  rather  than  links,  thus  saving space.  This
-              option is provided only for  compatibility  with  software  that
-              requires  word  information to be attached specifically to links
+              Output  word  labels  and  other word-related information on HTK
+              lattice nodes, rather  than  links,  thus  saving  space.   This
+              option  is  provided  only  for compatibility with software that
+              requires word information to be attached specifically  to  links
               of nodes.
 
        Note:  The options --nnoo--hhttkk--nnuullllss, --hhttkk--wwoorrddss--oonn--nnooddeess, and --hhttkk--ssccoorreess--
-              oonn--nnooddeess  defeat  the mapping of internal PFSG nodes back to HTK
-              transitions, and should therefore NOT be  used  when  a  compact
+              oonn--nnooddeess defeat the mapping of internal PFSG nodes back  to  HTK
+              transitions,  and  should  therefore  NOT be used when a compact
               output representation is desired.
 
        --hhttkk--qquuootteess
-              Enable  the  HTK string quoting mechanism that allows whitespace
-              and other non-printable  characters  to  be  included  in  words
+              Enable the HTK string quoting mechanism that  allows  whitespace
+              and  other  non-printable  characters  to  be  included in words
               labels and other fields.  This is disabled by default since PFSG
-              lattices and other SRILM tools don't support such  word  labels.
+              lattices  and  other SRILM tools don't support such word labels.
               It affects both input and output format for HTK lattices.
 
 NN--BBEESSTT DDEECCOODDIINNGG
        The option --nnbbeesstt--ddeeccooddee triggers generation of N-best lists, according
-       to the aggregate score of paths encoded in  the  lattice.   The  output
-       format  for  N-best lists and associated additional score files is com-
+       to  the  aggregate  score  of paths encoded in the lattice.  The output
+       format for N-best lists and associated additional score files  is  com-
        patible with other SRILM tools that process N-best lists, such as those
-       described  in  nnbbeesstt--llaattttiiccee(1)  and  nnbbeesstt--ssccrriippttss(1).   The following
+       described in  nnbbeesstt--llaattttiiccee(1)  and  nnbbeesstt--ssccrriippttss(1).   The  following
        options control the location of output files:
 
        --oouutt--nnbbeesstt--ddiirr _d_i_r
-              The directory to which N-best list  files  are  written.   These
-              contain  acoustic  model  scores,  language  model  scores, word
-              counts, and the word hypotheses themselves, in SRILM  format  as
+              The  directory  to  which  N-best list files are written.  These
+              contain acoustic  model  scores,  language  model  scores,  word
+              counts,  and  the word hypotheses themselves, in SRILM format as
               described in nnbbeesstt--ffoorrmmaatt(5).
 
        --oouutt--nnbbeesstt--ddiirr--nnggrraamm _d_i_r
@@ -795,11 +799,11 @@ NN--BBEESSTT DDEECCOODDIINNGG
               in HTK lattices.
 
        --oouutt--nnbbeesstt--ddiirr--pprroonn _d_i_r
-              Output directory for pronunciation scores encoded  in  HTK  lat-
+              Output  directory  for  pronunciation scores encoded in HTK lat-
               tices.
 
        --oouutt--nnbbeesstt--ddiirr--dduurr _d_i_r
-              Output  directory  for duration model scores encoded in HTK lat-
+              Output directory for duration model scores encoded in  HTK  lat-
               tices.
 
        --oouutt--nnbbeesstt--ddiirr--xxssccoorree11 _d_i_r
@@ -808,7 +812,7 @@ NN--BBEESSTT DDEECCOODDIINNGG
               ...
 
        --oouutt--nnbbeesstt--ddiirr--xxssccoorree99 _d_i_r
-              Output score directories for up  to  nine  additional  knowledge
+              Output  score  directories  for  up to nine additional knowledge
               sources encoded in HTK lattices.
 
        --oouutt--nnbbeesstt--ddiirr--rrttttmm _d_i_r
@@ -817,43 +821,43 @@ NN--BBEESSTT DDEECCOODDIINNGG
               tions to infer timing information.
 
 SSEEEE AALLSSOO
-       ngram(1),  ngram-merge(1), pfsg-scripts(1), nbest-lattice(1), pfsg-for-
-       mat(5), ngram-format(5), classes-format(5), wlat-format(5),  nbest-for-
+       ngram(1), ngram-merge(1), pfsg-scripts(1), nbest-lattice(1),  pfsg-for-
+       mat(5),  ngram-format(5), classes-format(5), wlat-format(5), nbest-for-
        mat(5).
-       F.  Weng, A. Stolcke, and A. Sankar, ``Efficient Lattice Representation
-       and Generation.''  _P_r_o_c_. _I_n_t_l_. _C_o_n_f_.  _o_n  _S_p_o_k_e_n  _L_a_n_g_u_a_g_e  _P_r_o_c_e_s_s_i_n_g,
+       F. Weng, A. Stolcke, and A. Sankar, ``Efficient Lattice  Representation
+       and  Generation.''   _P_r_o_c_.  _I_n_t_l_.  _C_o_n_f_. _o_n _S_p_o_k_e_n _L_a_n_g_u_a_g_e _P_r_o_c_e_s_s_i_n_g,
        vol. 6, pp. 2531-2534, Sydney, 1998.
-       S.    Young    et    al.,    _T_h_e    _H_T_K    _B_o_o_k,   HTK   version   3.1.
+       S.   Young   et   al.,    _T_h_e    _H_T_K    _B_o_o_k,    HTK    version    3.1.
        http://htk.eng.cam.ac.uk/prot-docs/htk_book.shtml
 
 BBUUGGSS
        Not all LM types supported by nnggrraamm(1) are handled by llaattttiiccee--ttooooll..
 
-       Care must be taken when processing multiword  lattices  with  --uunnkk  and
-       --mmuullttiiwwoorrddss  or --sspplliitt--mmuullttiiwwoorrddss.  Multiwords not listed in the LM (or
+       Care  must  be  taken  when processing multiword lattices with --uunnkk and
+       --mmuullttiiwwoorrddss or --sspplliitt--mmuullttiiwwoorrddss.  Multiwords not listed in the LM  (or
        the explicit vocabulary specified) will be considered ``unknown'', even
        though their components might be in-vocabulary.
 
-       The  --nnbbeesstt--dduupplliiccaatteess  option  does  not  work  together  with --nnbbeesstt--
+       The --nnbbeesstt--dduupplliiccaatteess  option  does  not  work  together  with  --nnbbeesstt--
        vviitteerrbbii.
 
-       When applying --ddeeccooddee--vviitteerrbbii or --ddeeccooddee--nnbbeesstt to  PFSG  lattices,  the
-       old  transition weights are effectively treated as acoustic scores, and
+       When  applying  --ddeeccooddee--vviitteerrbbii  or --ddeeccooddee--nnbbeesstt to PFSG lattices, the
+       old transition weights are effectively treated as acoustic scores,  and
        the new LM scores are added to them.  There is no way to replace old LM
-       scores  that  might  be part of the PFSG transition weights.  This is a
-       limitation of the format, since PFSGs cannot encode  separate  acoustic
+       scores that might be part of the PFSG transition weights.   This  is  a
+       limitation  of  the format, since PFSGs cannot encode separate acoustic
        and language scores.
 
-       Input  lattices in HTK format may contain node or link posterior infor-
+       Input lattices in HTK format may contain node or link posterior  infor-
        mation.  However, this information is effectively discarded; posteriors
        are always recomputed from scores when needed for pruning or output.
 
-       The  --nnoo--nnuullllss, --nnoo--ppaauussee and --ccoommppaacctt--ppaauussee options discard the acous-
-       tic information associated with NULL and pause  nodes  in  HTK  lattice
-       input,  and should therefore not be used if equivalent HTK lattice out-
+       The --nnoo--nnuullllss, --nnoo--ppaauussee and --ccoommppaacctt--ppaauussee options discard the  acous-
+       tic  information  associated  with  NULL and pause nodes in HTK lattice
+       input, and should therefore not be used if equivalent HTK lattice  out-
        put is intended.
 
-       The --kkeeeepp--uunnkk option currently only works for input/output in HTK  lat-
+       The  --kkeeeepp--uunnkk option currently only works for input/output in HTK lat-
        tice format.
 
 AAUUTTHHOORRSS
@@ -865,4 +869,4 @@ AAUUTTHHOORRSS
 
 
 
-SRILM Tools              $Date: 2011/01/14 01:35:13 $          lattice-tool(1)
+SRILM Tools              $Date: 2011/01/29 06:30:16 $          lattice-tool(1)

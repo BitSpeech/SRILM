@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMarginals.h,v 1.1 2004/07/31 22:17:56 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/AdaptiveMarginals.h,v 1.1 2004/07/31 22:17:56 stolcke Exp $
  *
  */
 

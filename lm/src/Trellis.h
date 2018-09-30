@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.20 2010/09/15 21:41:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.h,v 1.21 2011/04/06 03:43:16 stolcke Exp $
  *
  */
 
@@ -47,7 +47,7 @@ template <class StateT> class TrellisIter;
  * hypothesis.
  */
 template <class StateT> class TrellisNode;
-template <class StateT> inline ostream& operator <<(ostream& os, const TrellisNode<StateT>& node);
+template <class StateT> ostream& operator <<(ostream& os, const TrellisNode<StateT>& node);
 
 template <class StateT>
 class TrellisNode
@@ -75,7 +75,7 @@ private:
  * print out the node contents.
  */
 template <class StateT>
-inline ostream&
+ostream&
 operator <<(ostream& os, const TrellisNode<StateT>& node) {
     return os << node.nbest;
 }
@@ -116,7 +116,7 @@ operator<<(ostream& os, const Hyp<StateT>& h) {
  * to the numNbest member of Trellis.
  */
 template <class StateT> class TrellisNBestList;
-template <class StateT> inline ostream& operator<< (ostream& os, const TrellisNBestList<StateT>& nbest);
+template <class StateT> ostream& operator<< (ostream& os, const TrellisNBestList<StateT>& nbest);
 
 template <class StateT>
 class TrellisNBestList {
@@ -140,7 +140,7 @@ private:
 };
 
 template <class StateT>
-inline ostream&
+ostream&
 operator<< (ostream& os, const TrellisNBestList<StateT>& nbest)
 {
     for (unsigned n = 0; n < nbest.size(); n++) {
@@ -198,7 +198,7 @@ private:
  * stored in the member trellis.
  */
 template <class StateT> class Trellis;
-template <class StateT> inline ostream& operator<<(ostream& os, const Trellis<StateT>& trellis);
+template <class StateT> ostream& operator<<(ostream& os, const Trellis<StateT>& trellis);
 
 template <class StateT>
 class Trellis
@@ -276,7 +276,7 @@ private:
 };
 
 template <class StateT>
-inline ostream&
+ostream&
 operator<<(ostream& os, const Trellis<StateT>& trellis) {
     for (unsigned i = 0; i < trellis.size(); i++) {
 	os << " Slice " << i << endl << trellis[i];

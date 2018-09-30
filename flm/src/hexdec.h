@@ -4,7 +4,7 @@
  *
  * Jeff Bilmes <bilmes@ee.washington.edu>
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/hexdec.h,v 1.6 2006/08/12 06:49:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/hexdec.h,v 1.6 2006/08/12 06:49:39 stolcke Exp $
  *
  */
 

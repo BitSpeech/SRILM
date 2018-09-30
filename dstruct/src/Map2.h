@@ -57,7 +57,7 @@
  *
  * Copyright (c) 1999,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.h,v 1.6 2002/07/18 20:59:22 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.h,v 1.6 2002/07/18 20:59:22 stolcke Exp $
  *
  */
 

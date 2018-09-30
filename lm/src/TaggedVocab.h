@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.7 2010/06/02 05:49:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedVocab.h,v 1.7 2010/06/02 05:49:58 stolcke Exp $
  *
  */
 

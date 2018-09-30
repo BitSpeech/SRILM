@@ -4,7 +4,7 @@
 #	Generate a map from ascii to accented word forms
 #	for use with disambig(1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-diacritic-map,v 1.3 1998/02/04 20:28:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-diacritic-map.gawk,v 1.3 1998/02/04 20:28:02 stolcke Exp $
 #
 /^#/ {
 	next;

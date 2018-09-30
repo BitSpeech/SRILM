@@ -1,9 +1,9 @@
 #!/bin/sh
-#
+# 
 # go.run-test --
 #	run a regression test
 #
-# $Header: /home/srilm/devel/lattice/test/../../sbin/RCS/go.run-test,v 1.13 2009/12/02 20:15:39 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/go.run-test,v 1.15 2011/01/29 06:25:54 stolcke Exp $
 #
 
 dir=$1
@@ -23,6 +23,11 @@ test -d output || mkdir output
 echo "" >&2
 echo "*** Running test $name ***" >&2
 
+if [ ! -d $dir ]; then
+	echo "$name: no such test" >&2
+	exit 2
+fi
+
 time sh -c "(cd $dir; rm -f core; ./run-test) \
 		> output/$name.$MACHINE_TYPE.stdout \
 		2> output/$name.$MACHINE_TYPE.stderr"
@@ -40,39 +45,30 @@ for out in stdout stderr
 do
 	pass=
 
-	if [ -f reference/$name.$out ]; then
-		if eval $diff reference/$name.$out \
-		       output/$name.$MACHINE_TYPE.$out
-		then
-			echo "$name: $out output IDENTICAL."
-			continue
-		fi
-	fi
-
-	for version in $MACHINE_TYPE IEEE INTEL 
+	for file in reference/$name.$out reference/$name.*.$out
 	do
-		if [ -f reference/$name.$version.$out ] && \
-		   eval $diff reference/$name.$version.$out \
-		       output/$name.$MACHINE_TYPE.$out 
+		version=`echo $file | sed -e "s,reference/$name[.],," -e "s,$out\$,," -e 's,[.]$,,' `
+
+	        if [ ! -f $file ]; then
+			:
+		elif eval $diff $file output/$name.$MACHINE_TYPE.$out 
 		then
-			echo "$name: $out output IDENTICAL ($version version)."
+			if [ -n "$version" ]; then
+			    echo "$name: $out output IDENTICAL ($version version)."
+			else
+			    echo "$name: $out output IDENTICAL."
+			fi
 			pass=yes
 			break
-		elif [ $version = $MACHINE_TYPE -a \
-			-f reference/$name.$version.$out ]
-		then
-			echo "$name: $out output DIFFERS ($version version)."
-			pass=yes
-			break
+		else
+			pass=no
 		fi
 	done
 
-	if [ -z "$pass" ]; then
-		if [ -f reference/$name.$out ]; then
-			echo "$name: $out output DIFFERS."
-		else 
-			echo "$name: no reference $out output found." >&2
-		fi
+	if [ "$pass" = no ]; then
+		echo "$name: $out output DIFFERS."
+	elif [ -z "$pass" ]; then
+		echo "$name: no $out reference found." >&2
 	fi
 done
 

@@ -7,11 +7,9 @@ on a Windows 98 and a Windows 2000 Professional system.
 
 The following special measures were taken to ensure a successful build:
 
-- Make sure the make, gcc, binutils, gzip, tcltk, gawk, and tcsh packages are
+- Make sure the make, gcc, binutils, gzip, tcltk, and gawk packages are
   installed with CYGWIN.  To run the tests you will also need the diffutils
   and time packages.
-- Copy or link /bin/tcsh.exe to /bin/csh.exe if this was not already done
-  as part of the tcsh package installation.
 
 After installation, set your bash environment as follows
 
@@ -36,4 +34,4 @@ Some functionality is not supported under MinGW:
     - running the test suite
 
 A. Stolcke
-$Id: README.windows-cygwin,v 1.7 2007/01/04 21:30:57 stolcke Exp $
+$Id: README.windows-cygwin,v 1.8 2011/10/21 21:28:47 stolcke Exp $

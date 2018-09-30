@@ -3,7 +3,7 @@
 # reverse-text --
 #	Reverse the word order in a text file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/reverse-text.gawk,v 1.1 2003/01/01 18:35:23 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/reverse-text.gawk,v 1.1 2003/01/01 18:35:23 stolcke Exp $
 #
 BEGIN {
 	start_tag = "<s>";

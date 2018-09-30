@@ -4,7 +4,7 @@
 #	combined several rover control files for system combination
 #	(may be used recursively)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/combine-rover-controls.gawk,v 1.2 2005/07/05 18:20:54 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/combine-rover-controls.gawk,v 1.2 2005/07/05 18:20:54 stolcke Exp $
 #
 
 function process_rover_control(file, weight) {

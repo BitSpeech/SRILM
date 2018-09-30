@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2007, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LMClient.h,v 1.7 2008/01/21 23:03:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.h,v 1.7 2008/01/21 23:03:51 stolcke Exp $
  *
  */
 

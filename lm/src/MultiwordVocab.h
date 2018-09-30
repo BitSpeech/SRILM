@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2001,2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.h,v 1.3 2004/10/25 02:43:20 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.h,v 1.3 2004/10/25 02:43:20 stolcke Exp $
  *
  */
 

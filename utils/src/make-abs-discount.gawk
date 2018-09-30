@@ -8,7 +8,7 @@
 #
 # 	where COUNTFILE was created with get-gt-counts.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-abs-discount.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-abs-discount.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 $1 == 1 {
 	gt1count = $2;

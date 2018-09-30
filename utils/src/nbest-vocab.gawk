@@ -5,7 +5,7 @@
 #
 # usage: nbest-vocab NBEST-FILE ... > VOCAB
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-vocab.gawk,v 1.2 2003/03/18 00:55:07 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-vocab.gawk,v 1.2 2003/03/18 00:55:07 stolcke Exp $
 #
 
 BEGIN {

@@ -3,7 +3,7 @@
 # go.update-refs --
 #	Update test output reference files based on actual test outputs
 #
-# $Header: /home/srilm/devel/sbin/RCS/go.update-refs,v 1.1 2001/12/21 19:25:45 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/go.update-refs,v 1.1 2001/12/21 19:25:45 stolcke Exp $
 #
 
 dir=$1

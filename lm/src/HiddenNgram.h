@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1999-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.10 2007/01/24 19:47:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/HiddenNgram.h,v 1.10 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 

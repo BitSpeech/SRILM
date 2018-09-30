@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.21 2010/06/02 06:22:48 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.h,v 1.21 2010/06/02 06:22:48 stolcke Exp $
  *
  */
 

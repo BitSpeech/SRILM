@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2004, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/version.h,v 1.1 2004/12/03 04:24:36 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/version.h,v 1.1 2004/12/03 04:24:36 stolcke Exp $
  *
  */
 

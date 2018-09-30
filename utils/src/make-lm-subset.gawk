@@ -5,7 +5,7 @@
 #
 # usage: make-lm-subset count-file bo-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-lm-subset,v 1.3 1999/10/17 06:10:10 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-lm-subset.gawk,v 1.3 1999/10/17 06:10:10 stolcke Exp $
 #
 ARGIND==1 {
 	ngram = $0;

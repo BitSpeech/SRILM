@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Header: /home/srilm/devel/misc/src/RCS/option.c,v 1.15 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)";
+static char rcsid[] = "$Header: /home/srilm/CVS/srilm/misc/src/option.c,v 1.16 2011/09/22 01:15:42 stolcke Exp $ SPRITE (Berkeley)";
 #endif
 
 #include <option.h>
@@ -58,12 +58,12 @@ static void ParseTime _ARGS_ ((_CONST char *progName, char *str,
  */
 
 int
-Opt_Parse(argc, argv, optionArray, numOptions, flags)
-    register int  argc; 	    /* Number of arguments in argv. */
-    char    	  **argv;   	    /* Array of arguments */
-    Option  	  optionArray[];    /* Array of option descriptions */
-    int	    	  numOptions;	    /* Size of optionArray */
-    int		  flags;	    /* Or'ed combination of various flag bits:
+Opt_Parse(
+    int  	  argc, 	    /* Number of arguments in argv. */
+    char    	  **argv,   	    /* Array of arguments */
+    Option  	  optionArray[],    /* Array of option descriptions */
+    int	    	  numOptions,	    /* Size of optionArray */
+    int		  flags)	    /* Or'ed combination of various flag bits:
 				     * see option.h for definitions. */
 {
     register Option 	*optionPtr; /* pointer to the current option in the
@@ -308,10 +308,10 @@ Opt_Parse(argc, argv, optionArray, numOptions, flags)
  */
 
 void
-Opt_PrintUsage(commandName, optionArray, numOptions)
-    _CONST char *commandName;
-    Option optionArray[];
-    int numOptions;
+Opt_PrintUsage(
+    _CONST char *commandName,
+    Option optionArray[],
+    int numOptions)
 {
     register int i;
     int width;
@@ -393,10 +393,10 @@ Opt_PrintUsage(commandName, optionArray, numOptions)
  */
 
 static void
-ParseTime(progName, str, resultPtr)
-    _CONST char	*progName;	/* name that the program was called as */
-    char	*str;		/* the string to parse */
-    time_t	*resultPtr;	/* pointer to result time value */
+ParseTime(
+    _CONST char	*progName,	/* name that the program was called as */
+    char	*str,		/* the string to parse */
+    time_t	*resultPtr)	/* pointer to result time value */
 {
     long result;		/* the answer */
     char *endPtr;		/* pointer into str, for parsing */

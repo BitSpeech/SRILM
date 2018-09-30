@@ -6,7 +6,7 @@
 #
 # usage: sort-lm lm-file > sorted-lm-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sort-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/sort-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {

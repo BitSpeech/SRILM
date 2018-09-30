@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1995-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductNgram.h,v 1.9 2007/01/24 19:25:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.h,v 1.9 2007/01/24 19:25:59 stolcke Exp $
  *
  */
 

@@ -5,7 +5,7 @@
 #
 # usage: pfsg-vocab PFSG-FILE ... > VOCAB
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-vocab.gawk,v 1.1 2003/02/18 18:33:04 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/pfsg-vocab.gawk,v 1.1 2003/02/18 18:33:04 stolcke Exp $
 #
 
 BEGIN {

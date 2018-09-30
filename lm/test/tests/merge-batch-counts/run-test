@@ -23,6 +23,9 @@ split -50 $text splits/text.
 
 find splits -type f -print | sort > split.files
 
+# make file listing order independent of locale
+LC_COLLATE=C; export LC_COLLATE
+
 make-batch-counts split.files 5 cat mycounts -order $order
 
 merge-batch-counts -l 3 mycounts

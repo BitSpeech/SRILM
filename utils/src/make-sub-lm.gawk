@@ -5,7 +5,7 @@
 #
 # usage: make-sub-lm maxorder=<n> lm-file > sub-lm-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-sub-lm,v 1.2 1998/11/09 05:54:12 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/make-sub-lm.gawk,v 1.2 1998/11/09 05:54:12 stolcke Exp $
 #
 
 BEGIN {

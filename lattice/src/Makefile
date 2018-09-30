@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lattice/src/RCS/Makefile,v 1.28 2008/04/30 01:55:47 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/lattice/src/Makefile,v 1.29 2011/02/15 23:30:21 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -33,7 +33,7 @@ COMPACT_FLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
 
 # Flags for generating "long long" data structures
-LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
 
 # Define variables.
 

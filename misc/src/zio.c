@@ -9,11 +9,14 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.30 2010/06/02 04:47:32 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/zio.c,v 1.31 2011/04/07 07:43:24 stolcke Exp $";
 #endif
 
 /*
  * $Log: zio.c,v $
+ * Revision 1.31  2011/04/07 07:43:24  stolcke
+ * Suppress unused functions if NO_ZIO is defined
+ *
  * Revision 1.30  2010/06/02 04:47:32  stolcke
  * avoid compiler warning
  *
@@ -242,6 +245,7 @@ xz_filename_p (const char *name)
 /*
  * Check file readability
  */
+#ifndef NO_ZIO
 static int
 readable_p (const char *name)
 {
@@ -270,6 +274,7 @@ writable_p (const char *name)
 	return 1;
     }
 }
+#endif /* !NO_ZIO */
 
 /*
  * Open a stdio stream, handling special filenames

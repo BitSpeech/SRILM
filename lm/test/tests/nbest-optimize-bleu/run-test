@@ -1,6 +1,9 @@
 #!/bin/sh
 
-find tune.scores -type f | sort > nbestfiles
+LC_COLLATE=C
+export LC_COLLATE
+
+find tune.scores -type f | grep -v CVS | sort > nbestfiles
 
 nbest-optimize -maxiters 5 \
 	-converge 0.01 \
