@@ -1,7 +1,7 @@
 //
 // Interactive testing for Trie datastructure
 //
-// $Header: /export/di/ws97/tools/srilm-0.97beta/dstruct/src/RCS/testTrie.cc,v 1.10 1997/07/31 15:32:22 stolcke Exp $
+// $Header: /home/srilm/devel/dstruct/src/RCS/testTrie.cc,v 1.13 2005/07/17 22:00:01 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -83,9 +83,11 @@ Insert(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
    }
 
-   result = myTrie.insert(keys);
+   Boolean foundp;
+   result = myTrie.insert(keys, foundp);
    if (result) {
        Tcl_SetResult(interp, *result, TCL_DYNAMIC);
+       cerr << "foundp = " << foundp << endl;
        *result = value;
    }
    myTrie.dump();
@@ -184,24 +186,31 @@ RList(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 int
 Quit(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
+   TRIE_T *anothertrie = new TRIE_T;
+
+   /*
+    * Test = operator
+    */
+   cerr << "*** testing = operator ***\n";
+   *anothertrie = myTrie;
+   anothertrie->dump();
+
+   delete anothertrie;
    exit(0);
+
    return TCL_OK;
 }
 
 extern "C" int
 Tcl_AppInit(Tcl_Interp *interp)
 {
-   TRIE_T *anothertrie = new TRIE_T;
+   Tcl_CreateCommand(interp, "find", (Tcl_CmdProc *)Find, 0, NULL);
+   Tcl_CreateCommand(interp, "insert", (Tcl_CmdProc *)Insert, 0, NULL);
+   Tcl_CreateCommand(interp, "delete", (Tcl_CmdProc *)Delete, 0, NULL);
+   Tcl_CreateCommand(interp, "list", (Tcl_CmdProc *)List, 0, NULL);
+   Tcl_CreateCommand(interp, "rlist", (Tcl_CmdProc *)RList, 0, NULL);
+   Tcl_CreateCommand(interp, "quit", (Tcl_CmdProc *)Quit, 0, NULL);
 
-   Tcl_CreateCommand(interp, "find", Find, 0, NULL);
-   Tcl_CreateCommand(interp, "insert", Insert, 0, NULL);
-   Tcl_CreateCommand(interp, "delete", Delete, 0, NULL);
-   Tcl_CreateCommand(interp, "list", List, 0, NULL);
-   Tcl_CreateCommand(interp, "rlist", RList, 0, NULL);
-   Tcl_CreateCommand(interp, "quit", Quit, 0, NULL);
-
-   delete anothertrie;
    return 0;
 }
-
 

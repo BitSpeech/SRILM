@@ -11,7 +11,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.20 2003/02/21 22:43:25 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.26 2006/01/11 06:28:30 stolcke Exp $
 #
 
 
@@ -20,7 +20,7 @@
 
 # Determine the current host machine type.
 ifeq ($(MACHINE_TYPE),  )
-  MACHINE_TYPE := $(shell $(SRILM)/bin/machine-type)
+  MACHINE_TYPE := $(shell $(SRILM)/sbin/machine-type)
 endif
 ifeq ($(OS_TYPE),  )
   OS_TYPE := $(shell uname -s)
@@ -32,6 +32,7 @@ endif
 # Define options.
 OPTIMIZE_OPTION =
 COMPACT_OPTION = _c
+SHORT_OPTION = _s
 DEBUG_OPTION = _g
 PROFILE_OPTION = _p
 EXPORT_OPTION = _x
@@ -39,14 +40,21 @@ EXPORT_OPTION = _x
 # Flags for generating "compact" data structures (nothing by default)
 COMPACT_FLAGS = $(OPTIMIZE_FLAGS)
 
+# Flags for generating "short" data structures (nothing by default)
+SHORT_FLAGS = $(COMPACT_FLAGS)
+
 # Purify support (can be changed in Makefile.machine.$(MACHINE_TYPE))
 PURIFY = purify
 PURIFY_FLAGS = -best-effort
 
-
+# Flag for generating "exported" code:
+# omit third-party functionality and strip binaries
+EXPORT_FLAGS = -DEXCLUDE_CONTRIB
+EXPORT_LDFLAGS = -s
 
 # How to create an archive library
 ARCHIVE = $(AR) ruv
+AR_OUTPUT_OPTION = $@
 
 # This is appended to certain commands to demangle C++ symbols
 DEMANGLE_FILTER = 2>&1 | c++filt
@@ -54,19 +62,30 @@ DEMANGLE_FILTER = 2>&1 | c++filt
 # Path to GNU awk; used in editing scripts 
 GAWK = /usr/local/bin/gawk
 
-# Include machine-type dependent variables
-include $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
-
-# Install script for all machines (based on GNU ginstall utility)
-INSTALL = $(SRILM)/bin/decipher-install
-
-# Note:  The current directory must be searched before the main SRILM include
-#         directory to ensure that local versions of included files will be used.
-INCLUDES = $(ADDITIONAL_INCLUDES) -I. -I$(SRILM_INCDIR)
-DEPENDENCIES = Dependencies.$(MACHINE_TYPE)
+# Path to Perl; used in editing scripts 
+PERL = /usr/local/bin/perl
 
 # Keep the source and object files in separate directories.
 OUTPUT_OPTION = -o $@
+LD_OUTPUT_OPTION = -o $@
+
+# by default, linking uses same optimization switches as compiler
+LD_OPTION_FLAGS = $(OPTION_FLAGS)
+
+# File suffixes
+EXE_SUFFIX =
+OBJ_SUFFIX = .o
+LIB_SUFFIX = .a
+LIB_PREFIX = lib
+
+MATH_LIBRARY = -lm
+
+# How to force linking with the math error handler
+MATHERR_LINK = -u $(SYMBOL_PREFIX)matherr
+SYMBOL_PREFIX =
+
+# Include machine-type dependent variables
+include $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
 
 # Search in the SRILM library directories for things of the form "-l<LibName>".
 ifeq ($(EXTRA_LIBDIR), )
@@ -74,6 +93,15 @@ ifeq ($(EXTRA_LIBDIR), )
 else
 	VPATH = $(SRILM_LIBDIR):$(EXTRA_LIBDIR)
 endif
+
+# Install script for all machines (based on GNU ginstall utility)
+INSTALL = $(SRILM)/sbin/decipher-install
+
+# Note:  The current directory must be searched before the main SRILM include
+#         directory to ensure that local versions of included files will be used.
+INCLUDES = $(ADDITIONAL_INCLUDES) -I. -I$(SRILM_INCDIR)
+DEPENDENCIES = Dependencies.$(MACHINE_TYPE)
+
 
 # Which of the above options is to be used by default?
 OPTION = $(OPTIMIZE_OPTION)
@@ -89,29 +117,31 @@ else
   ifeq ($(OPTION), $(COMPACT_OPTION))
     OPTION_FLAGS = $(COMPACT_FLAGS)
   else
-    ifeq ($(OPTION), $(DEBUG_OPTION))
-      OPTION_FLAGS = $(DEBUG_FLAGS)
+    ifeq ($(OPTION), $(SHORT_OPTION))
+      OPTION_FLAGS = $(SHORT_FLAGS)
     else
-      ifeq ($(OPTION), $(PROFILE_OPTION))
-	OPTION_FLAGS = $(PROFILE_FLAGS)
-	# We also need to link with the profiling flags.
-	ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_FLAGS)
+      ifeq ($(OPTION), $(DEBUG_OPTION))
+	OPTION_FLAGS = $(DEBUG_FLAGS)
       else
-	ifeq ($(OPTION), $(EXPORT_OPTION))
-	  # Export programs are compiled with optimization
-	  #  and linked with special export flags.
-	  OPTION_FLAGS = $(OPTIMIZE_FLAGS)
-	  ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
-	  # The optimized objects are also the export objects.
-	  OBJ_OPTION =
+	ifeq ($(OPTION), $(PROFILE_OPTION))
+	  OPTION_FLAGS = $(PROFILE_FLAGS)
+	  # We also need to link with the profiling flags.
+	  ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_FLAGS)
+	else
+	  ifeq ($(OPTION), $(EXPORT_OPTION))
+	    # Export programs are compiled with optimization
+	    #  and linked with special export flags.
+	    OPTION_FLAGS = $(OPTIMIZE_FLAGS) $(EXPORT_FLAGS)
+	    ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
+	  endif
 	endif
       endif
     endif
   endif
 endif
 
-# Define directories.
 
+# Define directories.
 
 # SRILM directories.
 

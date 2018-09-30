@@ -7,7 +7,7 @@
 #
 # Assumes unigram counts do not have repeated words.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-oov-rate.gawk,v 1.7 2002/12/07 19:03:33 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-oov-rate.gawk,v 1.8 2003/03/08 03:59:39 stolcke Exp $
 #
 
 BEGIN {
@@ -40,6 +40,16 @@ ARGIND > 1 {
 	if (!vocab[$1]) {
 		oov_count += $2;
 		oov_types ++; 
+
+		if (!is_fragment($1)) {
+		    if (write_oov_words) {
+			    print > write_oov_words;
+		    }
+		} else {
+		    if (write_oov_frags) {
+			    print > write_oov_frags;
+		    }
+		}
 	}
 
 	if (!is_fragment($1)) {

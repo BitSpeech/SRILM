@@ -5,14 +5,17 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.7 2003/02/15 06:19:14 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "SkipNgram.h"
+
+#include "Array.cc"
 
 #define DEBUG_ESTIMATE_WARNINGS	1	/* from Ngram.cc */
 #define DEBUG_PRINT_WORD_PROBS  2       /* from LM.cc */
@@ -40,15 +43,15 @@ SkipNgram::wordProb(VocabIndex word, const VocabIndex *context)
 {
     unsigned int clen = Vocab::length(context);
 
-    if (skipOOVs) {
+    if (skipOOVs()) {
 	/*
 	 * Backward compatibility with the old broken perplexity code:
 	 * return prob 0 if any of the context-words have an unknown
 	 * word.
 	 */
-	if (word == vocab.unkIndex ||
-	    order > 1 && context[0] == vocab.unkIndex ||
-	    order > 2 && context[2] == vocab.unkIndex)
+	if (word == vocab.unkIndex() ||
+	    order > 1 && context[0] == vocab.unkIndex() ||
+	    order > 2 && context[2] == vocab.unkIndex())
 	{
 	    return LogP_Zero;
 	}
@@ -165,7 +168,7 @@ SkipNgram::estimate(NgramStats &stats, Discount **discounts)
 	Prob *skipProb = skipProbs.insert(wid, foundP);
 
 	if (!foundP) {
-	    *skipProb = (wid == vocab.ssIndex) ? 0.0 : initialSkipProb;
+	    *skipProb = (wid == vocab.ssIndex()) ? 0.0 : initialSkipProb;
 	}
     }
 
@@ -288,8 +291,8 @@ SkipNgram::estimateEstep(NgramStats &stats,
 			 LHash<VocabIndex, double> &skipExps)
 {
     LogP totalLikelihood = 0.0;
-    VocabIndex ngram[order + 2];
-    VocabIndex context[order];
+    makeArray(VocabIndex, ngram, order + 2);
+    makeArray(VocabIndex, context, order);
 
     /*
      * Enumerate all n+1 grams
@@ -307,9 +310,9 @@ SkipNgram::estimateEstep(NgramStats &stats,
      * (they were omitted in the iteration above)
      */
     VocabIndex start[2];
-    start[0] = vocab.ssIndex;
+    start[0] = vocab.ssIndex();
     start[1] = Vocab_None;
-    ngram[0] = vocab.ssIndex;
+    ngram[0] = vocab.ssIndex();
 
     for (unsigned j = order; j > 1; j --) {
 	NgramsIter ngramIter(stats, start, &ngram[1], j - 1);

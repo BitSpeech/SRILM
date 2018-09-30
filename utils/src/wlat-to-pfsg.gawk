@@ -5,7 +5,7 @@
 #
 # usage: wlat-to-pfsg word-lattice> pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-pfsg.gawk,v 1.3 2001/02/19 19:31:47 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
 #
 
 #########################################
@@ -41,14 +41,14 @@ function start_grammar(name) {
 }
 
 function end_grammar(name) {
-	printf "%d pfsg nodes\n", num_nodes > "/dev/stderr";
-	printf "%d pfsg transitions\n", num_trans > "/dev/stderr";
+	printf "%d pfsg nodes\n", num_nodes >> "/dev/stderr";
+	printf "%d pfsg transitions\n", num_trans >> "/dev/stderr";
 
 	print "name " name;
 	printf "nodes %s", num_nodes;
 	for (i = 0; i < num_nodes; i ++) {
 	    if (node_string[i] == "") {
-		print "warning: node word " i " is undefined" > "/dev/stderr";
+		print "warning: node word " i " is undefined" >> "/dev/stderr";
 		node_string[i] = null;
 	    }
 	    printf " %s", node_string[i];
@@ -93,11 +93,12 @@ BEGIN {
 	grammar_name = "PFSG";
 }
 
-NR == 1 {
-	start_grammar(grammar_name);
+NF == 0 {
+	next;
 }
 
-NF == 0 {
+$1 == "name" {
+	grammar_name = $2;
 	next;
 }
 
@@ -106,12 +107,14 @@ NF == 0 {
 #
 $1 == "version" {
 	if ($2 != 2) {
-		print "need word lattice version 2" > "/dev/stderr";
+		print "need word lattice version 2" >> "/dev/stderr";
 		exit 1;
 	}
 }
 
 $1 == "initial" {
+	start_grammar(grammar_name);
+
 	set_initial($2);
 }
 
@@ -125,14 +128,14 @@ $1 == "node" {
 	posterior = $5;
 
 	if (posterior == 0) {
-	    print "node " $2 ": zero posterior, omitting it" > "/dev/stderr";
+	    print "node " $2 ": zero posterior, omitting it" >> "/dev/stderr";
 	    next;
 	}
 
 	for (i = 6; i <= NF; i += 2) {
 	    if ($(i + 1) == 0) {
 		print "node " $2 ": omitting zero posterior transition" \
-							    > "/dev/stderr";
+							    >> "/dev/stderr";
 	    } else {
 		    add_trans($2, $i, log($(i + 1)/posterior));
 	    }
@@ -143,6 +146,8 @@ $1 == "node" {
 # nbest-lattice -use-mesh output (confusion networks)
 #
 $1 == "numaligns" {
+	start_grammar(grammar_name);
+
 	numaligns = $2;
 
 	# 
@@ -167,7 +172,7 @@ $1 == "align" {
 
 		if (posterior == 0) {
 		    print "align " pos ", word " word \
-				": zero posterior, omitting it" > "/dev/stderr";
+				": zero posterior, omitting it" >> "/dev/stderr";
 		    continue;
 		}
 

@@ -6,9 +6,9 @@
  * underscores (or some other delimiter), e.g., "i_don't_know".
  * This class provides support for splitting such words into their components.
  *
- * Copyright (c) 2001 SRI International.  All Rights Reserved.
+ * Copyright (c) 2001,2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.h,v 1.1 2001/12/30 23:24:12 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.h,v 1.3 2004/10/25 02:43:20 stolcke Exp $
  *
  */
 
@@ -17,13 +17,15 @@
 
 #include "Vocab.h"
 
+extern const char *MultiwordSeparator;
+
 class MultiwordVocab: public Vocab
 {
 public:
     MultiwordVocab(VocabIndex start, VocabIndex end,
-						const char *multiChar = "_")
+				    const char *multiChar = MultiwordSeparator)
 	: Vocab(start, end), multiChar(multiChar) {};
-    MultiwordVocab(const char *multiChar = "_")
+    MultiwordVocab(const char *multiChar = MultiwordSeparator)
 	: multiChar(multiChar) {};
     ~MultiwordVocab();
 
@@ -38,7 +40,8 @@ public:
      * Expansion of vocab strings into their components
      */
     unsigned expandMultiwords(const VocabIndex *words, VocabIndex *expanded,
-				unsigned maxExpanded, Boolean reverse = false);
+				unsigned maxExpanded, Boolean reverse = false,
+				unsigned *lengths = 0);
 
 private:
     LHash< VocabIndex, VocabIndex * > multiwordMap;

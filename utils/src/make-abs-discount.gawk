@@ -8,7 +8,7 @@
 #
 # 	where COUNTFILE was created with get-gt-counts.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-abs-discount,v 1.1 1999/08/06 22:52:22 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-abs-discount.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 $1 == 1 {
 	gt1count = $2;
@@ -18,11 +18,11 @@ $1 == 2 {
 }
 END {
 	if (gt1count == 0) {
-		print "n1 count is zero" > "/dev/stderr";
+		print "n1 count is zero" >> "/dev/stderr";
 		exit 1;
 	}
 	if (gt2count == 0) {
-		print "n2 count is zero" > "/dev/stderr";
+		print "n2 count is zero" >> "/dev/stderr";
 		exit 1;
 	}
 	print gt1count/(gt1count + 2 * gt2count);

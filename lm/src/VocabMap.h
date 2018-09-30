@@ -2,9 +2,9 @@
  * VocabMap.h --
  *	Probabilistic mappings between vocabularies
  *
- * Copyright (c) 1995,1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,1998,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.4 2000/08/05 17:17:57 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.7 2005/05/20 23:49:02 stolcke Exp $
  *
  */
 
@@ -26,14 +26,17 @@ public:
     Prob get(VocabIndex w1, VocabIndex w2);
     void put(VocabIndex w1, VocabIndex w2, Prob prob);
     void remove(VocabIndex w1, VocabIndex w2);
+    void remove(VocabIndex w1);
 
     virtual Boolean read(File &file);
+    virtual Boolean readClasses(File &file);
     virtual Boolean write(File &file);
+    virtual Boolean writeBigrams(File &file);
     
     Vocab &vocab1;
     Vocab &vocab2;
 
-private:
+protected:
     /*
      * The map is implemented by a two-level map where the first index is
      * from vocab1 and the second from vocab2
@@ -50,23 +53,14 @@ class PosVocabMap: public VocabMap
 {
 public:
     PosVocabMap(Vocab &vocab, Boolean logmap = false)
-	: posVocab(0),
-	  /*
-	   * We remove <s>, </s>, <unk> from the vocabulary so
-           * the map doesn't create the default mappings for these.
-	   */
-	  VocabMap((posVocab.ssIndex = posVocab.seIndex =
-		    posVocab.unkIndex = Vocab_None, posVocab),
-		   vocab, logmap) {};
+        : VocabMap(vocab, vocab, logmap)
+	{ map.clear(); };
 
     /* 
      * not implemented yet (or ever)
      */
     Boolean read(File &file) { return false; };
     Boolean write(File &file) { return false; };
-
-private:
-    Vocab posVocab;
 };
 
 /*

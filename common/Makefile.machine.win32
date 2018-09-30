@@ -1,0 +1,81 @@
+#
+#    File:   Makefile.machine.win32
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Fri Feb 19 22:45:31 PST 1999
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for i686/win32 platform
+#
+#    Copyright (c) 2005 SRI International.  All Rights Reserved.
+#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.win32,v 1.4 2006/01/05 20:25:44 stolcke Exp $
+#
+
+   # Use the GNU C compiler.
+   GCC_FLAGS = -Wreturn-type -Wimplicit -mno-cygwin -DNEED_RAND48
+   CC = gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+
+   # suffix used for executable files
+   EXE_SUFFIX = .exe
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS = -g -O2
+   DEBUG_FLAGS = -g -DDEBUG
+   PROFILE_FLAGS = -g -pg -O2
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -s
+
+   # Shared compilation flags.
+   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
+
+   # Other useful compilation flags.
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES = 
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS = 
+
+   # Other useful libraries.
+   ADDITIONAL_LIBRARIES = -lm 
+
+   # run-time linker path flag
+   RLD_FLAG = -R
+
+   # Tcl support not available
+   TCL_INCLUDE = 
+   TCL_LIBRARY = 
+   NO_TCL = X
+
+   # No ranlib
+   RANLIB = :
+
+   # prefix of matherr symbol
+   SYMBOL_PREFIX = _
+
+   # Not needed
+   DEMANGLE_FILTER =
+
+   # Generate dependencies from source files.
+   GEN_DEP = $(CC) $(CFLAGS) -MM
+
+   GEN_DEP.cc = $(CXX) $(CXXFLAGS) -MM
+
+   # Run lint.
+   LINT = lint
+   LINT_FLAGS = -DDEBUG $(CFLAGS)
+
+   # Location of gawk binary
+   GAWK = /usr/bin/gawk
+
+   # Location of perl binary
+   PERL = /usr/bin/perl

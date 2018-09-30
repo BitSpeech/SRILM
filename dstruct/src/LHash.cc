@@ -8,23 +8,24 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.43 2002/05/25 14:40:59 stolcke Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.49 2006/01/09 18:11:12 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <new>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <new.h>
 
 #include "LHash.h"
 
 #undef INSTANTIATE_LHASH
 #define INSTANTIATE_LHASH(KeyT, DataT) \
-	DataT *LHash<KeyT, DataT>::removedData = 0; \
-	template class LHash<KeyT, DataT>; \
-	template class LHashIter<KeyT, DataT>
+	template <> DataT *LHash< KeyT, DataT >::removedData = 0; \
+	template class LHash< KeyT, DataT >; \
+	template class LHashIter< KeyT, DataT >
 
 #ifndef __GNUG__
 template <class KeyT, class DataT>
@@ -34,7 +35,7 @@ DataT *LHash<KeyT,DataT>::removedData = 0;
 const unsigned minHashBits = 3;		/* minimum no. bits for hashing
 					 * tables smaller than this use linear
 					 * search to save space */
-const float fillRatio = 0.8;		/* fill ration at which the table is
+const float fillRatio = 0.8f;		/* fill ration at which the table is
 					 * expanded and rehashed */
 
 #define BODY(b)	((LHashBody<KeyT,DataT> *)b)
@@ -179,18 +180,63 @@ LHash<KeyT,DataT>::~LHash()
 
 template <class KeyT, class DataT>
 LHash<KeyT,DataT>::LHash(const LHash<KeyT,DataT> &source)
+    : body(0)
 {
-     cerr << "WARNING: LHash copy contructor called\n";
-     body = source.body;
+#ifdef DEBUG
+    cerr << "warning: LHash copy constructor called\n";
+#endif
+    *this = source;
 }
 
 template <class KeyT, class DataT>
 LHash<KeyT,DataT> &
-LHash<KeyT,DataT>::operator= (const LHash<KeyT,DataT> &source)
+LHash<KeyT,DataT>::operator= (const LHash<KeyT,DataT> &other)
 {
-     cerr << "WARNING: LHash assignment operator called\n";
-     body = source.body;
-     return *this;
+#ifdef DEBUG
+    cerr << "warning: LHash::operator= called\n";
+#endif
+
+    if (&other == this) {
+	return *this;
+    }
+
+    /*
+     * copy hash entries from old to new 
+     */
+    if (other.body) {
+	unsigned maxEntries = hashSize(BODY(other.body)->maxBits);
+	/*
+	 * ensure we have exactly the same size as source table
+	 */
+	clear(0);
+	alloc(maxEntries);
+
+	for (unsigned i = 0; i < maxEntries; i++) {
+	    KeyT thisKey = BODY(other.body)->data[i].key;
+
+	    if (!Map_noKeyP(thisKey)) {
+		/*
+		 * Copy key
+		 */
+		BODY(body)->data[i].key = Map_copyKey(thisKey);
+
+		/*
+		 * Initialize data, required for = operator
+		 */
+		new (&(BODY(body)->data[i].value)) DataT;
+
+		/*
+		 * Copy data
+		 */
+		BODY(body)->data[i].value = BODY(other.body)->data[i].value;
+	    }
+	}
+	BODY(body)->nEntries = BODY(other.body)->nEntries;
+    } else {
+	clear(0);
+    }
+
+    return *this;
 }
 
 /*

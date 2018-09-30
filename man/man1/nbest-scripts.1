@@ -1,7 +1,7 @@
-.\" $Id: nbest-scripts.1,v 1.27 2003/02/16 20:45:45 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2003/02/16 20:45:45 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.34 2005/07/05 18:26:36 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2005/07/05 18:26:36 $" "SRILM Tools"
 .SH NAME
-nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
+nbest-scripts, combine-rover-controls, compare-sclite, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
 .B rescore-decipher 
 .RB [ \-bytelog ]
@@ -9,11 +9,15 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .RB [ \-multiwords ]
 .RB [ \-pretty
 .IR mapfile ]
+.RB [ \-ngram-tool
+.IR program ]
 .RB [ \-filter
 .IR command ]
 .RB [ \-norescore ]
 .RB [ \-lm-only ]
+.RB [ \-count-oovs ]
 .RB [ \-limit-vocab ]
+.RB [ \-fast ]
 .I nbest-file-list
 .I score-dir
 .B \-lm 
@@ -61,6 +65,13 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .I nbest-lattice-options
 ] ]
 .br
+.B combine-rover-controls
+[
+.BI lambda= weights 
+]
+.I rover-control
+[ ... ]
+.br
 .B nbest-posteriors
 [
 .BI weight= W
@@ -94,6 +105,9 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .B sentid-to-ctm
 .I hyps
 .br
+.B fix-ctm
+.I ctmfile
+.br
 .B compute-sclite
 .B \-r
 .I refs
@@ -108,6 +122,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 .I subset
 \&...]
 .RB [ \-multiwords | \-M ]
+.RB [ \-noperiods ]
 .RB [ \-R ]
 .RB [ \-g
 .IR glmfile ]
@@ -166,6 +181,14 @@ The
 .I mapfile
 contains one mapping per line, the first field specifying the word to be
 replaced and subsequent fields forming the replacement string.
+.BR \-ngram-tool
+specifies a non-standard program to perform the actual LM evaluation
+(by default, 
+.BR ngram (1)
+is used).
+Such a program must understand
+.BR ngram 's
+command-line options related to N-best rescoring.
 .BR \-filter
 specifies a
 .I command
@@ -191,11 +214,27 @@ and
 may be used together to perform textual rewriting of N-best lists.
 .BR \-lm-only
 dumps out LM scores only, instead of complete N-best lists.
+.BR \-count-oovs
+writes the count of out-of-vocabulary and zero-probability words to
+the output score files (instead of rescored N-best lists).
 .B \-limit-vocab
 saves memory by arranging for
 .BR ngram (1) 
 to load only those N-gram parameters that are relevant to the vocabulary
 of the N-best lists to be rescored.
+The option
+.B \-fast
+performs rescoring using only functions built into
+.BR ngram (1).
+This avoids some computational and I/O overhead and therefore runs faster,
+but the options
+.BR \-filter ,
+.BR \-pretty ,
+and 
+.B \-lm-only
+are not supported, and 
+.B \-nodecipherlm
+is obligatory.
 .PP
 .B rescore-acoustic
 replaces the acoustic scores in a set of N-best lists by a weighted 
@@ -328,6 +367,19 @@ can process N-best lists in any of the formats described in
 \fIas long as all N-best lists for a given utterance are in the same format\fP.
 When Decipher formats are used only their acoustic scores are used.
 .PP
+.B combine-rover-controls
+takes one or more
+.B nbest-rover
+control files as arguments and outputs a new control file that specifies
+the combination of the input files.
+Each input system is given equal weight.
+Directory names in the input files are adjusted to reflect the relative
+location of the input files.
+The optional
+.B lambda=
+argument may be used to specify a space-separated list of system weights;
+the default weights are uniform.
+.PP
 .B nbest-posteriors
 rescales the scores in an N-best list to reflect (weighted) posterior
 probabilities.
@@ -402,6 +454,18 @@ format.
 The script relies on an encoding of conversation IDs, channel, and utterance
 time marks in the sentence IDs and may need adjustment to local conventions.
 .PP
+.B fix-ctm
+converts output produced by the
+.B \-output-ctm
+option of 
+.BR nbest-lattice (1)
+and
+.BR lattice-tool (1)
+to a format suitable for scoring with NIST
+.BR sclite (1).
+It, too, relies on information encoded in the sentids IDs and may need
+adjustments.
+.PP
 .B compute-sclite
 is a wrapper around 
 the NIST 
@@ -444,6 +508,9 @@ or
 .B \-M
 splits ``multiwords'' joined by underscores into their component words
 prior to scoring.
+.B \-noperiods
+deletes periods from the hypotheses prior to scoring
+(typically used to bridge different conventions for spelled letters).
 .B \-R
 preserves reject words in the hypotheses for scoring (as appropriate if
 references also contain rejects).
@@ -506,4 +573,4 @@ lists.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2003 SRI International
+Copyright 1995-2004 SRI International

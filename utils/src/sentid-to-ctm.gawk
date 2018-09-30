@@ -7,7 +7,7 @@
 #	Note: this script makes assumptions about the structure of sentence
 #	ID, specifically, how they encode speakers and timemarks.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-ctm.gawk,v 1.5 2001/04/06 17:22:19 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-ctm.gawk,v 1.9 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -20,7 +20,7 @@ BEGIN {
 	sort_cmd = "sort -u +0 -1 +1 -2 +2nb -3";
 }
 
-# read confidences if given
+# read confidences and/or segment information if given
 NR == 1 {
 	if (confidences) {
 		while ((getline line < confidences) > 0) {
@@ -30,10 +30,24 @@ NR == 1 {
 			}
 		}
 	}
+
+	if (segments) {
+		while ((getline line < segments) > 0) {
+			nvalues = split(line, a);
+			if (nvalues == 5) {
+				sentid = a[1];
+				segment_conv[sentid] = a[2];
+				segment_channel[sentid] = a[3];
+				segment_start[sentid] = a[4];
+				segment_end[sentid] = a[5];
+			}
+		}
+		close(segments);
+	}
 }
 
 function is_nonspeech(w) {
-	return w == pause || w == reject || w ~/^\[.*\]$/;
+	return w == pause || w == reject || w ~/^\[.*\]$/ || w ~/^<.*>$/;
 }
 
 {
@@ -42,10 +56,23 @@ function is_nonspeech(w) {
 	# strip speaker diacritics
 	sub("_s[1-9]$", "", sentid);
 
+	if (segments && sentid in segment_start) {
+	   conv = segment_conv[sentid];
+	   channel = segment_channel[sentid];
+	   start_offset = segment_start[sentid];
+	   end_offset = segment_end[sentid];
 	# derive channel and time information from sentids
 	# look for a pattern that encodes channel and 
 	# start/end times
-	if (match(sentid, "_[AB]_[-0-9][0-9]*_[0-9][0-9]*$")) {
+	} else if (match(sentid, "_[12]_[-0-9][0-9]*_[0-9][0-9]*$")) {
+	   # waveforms with [12] channel id, timemarks 1/1000s
+	   # NOTE: this form is used by the segmenter
+	   conv = substr(sentid, 1, RSTART-1);
+	   split(substr(sentid, RSTART+1), sentid_parts, "_");
+	   channel = sprintf("%c", sentid_parts[1] + 64);
+	   start_offset = sentid_parts[2] / 1000;
+	   end_offset = sentid_parts[3] / 1000;
+	} else if (match(sentid, "_[AB]_[-0-9][0-9]*_[0-9][0-9]*$")) {
 	   conv = substr(sentid, 1, RSTART-1);
 	   split(substr(sentid, RSTART+1), sentid_parts, "_");
 	   channel = sentid_parts[1];
@@ -59,7 +86,7 @@ function is_nonspeech(w) {
 	   start_offset = (sentid_parts[2]+sentid_parts[4]) / 100;
 	   end_offset = (sentid_parts[2]+sentid_parts[5]) / 100;
 	} else {
-	   print "cannot parse sentid " sentid > "/dev/stderr";
+	   print "cannot parse sentid " sentid >> "/dev/stderr";
 	   conv = sentid;
 	   channel = "?";
 	   start_offset = 0;
@@ -80,7 +107,7 @@ function is_nonspeech(w) {
 	# find confidence values for this sentid
 	if (confidences) {
 		if (!(orig_sentid in conf_lines)) {
-		    print "no confidences for " orig_sentid > "/dev/stderr";
+		    print "no confidences for " orig_sentid >> "/dev/stderr";
 		} else {
 		    delete conf_values;
 		    n_conf_values = \
@@ -113,6 +140,6 @@ function is_nonspeech(w) {
 
 	if (orig_sentid in conf_lines && numwords != n_conf_values - 1) {
 	    print "mismatched number of confidences for " orig_sentid \
-						> "/dev/stderr";
+						>> "/dev/stderr";
 	}
 }

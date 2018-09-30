@@ -6,10 +6,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.10 2002/08/25 17:27:45 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.11 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
 

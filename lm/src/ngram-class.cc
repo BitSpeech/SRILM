@@ -5,16 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,v 1.18 2002/08/29 20:06:16 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-class.cc,v 1.26 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 #include <assert.h>
 
 #include "option.h"
+#include "version.h"
 #include "zio.h"
 #include "File.h"
 #include "Debug.h"
@@ -25,6 +27,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-class.cc,
 #include "NgramStats.h"
 #include "LHash.cc"
 #include "Map2.cc"
+#include "Array.cc"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_MAP1(VocabIndex,VocabIndex,LogP);
@@ -40,6 +43,7 @@ INSTANTIATE_LHASH(VocabIndex,LogP);
 #define DEBUG_TRACE_MERGE	2
 #define DEBUG_PRINT_CONTRIBS	3	// in interactive mode
 
+static int version = 0;
 static char *vocabFile = 0;
 static int toLower = 0;
 static char *noclassFile = 0;
@@ -54,6 +58,7 @@ static int debug = 0;
 static int saveFreq = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
@@ -95,7 +100,7 @@ public:
     void initialize(NgramStats &counts, SubVocab &noclassVocab);
 					// initialize classes from word counts
     void merge(VocabIndex c1, VocabIndex c2);	// merge classes
-    LogP bestMerge(const Vocab &mergeSet, VocabIndex &c1, VocabIndex &c2);
+    LogP bestMerge(Vocab &mergeSet, VocabIndex &c1, VocabIndex &c2);
 						// single best merge step
     void fullMerge(unsigned numClases);		// full greedy merging
     void incrementalMerge(unsigned numClases);	// incremental merging
@@ -200,6 +205,12 @@ UniqueWordClasses::initialize(NgramStats &counts, SubVocab &noclassVocab)
 	    VocabIndex *class1 = wordToClass.insert(ngram[0], found);
 	    if (!found) {
 		*class1 = newClass();
+
+		if (debug(DEBUG_TRACE_MERGE)) {
+		    dout() << "\tcreating " << classVocab.getWord(*class1)
+			   << " for word " << vocab.getWord(ngram[0])
+			   << endl;
+		}
 	    }
 	    classUnigram[0] = *class1;
 	}
@@ -479,9 +490,9 @@ UniqueWordClasses::getStats(TextStats &stats)
     stats.numWords = 0;
 
     while (count = wordIter.next(word)) {
-	if (word == vocab.seIndex) {
+	if (word == vocab.seIndex()) {
 	    stats.numSentences = *count;
-	} else if (word != vocab.ssIndex) {
+	} else if (word != vocab.ssIndex()) {
 	    stats.numWords += *count;
 	}
     }
@@ -498,7 +509,7 @@ UniqueWordClasses::getCount(VocabIndex c1, VocabIndex c2)
     bigram[0] = c1; bigram[1] = c2; bigram[2] = Vocab_None;
 
     NgramCount *count = classNgramCounts.findCount(bigram);
-    return count ? *count : 0;
+    return count ? *count : (NgramCount)0;
 }
 
 inline NgramCount
@@ -508,7 +519,7 @@ UniqueWordClasses::getCountR(VocabIndex c1, VocabIndex c2)
     bigram[0] = c1; bigram[1] = c2; bigram[2] = Vocab_None;
 
     NgramCount *count = classNgramCountsR.findCount(bigram);
-    return count ? *count : 0;
+    return count ? *count : (NgramCount)0;
 }
 
 LogP
@@ -708,7 +719,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
     }
 
     VocabIndex unigram[2]; unigram[1] = Vocab_None;
-    VocabIndex bigram[2]; bigram[2] = Vocab_None;
+    VocabIndex bigram[3]; bigram[2] = Vocab_None;
     NgramCount *count;
 
     LogP total = LogP_One;
@@ -791,8 +802,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
  * Find and perform best merge pair
  */
 LogP
-UniqueWordClasses::bestMerge(const Vocab &mergeSet,
-						VocabIndex &b1, VocabIndex &b2)
+UniqueWordClasses::bestMerge(Vocab &mergeSet, VocabIndex &b1, VocabIndex &b2)
 {
     VocabIndex bestC1 = Vocab_None, bestC2 = Vocab_None;
     LogP bestDiff;
@@ -838,7 +848,7 @@ static File *
 logFile(const char *basename, unsigned freq, unsigned iter)
 {
     if (freq > 0 && basename != 0 && iter%freq == 0) {
-	char filename[strlen(basename) + 10];
+	makeArray(char, filename, strlen(basename) + 10);
 
 	if (stdio_filename_p(basename)) {
 	    printf("*** SAVE FOR ITERATION %06d ***\n", iter);
@@ -953,7 +963,7 @@ UniqueWordClasses::incrementalMerge(unsigned numClasses)
     /*
      * Sort classes by count
      */
-    VocabIndex listOfClasses[vocab.numWords()];
+    makeArray(VocabIndex, listOfClasses, vocab.numWords());
 
     unsigned nClasses = 0;
 
@@ -1103,8 +1113,13 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     Vocab vocab;
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     SubVocab classVocab(vocab);
     SubVocab noclassVocab(vocab);
@@ -1124,8 +1139,8 @@ main(int argc, char **argv)
 	/*
 	 * Assume <s> and </s> are not to be classed
 	 */
-	noclassVocab.addWord(vocab.ssIndex);
-	noclassVocab.addWord(vocab.seIndex);
+	noclassVocab.addWord(vocab.ssIndex());
+	noclassVocab.addWord(vocab.seIndex());
     }
 
     if (countsFile || textFile) {

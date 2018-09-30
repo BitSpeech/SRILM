@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.h,v 1.2 2002/08/09 08:46:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.h,v 1.4 2003/11/14 18:20:27 stolcke Exp $
  *
  */
 
@@ -19,9 +19,11 @@ class StopNgramStats: public NgramStats
 public:
     StopNgramStats(Vocab &vocab, SubVocab &stopWords, unsigned maxOrder);
 
+    virtual unsigned countSentence(const VocabIndex *words)
+	{ return countSentence(words, (NgramCount)1); };
     virtual unsigned countSentence(const VocabIndex *words, NgramCount factor);
 
-    const SubVocab &stopWords;		/* stop word set */
+    SubVocab &stopWords;		/* stop word set */
 
 protected:
     void incrementCounts(const VocabIndex *words, NgramCount factor);

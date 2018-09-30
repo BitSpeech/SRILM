@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 1.5 2002/02/06 15:33:37 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2004 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-mix.cc,v 1.6 2004/12/03 05:35:34 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -15,6 +15,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 
 #include <locale.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Prob.h"
 #include "Vocab.h"
@@ -23,6 +24,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-mix.cc,v 
 
 #define DEBUG_ERRORS	1
 
+static int version = 0;
 static unsigned debug = 0;
 static char *writeNbestFile = 0;
 static unsigned maxNbest = 0;
@@ -33,6 +35,7 @@ static int setAMscores = 0;
 static int setLMscores = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "write-nbest", &writeNbestFile, "output n-best list" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
@@ -152,6 +155,11 @@ main (int argc, char *argv[])
     setlocale(LC_COLLATE, "");
 
     argc = Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
 
     if (setAMscores && setLMscores) {
 	cerr << "cannot set both AM and LM scores\n";

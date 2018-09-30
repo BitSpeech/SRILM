@@ -1,4 +1,4 @@
-<! $Id: ngram-class.1,v 1.4 2000/01/21 03:41:55 stolcke Exp $>
+<! $Id: ngram-class.1,v 1.5 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>ngram-class</TITLE>
@@ -25,15 +25,18 @@ needed by
 and
 <A HREF="ngram.html">ngram(1)</A>,
 respectively to train and to apply the class N-gram model.
+<H2> OPTIONS </H2>
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-<H2> OPTIONS </H2>
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-debug</B><I> level</I><B></B>
 <DD>
 Set debugging output at
@@ -164,6 +167,6 @@ Classes are optimized only for bigram models at present.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1999 SRI International
+Copyright 1999-2004 SRI International
 </BODY>
 </HTML>

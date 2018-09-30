@@ -5,16 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,v 1.45 2002/10/11 04:29:50 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2004 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.54 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 #include <assert.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "SubVocab.h"
@@ -27,10 +29,11 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-count.cc,
 #include "TaggedNgramStats.h"
 #include "StopNgramStats.h"
 #include "Discount.h"
+#include "Array.cc"
 
 const unsigned maxorder = 9;		/* this is only relevant to the 
 					 * the -gt<n> and -write<n> flags */
-
+static int version = 0;
 static char *filetag = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
@@ -48,8 +51,9 @@ static double cdiscount[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 static int ndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int wbdiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int kndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static int ukndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int knCountsModified = 0;
-
+static int knCountsModifyAtEnd = 0;
 static int interpolate[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 static char *gtFile[maxorder+1];
@@ -62,7 +66,7 @@ static char *noneventFile = 0;
 static char *writeVocab = 0;
 static int memuse = 0;
 static int recompute = 0;
-static int sort = 0;
+static int sortNgrams = 0;
 static int keepunk = 0;
 static char *mapUnknown = 0;
 static int tagged = 0;
@@ -83,11 +87,12 @@ static char *stopWordFile = 0;
 static char *metaTag = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "order", &order, "max ngram order" },
     { OPT_FLOAT, "varprune", &varPrune, "pruning threshold for variable order ngrams" },
     { OPT_UINT, "debug", &debug, "debugging level for LM" },
     { OPT_TRUE, "recompute", &recompute, "recompute lower-order counts by summation" },
-    { OPT_TRUE, "sort", &sort, "sort ngrams output" },
+    { OPT_TRUE, "sort", &sortNgrams, "sort ngrams output" },
     { OPT_UINT, "write-order", &writeOrder, "output ngram counts order" },
     { OPT_STRING, "tag", &filetag, "file tag to use in messages" },
     { OPT_STRING, "text", &textFile, "text file to read" },
@@ -181,6 +186,17 @@ static Option options[] = {
     { OPT_TRUE, "kndiscount8", &kndiscount[8], "8gram modified Kneser-Ney discounting"},
     { OPT_TRUE, "kndiscount9", &kndiscount[9], "9gram modified Kneser-Ney discounting"},
 
+    { OPT_TRUE, "ukndiscount", &ukndiscount[0], "use original Kneser-Ney discounting" },
+    { OPT_TRUE, "ukndiscount1", &ukndiscount[1], "1gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount2", &ukndiscount[2], "2gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount3", &ukndiscount[3], "3gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount4", &ukndiscount[4], "4gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount5", &ukndiscount[5], "5gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount6", &ukndiscount[6], "6gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount7", &ukndiscount[7], "7gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount8", &ukndiscount[8], "8gram original Kneser-Ney discounting"},
+    { OPT_TRUE, "ukndiscount9", &ukndiscount[9], "9gram original Kneser-Ney discounting"},
+
     { OPT_STRING, "kn", &knFile[0], "Kneser-Ney discount parameter file" },
     { OPT_STRING, "kn1", &knFile[1], "Kneser-Ney 1gram discounts" },
     { OPT_STRING, "kn2", &knFile[2], "Kneser-Ney 2gram discounts" },
@@ -193,6 +209,7 @@ static Option options[] = {
     { OPT_STRING, "kn9", &knFile[9], "Kneser-Ney 9gram discounts" },
 
     { OPT_TRUE, "kn-counts-modified", &knCountsModified, "input counts already modified for KN smoothing"},
+    { OPT_TRUE, "kn-modify-counts-at-end", &knCountsModifyAtEnd, "modify counts after discount estimation rather than before"},
 
     { OPT_TRUE, "interpolate", &interpolate[0], "use interpolated estimates"},
     { OPT_TRUE, "interpolate1", &interpolate[1], "use interpolated 1gram estimates"},
@@ -239,6 +256,11 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     if (useFloatCounts + tagged + skipNgram +
 	(stopWordFile != 0) + (varPrune != 0.0) > 1)
     {
@@ -246,25 +268,39 @@ main(int argc, char **argv)
 	exit(2);
     }
 
+    /*
+     * Detect inconsistent discounting options
+     */
+    if (ndiscount[0] +
+	wbdiscount[0] +
+	(cdiscount[0] != -1.0) +
+	ukndiscount[0] + 
+	(knFile[0] != 0 || kndiscount[0]) +
+	(gtFile[0] != 0) > 1)
+    {
+	cerr << "conflicting default discounting options\n";
+	exit(2);
+    }
+
     Vocab *vocab = tagged ? new TaggedVocab : new Vocab;
     assert(vocab);
 
-    vocab->unkIsWord = keepunk ? true : false;
-    vocab->toLower = toLower ? true : false;
+    vocab->unkIsWord() = keepunk ? true : false;
+    vocab->toLower() = toLower ? true : false;
 
     /*
      * Change unknown word string if requested
      */
     if (mapUnknown) {
-	vocab->remove(vocab->unkIndex);
-	vocab->unkIndex = vocab->addWord(mapUnknown);
+	vocab->remove(vocab->unkIndex());
+	vocab->unkIndex() = vocab->addWord(mapUnknown);
     }
 
     /*
      * Meta tag is used to input count-of-count information
      */
     if (metaTag) {
-	vocab->metaTag = metaTag;
+	vocab->metaTag() = metaTag;
     }
 
     SubVocab *stopWords = 0;
@@ -324,7 +360,7 @@ main(int argc, char **argv)
 	File file(readFile, "r");
 
 	if (readWithMincounts) {
-	    unsigned minCounts[order];
+	    makeArray(unsigned, minCounts, order);
 
 	    /* construct min-counts array from -gtNmin options */
 	    unsigned i;
@@ -352,14 +388,17 @@ main(int argc, char **argv)
     }
 
     if (recompute) {
-	USE_STATS(sumCounts(order));
+	if (useFloatCounts)
+	    floatStats->sumCounts(order);
+	else
+	    intStats->sumCounts(order);
     }
 
     unsigned int i;
     for (i = 1; i <= maxorder; i++) {
 	if (writeFile[i]) {
 	    File file(writeFile[i], "w");
-	    USE_STATS(write(file, i, sort));
+	    USE_STATS(write(file, i, sortNgrams));
 	    written = true;
 	}
     }
@@ -377,18 +416,13 @@ main(int argc, char **argv)
      * This stores the discounting parameters for the various orders
      * Note this is only needed when estimating an LM
      */
-    Discount *discounts[order];
+    Discount **discounts = new Discount *[order];
+    assert(discounts != 0);
 
     for (i = 0; i < order; i ++) {
 	discounts[i] = 0;
     }
 
-    /*
-     * Check for any Good Turing parameter files.
-     * These have a dual interpretation.
-     * If we're not estimating a new LM, simple WRITE the GT parameters
-     * out.  Otherwise try to READ them from these files.
-     */
     /*
      * Estimate discounting parameters 
      * Note this is only required if 
@@ -396,29 +430,76 @@ main(int argc, char **argv)
      * - we also want to estimate a LM later
      */
     for (i = 1; i <= order; i++) {
-	unsigned useorder = (i > maxorder) ? 0 : i;
+	/*
+	 * Detect inconsistent options for this order
+	 */
+	if (i <= maxorder &&
+	    ndiscount[i] + wbdiscount[i] + (cdiscount[i] != -1.0) +
+	    ukndiscount[i] + (knFile[i] != 0 || kndiscount[i]) +
+	    (gtFile[i] != 0) > 1)
+	{
+	    cerr << "conflicting discounting options for order " << i << endl;
+	    exit(2);
+	}
 
-	Discount *discount = 0;
+	/*
+	 * Inherit default discounting method where needed
+	 */
+	if (i <= maxorder &&
+	    !ndiscount[i] && !wbdiscount[i] && cdiscount[i] == -1.0 &&
+	    !ukndiscount[i] && knFile[i] == 0 && !kndiscount[i] &&
+	    gtFile[i] == 0)
+	{
+	    if (ndiscount[0]) ndiscount[i] = ndiscount[0];
+	    else if (wbdiscount[0]) wbdiscount[i] = wbdiscount[0]; 
+	    else if (cdiscount[0] != -1.0) cdiscount[i] = cdiscount[0];
+	    else if (ukndiscount[0]) ukndiscount[i] = ukndiscount[0];
+	    else if (kndiscount[0]) kndiscount[i] = kndiscount[0];
+
+	    if (knFile[0] != 0) knFile[i] = knFile[0];
+	    else if (gtFile[0] != 0) gtFile[i] = gtFile[0];
+	}
 
 	/*
 	 * Choose discounting method to use
+	 *
+	 * Also, check for any discounting parameter files.
+	 * These have a dual interpretation.
+	 * If we're not estimating a new LM, simple WRITE the parameters
+	 * out.  Otherwise try to READ them from these files.
+	 *
+	 * Note: Test for ukndiscount[] before knFile[] so that combined use 
+	 * of -ukndiscountN and -knfileN will do the right thing.
 	 */
+	unsigned useorder = (i > maxorder) ? 0 : i;
+	Discount *discount = 0;
+
 	if (ndiscount[useorder]) {
+	    if (debug) cerr << "using NaturalDiscount for " << i << "-grams";
 	    discount = new NaturalDiscount(gtmin[useorder]);
 	    assert(discount);
 	} else if (wbdiscount[useorder]) {
+	    if (debug) cerr << "using WittenBell for " << i << "-grams";
 	    discount = new WittenBell(gtmin[useorder]);
 	    assert(discount);
 	} else if (cdiscount[useorder] != -1.0) {
+	    if (debug) cerr << "using ConstDiscount for " << i << "-grams";
 	    discount = new ConstDiscount(cdiscount[useorder], gtmin[useorder]);
 	    assert(discount);
+	} else if (ukndiscount[useorder]) {
+	    if (debug) cerr << "using KneserNey for " << i << "-grams";
+	    discount = new KneserNey(gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
+	    assert(discount);
 	} else if (knFile[useorder] || kndiscount[useorder]) {
-	    discount = new ModKneserNey(gtmin[useorder], knCountsModified);
+	    if (debug) cerr << "using ModKneserNey for " << i << "-grams";
+	    discount = new ModKneserNey(gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
 	    assert(discount);
 	} else if (gtFile[useorder] || (i <= order && lmFile)) {
+	    if (debug) cerr << "using GoodTuring for " << i << "-grams";
 	    discount = new GoodTuring(gtmin[useorder], gtmax[useorder]);
 	    assert(discount);
 	}
+	if (debug) cerr << endl;
 
 	/*
 	 * Now read in, or estimate the discounting parameters.
@@ -520,7 +601,7 @@ main(int argc, char **argv)
 	}
         
 	if (trustTotals) {
-	    lm->trustTotals = true;
+	    lm->trustTotals() = true;
 	}
 	if (!(useFloatCounts ? lm->estimate(*floatStats, discounts) :
 			       lm->estimate(*intStats, discounts)))
@@ -556,10 +637,13 @@ main(int argc, char **argv)
     /*
      * If nothing has been written out so far, make it the default action
      * to dump the counts 
+     *
+     * Note: This will write the modified rather than the original counts
+     * if KN discounting was used.
      */
     if (writeFile[0] || !written) {
 	File file(writeFile[0] ? writeFile[0] : "-", "w");
-	USE_STATS(write(file, writeOrder, sort));
+	USE_STATS(write(file, writeOrder, sortNgrams));
     }
 
 #ifdef DEBUG
@@ -570,6 +654,7 @@ main(int argc, char **argv)
 	delete discounts[i];
 	discounts[i] = 0;
     }
+    delete [] discounts;
 
     delete intStats;
     delete floatStats;

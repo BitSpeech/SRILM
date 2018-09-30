@@ -1,5 +1,5 @@
-.\" $Id: anti-ngram.1,v 1.4 2001/06/06 04:21:33 stolcke Exp $
-.TH anti-ngram 1 "$Date: 2001/06/06 04:21:33 $" "SRILM Tools"
+.\" $Id: anti-ngram.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $
+.TH anti-ngram 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 anti-ngram \- count posterior-weighted N-grams in N-best lists
 .SH SYNOPSIS
@@ -20,14 +20,17 @@ that are acoustically confusable with correct hypotheses.
 The counts output should be processed with
 .B "ngram-count \-float-counts"
 to estimate a language model.
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-refs " file"
 Read the reference transcripts from 
@@ -91,6 +94,10 @@ Causes even N-grams that occur in the reference string to be counted.
 By default N-best N-grams that also occur in the corresponding reference 
 are excluded.
 .TP
+.BI \-min-count " C"
+Prune all N-grams from the output that have counts less than
+.IR C .
+.TP
 .BI \-read-counts " countsfile"
 Read N-gram counts from a file.
 Each line contains an N-gram of 
@@ -125,4 +132,4 @@ option to limit the vocabulary.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 2000 SRI International
+Copyright 2000\-2004 SRI International

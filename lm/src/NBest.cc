@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.49 2002/12/05 20:54:52 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.cc,v 1.57 2006/01/09 18:08:21 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -25,7 +26,7 @@ INSTANTIATE_ARRAY(NBestHyp);
 #define DEBUG_PRINT_RANK	1
 
 const char *phoneSeparator = ":";	 // used for phones & phoneDurs strings
-const NBestTimestamp frameLength = 0.01; // quantization unit of word timemarks
+const NBestTimestamp frameLength = 0.01f; // quantization unit of word timemarks
 
 /*
  * N-best word backtrace information
@@ -34,7 +35,8 @@ const NBestTimestamp frameLength = 0.01; // quantization unit of word timemarks
 const unsigned phoneStringLength = 100;
 
 NBestWordInfo::NBestWordInfo()
-    : word(Vocab_None), phones(0), phoneDurs(0)
+    : word(Vocab_None), phones(0), phoneDurs(0),
+      wordPosterior(0.0), transPosterior(0.0)
 {
 }
 
@@ -73,6 +75,9 @@ NBestWordInfo::operator= (const NBestWordInfo &other)
 	phoneDurs = strdup(other.phoneDurs);
 	assert(phoneDurs != 0);
     }
+
+    wordPosterior = other.wordPosterior;
+    transPosterior = other.transPosterior;
 
     return *this;
 }
@@ -374,7 +379,18 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	    NBestTimestamp startTime = atof(wstrings[1 + 11 * i + 3]);
 	    NBestTimestamp endTime = atof(wstrings[1 + 11 * i + 5]);
 
-	    if (startTime > prevEndTime) {
+	    /*
+	     * Check if this token refers to an HMM state, i.e., if
+	     * it matches the pattern /-[0-9]$/.
+	     * XXX: because of a bug in Decipher we need to perform this
+	     * check even if we're scanning for word tokens.
+	     */
+	    const char *hyphen = strrchr(token, '-');
+	    Boolean isStateToken = hyphen != 0 &&
+				hyphen[1] >= '0' && hyphen[1] <= '9' &&
+				hyphen[2] == '\0';
+
+	    if (startTime > prevEndTime && !isStateToken) {
 		int acWordScore = atol(wstrings[1 + 11 * i + 9]);
 		int lmWordScore = atol(wstrings[1 + 11 * i + 7]);
 
@@ -424,11 +440,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		 * check if this token refers to an HMM state, i.e., if
 		 * if matches the pattern /-[0-9]$/
 		 */
-		char *hyphen = strrchr(token, '-');
-		if (hyphen != 0 &&
-		    hyphen[1] >= '0' && hyphen[1] <= '9' &&
-		    hyphen[2] == '\0')
-		{
+		if (isStateToken) {
 		    continue;
 		}
 
@@ -437,9 +449,9 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		 * get phone identity and duration and store in word Info
 		 */
 		if (prevWordInfo) {
-		    char *lbracket = strchr(token, '[');
+		    const char *lbracket = strchr(token, '[');
 		    const char *phone = lbracket ? lbracket + 1 : token;
-		    char *rbracket = strrchr(phone, ']');
+		    char *rbracket = (char *)strrchr(phone, ']');
 		    if (rbracket) *rbracket = '\0';
 		    addPhones(phones, phone, startTime < prevPhoneStart);
 
@@ -546,13 +558,20 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
     words = new VocabIndex[actualNumWords + 1];
     assert(words != 0);
 
+    Boolean unkIsWord = vocab.unkIsWord();
+
     /*
      * Map word strings to indices
      */
     if (!multiwords) {
-	vocab.addWords(justWords, words, actualNumWords + 1);
+	if (unkIsWord) {
+	    vocab.getIndices(justWords, words, actualNumWords + 1,
+							    vocab.unkIndex());
+	} else {
+	    vocab.addWords(justWords, words, actualNumWords + 1);
+	}
 
-	if (backtrace) {
+	if (decipherFormat == 2 && backtrace) {
 	    delete [] wordInfo;
 	    wordInfo = new NBestWordInfo[actualNumWords + 1];
 
@@ -572,12 +591,16 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 
 	    while (cp = strchr(start, multiwordSeparator)) {
 		*cp = '\0';
-		words[i++] = vocab.addWord(start);
+		words[i++] =
+		    unkIsWord ? vocab.getIndex(start, vocab.unkIndex())
+			      : vocab.addWord(start);
 		*cp = multiwordSeparator;
 		start = cp + 1;
 	    }
 
-	    words[i++] = vocab.addWord(start);
+	    words[i++] =
+		unkIsWord ? vocab.getIndex(start, vocab.unkIndex())
+			  : vocab.addWord(start);
 	}
 	words[i] = Vocab_None;
     }
@@ -928,23 +951,20 @@ NBestList::removeNoise(LM &lm)
     for (unsigned h = 0; h < _numHyps; h++) {
 	lm.removeNoise(hypList[h].words);
 
+	NBestWordInfo *wordInfo = hypList[h].wordInfo;
+
 	// remove corresponding tokens from wordInfo array
-	if (hypList[h].wordInfo) {
+	if (wordInfo) {
+	    unsigned from, to;
 
-	    unsigned k = 0;	// index into wordInfo
-	    for (unsigned i = 0; hypList[h].words[i] != Vocab_None; i ++) {
-
-		// find corresponding word in wordInfo
-		while (hypList[h].wordInfo[k].word != hypList[h].words[i]) {
-		    k ++;
-		}
-		// copy it to target position
-		if (i != k) {
-		    hypList[h].wordInfo[i] = hypList[h].wordInfo[k];
-		    hypList[h].wordInfo[k] = endOfHyp;
+	    for (from = 0, to = 0; wordInfo[from].word != Vocab_None; from ++) {
+		if (wordInfo[from].word != vocab.pauseIndex() &&
+		    !lm.noiseVocab.getWord(wordInfo[from].word))
+		{
+		    wordInfo[to++] = wordInfo[from];
 		}
 	    }
-	    hypList[h].wordInfo[Vocab::length(hypList[h].words)] = endOfHyp;
+	    wordInfo[to] = endOfHyp;
 	}
     }
 }

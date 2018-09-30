@@ -44,9 +44,9 @@
  * returned.  The main benefit is that only one key lookup is needed
  * for a find-and-change operation.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map.h,v 1.16 2002/05/25 14:40:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map.h,v 1.18 2006/01/09 18:11:12 stolcke Exp $
  *
  */
 
@@ -79,8 +79,8 @@ template <class KeyT, class DataT>
 class MapEntry
 {
 public:
-    KeyT key;
     DataT value;
+    KeyT key;
 };
 
 template <class KeyT, class DataT>
@@ -156,7 +156,7 @@ template <class KeyT>
  */
 inline void Map_noKey(int &key) { key = 0x80000000; }
 inline Boolean Map_noKeyP(int key) { return key == 0x80000000; }
-inline void Map_noKey(short int &key) { key = 0x8000; }
+inline void Map_noKey(short int &key) { key = (short) 0x8000; }
 inline Boolean Map_noKeyP(short int key) { return key == (short int)0x8000; }
 
 /*

@@ -1,0 +1,12 @@
+   weights = 0.125 1 0 1 0
+   normed = 1 8 0 8 0
+   scale = 8
+original errors = 210 (0.37702/word)
+best errors = 196 (0.351885/word)
+   weights = 0.0938976 1.07108 -0.307058 1.08996 0.042325
+   normed = 1 11.4069 -3.27014 11.608 0.450757
+   scale = 10.6499
+*** nbest-rover control file ***
+../nbest-rover/nbest-pron-scores	11.608 +
+../nbest-rover/nbest-dur-scores	0.450757 +
+../nbest-rover/nbest-lists	11.4069 -3.27014 1.0 0 10.6499

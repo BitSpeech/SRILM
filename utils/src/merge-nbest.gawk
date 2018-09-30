@@ -3,7 +3,7 @@
 # merge-nbest --
 #	merge hyps from multiple N-best lists into a single list
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.4 2002/04/22 03:29:13 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.6 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -80,7 +80,10 @@ function process_nbest(file) {
 
 			# skip tokens that are subsumed by the previous word
 			# (this eliminates phone and state symbols)
-			if (start_time > prev_end_time) {
+			# XXX: due to a bug in Decipher some state tags have
+			# incorrect timemarks.  We filter them based on their
+			# token string.
+			if (start_time > prev_end_time && !($i ~ /-[0-9]$/)) {
 			    words = words " " $i;
 			    if ($i != pause) num_words ++;
 			    prev_end_time = end_time;
@@ -121,7 +124,7 @@ function process_nbest(file) {
 	    }
 	}
 	if (status < 0) {
-		print "error opening " file > "/dev/stderr";
+		print "error opening " file >> "/dev/stderr";
 	}
 
 	close(input);
@@ -148,7 +151,7 @@ function output_nbest() {
 BEGIN {
 	if (ARGC < 2) {
 	    print "usage: " ARGV[0] " N-BEST1 N-BEST2 ..." \
-			    > "/dev/stderr";
+			    >> "/dev/stderr";
 	    exit(2);
 	}
 

@@ -6,10 +6,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998,2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.6 2002/08/08 19:10:31 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>

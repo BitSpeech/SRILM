@@ -2,9 +2,9 @@
  * Prob.h --
  *	Probabilities and stuff
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.23 2002/05/28 04:03:57 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.24 2006/01/09 19:03:26 stolcke Exp $
  *
  */
 
@@ -16,6 +16,35 @@
 #include <assert.h>
 
 #include "Boolean.h"
+
+#ifndef M_E
+#define M_E	2.7182818284590452354
+#endif
+#ifndef M_LN10
+#define M_LN10	2.30258509299404568402
+#endif
+
+/*
+ * Functions missing from math library
+ */
+#ifdef _MSC_VER
+inline double rint(double x) 
+{
+	if (x >= 0) {
+		return (double)(int)(x + 0.5);
+	} else {
+		return (double)(int)(x - 0.5);
+	}
+}
+
+inline int finite (double x) 
+{
+	if (x < 1.e+300 && x > -1.e+300)
+		return 1;
+	else 
+		return 0;
+}
+#endif /* _MSC_VER */
 
 /*
  * Types

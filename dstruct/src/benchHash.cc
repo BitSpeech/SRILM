@@ -1,12 +1,14 @@
 //
 // Benchmarking for Hash and Trie datastructures
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/benchHash.cc,v 1.4 1999/08/01 09:12:04 stolcke Exp $
+// $Header: /home/srilm/devel/dstruct/src/RCS/benchHash.cc,v 1.6 2006/01/09 17:45:45 stolcke Exp $
 //
 
 #include <stdio.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 //#define USE_SARRAY_TRIE
 
@@ -74,7 +76,7 @@ main(int argc, char **argv)
 
 		    keys[0] = i + j;
 		    Map_noKey(keys[1]);
-		    *mytries[i].insert(keys) = -i;
+		    *mytries[i].insert(keys) = -(int)i;
 		}
 	}
 
@@ -107,7 +109,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < hashint; i ++) {
 		for (unsigned j = 0; j < hashsize; j ++) {
-		    *mytries[i].insert(i+j) = -i;
+		    *mytries[i].insert(i+j) = -(int)i;
 		}
 	}
 
@@ -139,7 +141,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < hashstruct; i ++) {
 		for (unsigned j = 0; j < hashsize; j ++) {
-		    mytries[i].insert(i+j)->w1 = -i;
+		    mytries[i].insert(i+j)->w1 = -(int)i;
 		}
 	}
 
@@ -170,7 +172,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < hashclass; i ++) {
 		for (unsigned j = 0; j < hashsize; j ++) {
-		    mytries[i].insert(i+j)->w1 = -i;
+		    mytries[i].insert(i+j)->w1 = -(int)i;
 		}
 	}
 

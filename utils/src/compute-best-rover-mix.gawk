@@ -9,7 +9,7 @@
 # li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-best-rover-mix.gawk,v 1.1 2002/04/21 21:39:07 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-best-rover-mix.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;
@@ -116,7 +116,7 @@ END {
 	    }
 	    printf "iteration %d, lambda = %s, ppl = %g\n", \
 		    iter, print_vector(priors, nfiles), \
-		    exp10(-log_like/num_words) > "/dev/stderr";
+		    exp10(-log_like/num_words) >> "/dev/stderr";
 	    fflush();
 
 	

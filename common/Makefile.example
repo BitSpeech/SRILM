@@ -17,10 +17,10 @@
 #
 #    Copyright (c) 1993-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.example,v 1.9 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.example,v 1.12 2006/01/09 22:47:37 stolcke Exp $
 #
 
-#MACHINE_TYPE := $(shell $(SRILM)/bin/machine-type)
+#MACHINE_TYPE := $(shell $(SRILM)/sbin/machine-type)
 
 # Include common SRILM variable definitions.
 include $(SRILM)/common/Makefile.common.variables
@@ -37,22 +37,22 @@ INTERNAL_LIB_HEADERS = $(SRCDIR)/example-internal.h
 LIB_SOURCES = $(SRCDIR)/example.c
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES)))
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
 
 
 # Example Library.
-LIBRARY = $(OBJDIR)/libexample.a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)example$(LIB_SUFFIX)
 
 # Example programs.
 PROGRAM_NAMES = example-program
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 
 # Libraries to be linked with the Example programs.
@@ -94,7 +94,7 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	$(PROGRAMS)
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^ $(DEMANGLE_FILTER)
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^ $(DEMANGLE_FILTER)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 

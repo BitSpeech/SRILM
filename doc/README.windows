@@ -1,6 +1,6 @@
 
-SRILM version 1.3 has been successfully built and tested using 
-the CYGWIN environment (www.cygwin.com) as of Feb 11, 2002.
+SRILM version 1.3 and higher has been successfully built and tested using 
+the CYGWIN environment (http://www.cygwin.com) as of Feb 11, 2002.
 The test used CYGWIN DLL 1.3.9 and gcc 2.95.3 (but note the warning
 in doc/README.x86 regarding a comiler bug), and ran successfully
 on a Windows 98 and a Windows 2000 Professional system.
@@ -23,5 +23,17 @@ After installation, set your bash environment as follows
 
 or the equivalent for other shells.
 
+As of version 1.4.5, SRILM can also be built in the MinGW environment
+(http://www.mingw.org).  For this the default (cygwin) has to be overridden
+using
+
+    make MACHINE_TYPE=win32
+
+Some functionality is not supported under MinGW:
+
+    - compressed file I/O
+    - nbest-optimize and lattice-tool -max-time option
+    - running the test suite
+
 A. Stolcke
-$Id: README.windows,v 1.4 2002/12/25 06:31:13 stolcke Exp $
+$Id: README.windows,v 1.5 2005/07/29 03:48:45 stolcke Exp $

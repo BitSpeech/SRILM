@@ -4,11 +4,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999, 2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.22 2003/02/15 06:19:14 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.26 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "ClassNgram.h"
@@ -215,7 +216,7 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * Initialization: The 0 column corresponds to the <s> prefix.
 	 */
 	VocabIndex initialContext[2];
-	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	if (len > 0 && context[len - 1] == vocab.ssIndex()) {
 	    initialContext[0] = context[len - 1];
 	    initialContext[1] = Vocab_None;
 	    prefix = len - 1;
@@ -508,7 +509,7 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    trellis.init(pos);
 	    trellis.setProb(newState, trellis.sumLogP(pos - 1));
 
-	    if (currWord == vocab.unkIndex) {
+	    if (currWord == vocab.unkIndex()) {
 		stats.numOOVs ++;
 	    } else {
 	        stats.zeroProbs ++;
@@ -575,7 +576,7 @@ ClassNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	unsigned int len = vocab.length(sentence);
 	LogP totalProb;
 
-	VocabIndex reversed[len + 2 + 1];
+	makeArray(VocabIndex, reversed, len + 2 + 1);
 
 	/*
 	 * Contexts are represented most-recent-word-first.
@@ -761,7 +762,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
     VocabIndex wordNgram[maxWordsPerLine];
     wordNgram[0] = Vocab_None;
 
-    VocabIndex context[order + 2];
+    makeArray(VocabIndex, context, order + 2);
 
     /*
      * Turn off the DP for the computation of joint context probabilities
@@ -934,14 +935,14 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
     }
 
     /*
-     * Duplicate special words indices in new vocab
+     * Duplicate special word indices in new vocab
      */
-    newVocab->unkIndex = vocab.unkIndex;
-    newVocab->ssIndex = vocab.ssIndex;
-    newVocab->seIndex = vocab.seIndex;
-    newVocab->pauseIndex = vocab.pauseIndex;
-    newVocab->addNonEvent(vocab.ssIndex);
-    newVocab->addNonEvent(vocab.pauseIndex);
+    newVocab->unkIndex() = vocab.unkIndex();
+    newVocab->ssIndex() = vocab.ssIndex();
+    newVocab->seIndex() = vocab.seIndex();
+    newVocab->pauseIndex() = vocab.pauseIndex();
+    newVocab->addNonEvent(vocab.ssIndex());
+    newVocab->addNonEvent(vocab.pauseIndex());
 
     /*
      * Create new ngram model (inherit debug level from class ngram)
@@ -963,12 +964,12 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	while (contextProb = contextIter.next()) {
 	    /*
 	     * The probability of <s> is -Inf in the model, but it should be
-	     * 1 for purposes of normalization when computing the condition
-	     * probs below.
+	     * P(</s>) for purposes of normalization when computing the
+	     * conditional probs below (consistent with LM::contextProb()).
 	     */
-
-	    if (i == 1 && wordNgram[0] == vocab.ssIndex) {
-		*contextProb = LogP_One;
+	    if (i == 1 && wordNgram[0] == vocab.ssIndex()) {
+		VocabIndex emptyContext = Vocab_None;
+		*contextProb = wordProb(vocab.seIndex(), &emptyContext);
 	    }
 
 	    VocabIndex word[2];	/* the follow word */
@@ -1028,7 +1029,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 		    {
 			cerr << "warning: prob for context \""
 			     << (vocab.use(), wordNgram)
-			     << "\" lower than total ngram prob for words"
+			     << "\" lower than total ngram prob for words "
 			     << "(" << *contextProb << " < " << probSum << ")"
 			     << endl;
 		    }
@@ -1068,7 +1069,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 }
 
 /*
- * Enumerate all class expansionsions in a mixed word/class token string
+ * Enumerate all class expansions in a mixed word/class token string
  */
 
 ClassNgramExpandIter::ClassNgramExpandIter(ClassNgram &ngram,

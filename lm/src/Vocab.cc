@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.29 2002/07/27 20:10:17 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.34 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -26,7 +27,7 @@ INSTANTIATE_ARRAY(VocabString);
 #endif
 
 Vocab::Vocab(VocabIndex start, VocabIndex end)
-    : byIndex(start), nextIndex(start), maxIndex(end), metaTag(0)
+    : byIndex(start), nextIndex(start), maxIndex(end), _metaTag(0)
 {
     /*
      * Vocab_None is both the non-index value and the end-token
@@ -45,26 +46,26 @@ Vocab::Vocab(VocabIndex start, VocabIndex end)
     /*
      * default is a closed-vocabulary model
      */
-    unkIsWord = false;
+    _unkIsWord = false;
 
     /*
      * do not map word strings to lowercase by defaults
      */
-    toLower = false;
+    _toLower = false;
 
     /*
      * set some special vocabulary tokens to their defaults
      */
-    unkIndex = addWord(Vocab_Unknown);
-    ssIndex = addWord(Vocab_SentStart);
-    seIndex = addWord(Vocab_SentEnd);
-    pauseIndex = addWord(Vocab_Pause);
+    _unkIndex = addWord(Vocab_Unknown);
+    _ssIndex = addWord(Vocab_SentStart);
+    _seIndex = addWord(Vocab_SentEnd);
+    _pauseIndex = addWord(Vocab_Pause);
 
     /*
      * declare some known non-events
      */
-    addNonEvent(ssIndex);
-    addNonEvent(pauseIndex);
+    addNonEvent(_ssIndex);
+    addNonEvent(_pauseIndex);
 }
 
 // Compute memory usage
@@ -98,7 +99,7 @@ mapToLower(VocabString name)
 VocabIndex
 Vocab::addWord(VocabString name)
 {
-    if (toLower) {
+    if (_toLower) {
 	name = mapToLower(name);
     }
 
@@ -117,10 +118,10 @@ Vocab::addWord(VocabString name)
 	    /*
 	     * Check for metatags, and intern them into our metatag type map
 	     */
-	    if (metaTag != 0) {
-		unsigned metaTagLength = strlen(metaTag);
+	    if (_metaTag != 0) {
+		unsigned metaTagLength = strlen(_metaTag);
 
-		if (strncmp(name, metaTag, metaTagLength) == 0) {
+		if (strncmp(name, _metaTag, metaTagLength) == 0) {
 		    int type = -1;
 		    if (name[metaTagLength] == '\0') {
 			type = 0;
@@ -170,11 +171,25 @@ Vocab::addNonEvents(Vocab &nonevents)
     return ok;
 }
 
+// remove word as a non-event
+Boolean
+Vocab::removeNonEvent(VocabIndex word)
+{
+    /* 
+     * First make sure the word is already defined
+     */
+    if (getWord(word) == 0) {
+	return false;
+    } else {
+	return nonEventMap.remove(word) != 0;
+    }
+}
+
 // Get a word's index by its name
 VocabIndex
 Vocab::getIndex(VocabString name, VocabIndex unkIndex)
 {
-    if (toLower) {
+    if (_toLower) {
 	name = mapToLower(name);
     }
 
@@ -184,8 +199,8 @@ Vocab::getIndex(VocabString name, VocabIndex unkIndex)
      * If word is a metatag and not already interned, do it now
      */
     if (indexPtr == 0 &&
-	metaTag != 0 &&
-	strncmp(name, metaTag, strlen(metaTag)) == 0)
+	_metaTag != 0 &&
+	strncmp(name, _metaTag, strlen(_metaTag)) == 0)
     {
 	return addWord(name);
     } else {
@@ -197,15 +212,15 @@ Vocab::getIndex(VocabString name, VocabIndex unkIndex)
 VocabIndex
 Vocab::metaTagOfType(unsigned type)
 {
-    if (metaTag == 0) {
+    if (_metaTag == 0) {
 	return Vocab_None;
     } else {
 	if (type == 0) {
-	    return getIndex(metaTag);
+	    return getIndex(_metaTag);
 	} else {
-	    char tagName[strlen(metaTag) + 20];
+	    makeArray(char, tagName, strlen(_metaTag) + 20);
 
-	    sprintf(tagName, "%s%u", metaTag, type);
+	    sprintf(tagName, "%s%u", _metaTag, type);
 	    return getIndex(tagName);
 	}
     }
@@ -213,7 +228,7 @@ Vocab::metaTagOfType(unsigned type)
 
 // Get a word's name by its index
 VocabString
-Vocab::getWord(VocabIndex index) const
+Vocab::getWord(VocabIndex index)
 {
     if (index < byIndex.base() || index >= nextIndex) {
 	return 0;
@@ -226,7 +241,7 @@ Vocab::getWord(VocabIndex index) const
 void
 Vocab::remove(VocabString name)
 {
-    if (toLower) {
+    if (_toLower) {
 	name = mapToLower(name);
     }
 
@@ -237,17 +252,17 @@ Vocab::remove(VocabString name)
 	nonEventMap.remove(*indexPtr);
 	metaTagMap.remove(*indexPtr);
 
-	if (*indexPtr == ssIndex) {
-	    ssIndex = Vocab_None;
+	if (*indexPtr == _ssIndex) {
+	    _ssIndex = Vocab_None;
 	}
-	if (*indexPtr == seIndex) {
-	    seIndex = Vocab_None;
+	if (*indexPtr == _seIndex) {
+	    _seIndex = Vocab_None;
 	}
-	if (*indexPtr == unkIndex) {
-	    unkIndex = Vocab_None;
+	if (*indexPtr == _unkIndex) {
+	    _unkIndex = Vocab_None;
 	}
-	if (*indexPtr == pauseIndex) {
-	    pauseIndex = Vocab_None;
+	if (*indexPtr == _pauseIndex) {
+	    _pauseIndex = Vocab_None;
 	}
     }
 }
@@ -266,17 +281,17 @@ Vocab::remove(VocabIndex index)
 	    nonEventMap.remove(index);
 	    metaTagMap.remove(index);
 
-	    if (index == ssIndex) {
-		ssIndex = Vocab_None;
+	    if (index == _ssIndex) {
+		_ssIndex = Vocab_None;
 	    }
-	    if (index == seIndex) {
-		seIndex = Vocab_None;
+	    if (index == _seIndex) {
+		_seIndex = Vocab_None;
 	    }
-	    if (index == unkIndex) {
-		unkIndex = Vocab_None;
+	    if (index == _unkIndex) {
+		_unkIndex = Vocab_None;
 	    }
-	    if (index == pauseIndex) {
-		pauseIndex = Vocab_None;
+	    if (index == _pauseIndex) {
+		_pauseIndex = Vocab_None;
 	    }
 	}
     }
@@ -285,7 +300,7 @@ Vocab::remove(VocabIndex index)
 // Convert index sequence to string sequence
 unsigned int
 Vocab::getWords(const VocabIndex *wids, VocabString *words,
-						    unsigned int max) const
+						    unsigned int max)
 {
     unsigned int i;
 
@@ -626,7 +641,7 @@ Vocab::highIndex() const
  * Iteration
  */
 VocabIter::VocabIter(const Vocab &vocab, Boolean sorted)
-    : myIter(vocab.byName, !sorted ? 0 : strcmp)
+    : myIter(vocab.byName, !sorted ? 0 : (int(*)(const char*,const char*))strcmp)
 {
 }
 

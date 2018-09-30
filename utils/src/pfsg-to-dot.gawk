@@ -5,12 +5,13 @@
 #
 # usage: pfsg-to-dot [show_probs=1] [show_nums=1] file.pfsg > file.dot
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-dot,v 1.4 1999/09/30 17:48:58 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-dot.gawk,v 1.5 2003/07/10 21:09:15 stolcke Exp $
 #
 BEGIN {
 	show_probs = 0;
 	show_logs = 0;
 	show_nums = 0;
+	in_a_pfsg = 0;
 
 	logscale = 10000.5;
 }
@@ -31,9 +32,15 @@ function bytelog2log10(p) {
 $1 == "name" {
 	name = $2;
 
-	print "digraph \"" name "\" {";
+	# handle repeated PFSGs in the same file
+	if (in_a_pfsg)
+	       print "} digraph \"" name "\" {";
+	else
+	       print "digraph \"" name "\" {";
+	  
 	print "rankdir = LR";
 	dotrans = 0;
+	in_a_pfsg = 1;
 }
 
 function node_label(w, i) {

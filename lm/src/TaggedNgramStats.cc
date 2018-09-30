@@ -6,11 +6,12 @@
 
 #ifndef lint
 static char TaggedNgramStats_Copyright[] = "Copyright (c) 1995,2002 SRI International.  All Rights Reserved.";
-static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.cc,v 1.3 2002/08/09 08:46:54 stolcke Exp $";
+static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.cc,v 1.5 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <string.h>
-#include <iostream.h>
 
 #include "TaggedNgramStats.h"
 
@@ -56,10 +57,10 @@ TaggedNgramStats::countSentence(const VocabIndex *words, NgramCount factor)
      * keep track of word and sentence counts
      */
     stats.numWords += start;
-    if (words[0] == vocab.ssIndex) {
+    if (words[0] == vocab.ssIndex()) {
 	stats.numWords --;
     }
-    if (start > 0 && words[start-1] == vocab.seIndex) {
+    if (start > 0 && words[start-1] == vocab.seIndex()) {
 	stats.numWords --;
     }
 

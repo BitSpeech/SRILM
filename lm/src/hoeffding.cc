@@ -7,11 +7,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hoeffding.cc,v 1.4 1999/08/01 09:30:05 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hoeffding.cc,v 1.6 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
 
@@ -29,7 +30,7 @@ main(int argc, char **argv)
     int n2 = atoi(argv[4]);
 
     double delta = fabs(f1/(double)n1 - (double)f2/(double)n2);
-    double dev = 1.0 / (1.0/sqrt(n1) + 1.0/sqrt(n2));
+    double dev = 1.0 / (1.0/sqrt((double)n1) + 1.0/sqrt((double)n2));
 		 
     double val = 2.0 * exp(-2.0 * (delta * delta) * (dev * dev));
 

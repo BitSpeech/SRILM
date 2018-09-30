@@ -4,29 +4,31 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.3 2002/08/09 08:45:16 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.8 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
 #include "TaggedVocab.h"
+#include "LHash.cc"
 
 const char tagSep = '/';		/* delimiter separating word from tag */
 
 static char *
 findTagSep(VocabString name)
 {
-    char *sep = strchr(name, tagSep);
+    char *sep = (char *)strchr(name, tagSep);	// discard const
 
     /*
      * Don't mistake '/' inside SGML tags as tag separators
      */
     if (sep > name && *(sep - 1) == '<') {
-	return strchr(sep + 1, tagSep);
+	return (char *)strchr(sep + 1, tagSep);	// discard const
     } else {
 	return sep;
     }
@@ -47,8 +49,22 @@ TaggedVocab::TaggedVocab(VocabIndex start, VocabIndex end)
     }
 }
 
+TaggedVocab::~TaggedVocab()
+{
+    /*
+     * Free cached word/tag strings
+     */
+    LHashIter<VocabIndex, VocabString> iter(taggedWords);
+    VocabIndex idx;
+    VocabString *tword;
+
+    while (tword = iter.next(idx)) {
+	free((void *)*tword);
+    }
+}
+
 void
-TaggedVocab::memStats(MemStats &stats)
+TaggedVocab::memStats(MemStats &stats) const
 {
     Vocab::memStats(stats);
     stats.total -= sizeof(_tags);
@@ -84,13 +100,21 @@ TaggedVocab::addWord(VocabString name)
 }
 
 VocabString
-TaggedVocab::getWord(VocabIndex index) const
+TaggedVocab::getWord(VocabIndex index)
 {
+    /*
+     * First check cache of seen word/tag strings 
+     */
+    VocabString *cachedResult = taggedWords.find(index);
+
+    if (cachedResult) {
+	return *cachedResult;
+
     /*
      * Check if index contains tag, and if so construct a word/tag string
      * for it.
      */
-    if (getTag(index) != Tag_None || unTag(index) == Tagged_None) {
+    } else if (getTag(index) != Tag_None || unTag(index) == Tagged_None) {
 	VocabString wordStr =
 		isTag(index) ? "" : Vocab::getWord(unTag(index));
 	VocabString tagStr =
@@ -101,24 +125,13 @@ TaggedVocab::getWord(VocabIndex index) const
 	} else {
 	    unsigned resultLen = strlen(wordStr) + 1 + strlen(tagStr) + 1;
 
-	    /*
-	     * XXX: Kludge alert -- We keep a large buffer of word/tag strings
-	     * so that this function can be called often enough without
-	     * interfering with previous result strings.
-	     */
-	    static char resultBuffer[100 * maxWordLength];
-	    static char *nextResult = resultBuffer;
-
-	    char *thisResult;
-	    if (nextResult + resultLen >= resultBuffer + sizeof(resultBuffer)) {
-		thisResult = resultBuffer;
-		nextResult = resultBuffer + resultLen;
-	    } else {
-		thisResult = nextResult;
-		nextResult += resultLen;
-	    }
+	    char *thisResult = (char *)malloc(resultLen + 1);
+	    assert(thisResult != 0);
 
 	    sprintf(thisResult, "%s%c%s", wordStr, tagSep, tagStr);
+
+	    *taggedWords.insert(index) = thisResult;
+
 	    return thisResult;
 	}
     } else {

@@ -54,7 +54,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.development,v 1.11 2001/08/03 02:13:33 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.development,v 1.13 2006/01/09 22:47:37 stolcke Exp $
 #
 
 #MACHINE_TYPE := $(shell $(DECIPHER)/bin/machine-type)
@@ -73,9 +73,9 @@ PROGRAM_NAMES = fill-in
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 # Replacement files currently under development.
 
@@ -84,17 +84,17 @@ PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
 # REPLACEMENT_SOURCES = $(SRCDIR)/my_source.cc
 
 REPLACEMENT_SOURCES = $(SRCDIR)/fill-in.cc
-REPLACEMENT_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-                $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(REPLACEMENT_SOURCES)))
+REPLACEMENT_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+                $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(REPLACEMENT_SOURCES)))
 
 
 # Standard SRILM libraries.
 
 LIBRARIES = \
-	    -loolm \
-	    -ldstruct \
-	    -lmisc \
-	    $(ADDITIONAL_LIBRARIES)
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)lm$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
+	$(ADDITIONAL_LIBRARIES)
 
 # All files variables.
 
@@ -115,7 +115,7 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	$(PROGRAMS)
 
 $(PROGRAMS):	$(REPLACEMENT_OBJECTS) $(LIBRARIES)
-	$(LINK.cc) -o $@ $(@:$(BINDIR)/%=$(OBJDIR)/%.o) $(REPLACEMENT_OBJECTS) $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.cc) $(LD_OUTPUT_OPTION) $(@:$(BINDIR)/%=$(OBJDIR)/%$(OBJ_SUFFIX)) $(REPLACEMENT_OBJECTS) $(LIBRARIES) $(DEMANGLE_FILTER)
 
 # Include common SRILM target definitions.
 include $(SRILM)/common/Makefile.common.targets

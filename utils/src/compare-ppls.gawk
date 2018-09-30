@@ -11,7 +11,7 @@
 # models.  d is the minimum difference of logprobs for two probs to 
 # be considered different.
 #
-# $Header: /home/spot71/srilm/devel/utils/src/RCS/compare-ppls,v 1.3 1996/12/02 22:12:13 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compare-ppls.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
 #
 function abs(x) {
 	return (x < 0) ? -x : x;
@@ -42,7 +42,7 @@ readingA && $1 == "p(" {
 	else prob = $10;
 
 	if (sampleB_no > sampleA_no) {
-		printf "sample B contains more data than sample A" > "/dev/stderr";
+		printf "sample B contains more data than sample A" >> "/dev/stderr";
 		exit(1);
 	}
 	
@@ -59,7 +59,7 @@ readingA && $1 == "p(" {
 }
 END {
 	if (sampleB_no < sampleA_no) {
-		printf "sample B contains less data than sample A" > "/dev/stderr";
+		printf "sample B contains less data than sample A" >> "/dev/stderr";
 	print sampleB_no, sampleA_no;
 		exit(1);
 	}

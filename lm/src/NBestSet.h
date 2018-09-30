@@ -4,14 +4,15 @@
  *
  * Copyright (c) 1998,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.5 2002/02/23 21:58:17 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.6 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _NBestSet_h_
 #define _NBestSet_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 
 #include "Boolean.h"

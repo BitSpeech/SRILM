@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.13 2001/08/03 04:05:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.h,v 1.14 2003/11/01 07:07:21 stolcke Exp $
  *
  */
 
@@ -40,7 +40,8 @@ public:
 class WordLattice: public MultiAlign
 {
 public:
-    WordLattice(Vocab &vocab);
+    WordLattice(Vocab &vocab, const char *myname = 0);
+    ~WordLattice();
 
     Boolean read(File &file);
     Boolean write(File &file);

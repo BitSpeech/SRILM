@@ -1,7 +1,7 @@
-.\" $Id: lm-scripts.1,v 1.5 2003/02/20 16:45:10 stolcke Exp $
-.TH lm-scripts 1 "$Date: 2003/02/20 16:45:10 $" "SRILM Tools"
+.\" $Id: lm-scripts.1,v 1.6 2003/04/12 21:21:28 stolcke Exp $
+.TH lm-scripts 1 "$Date: 2003/04/12 21:21:28 $" "SRILM Tools"
 .SH NAME
-lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm \- manipulate N-gram language models
+lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm \- manipulate N-gram language models
 .SH SYNOPSIS
 .B add-dummy-bows
 .RI [ lm-file ]
@@ -16,6 +16,15 @@ lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, ma
 .I new-lm-file
 .RB [ -tolower ] 
 .RB [ -subset ]
+.RI [ ngram-options ...]
+.br
+.B empty-sentence-lm
+.B \-prob
+.I p
+.B \-lm
+.I lm-file
+.B \-write-lm
+.I new-lm-file
 .RI [ ngram-options ...]
 .br
 .B make-hiddens-lm 
@@ -86,6 +95,17 @@ option causes case distinctions to be ignored.
 .B \-subset
 only removes words from the LM vocabulary, without adding any.
 Any remaining
+.I ngram-options
+are passes to
+.BR ngram (1),
+and can be used to set debugging level, N-gram order, etc.
+.PP
+.B empty-sentence-lm
+modifies an LM so that it allows the empty sentence with 
+probability
+.IR p .
+This is useful to modify existing LMs that are trained on non-empty
+sentences only.
 .I ngram-options
 are passes to
 .BR ngram (1),

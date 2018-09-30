@@ -15,7 +15,7 @@
 # (This is useful to combine multiple nbest lists in a weighted fashion).
 # The input should be in SRILM nbest-format.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-posteriors.gawk,v 1.10 2002/10/12 15:50:14 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-posteriors.gawk,v 1.12 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -76,7 +76,7 @@ $1 ~ /^NBestList1\.0/ {
 
 	if (lmw != 0 || wtw != 0) {
 	    print "warning: cannot apply LMW or WTW to Decipher N-nbest lists" \
-								> "/dev/stderr";
+								>> "/dev/stderr";
 	}
 
 	next;
@@ -116,7 +116,9 @@ NF > 1 {
 
 		# skip tokens that are subsumed by the previous word
 		# (this eliminates phone and state symbols)
-		if (start_time > prev_end_time) {
+		# XXX: due to a bug in Decipher some state tags have incorrect
+		# timemarks.  We filter them based on their token string.
+		if (start_time > prev_end_time && !($i ~ /-[0-9]$/)) {
 		    num_tokens ++;
 
 		    lm_score += $(i + 7);

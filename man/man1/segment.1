@@ -1,5 +1,5 @@
-.\" $Id: segment.1,v 1.5 1999/10/17 01:01:55 stolcke Exp $
-.TH segment 1 "$Date: 1999/10/17 01:01:55 $" "SRILM Tools"
+.\" $Id: segment.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $
+.TH segment 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 segment \- segment text using N-gram language model
 .SH SYNOPSIS
@@ -18,14 +18,17 @@ modeling segmentation using the boundary tags <s> and </s>.
 The program reads in a word sequence, finds the most likely locations 
 of segment boundaries according to the language model, and 
 outputs the word sequence with segment boundaries marked by <s> tags.
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-order " n"
 Set the maximal N-gram order to be used, by default 3.
@@ -92,4 +95,4 @@ For higher-order models use the more general
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1997 SRI International
+Copyright 1997\-2004 SRI International

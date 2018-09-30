@@ -5,7 +5,7 @@
 #
 # usage: nbest-vocab NBEST-FILE ... > VOCAB
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-vocab.gawk,v 1.1 2003/02/16 16:07:46 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-vocab.gawk,v 1.2 2003/03/18 00:55:07 stolcke Exp $
 #
 
 BEGIN {
@@ -36,7 +36,9 @@ NF > 1 {
 
 		# skip tokens that are subsumed by the previous word
 		# (this eliminates phone and state symbols)
-		if (start_time > prev_end_time) {
+		# XXX: due to a bug in Decipher some state tags have incorrect
+		# timemarks.  We filter them based on their token string.
+		if (start_time > prev_end_time && !($i ~ /-[0-9]$/)) {
 		    is_word[$i] = 1;
 
 		    prev_end_time = end_time;

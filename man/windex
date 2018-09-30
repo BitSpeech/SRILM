@@ -13,6 +13,7 @@ anti-ngram	anti-ngram (1)	- count posterior-weighted N-grams in N-best lists
 change-lm-vocab lm-scripts (1)	- manipulate N-gram language models
 classes-format	classes-format (5)  - File format for word class definitions
 classes-to-fsm	pfsg-scripts (1)    - create and manipulate finite-state networks
+combine-rover-controls		nbest-scripts (1)   - rescore and evaluate N-best lists
 compare-ppls	ppl-scripts (1) - manipulate perplexities
 compare-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
 compute-best-mix		ppl-scripts (1) - manipulate perplexities
@@ -21,10 +22,13 @@ compute-oov-rate		training-scripts (1)	- miscellaneous conveniences for language
 compute-sclite	nbest-scripts (1)   - rescore and evaluate N-best lists
 continuous-ngram-count		training-scripts (1)	- miscellaneous conveniences for language model training
 disambig	disambig (1)	- disambiguate text tokens using an N-gram model
+empty-sentence-lm		lm-scripts (1)	- manipulate N-gram language models
+fix-ctm 	nbest-scripts (1)   - rescore and evaluate N-best lists
 fsm-to-pfsg	pfsg-scripts (1)    - create and manipulate finite-state networks
 get-gt-counts	training-scripts (1)	- miscellaneous conveniences for language model training
 hidden-ngram	hidden-ngram (1)    - tag hidden events between words
 hits-from-log	ppl-scripts (1) - manipulate perplexities
+htklat-vocab	pfsg-scripts (1)    - create and manipulate finite-state networks
 lattice-tool	lattice-tool (1)    - manipulate word lattices
 lm-scripts	lm-scripts (1)	- manipulate N-gram language models
 make-abs-discount		training-scripts (1)	- miscellaneous conveniences for language model training
@@ -76,6 +80,7 @@ reverse-ngram-counts		training-scripts (1)	- miscellaneous conveniences for lang
 reverse-text	training-scripts (1)	- miscellaneous conveniences for language model training
 segment 	segment (1)	- segment text using N-gram language model
 segment-nbest	segment-nbest (1)   - rescore and segment N-best lists using hidden segment N-gram model
+select-vocab	select-vocab (1)    - Select a maximum-likelihood vocabulary from a mixture of corpora.
 sentid-to-sclite		nbest-scripts (1)   - rescore and evaluate N-best lists
 sort-lm 	lm-scripts (1)	- manipulate N-gram language models
 subtract-ppls	ppl-scripts (1) - manipulate perplexities

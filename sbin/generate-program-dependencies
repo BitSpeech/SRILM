@@ -1,0 +1,44 @@
+#!/bin/csh -f
+#
+#    File:   generate-program-dependencies
+#    Author: ***PSI***
+#    Date:   Fri Jan 29 16:51:56 1993
+#
+#    Description:
+#      Generate makefile dependencies for a list of program names.
+#      For each of the supplied program names, a pair of dependencies
+#      are generated with the following format:
+#
+#	<BinaryDirectory>$(BIN_OPTION)/<ProgramName>:	<ObjectDirectory>$(OBJ_OPTION)/<ProgramName>.o
+#	<ProgramName>:	<BinaryDirectory>$(BIN_OPTION)/<ProgramName>
+#
+#      are generated.
+#
+#    Copyright (c) 1993, SRI International.  All Rights Reserved.
+#
+#    RCS ID: $Id: generate-program-dependencies,v 1.2 2004/02/08 03:10:09 stolcke Exp $
+#
+#    $Log: generate-program-dependencies,v $
+#    Revision 1.2  2004/02/08 03:10:09  stolcke
+#    take executable file suffix as extra argument
+#
+#
+
+# Check the arguments.
+if ($#argv < 3) then
+  echo "Usage: $0 <BinaryDirectory> <ObjectDirectory> <ExeSuffix> <ProgramName>*"
+  exit
+endif
+
+# Define variables.
+set BINDIR = $1
+set OBJDIR = $2
+set EXE_SUFFIX = "$3"
+set PROGRAMS = ($argv[4-])
+
+# Write the dependencies to stdout.
+while ($#PROGRAMS > 0)
+  echo $BINDIR'$(BIN_OPTION)/'$PROGRAMS[1]$EXE_SUFFIX":"	$OBJDIR'$(OBJ_OPTION)/'$PROGRAMS[1].o
+  echo $PROGRAMS[1]":"	$BINDIR'$(BIN_OPTION)/'$PROGRAMS[1]$EXE_SUFFIX
+  shift PROGRAMS
+end

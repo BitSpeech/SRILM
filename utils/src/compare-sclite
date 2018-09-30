@@ -3,8 +3,12 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.17 2003/01/04 23:38:33 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compare-sclite,v 1.20 2004/01/09 23:46:42 stolcke Exp $
 #
+
+# enforce proper sorting order
+LC_COLLATE=C
+export LC_COLLATE
 
 if [ $# -lt 3 ]; then
 	echo "usage: $0 [-v] -h1 hyps1 -h2 hyps2 -r refs [-S id-subset] [-M|-multiwords] [sclite-options ...]" >&2
@@ -22,7 +26,7 @@ else
 		-r)	refs=$2; shift ;;
 		-h1)	hypsA=$2; shift ;;
 		-h2)	hypsB=$2; shift ;;
-		-S)	options="$options -S $2" shift ;;
+		-S)	options="$options -S $2"; shift ;;
 		*)	options="$options $1" ;;
 		esac
 		shift
@@ -43,8 +47,8 @@ set -e
 #
 case "$hypsA" in
 *.ctm)	case "$hypsB" in
-	*.ctm)	gawk '{ print $1 "_" $2 }' "$hypsA" | sort -u > $subset.A
-		gawk '{ print $1 "_" $2 }' "$hypsB" | sort -u > $subset.B
+	*.ctm)	gawk '{ print $1 "_" $2 }' < "$hypsA" | sort -u > $subset.A
+		gawk '{ print $1 "_" $2 }' < "$hypsB" | sort -u > $subset.B
 		;;
 	*)	echo "both hyps must be in same format" >&2
 		exit 2
@@ -55,8 +59,8 @@ case "$hypsA" in
 	*.ctm)	echo "both hyps must be in same format" >&2
 		exit 2
 		;;
-	*)	gawk '{ print $1 }' "$hypsA" | sort -u > $subset.A 
-		gawk '{ print $1 }' "$hypsB" | sort -u > $subset.B
+	*)	gawk '{ print $1 }' < "$hypsA" | sort -u > $subset.A 
+		gawk '{ print $1 }' < "$hypsB" | sort -u > $subset.B
 		;;
 	esac
 	;;

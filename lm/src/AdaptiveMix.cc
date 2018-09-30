@@ -6,10 +6,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1998-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.11 2003/02/15 06:56:29 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -226,7 +227,7 @@ AdaptiveMix::wordProb(VocabIndex word, const VocabIndex *context)
     if (running()) {
 	endOfSentence ++;
 
-	if (word == vocab.seIndex) {
+	if (word == vocab.seIndex()) {
 	    if (accumulating) {
 		endOfHistory = endOfSentence;
 	    } else {

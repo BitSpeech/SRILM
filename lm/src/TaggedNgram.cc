@@ -5,11 +5,13 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgram.cc,v 1.5 2000/01/13 04:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgram.cc,v 1.6 2006/01/05 08:44:25 stolcke Exp $";
 #endif
 
 #include "TaggedNgram.h"
+
+#include "Array.cc"
 
 /*
  * Debug levels used
@@ -100,7 +102,7 @@ TaggedNgram::wordProbBO(VocabIndex word, const VocabIndex *context, unsigned int
  */
 void TaggedNgram::recomputeBOWs()
 {
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     /*
      * Here it is important that we compute the backoff weights in

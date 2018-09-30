@@ -3,19 +3,26 @@
 # wlat-stats --
 #	Compute statistics of word posterior lattices
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-stats.gawk,v 1.2 2001/08/02 18:20:17 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/wlat-stats.gawk,v 1.5 2005/02/10 23:34:50 stolcke Exp $
 #
 BEGIN {
 	name = "";
 	nhyps = 0;
 	entropy = 0;
 	nwords = 0;
+	ewords = 0;			# posterior expected words
 
-	nsub = nins = ndel = 0;
+	nsub = nins = ndel = 0;		# 1best error counts
+	min_errs = 0;			# oracle error count
 
 	M_LN10 = 2.30258509299404568402;
 
 	empty_hyp = "*DELETE*";
+}
+
+$1 == "name" {
+	name = $2;
+	next;
 }
 
 #
@@ -36,6 +43,9 @@ $1 == "node" {
 
 		if (prob > 0) {
 		    entropy -= prob * log(prob/posterior);
+		    if (word != "NULL") {
+			ewords += prob;
+		    }
 		}
 	    }
 	}
@@ -50,6 +60,7 @@ $1 == "align" {
 
 	best_hyp = "";
 	best_posterior = 0;
+	delete all_hyps;
 	for (i = 3; i <= NF; i += 2) {
 	    word = $i;
 
@@ -59,7 +70,12 @@ $1 == "align" {
 
 	    prob = $(i + 1);
 	    if (prob > 0) {
-		    entropy -= prob * log(prob);
+		entropy -= prob * log(prob);
+		all_hyps[word] = 1;
+
+		if (word != "*DELETE*") {
+		    ewords += prob;
+		}
 	    }
 
 	    if (prob > best_posterior) {
@@ -83,13 +99,19 @@ $1 == "reference" && $2 == align_pos {
 	    }
 	}
 
+	# update oracle error
+	if (!($3 in all_hyps)) {
+	    min_errs ++;
+	}
+
 	align_pos = -1;
 }
 
 END {
 	printf name (name != "" ? " " : "") \
 	       nhyps " hypotheses " \
-	       entropy/M_LN10 " entropy";
+	       entropy/M_LN10 " entropy " \
+	       ewords " ewords";
 	if (nwords > 0) {
 	    printf " " nwords " words " nhyps/nwords " hyps/word " \
 		  entropy/M_LN10/nwords " entropy/word";
@@ -101,6 +123,9 @@ END {
 		   nerrors " errors " nerrors*100/nwords " WER " \
 		   nsub*100/nwords " SUB " nins*100/nwords " INS " \
 		   ndel*100/nwords " DEL\n";
+
+	    printf name (name != "" ? " " : "") \
+		   min_errs " minerrors " min_errs*100/nwords " minWER\n";
 	}
 }
 

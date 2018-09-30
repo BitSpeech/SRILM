@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.21 2002/08/25 17:27:45 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DFNgram.cc,v 1.24 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "DFNgram.h"
@@ -150,7 +151,7 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * NODF state.
 	 */
 
-	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	if (len > 0 && context[len - 1] == vocab.ssIndex()) {
 	    prefix = len - 1;
 	} else {
 	    prefix = len;
@@ -225,7 +226,7 @@ DFNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 */
         VocabIndex SDELcontext1[3];
 	SDELcontext1[0] = context[prefix];
-	SDELcontext1[1] = vocab.ssIndex;
+	SDELcontext1[1] = vocab.ssIndex();
 	SDELcontext1[2] = Vocab_None;
 
 	/*
@@ -513,7 +514,7 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
-	VocabIndex reversed[len + 2 + 1];
+	makeArray(VocabIndex, reversed, len + 2 + 1);
 	len = prepareSentence(sentence, reversed, len);
 
 	/*
@@ -534,7 +535,7 @@ DFNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 
     if (debug(DEBUG_PRINT_VITERBI)) {
 	len = trellis.where();
-	DFstate bestStates[len];
+	makeArray(DFstate, bestStates, len);
 
 	if (trellis.viterbi(bestStates, len) == 0) {
 	    dout() << "Viterbi backtrace failed\n";

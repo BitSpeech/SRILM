@@ -1,7 +1,7 @@
-.\" $Id: pfsg-scripts.1,v 1.15 2003/02/20 19:37:01 stolcke Exp $
-.TH pfsg-scripts 1 "$Date: 2003/02/20 19:37:01 $" "SRILM Tools"
+.\" $Id: pfsg-scripts.1,v 1.21 2005/02/10 23:36:57 stolcke Exp $
+.TH pfsg-scripts 1 "$Date: 2005/02/10 23:36:57 $" "SRILM Tools"
 .SH NAME
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, htklat-vocab, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
 .SH SYNOPSIS
 .B make-ngram-pfsg
 [\c
@@ -10,22 +10,32 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 [\c
 .BR check_bows= 0|1\c
 ]
+.RB [ version=1 ]
+.RB [ top_level_name=\c
+.IR name ]
+.RB [ null=\c
+.IR string ]
 .RI [ lm-file ]
 .BI > pfsg-file
 .br
 .B add-pauses-to-pfsg
-.RB [ vocab= \fIfile\fP ]
+.RB [ vocab=\c
+.IR file ]
 .RB [ pauselast=1 ]
 .RB [ wordwrap=0 ]
-.RB [ pause=
+.RB [ pause=\c
 .IR pauseword ]
-.RB [ top_level_name=
-.IR name ]
 .RB [ version=1 ]
+.RB [ top_level_name=\c
+.IR name ]
+.RB [ null=\c
+.IR string ]
 .RI [ pfsg-file ]
 .br
 .B add-classes-to-pfsg
 .BI classes= classes
+.RB [ null=\c
+.IR string ]
 .RI [ pfsg-file ]
 .br
 .B pfsg-from-ngram
@@ -44,6 +54,10 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .br
 .B pfsg-vocab
 .RI [ pfsg-file ...]
+.br
+.B htklat-vocab
+.RB [ quotes=1 ]
+.RI [ htk-lattice-file ...]
 .br
 .B pfsg-to-dot
 [\c
@@ -84,7 +98,8 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 .br
 .B wlat-to-dot
 [\c
-.BR show_probs= 0|1\c
+.BR show_probs= 0|1
+.BR show_nums= 0|1\c
 ]
 .RI [ wlat-file ]
 .br
@@ -208,6 +223,11 @@ and the word transition weight to
 .PP
 .B pfsg-vocab
 extracts the vocabulary used in one or more PFSGs.
+.B htklat-vocab
+does the same for lattices in HTK standard lattice format.
+The
+.B quotes=1
+option enables processing of HTK quotes.
 .PP
 .B pfsg-to-dot
 renders a PFSG in
@@ -330,11 +350,15 @@ word lattice in
 format for subsequent layout, printing, etc.
 .B show_probs=1
 includes node posterior probabilities in the output.
+.B show_nums=1
+includes node indices in the output.
 .PP
 .B wlat-stats
 computes statistics of word posterior lattices, including the number of 
-word hypotheses and the entropy (log base 10) of the sentence hypothesis
-set represented.
+word hypotheses, the entropy (log base 10) of the sentence hypothesis
+set represented, and the posterior expected number of words.
+For word meshes that have been aligned with references, the 1-best and 
+oracle lattice error rates are also computed.
 .SH "NUANCE COMPATIBILITY"
 .PP
 The Nuance recognizer (as of version 6.2) understands a variant of the 
@@ -364,21 +388,31 @@ The resulting PFSG can then be referenced in a Nuance grammar file, e.g.,
 .br
 .PP
 In newer Nuance versions the name for a non-emitting node was changed to
-.BR NULNOD .
-The scripts
-.BR make-ngram-pfsg ,
-.BR add-pauses-to-pfsg ,
-and
-.B add-classes-to-pfsg
-must be invoked with the option
+.BR NULNOD ,
+and inter-word optional pauses are automatically added to the grammar.
+This means that the PFSG should be create using
+.br
+	ngram -debug 1 -order \fIN\fP -lm \fILM.bo\fP -prune-lowprobs -write-lm - | \\
+.br
+	make-ngram-pfsg version=1 top_level_name=.TOP_LEVEL null=NULNOD >\fILM.pfsg\fP
+.br
+The 
 .B "null=NULNOD" 
-to rename null nodes accordingly.
+option should also be passed to
+.BR add-classes-to-pfsg .
+.PP
+Starting with version 8, Nuance supports N-gram LMs.
+However, you can still use SRILM to create LMs, as described above.
+The syntax for inclusion of a PFSG has changed to
+.br
+	NGRAM_PFSG:slm \fILM.pfsg\fP
+.br
 .PP
 Caveat: Compatibility with Nuance is purely due to historical circumstance and
 not supported.
 .SH "SEE ALSO"
-ngram(1), ngram-format(5), pfsg-format(5), wlat-format(5), nbest-format(5),
-classes-format(5), fsm(5), dot(1).
+lattice-tool(1), ngram(1), ngram-format(5), pfsg-format(5), wlat-format(5),
+nbest-format(5), classes-format(5), fsm(5), dot(1).
 .SH BUGS
 .B make-ngram-pfsg
 should be reimplemented in C++ for speed and some size optimizations that
@@ -386,4 +420,4 @@ require more global operations on the PFSG.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2003 SRI International
+Copyright 1995-2005 SRI International

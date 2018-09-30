@@ -1,5 +1,5 @@
-.\" $Id: ngram-merge.1,v 1.6 2000/06/09 00:34:06 stolcke Exp $
-.TH ngram-merge 1 "$Date: 2000/06/09 00:34:06 $"  "SRILM Tools"
+.\" $Id: ngram-merge.1,v 1.7 2004/12/03 17:59:01 stolcke Exp $
+.TH ngram-merge 1 "$Date: 2004/12/03 17:59:01 $"  "SRILM Tools"
 .SH NAME
 ngram-merge \- merge N-gram counts
 .SH SYNOPSIS
@@ -55,9 +55,16 @@ and
 .B merge-batch-counts
 scripts.
 .SH OPTIONS
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 .TP
 .B \-help
 Print option and usage summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-write " outfile"
 Write merged counts to
@@ -76,4 +83,4 @@ ngram-count(1), ngram(1), training-scripts(1).
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>
 .br
-Copyright 1995 SRI International
+Copyright 1995\-2004 SRI International

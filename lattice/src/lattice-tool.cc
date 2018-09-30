@@ -4,55 +4,100 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/lattice-tool.cc,v 1.54 2003/02/19 06:00:36 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: lattice-tool.cc,v 1.121 2006/01/09 19:16:04 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <math.h>
 #include <locale.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include <iostream.h>
+#include <iostream>
+using namespace std;
+#ifndef _MSC_VER
+#include <sys/time.h>
 #include <unistd.h>
+#endif
 #include <signal.h>
 #include <setjmp.h>
 
+#ifndef SIGALRM
+#define NO_TIMEOUT
+#endif
+
 #include "option.h"
+#include "version.h"
+#include "Vocab.h"
 #include "MultiwordVocab.h"
+#include "ProductVocab.h"
 #include "Lattice.h"
 #include "MultiwordLM.h"
 #include "Ngram.h"
 #include "ClassNgram.h"
 #include "SimpleClassNgram.h"
+#include "ProductNgram.h"
 #include "BayesMix.h"
 #include "RefList.h"
+#include "LatticeLM.h"
+#include "WordMesh.h"
+#include "zio.h"
+#include "mkdir.h"
 
 #define DebugPrintFunctionality 1	// same as in Lattice.cc
 
-static int compactTrigram = 0; 
-static int oldTrigram = 0; 
+static int version = 0;
+static int compactExpansion = 0; 
+static int oldExpansion = 0; 
 static int base = 0; 
+static int density = 0; 
 static int connectivity = 0; 
 static int compactPause = 0; 
+static int noBackoffWeights = 0;
 static int nodeEntropy = 0; 
+static int viterbiDecode = 0;
+static int nbestDecode = 0;
+static int nbestViterbi = 0;
+static unsigned nbestDuplicates = 0;
+static int nbestMaxHyps = 0;
+static int outputCTM = 0;
 static int computePosteriors = 0;
 static char *writePosteriors = 0;
+static char *writePosteriorsDir = 0;
+static char *writeMesh = 0;
+static char *writeMeshDir = 0;
+static char *writeNgrams = 0;
+static double minCount = 0.0;
+static int acousticMesh = 0;
+static int posteriorDecode = 0;
 static double posteriorScale = 8.0;
 static double posteriorPruneThreshold = 0.0;
+static double densityPruneThreshold = 0.0;
+static unsigned nodesPruneThreshold = 0;
+static int fastPrune = 0;
 static int reduceBeforePruning = 0;
 static int noPause = 0; 
+static int insertPause = 0; 
+static int noNulls = 0; 
 static int loopPause = 0;
 static int overwrite = 0; 
 static int simpleReduction = 0; 
 static int overlapBase = 0;
 static double overlapRatio = 0.0;
 static int dag = 0; 
+static char *dictFile = 0;
+static int dictAlign = 0;
+static int intlogs = 0;
 static char *lmFile  = 0;
 static char *vocabFile = 0;
+static char *noneventFile = 0;
+static char *hiddenVocabFile = 0;
 static int limitVocab = 0;
+static int useUnk = 0;
+static char *mapUnknown = 0;
 static char *classesFile = 0;
 static int simpleClasses = 0;
+static int factored = 0;
+static int keepNullFactors = 1;
 static char *mixFile  = 0;
 static char *mixFile2 = 0;
 static char *mixFile3 = 0;
@@ -78,34 +123,62 @@ static char *outLattice = 0;
 static char *outLatticeDir = 0;
 static char *refFile = 0; 
 static char *refList = 0; 
+static char *writeRefs = 0;
+static double addRefsProb = 0.0;
+static int keepPause = 0;
 static char *noiseVocabFile = 0;
+static char *ignoreVocabFile = 0;
 static char *indexName = 0; 
 static char *operation = 0; 
+static double interSegmentTime = 0.0;
 static int order = 3;
 static int simpleReductionIter = 0; 
 static int preReductionIter = 0; 
 static int postReductionIter = 0; 
 static int collapseSameWords = 0;
 static int debug = 0;
+static int readHTK = 0; 
+static int writeHTK = 0;
+static int useHTKnulls = 1;
+static int readMesh = 0;
 static int writeInternal = 0;
 static int maxTime = 0;
-static int maxNodes = 0;
+static unsigned maxNodes = 0;
 static int splitMultiwords = 0;
+static int splitMultiwordsAfterLM = 0;
 static int toLower = 0;
 static int useMultiwordLM = 0;
+static const char *multiChar = MultiwordSeparator;
+static char *pplFile = 0;
+static HTKHeader htkparms(HTK_undef_float, HTK_undef_float, HTK_undef_float,
+			  HTK_undef_float, HTK_undef_float, HTK_undef_float,
+			  HTK_undef_float, HTK_undef_float, HTK_undef_float,
+			  HTK_undef_float, HTK_undef_float, HTK_undef_float,
+			  HTK_undef_float, HTK_undef_float, HTK_undef_float);
+static NBestOptions nbestOut(0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_TRUE, "in-lattice-dag", &dag, "input lattices are defined in a directed acyclic graph" },
     { OPT_STRING, "in-lattice", &inLattice, "input lattice for lattice operation including expansion or bigram weight substitution" },
     { OPT_STRING, "in-lattice2", &inLattice2, "a second input lattice for lattice operation" },
     { OPT_STRING, "in-lattice-list", &inLatticeList, "input lattice list for expansion or bigram weight substitution" },
     { OPT_STRING, "out-lattice", &outLattice, "resulting output lattice" },
     { OPT_STRING, "out-lattice-dir", &outLatticeDir, "resulting output lattice dir" },
+    { OPT_STRING, "dictionary", &dictFile, "pronunciation dictionary" },
+    { OPT_TRUE, "dictionary-align", &dictAlign, "use pronunciation dictionary in alignment for posterior decoding" },
+    { OPT_TRUE, "intlogs", &intlogs, "dictionary uses intlog probabilities" },
     { OPT_STRING, "lm", &lmFile, "LM used for expansion or weight substitution" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "nonevents", &noneventFile, "non-event vocabulary" },
+    { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "subvocabulary to keep separate in lattice alignment" },
     { OPT_TRUE, "limit-vocab", &limitVocab, "limit LM reading to specified vocabulary" },
+    { OPT_TRUE, "unk", &useUnk, "map unknown words to <unk>" },
+    { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
     { OPT_STRING, "classes", &classesFile, "class definitions" },
     { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
+    { OPT_TRUE, "factored", &factored, "use a factored LM" },
+    { OPT_FALSE, "no-null-factors", &keepNullFactors, "remove <NULL> in factored LM" },
     { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
     { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
     { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
@@ -127,7 +200,12 @@ static Option options[] = {
     { OPT_INT, "order", &order, "ngram order used for expansion or bigram weight substitution" },
     { OPT_STRING, "ref-list", &refList, "reference file used for computing WER (lines starting with utterance id)" }, 
     { OPT_STRING, "ref-file", &refFile, "reference file used for computing WER (utterances in same order in lattice list)" },
-    { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary for WER computation" },
+    { OPT_FLOAT, "add-refs", &addRefsProb, "add reference words to lattice with given probability" },
+    { OPT_STRING, "write-refs", &writeRefs, "output references to file (for validation)" },
+    { OPT_STRING, "ppl", &pplFile, "compute perplexity according to lattice" },
+    { OPT_TRUE, "keep-pause", &keepPause, "treat pauses as regular word for WER computation and decoding" },
+    { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to ignore in WER computation and decoding" },
+    { OPT_STRING, "ignore-vocab", &ignoreVocabFile, "pause-like words to ignore in lattice operations" },
     { OPT_TRUE, "overwrite", &overwrite, "overwrite existing output lattice dir" }, 
     { OPT_TRUE, "reduce", &simpleReduction, "reduce bigram lattice(s) using the simple algorithm" },
     { OPT_INT, "reduce-iterate", &simpleReductionIter, "reduce input lattices iteratively" },
@@ -136,149 +214,111 @@ static Option options[] = {
     { OPT_TRUE, "reduce-before-pruning", &reduceBeforePruning, "apply posterior pruning after lattice reduction" },
     { OPT_FLOAT, "overlap-ratio", &overlapRatio, "if two incoming/outgoing node sets of two given nodes with the same lable overlap beyong this ratio, they are merged" }, 
     { OPT_INT, "overlap-base", &overlapBase, "use the smaller (0) incoming/outgoing node set to compute overlap ratio, or the larger (1) set to compute the overlap ratio" },
-    { OPT_TRUE, "compact-expansion", &compactTrigram, "use compact trigram expansion algorithm (sharing bigram nodes)" },
-    { OPT_TRUE, "topo-compact-expansion", &compactTrigram, "(same as above, for backward compatibility)" },
-    { OPT_TRUE, "old-expansion", &oldTrigram, "use old trigram expansion algorithm (without bigram sharing)" },
+    { OPT_TRUE, "compact-expansion", &compactExpansion, "use compact LM expansion algorithm (using backoff nodes)" },
+    { OPT_TRUE, "topo-compact-expansion", &compactExpansion, "(same as above, for backward compatibility)" },
+    { OPT_TRUE, "old-expansion", &oldExpansion, "use old unigram/bigram/trigram expansion algorithms" },
+    { OPT_TRUE, "no-backoff-weights", &noBackoffWeights, "suppress backoff weights in lattice exansion (a hack)" },
     { OPT_TRUE, "multiwords", &useMultiwordLM, "use multiword wrapper LM" },
     { OPT_TRUE, "split-multiwords", &splitMultiwords, "split multiwords into separate nodes" },
+    { OPT_TRUE, "split-multiwords-after-lm", &splitMultiwordsAfterLM, "split multiwords after LM expansion" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lower case" },
     { OPT_STRING, "operation", &operation, "conventional lattice operations, including \"concatenate\" and \"or\"" }, 
+    { OPT_FLOAT, "inter-segment-time", &interSegmentTime, "pause length to insert between concatenated lattices" },
+    { OPT_TRUE, "density", &density, "compute densities of lattices" }, 
     { OPT_TRUE, "connectivity", &connectivity, "check the connectivity of given lattices" }, 
     { OPT_TRUE, "compute-node-entropy", &nodeEntropy, "compute the node entropy of given lattices" }, 
     { OPT_TRUE, "compute-posteriors", &computePosteriors, "compute the node posteriors of given lattices" }, 
     { OPT_STRING, "write-posteriors", &writePosteriors, "write posterior lattice format to this file" }, 
+    { OPT_STRING, "write-posteriors-dir", &writePosteriorsDir, "write posterior lattices to this directory" }, 
+    { OPT_STRING, "write-mesh", &writeMesh, "write posterior mesh (sausage) to this file" }, 
+    { OPT_STRING, "write-mesh-dir", &writeMeshDir, "write posterior meshes to this directory" }, 
+    { OPT_TRUE, "acoustic-mesh", &acousticMesh, "record acoustic information in word meshes" }, 
+    { OPT_TRUE, "posterior-decode", &posteriorDecode, "decode best words from posterior mesh" }, 
     { OPT_FLOAT, "posterior-prune", &posteriorPruneThreshold, "posterior node pruning threshold" }, 
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "posterior scaling factor" }, 
+    { OPT_FLOAT, "density-prune", &densityPruneThreshold, "max lattice density for pruning" }, 
+    { OPT_UINT, "nodes-prune", &nodesPruneThreshold, "max number of real nodes for pruning" }, 
+    { OPT_TRUE, "fast-prune", &fastPrune, "fast posterior pruning (no posterior recomputation)" }, 
+    { OPT_TRUE, "viterbi-decode", &viterbiDecode, "output words on highest probability path" },
+    { OPT_INT, "nbest-decode", &nbestDecode, "number of nbest hyps to generate from lattice" },    
+    { OPT_INT, "nbest-max-stack", &nbestMaxHyps, "max stack size for nbest generation" },    
+    { OPT_TRUE, "nbest-viterbi", &nbestViterbi, "use Viterbi algorithm to generate nbest (instead of A-star)" },    
+    { OPT_UINT, "nbest-duplicates", &nbestDuplicates, "number of hyps to output per unique word string (words in -noise-words may or may not differ)" },    
+    { OPT_TRUE, "output-ctm", &outputCTM, "output decoded words in CTM format" },
+    { OPT_STRING, "write-ngrams", &writeNgrams, "write expected ngram counts to file" }, 
+    { OPT_FLOAT, "min-count", &minCount, "prune ngram counts below this value" },
     { OPT_STRING, "index-name", &indexName, "print a list of node index-name pairs to this file" },
     { OPT_TRUE, "no-pause", &noPause, "output lattices with no pauses" },
+    { OPT_TRUE, "insert-pause", &insertPause, "insert optional pauses" },
+    { OPT_TRUE, "no-nulls", &noNulls, "eliminate null nodes" },
     { OPT_TRUE, "compact-pause", &compactPause, "output lattices with compact pauses" },
     { OPT_TRUE, "loop-pause", &loopPause, "output lattices with loop pauses" },
     { OPT_TRUE, "collapse-same-words", &collapseSameWords, "collapse nodes with same words" },
     { OPT_INT, "debug", &debug, "debug level" },
+    { OPT_TRUE, "read-htk", &readHTK, "read input lattices in HTK format" },
+    { OPT_TRUE, "write-htk", &writeHTK, "write output lattices in HTK format" },
+    { OPT_FALSE, "no-htk-nulls", &useHTKnulls, "don't use null nodes to encode HTK lattices" },
+    { OPT_TRUE, "read-mesh", &readMesh, "read input lattices in word mesh format" },
     { OPT_TRUE, "write-internal", &writeInternal, "write out internal node numbering" },
+#ifndef NO_TIMEOUT
     { OPT_UINT, "max-time", &maxTime, "maximum no. of seconds allowed per lattice" },
-    { OPT_UINT, "max-nodes", &maxNodes, "maximum no. of nodes allowed in expanded lattice (without pauses)" },
+#endif
+    { OPT_UINT, "max-nodes", &maxNodes, "maximum no. of nodes allowed in expanding lattice" },
+    { OPT_FLOAT, "htk-acscale", &htkparms.acscale, "HTK acscale override" }, 
+    { OPT_FLOAT, "htk-lmscale", &htkparms.lmscale, "HTK lmscale override" }, 
+    { OPT_FLOAT, "htk-ngscale", &htkparms.ngscale, "HTK ngscale override" }, 
+    { OPT_FLOAT, "htk-prscale", &htkparms.prscale, "HTK prscale override" }, 
+    { OPT_FLOAT, "htk-duscale", &htkparms.duscale, "HTK duscale override" }, 
+    { OPT_FLOAT, "htk-wdpenalty", &htkparms.wdpenalty, "HTK wdpenalty override" }, 
+    { OPT_FLOAT, "htk-x1scale", &htkparms.x1scale, "HTK xscore1 override" }, 
+    { OPT_FLOAT, "htk-x2scale", &htkparms.x2scale, "HTK xscore2 override" }, 
+    { OPT_FLOAT, "htk-x3scale", &htkparms.x3scale, "HTK xscore3 override" }, 
+    { OPT_FLOAT, "htk-x4scale", &htkparms.x4scale, "HTK xscore4 override" }, 
+    { OPT_FLOAT, "htk-x5scale", &htkparms.x5scale, "HTK xscore5 override" }, 
+    { OPT_FLOAT, "htk-x6scale", &htkparms.x6scale, "HTK xscore6 override" }, 
+    { OPT_FLOAT, "htk-x7scale", &htkparms.x7scale, "HTK xscore7 override" }, 
+    { OPT_FLOAT, "htk-x8scale", &htkparms.x8scale, "HTK xscore8 override" }, 
+    { OPT_FLOAT, "htk-x9scale", &htkparms.x9scale, "HTK xscore9 override" }, 
+    { OPT_FLOAT, "htk-logbase", &htkparms.logbase, "base for HTK log scores" }, 
+    { OPT_TRUE, "htk-words-on-nodes", &htkparms.wordsOnNodes, "HTK lattices output with words on nodes" }, 
+    { OPT_TRUE, "htk-scores-on-nodes", &htkparms.scoresOnNodes, "HTK lattices output with acoustic scores on nodes" }, 
+    { OPT_TRUE, "htk-quotes", &htkparms.useQuotes, "use quotes in HTK lattices" }, 
+    { OPT_STRING, "out-nbest-dir", &nbestOut.nbestOutDir, "resulting nbest list dir" },
+    { OPT_STRING, "out-nbest-dir-ngram", &nbestOut.nbestOutDirNgram, "resulting nbest list ngram score dir" },
+    { OPT_STRING, "out-nbest-dir-pron", &nbestOut.nbestOutDirPron, "resulting nbest list pron score dir" },
+    { OPT_STRING, "out-nbest-dir-dur", &nbestOut.nbestOutDirDur, "resulting nbest list duration score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore1", &nbestOut.nbestOutDirXscore1, "resulting nbest list xscore1 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore2", &nbestOut.nbestOutDirXscore2, "resulting nbest list xscore2 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore3", &nbestOut.nbestOutDirXscore3, "resulting nbest list xscore3 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore4", &nbestOut.nbestOutDirXscore4, "resulting nbest list xscore4 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore5", &nbestOut.nbestOutDirXscore5, "resulting nbest list xscore5 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore6", &nbestOut.nbestOutDirXscore6, "resulting nbest list xscore6 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore7", &nbestOut.nbestOutDirXscore7, "resulting nbest list xscore7 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore8", &nbestOut.nbestOutDirXscore8, "resulting nbest list xscore8 score dir" },
+    { OPT_STRING, "out-nbest-dir-xscore9", &nbestOut.nbestOutDirXscore9, "resulting nbest list xscore9 score dir" },
+    { OPT_STRING, "out-nbest-dir-rttm", &nbestOut.nbestOutDirRttm, "resulting nbest hyps output in rttm format (with extra preceding column that gives hyp number)" }
 };
 
-void splitMultiwordNodes(Lattice &lat, MultiwordVocab &vocab, LM &lm)
+/*
+ * Output hypotheses in CTM format
+ */
+static void
+printCTM(Vocab &vocab, const NBestWordInfo *winfo, const char *name)
 {
-    VocabIndex emptyContext[1];
-    emptyContext[0] = Vocab_None;
-
-    if (debug >= DebugPrintFunctionality) {
-      cerr << "splitting multiword nodes\n";
-    }
-
-    unsigned numNodes = lat.getNumNodes(); 
-
-    NodeIndex sortedNodes[numNodes];
-    unsigned numReachable = lat.sortNodes(sortedNodes);
-
-    for (unsigned i = 0; i < numReachable; i++) {
-      NodeIndex nodeIndex = sortedNodes[i];
-      LatticeNode *node = lat.findNode(nodeIndex); 
-
-      VocabIndex oneWord[2];
-      oneWord[0] = node->word;
-      oneWord[1] = Vocab_None;
-      VocabIndex expanded[maxWordsPerLine + 1];
-
-      unsigned expandedLength =
-		vocab.expandMultiwords(oneWord, expanded, maxWordsPerLine);
-
-      /*
-       * We don't split multiwords that are in the LM
-       */
-      if (expandedLength > 1 &&
-	  lm.wordProb(node->word, emptyContext) == LogP_Zero)
-      {
-	// change orignal node to emit first component word
-	node->word = expanded[0];
-
-	NodeIndex prevNodeIndex = nodeIndex;
-	NodeIndex firstNewIndex;
-	
-	// create new nodes for all subsequent word components, and
-	// string them together with zero weight transitions
-	for (unsigned i = 1; i < expandedLength; i ++) {
-	    NodeIndex newNodeIndex = lat.dupNode(expanded[i]);
-
-	    // delay inserting the first new transition to not interfere
-	    // with removal of old links below
-	    if (prevNodeIndex == nodeIndex) {
-		firstNewIndex = newNodeIndex;
-	    } else {
-	        LatticeTransition trans;
-	        lat.insertTrans(prevNodeIndex, newNodeIndex, trans);
-	    }
-	    prevNodeIndex = newNodeIndex;
+    for (unsigned i = 0; winfo[i].word != Vocab_None; i ++) {
+	cout << name << " 1 ";
+	if (winfo[i].valid()) {
+	    cout << winfo[i].start << " " << winfo[i].duration;
+	} else {
+	    cout << "? ?";
 	}
-
-	// node may have moved since others were added!!!
-        node = lat.findNode(nodeIndex); 
-
-	// copy original outgoing transitions onto final new node
-        TRANSITER_T<NodeIndex,LatticeTransition>
-				transIter(node->outTransitions);
-	NodeIndex toNodeIndex;
-        while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
-	    // prevNodeIndex still has the last of the newly created nodes
-	    lat.insertTrans(prevNodeIndex, toNodeIndex, *trans);
-	    lat.removeTrans(nodeIndex, toNodeIndex);
-	}
-
-	// now insert new transition out of original node
-	{
-	    LatticeTransition trans;
-	    lat.insertTrans(nodeIndex, firstNewIndex, trans);
-	}
-      }
+	cout << " " << vocab.getWord(winfo[i].word)
+	     << " " << winfo[i].wordPosterior << endl;
     }
 }
 
-void latticeOps(char *inLat1, char *inLat2, char *outLat)
-{
-    Vocab vocab;
-    vocab.toLower = true; 
-
-    if (!operation) { 
-      cerr << "Fatal Error (latticeOps): no operation is specified!\n"
-	   << "          Allowable operations: and, or, ...\n";
-      exit (-1);
-    }
-
-    Lattice lat(vocab, outLat ? outLat : "NONAME"); 
-    lat.debugme(debug);
-    {
-      File file1(inLat1, "r");
-      Lattice lat1(vocab); 
-      lat1.readPFSGs(file1);
-
-      File file2(inLat2, "r");
-      Lattice lat2(vocab); 
-      lat2.readPFSGs(file2);
-
-      if (!strcmp(operation, LATTICE_OR)) {
-	lat.latticeOr(&lat1, &lat2);
-      } else if (!strcmp(operation, LATTICE_CONCATE)) {
-	lat.latticeCat(&lat1, &lat2);
-      } else {
-	cerr << "latticeOps: unknown operation (" << operation
-	     << ")\n     Allowable operations are and, or, ...\n";
-	exit (-1); 
-      }
-    }
-
-    if (outLattice) {
-      File file(outLat, "w");
-      if (writeInternal) {
-        lat.writePFSG(file);
-      } else {
-        lat.writeCompactPFSG(file);
-      }
-    }
-}
-
+#ifndef NO_TIMEOUT
 /*
  * deal with different signal hander types
  */
@@ -293,26 +333,41 @@ void catchAlarm(int signal)
 {
     longjmp(thisContext, 1);
 }
+#endif /* !NO_TIMEOUT */
 
-void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab, 
-		    SubVocab &noiseWords, VocabIndex *refIndices  = 0)
+void processLattice(char *inLat, char *outLat, Lattice *lattice2,
+		    NgramCounts<FloatCount> &ngramCounts,
+		    LM &lm, Vocab &vocab, SubVocab &hiddenVocab,
+		    VocabMultiMap &dictionary,
+		    SubVocab &ignoreWords, SubVocab &noiseWords,
+		    VocabIndex *refIndices = 0)
 {
-    Lattice lat(vocab, outLat ? outLat : "NONAME"); 
+    Lattice lat(vocab, idFromFilename(inLat), ignoreWords); 
     lat.debugme(debug);
-    {
 
-      // the new proc is not done yet. Always using the original readPFSG
-      dag = 0;
-      File file(inLat, "r");
-      if (!dag) {
-	// cerr << " Using old proc\n";
-	lat.readPFSGs(file);
-      } else {
-	// cerr << " Using new proc\n";
-	lat.readRecPFSGs(file);
-      }
+    if (useUnk) lat.useUnk = true;
+
+    {
+	File file(inLat, "r");
+	Boolean status;
+
+	if (readHTK) {
+	    htkparms.amscale = posteriorScale;
+	    status = lat.readHTK(file, &htkparms, useHTKnulls);
+	} else if (readMesh) {
+	    lat.setHTKHeader(htkparms);
+	    status = lat.readMesh(file);
+	} else {
+	    lat.setHTKHeader(htkparms);
+	    status = lat.readPFSGs(file);
+	}
+	if (!status) {
+	    cerr << "error reading " << inLat << endl;
+	    return;
+	}
     }
 
+#ifndef NO_TIMEOUT
     if (maxTime) {
 	alarm(maxTime);
 	if (setjmp(thisContext)) {
@@ -322,32 +377,148 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
 	}
 	signal(SIGALRM, (sighandler_t)catchAlarm);
     }
+#endif /* !NO_TIMEOUT */
+
+    if (dictFile && !dictAlign) {
+	// pronunciation scoring (only useful for HTK lattices)
+	// do this BEFORE splitting multiwords since pronunciations apply to
+	// the original multiwords
+	if (!lat.scorePronunciations(dictionary, intlogs)) {
+	    cerr << "WARNING: error scoring pronunciations for " << inLat
+		 << endl;
+        }
+    }
 
     if (splitMultiwords) {
-	splitMultiwordNodes(lat, vocab, lm);
+	lat.splitMultiwordNodes((MultiwordVocab &)vocab, lm);
     }
 
     if (posteriorPruneThreshold > 0 && !reduceBeforePruning) {
-	if (!lat.prunePosteriors(posteriorPruneThreshold, posteriorScale)) {
+	if (!lat.prunePosteriors(posteriorPruneThreshold, posteriorScale,
+				    densityPruneThreshold, nodesPruneThreshold,
+				    fastPrune))
+	{
 	    cerr << "WARNING: posterior pruning of lattice " << inLat
 	         << " failed\n";
+#ifndef NO_TIMEOUT
 	    alarm(0);
+#endif
 	    return;
         } 
     }
 
     if (writePosteriors) {
-      File file(writePosteriors, "w");
+	File file(writePosteriors, "w");
+	lat.writePosteriors(file, posteriorScale);
+    }
+    if (writePosteriorsDir) {
+	makeArray(char, outfile,
+		  strlen(writePosteriorsDir) + 1 +
+		  strlen(lat.getName()) + sizeof(GZIP_SUFFIX));
+	sprintf(outfile, "%s/%s%s", writePosteriorsDir,
+					lat.getName(), GZIP_SUFFIX);
 
-      lat.writePosteriors(file, posteriorScale);
-    } else if (computePosteriors) {
-      lat.computePosteriors(posteriorScale);
+	File file(outfile, "w");
+	lat.writePosteriors(file, posteriorScale);
+    }
+
+    if (writeMesh || writeMeshDir || posteriorDecode) {
+	VocabDistance *wordDistance = 0;
+
+	/*
+	 * Use word distance constrained by hidden-vocabulary membership
+	 * if specified
+	 */
+	if (hiddenVocabFile) {
+	    wordDistance = new SubVocabDistance(vocab, hiddenVocab);
+	    assert(wordDistance!= 0);
+	} else if (dictFile && dictAlign) {
+	    wordDistance = new DictionaryAbsDistance(vocab, dictionary);
+	    assert(wordDistance != 0);
+	}
+
+	WordMesh mesh(vocab, lat.getName(), wordDistance);
+
+	/*
+	 * Preserve acoustic information in word mesh if requested,
+	 * or if needed for CTM generation.
+	 */
+	lat.alignLattice(mesh, noiseWords, posteriorScale,
+						acousticMesh || outputCTM);
+
+	if (posteriorDecode) {
+	    /*
+	     * Recover best hyp from lattice
+	     */
+	    unsigned maxLength = mesh.length();
+	    double subs, inss, dels;
+
+	    if (outputCTM) {
+		NBestWordInfo *bestWords = new NBestWordInfo[maxLength + 1];
+		assert(bestWords != 0);
+
+		double errors = mesh.minimizeWordError(bestWords, maxLength + 1,
+							      subs, inss, dels);
+		printCTM(vocab, bestWords, lat.getName());
+
+		delete [] bestWords;
+	    } else {
+		makeArray(VocabIndex, bestWords, maxLength + 1);
+
+		double errors = mesh.minimizeWordError(bestWords, maxLength + 1,
+							      subs, inss, dels);
+
+		cout << lat.getName() << " "
+		     << (mesh.vocab.use(), bestWords) << endl;
+	    }
+	}
+
+	if (refIndices && (writeMesh || writeMeshDir)) {
+	    mesh.alignReference(refIndices);
+	}
+
+	if (writeMesh) {
+	    File file(writeMesh, "w");
+	    mesh.write(file);
+	}
+	if (writeMeshDir) {
+	    makeArray(char, outfile,
+		      strlen(writeMeshDir) + 1 +
+		      strlen(lat.getName()) + sizeof(GZIP_SUFFIX));
+	    sprintf(outfile, "%s/%s%s", writeMeshDir,
+					lat.getName(), GZIP_SUFFIX);
+
+	    File file(outfile, "w");
+	    mesh.write(file);
+	}
+
+	delete wordDistance;
+    }
+
+    if (writeNgrams) {
+      lat.countNgrams(order, ngramCounts, posteriorScale);
+    }
+
+    if (computePosteriors) {
+      lat.computePosteriors(posteriorScale, true);
+    }
+    
+    if (density) {
+      double d = lat.computeDensity();
+
+      if (d == HUGE_VAL) {
+	cerr << "WARNING: duration for lattice " << inLat << " unknown\n";
+      } else {
+        cout << lat.getName() << " " << lat.computeDensity() << endl;
+      }
     }
 
     if (connectivity) {
       if (!lat.areConnected(lat.getInitial(), lat.getFinal())) {
 	cerr << "WARNING: lattice " << inLat << " is not connected\n";
+#ifndef NO_TIMEOUT
 	alarm(0);
+#endif
 	return;
       } 
     }
@@ -362,8 +533,7 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
     }
 
     if (refFile || refList) {
-	  if (refIndices) {
-	    
+	if (refIndices) {
 	    unsigned numWords = vocab.length(refIndices); 
 	    if (!numWords) {
 	      cerr << "WARNING: reference has 0 length\n";
@@ -378,10 +548,23 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
 		 << " wer " << total
 		 << " words " << numWords
 		 << endl;
-	  } else {
+	} else {
 	    cerr << "FATAL ERROR: reference is missing for lattice "
 		 << inLat << endl;
-	  }
+	}
+    }
+
+    if (addRefsProb != 0.0) {
+	if (refIndices) {
+	    lat.addWords(refIndices, addRefsProb, !noPause);
+	} else if (!(refFile || refList)) {
+	    cerr << "FATAL ERROR: reference is missing for lattice "
+		 << inLat << endl;
+	}
+    }
+
+    if (noNulls) {
+	lat.removeAllXNodes(Vocab_None);
     }
 
     if (simpleReduction || simpleReductionIter) {
@@ -399,31 +582,60 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
     }
 
     if (posteriorPruneThreshold > 0 && reduceBeforePruning) {
-	if (!lat.prunePosteriors(posteriorPruneThreshold, posteriorScale)) {
+	if (!lat.prunePosteriors(posteriorPruneThreshold, posteriorScale,
+				    densityPruneThreshold, nodesPruneThreshold,
+				    fastPrune))
+	{
 	    cerr << "WARNING: posterior pruning of lattice " << inLat
 	         << " failed\n";
+#ifndef NO_TIMEOUT
 	    alarm(0);
+#endif
 	    return;
         } 
+    }
+
+    Boolean recoverPauses = false;
+
+    if (noPause) {
+	lat.removeAllXNodes(vocab.pauseIndex());
     }
 
     if (maxNodes > 0 && lat.getNumNodes() > maxNodes) {
       cerr << "WARNING: processing lattice " << inLat
 	   << " aborted -- too many nodes after reduction: "
 	   << lat.getNumNodes() << endl;
+#ifndef NO_TIMEOUT
       alarm(0);
+#endif
       return;
     }
 
+    // by default we leave HTK lattices scores alone
+    HTKScoreMapping htkScoreMapping = mapHTKnone;
+
+    if (!readHTK) {
+	// preserve PFSG weights as HTK acoustic scores
+	htkScoreMapping = mapHTKacoustic;
+    }
+
     if (lmFile) {
+
       // remove pause and NULL nodes prior to LM application,
       // so each word has a proper predecessor
       // (This can be skipped for unigram LMs, unless we're explicitly
-      // asked to elininate pauses.)
-      if (order > 1 || noPause) {
-	lat.removeAllXNodes(vocab.pauseIndex);
-	lat.removeAllXNodes(Vocab_None);
+      // asked to eliminate pauses.  It also not necessary for the 
+      // new general LM expansion algorithms.
+      if (noPause || compactPause || (oldExpansion && order >= 2)) {
+	if (!noPause) {
+	    lat.removeAllXNodes(vocab.pauseIndex());
+	}
+	if (!noNulls) {
+	    lat.removeAllXNodes(Vocab_None);
+	}
       
+	recoverPauses = true;
+
 	/*
 	 * attempt further reduction on pause-less lattices
 	 */
@@ -433,9 +645,9 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
 
 	  File f(stderr);
 	  if (overlapRatio == 0.0) { 
-	    lat.simplePackBigramLattice(simpleReductionIter); 
+	    lat.simplePackBigramLattice(preReductionIter); 
 	  } else {
-	    lat.approxRedBigramLattice(simpleReductionIter, overlapBase, 
+	    lat.approxRedBigramLattice(preReductionIter, overlapBase, 
 				       overlapRatio);
 	  }
 	}
@@ -443,85 +655,209 @@ void processLattice(char *inLat, char *outLat, LM &lm, MultiwordVocab &vocab,
 
       Boolean status;
 
-      switch (order) {
-      case 1:
-      case 2: 
-	status = lat.replaceWeights(lm); 
-	break;
-      default:
-	// trigram expansion
-	if (compactTrigram) {
-	  status = lat.expandToCompactTrigram(*(Ngram *)&lm, maxNodes); 
-	} else if (oldTrigram) {
-	  status = lat.expandToTrigram(lm, maxNodes); 
-	} else {
+      if (oldExpansion) {
+	  switch (order) {
+	  case 1:
+	  case 2: 
+	      // unigram/bigram weight replacement
+	      status = lat.replaceWeights(lm); 
+	      break;
+	  default:
+	      // trigram expansion
+	      if (compactExpansion) {
+		status = lat.expandToCompactTrigram(*(Ngram *)&lm, maxNodes); 
+	      } else {
+		status = lat.expandToTrigram(lm, maxNodes); 
+	      }
+	  }
+      } else {
+	  if (noBackoffWeights) {
+	      // hack to ignore backoff weights in LM expansion
+	      lat.noBackoffWeights = true;
+	  }
+
 	  // general LM expansion
-	  status = lat.expandToLM(lm, maxNodes); 
-	}
-	break;
+	  status = lat.expandToLM(lm, maxNodes, compactExpansion); 
       }
 
       if (!status) {
         cerr << "WARNING: expansion of lattice " << inLat << " failed\n";
+#ifndef NO_TIMEOUT
 	alarm(0);
+#endif
 	return;
       }
 
-      if (!noPause && order > 1) {
-	if (compactPause) {
-  	  lat.recoverCompactPauses(loopPause);
-	} else {
-	  lat.recoverPauses(loopPause);
-	}
-      }
+      /*
+       * after LM application need to make sure that probs will fit in
+       * bytelog range
+       */
+      lat.limitIntlogs = true;
 
       /*
-       * attempt further reduction on output lattices
+       * Replace old HTK language scores in output with new LM scores
        */
-      if (postReductionIter) {
+      htkScoreMapping = mapHTKlanguage;
+    }
+
+    if (!noPause && recoverPauses || insertPause) {
+	if (compactPause) {
+	    lat.recoverCompactPauses(loopPause, insertPause);
+	} else {
+	    lat.recoverPauses(loopPause, insertPause);
+	}
+    }
+
+    /*
+     * attempt further reduction on output lattices after LM expansion
+     */
+    if (postReductionIter) {
         cerr << "reducing output lattices (overlap ratio = "
 	     << overlapRatio << ")\n"; 
 
 	if (overlapRatio == 0.0) { 
-	  lat.simplePackBigramLattice(simpleReductionIter); 
+	    lat.simplePackBigramLattice(postReductionIter); 
 	} else {
-	  lat.approxRedBigramLattice(simpleReductionIter, overlapBase, 
-				     overlapRatio);
+	    lat.approxRedBigramLattice(postReductionIter, overlapBase, 
+				       overlapRatio);
 	}
-      }
+    }
+
+    if (splitMultiwordsAfterLM) {
+	/*
+	 * Split multiwords after LM application
+	 * We create an empty LM so that none of the multiwords appear with
+	 * non-zero probability
+	 */
+	Ngram dummy(vocab);
+
+	lat.splitMultiwordNodes((MultiwordVocab &)vocab, dummy);
     }
 
     if (collapseSameWords) {
 	lat.collapseSameWordNodes(noiseWords);
     }
 
+    /*
+     * perform lattice algebra
+     */
+    Lattice *finalLat,
+	    resultLat(vocab, idFromFilename(outLat), ignoreWords); 
+
+    if (operation && lattice2 != 0) {
+        resultLat.debugme(debug);
+    
+	if (!strcmp(operation, LATTICE_OR)) {
+	    resultLat.latticeOr(lat, *lattice2);
+	} else if (!strcmp(operation, LATTICE_CONCATE)) {
+	    resultLat.latticeCat(lat, *lattice2, interSegmentTime);
+	} else {
+	    cerr << "unknown operation (" << operation << ")\n";
+	    cerr << "allowed operations are " << LATTICE_OR
+		 << " and " << LATTICE_CONCATE << endl;
+	    exit(2);
+	}
+
+	finalLat = &resultLat;
+    } else {
+	finalLat = &lat;
+    }
+
+#ifndef NO_TIMEOUT
     // kill alarm timer -- we're done
     alarm(0);
+#endif
+
+    if (viterbiDecode) {
+	if (outputCTM) {
+	    NBestWordInfo *bestwords = new NBestWordInfo[maxWordsPerLine + 1];
+	    assert(bestwords != 0);
+
+	    LogP prob =
+		    finalLat->bestWords(bestwords, maxWordsPerLine, noiseWords);
+
+	    if (prob != LogP_Zero || bestwords[0].word != Vocab_None) {
+		printCTM(vocab, bestwords, finalLat->getName());
+	    } 
+
+	    delete [] bestwords;
+	} else {
+	    VocabIndex bestwords[maxWordsPerLine + 1];
+
+	    LogP prob =
+		    finalLat->bestWords(bestwords, maxWordsPerLine, noiseWords);
+
+	    if (prob != LogP_Zero || bestwords[0] != Vocab_None) {
+		cout << finalLat->getName() << " "
+		     << (finalLat->vocab.use(), bestwords) << endl;
+	    }
+	}
+    }
+
+    if (nbestDecode > 0) {
+	// output top N hyps
+	nbestOut.openFiles(finalLat->getName());
+	if (nbestViterbi) {
+	    finalLat->computeNBestViterbi(nbestDecode, nbestOut, noiseWords,
+					    useMultiwordLM ? multiChar : 0);
+	} else {
+	    finalLat->computeNBest(nbestDecode, nbestOut, noiseWords,
+					    useMultiwordLM ? multiChar : 0,
+	    							nbestMaxHyps, nbestDuplicates);
+	}
+	nbestOut.closeFiles();
+    }
+
+    if (pplFile) {
+	if (!noPause) {
+	    // treat pauses as regular words for LatticeLM computation
+	    finalLat->ignoreVocab.remove(finalLat->vocab.pauseIndex());
+	}
+		
+	LatticeLM latlm(*finalLat);
+	latlm.debugme(debug);
+	
+        File file(pplFile, "r");
+        TextStats stats;
+
+        /*
+         * Send perplexity info to stdout 
+         */
+        latlm.dout(cout);
+        latlm.pplFile(file, stats);
+        latlm.dout(cerr);
+
+        cout << "file " << pplFile << ": " << stats;
+    }
 
     if (outLattice || outLatticeDir) {
       File file(outLat, "w");
-      if (writeInternal) {
-        lat.writePFSG(file);
+      if (writeHTK) {
+        finalLat->writeHTK(file, htkScoreMapping, computePosteriors);
+      } else if (writeInternal) {
+        finalLat->writePFSG(file);
       } else {
-        lat.writeCompactPFSG(file);
+        finalLat->writeCompactPFSG(file);
       }
     }
 }
 
 LM *
 makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
-			    unsigned order, LM *oldLM, double lambda)
+		    unsigned order, LM *oldLM, double lambda1, double lambda2)
 {
     File file(filename, "r");
 
     /*
-     * create class-ngram if -classes were specified, otherwise a regular ngram
+     * create factored LM or class-LM if specified, otherwise a regular ngram
      */
-    Ngram *lm = (classVocab != 0) ?
-		  (simpleClasses ?
-			new SimpleClassNgram(vocab, *classVocab, order) :
-		  	new ClassNgram(vocab, *classVocab, order)) :
-		  new Ngram(vocab, order);
+    Ngram *lm = factored ? 
+		  new ProductNgram((ProductVocab &)vocab, order) :
+		  (classVocab != 0) ?
+		    (simpleClasses ?
+			  new SimpleClassNgram(vocab, *classVocab, order) :
+			  new ClassNgram(vocab, *classVocab, order)) :
+		    new Ngram(vocab, order);
     assert(lm != 0);
 
     lm->debugme(debug);
@@ -540,6 +876,11 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
     }
 
     if (oldLM) {
+	/*
+	 * Compute mixture lambda (make sure 0/0 = 0)
+	 */
+	Prob lambda = (lambda1 == 0.0) ? 0.0 : lambda1/lambda2;
+
 	LM *newLM = new BayesMix(vocab, *lm, *oldLM, 0, lambda);
 	assert(newLM != 0);
 
@@ -557,51 +898,126 @@ main (int argc, char *argv[])
     setlocale(LC_CTYPE, "");
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     if (!inLattice && !inLatticeList) {
         cerr << "need to specify at least one input file!\n";
 	return 0; 
     }
 
-    if ((classesFile || mixFile || useMultiwordLM) && compactTrigram) {
-      cerr << "cannot use class-ngram LM, mixture LM, or multiword LM wrapper for compact lattice expansion\n";
-      exit(2);
+    if (factored &&
+	(classesFile ||
+	 splitMultiwords || splitMultiwordsAfterLM || useMultiwordLM))
+    {
+	cerr << "factored LMs cannot be used with class definitions or multiwords\n";
+	exit(2);
+    }
+
+    if ((factored || classesFile || mixFile || useMultiwordLM) &&
+	oldExpansion && compactExpansion)
+    {
+        cerr << "cannot use factored LM, class-ngram LM, mixture LM, or multiword LM wrapper for old compact trigram expansion\n";
+        exit(2);
+    }
+
+    if (hiddenVocabFile && dictFile && dictAlign) {
+	cerr << "cannot use both -hidden-vocab and -dictionary-align, choose one\n";
+        exit(2);
     }
 
     /*
      * Use multiword vocab in case we need it for -multiwords processing
      */
-    MultiwordVocab vocab;
-    vocab.toLower = toLower ? true : false;
+    Vocab *vocab;
+
+    if (factored) {
+	vocab = new ProductVocab;
+    } else if (splitMultiwords || splitMultiwordsAfterLM || useMultiwordLM) {
+	vocab = new MultiwordVocab(multiChar);
+    } else {
+	vocab = new Vocab;
+    }
+    assert(vocab != 0);
+    vocab->unkIsWord() = useUnk ? true : false;
+    vocab->toLower() = toLower ? true : false;
+
+    if (factored) {
+	((ProductVocab *)vocab)->nullIsWord() = keepNullFactors ? true : false;
+    }
 
     /*
-     * Read predefined vocabulary (required by -limit-vocab)
+     * Change unknown word string if requested
+     */
+    if (mapUnknown) {
+	vocab->remove(vocab->unkIndex());
+	vocab->unkIndex() = vocab->addWord(mapUnknown);
+    }
+
+    /*
+     * Read predefined vocabulary
+     * (required by -limit-vocab and useful with -unk)
      */
     if (vocabFile) {
 	File file(vocabFile, "r");
-	vocab.read(file);
+	vocab->read(file);
+    }
+
+    if (noneventFile) {
+	/*
+	 * If pause is treated as a regular word also don't consider it a 
+	 * non-event for LM purposes.
+	 */
+	if (keepPause) {
+	    vocab->removeNonEvent(vocab->pauseIndex());
+	}
+
+	/*
+	 * create temporary sub-vocabulary for non-event words
+	 */
+	SubVocab nonEvents(*vocab);
+
+	File file(noneventFile, "r");
+	nonEvents.read(file);
+	vocab->addNonEvents(nonEvents);
+    }
+
+    /*
+     * Optionally read a subvocabulary that is to be kept separate from
+     * regular words during alignment
+     */
+    SubVocab hiddenVocab(*vocab);
+    if (hiddenVocabFile) {
+	File file(hiddenVocabFile, "r");
+
+	hiddenVocab.read(file);
     }
 
     Ngram *ngram;
 
     /*
-     * create base N-gram model (either word or class-based)
+     * create base N-gram model (either factored, class- or word-based)
      */
     SubVocab *classVocab = 0;
-    if (classesFile) {
-        classVocab = new SubVocab(vocab);
+    if (factored) {
+	  ngram = new ProductNgram(*(ProductVocab *)vocab, order);
+    } else if (classesFile) {
+        classVocab = new SubVocab(*vocab);
 	assert(classVocab != 0);
 
 	if (simpleClasses) {
-	    ngram = new SimpleClassNgram(vocab, *classVocab, order);
+	    ngram = new SimpleClassNgram(*vocab, *classVocab, order);
 	} else {
-	    ngram = new ClassNgram(vocab, *classVocab, order);
+	    ngram = new ClassNgram(*vocab, *classVocab, order);
 
-	    if (order > 2 && !oldTrigram) {
+	    if (order > 2 && !oldExpansion) {
 		cerr << "warning: general class LM does not allow efficient lattice expansion; consider using -simple-classes\n";
 	    }
 	}
     } else {
-	ngram = new Ngram(vocab, order);
+	ngram = new Ngram(*vocab, order);
     }
     assert(ngram != 0);
 
@@ -619,13 +1035,41 @@ main (int argc, char *argv[])
 	((ClassNgram *)ngram)->readClasses(file);
     }
 
-    SubVocab noiseVocab(vocab);
-    // -pau- is always ignored in WER computation
-    noiseVocab.addWord(vocab.pauseIndex);
+    SubVocab noiseVocab(*vocab);
+    // -pau- is ignored in WER computation by default
+    if (!keepPause) {
+	noiseVocab.addWord(vocab->pauseIndex());
+    }
+
     // read additional "noise" words to be ignored in WER computation
     if (noiseVocabFile) {
 	File file(noiseVocabFile, "r");
 	noiseVocab.read(file);
+    }
+
+    SubVocab ignoreVocab(*vocab);
+
+    // read additional words to ignore
+    if (ignoreVocabFile) {
+	File file(ignoreVocabFile, "r");
+	ignoreVocab.read(file);
+    } else if (!keepPause) {
+	// -pau- is ignored by default
+	ignoreVocab.addWord(vocab->pauseIndex());
+    }
+
+    /*
+     * Prepare dictionary for pronunciation scoring
+     */
+    Vocab dictVocab;
+    VocabMultiMap dictionary(*vocab, dictVocab, intlogs);
+    if (dictFile) {
+        File file(dictFile, "r");
+
+        if (!dictionary.read(file)) {
+            cerr << "format error in dictionary file\n";
+            exit(1);
+        }
     }
 
     /*
@@ -641,44 +1085,57 @@ main (int argc, char *argv[])
 				mixLambda4 - mixLambda5 - mixLambda6 -
 				mixLambda7 - mixLambda8 - mixLambda9;
 
-
-	useLM = makeMixLM(mixFile, vocab, classVocab, order, useLM,
-				mixLambda1/(mixLambda + mixLambda1));
+	useLM = makeMixLM(mixFile, *vocab, classVocab, order, useLM,
+				mixLambda1,
+				mixLambda + mixLambda1);
 
 	if (mixFile2) {
-	    useLM = makeMixLM(mixFile2, vocab, classVocab, order, useLM,
-				mixLambda2/(mixLambda + mixLambda1 +
-							mixLambda2));
+	    useLM = makeMixLM(mixFile2, *vocab, classVocab, order, useLM,
+				mixLambda2,
+				mixLambda + mixLambda1 + mixLambda2);
 	}
 	if (mixFile3) {
-	    useLM = makeMixLM(mixFile3, vocab, classVocab, order, useLM,
-				mixLambda3/(mixLambda + mixLambda1 +
-						mixLambda2 + mixLambda3));
+	    useLM = makeMixLM(mixFile3, *vocab, classVocab, order, useLM,
+				mixLambda3,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3);
 	}
 	if (mixFile4) {
-	    useLM = makeMixLM(mixFile4, vocab, classVocab, order, useLM,
-				mixLambda4/(mixLambda + mixLambda1 +
-					mixLambda2 + mixLambda3 + mixLambda4));
+	    useLM = makeMixLM(mixFile4, *vocab, classVocab, order, useLM,
+				mixLambda4,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4);
 	}
 	if (mixFile5) {
-	    useLM = makeMixLM(mixFile5, vocab, classVocab, order, useLM,
-								mixLambda5);
+	    useLM = makeMixLM(mixFile5, *vocab, classVocab, order, useLM,
+				mixLambda5,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5);
 	}
 	if (mixFile6) {
-	    useLM = makeMixLM(mixFile6, vocab, classVocab, order, useLM,
-								mixLambda6);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda6,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6);
 	}
 	if (mixFile7) {
-	    useLM = makeMixLM(mixFile7, vocab, classVocab, order, useLM,
-								mixLambda7);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda7,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7);
 	}
 	if (mixFile8) {
-	    useLM = makeMixLM(mixFile8, vocab, classVocab, order, useLM,
-								mixLambda8);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda8,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7 + mixLambda8);
 	}
 	if (mixFile9) {
-	    useLM = makeMixLM(mixFile9, vocab, classVocab, order, useLM,
-								mixLambda9);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda9, 1.0);
 	}
     }
 
@@ -686,98 +1143,150 @@ main (int argc, char *argv[])
      * create multiword wrapper around LM so far, if requested
      */
     if (useMultiwordLM) {
-	useLM = new MultiwordLM(vocab, *useLM);
+	useLM = new MultiwordLM((MultiwordVocab &)*vocab, *useLM);
 	assert(useLM != 0);
     } 
 
+    Lattice *lattice2 = 0;
+
+    if (inLattice2) {
+	lattice2 = new Lattice(*vocab);
+	lattice2->debugme(debug);
+
+        File file(inLattice2, "r");
+        if (!(readHTK ? lattice2->readHTK(file, &htkparms, useHTKnulls)
+		      : lattice2->readPFSGs(file)))
+	{
+	    cerr << "error reading second lattice operand\n";
+	    exit(1);
+	}
+    } else {
+	if (operation) {
+	    cerr << "lattice operation needs second lattice\n";
+	    exit(2);
+	}
+    }
+
+    /*
+     * create Ngram count trie
+     */
+    NgramCounts<FloatCount> ngramCounts(*vocab, order);
+
+    RefList reflist(*vocab, refList);
+    if (refList || refFile) {
+	File file1(refList ? refList : refFile, "r"); 
+	reflist.read(file1, true); 	// add ref words to vocabulary
+
+    }
+    if (writeRefs) {
+	File file1(writeRefs, "w");
+	reflist.write(file1);
+    }
+
     if (inLattice) { 
-      if (inLattice2) { 
-	latticeOps(inLattice, inLattice2, outLattice);
-	return 0;
-      } 
-      processLattice(inLattice, outLattice, *useLM, vocab, noiseVocab); 
-      return 0;
+	VocabIndex *refVocabIndex = 0;
+
+	if (refList) {
+	    refVocabIndex = reflist.findRef(idFromFilename(inLattice));
+	} else if (refFile) {
+	    refVocabIndex = reflist.findRefByNumber(0);
+	}
+
+	makeArray(char, fileName,
+		  outLatticeDir ? strlen(outLatticeDir) + 1024
+		                : strlen(LATTICE_NONAME) + 1); 
+	if (!outLattice && outLatticeDir) {
+	    char *sentid = strrchr(inLattice, '/');
+	    if (sentid != NULL) {  
+		sentid += 1;
+	    } else {
+		sentid = inLattice;
+	    }
+
+	    sprintf(fileName, "%s/%.1023s", outLatticeDir, sentid);
+	} else {
+	    // make sure we have some name
+	    strcpy(fileName, LATTICE_NONAME);
+	}
+
+        processLattice(inLattice, outLattice ? outLattice : fileName, lattice2,
+			ngramCounts, *useLM, *vocab, hiddenVocab, dictionary,
+			ignoreVocab, noiseVocab, refVocabIndex);
     } 
 
     if (inLatticeList) {
         if (outLatticeDir) {
-	  if (mkdir(outLatticeDir, 0777) < 0) {
-	    if (errno == EEXIST) {
-	      if (!overwrite) {
-		cerr << "Dir " << outLatticeDir
-		     << " already exists, please give another one\n";
-		exit(1);
-	      }
-	    } else {
-		perror(outLatticeDir);
-		exit(1);
+	    if (MKDIR(outLatticeDir) < 0) {
+		if (errno == EEXIST) {
+		    if (!overwrite) {
+			cerr << "Dir " << outLatticeDir
+			     << " already exists, please give another one\n";
+			exit(2);
+		    }
+		} else {
+		    perror(outLatticeDir);
+		    exit(1);
+		}
 	    }
-	  }
 	}
 	
-	FILE *refFP = 0;
-	if (refFile) {
-	  refFP = fopen(refFile, "r"); 
-	}
-
-	RefList reflist(vocab);
-	if (refList) {
-	  File file1(refList, "r"); 
-	  reflist.read(file1, true); 	// add ref words to vocabulary
-	}
-
 	File listOfFiles(inLatticeList, "r"); 
-	char fileName[maxWordsPerLine]; 
+	makeArray(char, fileName,
+		  outLatticeDir ? strlen(outLatticeDir) + 1024 : 1); 
 	int flag; 
-	char *wholeName = 0; 
 	char buffer[1024]; 
+	unsigned latticeCount = 0;
 	while ((flag = fscanf(listOfFiles, " %1024s", buffer)) == 1) {
 
-	  cerr << "processing file " << buffer << "\n"; 
+	    cerr << "processing file " << buffer << "\n"; 
 
-	  if (wholeName) {
-	    free((char *)wholeName); }
-	  wholeName = strdup(buffer);
-	  assert(wholeName != 0);
-	  
-	  char *sentid = strrchr(wholeName, '/');
-	  if (sentid != NULL) {  
-	    strcpy(wholeName, sentid+1); 
-	  }
+	    char *sentid = strrchr(buffer, '/');
+	    if (sentid != NULL) {  
+	    	sentid += 1;
+	    } else {
+	    	sentid = buffer;
+	    }
 
-	  if (outLatticeDir) {
-	    sprintf(fileName, "%s/%s", outLatticeDir, wholeName);
-	    cerr << "     to be dumped to " << fileName << "\n"; 
-	  } else {
-	    fileName[0] = '\0';
-	  }
+	    if (outLatticeDir) {
+		sprintf(fileName, "%s/%s", outLatticeDir, sentid);
+		cerr << "     to be dumped to " << fileName << "\n"; 
+	    } else {
+		fileName[0] = '\0';
+	    }
 
-	  VocabIndex *refVocabIndex;
-	  if (refList) {
-	    refVocabIndex = reflist.findRef(idFromFilename(wholeName));
+	    VocabIndex *refVocabIndex = 0;
+	    if (refList) {
+		refVocabIndex = reflist.findRef(idFromFilename(buffer));
+	    } else if (refFile) {
+		refVocabIndex = reflist.findRefByNumber(latticeCount);
+	    }
+	    processLattice(buffer, fileName, lattice2, ngramCounts,
+					*useLM, *vocab,
+					hiddenVocab, dictionary,
+					ignoreVocab, noiseVocab, refVocabIndex); 
 
-	  } else if (refFile) {
-	    char refLine[maxWordsPerLine];
-	    fgets(refLine, sizeof(refLine), refFP); 
-	  
-	    if (refLine) {
-	      VocabIndex refIndices[maxWordsPerLine];
-	      VocabString ref[maxWordsPerLine];
-
-	      (void)vocab.parseWords(refLine, ref, maxWordsPerLine);
-	      vocab.addWords(ref, refIndices, maxWordsPerLine);
-
-	      refVocabIndex = &refIndices[0];
-	    } else { continue; }
-	  } else {
-	    refVocabIndex = 0; 
-	  }
-	  processLattice(buffer, fileName, *useLM, vocab, noiseVocab,
-								refVocabIndex); 
+	    latticeCount ++;
 	}
-	if (wholeName) {
-	  free((char *)wholeName); }
     }
+
+    if (writeNgrams) {
+	/*
+	 * prune counts if specified
+	 */
+	if (minCount > 0.0) {
+	    ngramCounts.pruneCounts(minCount);
+	}
+
+	File file(writeNgrams, "w");
+
+	if (debug >= DebugPrintFunctionality) {
+	    cerr << "writing ngram counts to " << writeNgrams << endl;
+	}
+	ngramCounts.write(file, 0, true);
+    }
+
+    delete vocab;
+    delete classVocab;
 
     exit(0);
 }

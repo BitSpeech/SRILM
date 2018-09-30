@@ -3,7 +3,7 @@
 # nbest2pfsg --
 #	convert Decipher N-best list to PFSG lattice
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-nbest-pfsg.gawk,v 1.4 2001/11/10 05:25:39 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-nbest-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	initial = 0;
@@ -35,7 +35,7 @@ function add_word(word, weight) {
 	if (nextnode && !notree) {
 		if (weights[lastnode " " nextnode] != weight) {
 			printf "inconsistent weight for transition %s -> %s\n",\
-				lastnode, nextnode > "/dev/stderr";
+				lastnode, nextnode >> "/dev/stderr";
 			exit 1;
 		}
 
@@ -57,7 +57,7 @@ function end_hyp(weight) {
 	if (nextnode && !notree) {
 		if (weights[lastnode " " nextnode] != weight) {
 			printf "inconsistent final weight for %s\n",\
-						lastnode > "/dev/stderr";
+						lastnode >> "/dev/stderr";
 			exit 1;
 		}
 	} else {

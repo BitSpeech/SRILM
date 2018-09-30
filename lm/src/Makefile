@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.68 2003/02/21 20:20:42 stolcke Exp $
+#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.78 2006/01/09 22:47:54 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -29,6 +29,9 @@ include $(SRILM)/common/Makefile.common.variables
 
 # Flags for generating "compact" data structures
 COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+
+# Flags for generating "short" data structures
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
 
 # Define variables.
 
@@ -72,7 +75,9 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/NullLM.h \
 	$(SRCDIR)/MultiwordLM.h \
 	$(SRCDIR)/BayesMix.h \
+	$(SRCDIR)/LoglinearMix.h \
 	$(SRCDIR)/AdaptiveMix.h \
+	$(SRCDIR)/AdaptiveMarginals.h \
 	$(SRCDIR)/CacheLM.h \
 	$(SRCDIR)/DynamicLM.h \
 	$(SRCDIR)/HMMofNgrams.h \
@@ -84,6 +89,8 @@ EXTERNAL_LIB_HEADERS = \
 	$(TEMPLATE_SOURCES)
 
 INTERNAL_LIB_HEADERS = 
+
+
 
 # Example Library source files.
 LIB_SOURCES = 				\
@@ -104,8 +111,10 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/NBestSet.cc \
 	$(SRCDIR)/NgramLM.cc \
 	$(SRCDIR)/NgramStatsInt.cc \
+	$(SRCDIR)/NgramStatsShort.cc \
 	$(SRCDIR)/NgramStatsFloat.cc \
 	$(SRCDIR)/NgramStatsDouble.cc \
+	$(SRCDIR)/NgramStatsXCount.cc \
 	$(SRCDIR)/Discount.cc \
 	$(SRCDIR)/ClassNgram.cc \
 	$(SRCDIR)/SimpleClassNgram.cc \
@@ -122,7 +131,9 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/StopNgramStats.cc \
 	$(SRCDIR)/MultiwordLM.cc \
 	$(SRCDIR)/BayesMix.cc \
+	$(SRCDIR)/LoglinearMix.cc \
 	$(SRCDIR)/AdaptiveMix.cc \
+	$(SRCDIR)/AdaptiveMarginals.cc \
 	$(SRCDIR)/CacheLM.cc \
 	$(SRCDIR)/DynamicLM.cc \
 	$(SRCDIR)/HMMofNgrams.cc \
@@ -133,40 +144,45 @@ LIB_SOURCES = 				\
 	$(TEMPLATE_SOURCES)
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES)))
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
 
 # Example Library.
-LIBRARY = $(OBJDIR)/liboolm$(LIBSUFFIX).a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)oolm$(LIB_SUFFIX)
 
 ADDITIONAL_INCLUDES += \
 	$(TCL_INCLUDE)
 
 ADDITIONAL_LDFLAGS += \
-	-u $(SYMBOL_PREFIX)matherr
+	$(MATHERR_LINK)
 
-OTHER_LIBRARIES = \
-	-ldstruct \
-	-lmisc
 ADDITIONAL_LIBRARIES += \
-	$(OTHER_LIBRARIES) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)flm$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
 	$(TCL_LIBRARY) \
-	-lm
+	$(MATH_LIBRARY)
 
 # Example programs.
 
 TEST_PROGRAM_NAMES = \
+	testHash \
 	testProb \
+	testXCount \
 	testParseFloat \
-	testVocab  \
-	testTaggedVocab \
 	testVocabDistance \
+	testNgram \
 	hoeffding \
 	tolower \
 	testLattice \
 	testError \
 	testNBest \
 	testMix
+ifeq ($(NO_TCL), )
+TEST_PROGRAM_NAMES += \
+	testTaggedVocab \
+	testVocab 
+endif
 
 REAL_PROGRAM_NAMES = \
 	ngram \
@@ -188,12 +204,12 @@ PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \
 	$(REAL_PROGRAM_NAMES)
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 
 # Libraries to be linked with the Example programs.
@@ -231,7 +247,7 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	$(PROGRAMS)
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^ $(DEMANGLE_FILTER)
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^ $(DEMANGLE_FILTER)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 $(PROGRAMS): $(LIBRARY) $(OTHER_LIBRARIES)
@@ -240,7 +256,7 @@ $(PROGRAMS): $(LIBRARY) $(OTHER_LIBRARIES)
 
 EXPORTED_HEADERS   = $(EXTERNAL_LIB_HEADERS)
 EXPORTED_LIBRARIES = $(LIBRARY)
-EXPORTED_PROGRAMS  = $(REAL_PROGRAM_NAMES:%=$(BINDIR)/%)
+EXPORTED_PROGRAMS  = $(REAL_PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 release:	release-headers release-libraries release-programs
 

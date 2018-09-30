@@ -7,14 +7,15 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/Debug.h,v 1.3 1995/08/12 23:54:52 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/Debug.h,v 1.4 2006/01/05 19:32:42 stolcke Exp $
  *
  */
 
 #ifndef _Debug_h_
 #define _Debug_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include <Boolean.h>
 

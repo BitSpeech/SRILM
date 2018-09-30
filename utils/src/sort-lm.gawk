@@ -6,7 +6,7 @@
 #
 # usage: sort-lm lm-file > sorted-lm-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sort-lm.gawk,v 1.1 2003/02/20 15:17:19 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/sort-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -36,7 +36,7 @@ NF==0 {
 	for (i = 1; i <= currorder; i ++) {
 		sorter = sorter " +" i " -" (i+1);
 	}
-	# print sorter > "/dev/stderr";
+	# print sorter >> "/dev/stderr";
 	next;
 }
 /^\\/ {

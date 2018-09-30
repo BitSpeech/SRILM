@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.25 2002/07/09 15:14:03 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.28 2004/07/13 03:36:10 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -79,6 +79,10 @@ while [ $# -gt 0 ]; do
 		shift; shift ;;
     -no-mesh)	mesh_option= ;
 		shift ;;
+    -wer)	# -wer implies -no-mesh
+		mesh_option= ;
+		options="$options $1"
+		shift ;;
     -filter)	filter_script="$2";
 		shift; shift ;;
     *)		options="$options $1"
@@ -88,11 +92,12 @@ done
 
 > $posteriors
 
-tmp_post=/tmp/post$$
-tmp_sentids=/tmp/sentids$$
-tmp_nbest_dir=/tmp/nbest.dir$$
-tmp_post_dir=/tmp/post.dir$$
-tmp_lat_dir=/tmp/lat.dir$$
+tmpdir=${TMPDIR-/tmp}
+tmp_post=$tmpdir/post$$
+tmp_sentids=$tmpdir/sentids$$
+tmp_nbest_dir=$tmpdir/nbest.dir$$
+tmp_post_dir=$tmpdir/post.dir$$
+tmp_lat_dir=$tmpdir/lat.dir$$
 
 trap "rm -rf $tmp_post $tmp_sentids $tmp_nbest_dir $tmp_post_dir $tmp_lat_dir; exit" 0 1 2 15
 
@@ -212,7 +217,12 @@ nbest-lattice -nbest-files - \
 	$mesh_option \
 	-rescore-lmw 0 -rescore-wtw 0 \
 	-posterior-amw 0 -posterior-lmw 0 -posterior-wtw 0 \
-	-debug 2 $options 2>$tmp_post
+	-debug 2 $options 2>$tmp_post | \
+while read sentid hyp; do
+	# delete tmp nbest lists to avoid huge data accumulation
+	rm -f $tmp_nbest_dir/$sentid
+	echo "$sentid $hyp"
+done
 
 if [ -n "$ref_posteriors" ]; then
 	> $ref_posteriors

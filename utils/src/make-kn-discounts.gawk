@@ -8,7 +8,7 @@
 #	without ngram-count having to read all counts into memory.
 #	The output is compatible with the ngram-count -kn<n> options.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-kn-discounts.gawk,v 1.1 2002/07/17 00:39:45 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-kn-discounts.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 # usage: make-kn-discounts min=<mincount> countfile
 #
@@ -32,7 +32,7 @@ END {
 	countOfCounts[4] == 0) \
     {
 	printf "error: one of required counts of counts is zero\n" \
-	       						> "/dev/stderr";
+	       						>> "/dev/stderr";
 	exit(2);
     }
 

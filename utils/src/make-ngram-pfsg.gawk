@@ -5,7 +5,7 @@
 #
 # usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.26 2003/01/12 19:11:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.28 2004/11/01 22:25:42 stolcke Exp $
 #
 
 #########################################
@@ -19,6 +19,8 @@ BEGIN {
 	start_tag = "<s>";
 	end_tag = "</s>";
 	null = "NULL";
+	version = 0;
+	top_level_name = "";
 
 	if ("pid" in PROCINFO) {
 	    pid = PROCINFO["pid"];
@@ -52,7 +54,7 @@ function output_for_node(name) {
 	num_words = split(name, words);
 
 	if (num_words == 0) {
-	    print "output_for_node: got empty name" > "/dev/stderr";
+	    print "output_for_node: got empty name" >> "/dev/stderr";
 	    exit(1);
 	} else if (words[1] == bo_name) {
 	    return null;
@@ -78,7 +80,7 @@ function node_index(name) {
 
 	    if (debug) {
 		print "node " i " = " name ", output = " node_string[i] \
-				> "/dev/stderr";
+				>> "/dev/stderr";
 	    }
 	}
 	return  i;
@@ -92,17 +94,23 @@ function start_grammar(name) {
 
 function end_grammar(name) {
 	if (!node_exists(start_tag)) {
-		print start_tag " tag undefined in LM" > "/dev/stderr";
+		print start_tag " tag undefined in LM" >> "/dev/stderr";
 		exit(1);
 	} else if (!node_exists(end_tag)) {
-		print end_tag " tag undefined in LM" > "/dev/stderr";
+		print end_tag " tag undefined in LM" >> "/dev/stderr";
 		exit(1);
 	}
 
-	printf "%d pfsg nodes\n", num_nodes > "/dev/stderr";
-	printf "%d pfsg transitions\n", num_trans > "/dev/stderr";
+	printf "%d pfsg nodes\n", num_nodes >> "/dev/stderr";
+	printf "%d pfsg transitions\n", num_trans >> "/dev/stderr";
 
-	print "name " name;
+	# output version id if supplied
+	if (version) {
+		print "version " version "\n";
+	}
+
+	# use optional top-level grammar name if given
+	print "name " (top_level_name ? top_level_name : name);
 	printf "nodes %s", num_nodes;
 	for (i = 0; i < num_nodes; i ++) {
 		printf " %s", node_string[i];
@@ -115,14 +123,14 @@ function end_grammar(name) {
 	fflush();
 
 	if (close(tmpfile) < 0) {
-		print "error closing tmp file" > "/dev/stderr";
+		print "error closing tmp file" >> "/dev/stderr";
 		exit(1);
 	}
 	system("/bin/cat " tmpfile);
 }
 
 function add_trans(from, to, prob) {
-#print "add_trans " from " -> " to " " prob > "/dev/stderr";
+#print "add_trans " from " -> " to " " prob >> "/dev/stderr";
 	num_trans ++;
 	print node_index(from), node_index(to), scale_log(prob) > tmpfile;
 }
@@ -266,7 +274,7 @@ currorder <= order {
 	if (last_word == start_tag) {
 	    if (currorder > 1) {
 		printf "warning: ignoring ngram into start tag %s -> %s\n", \
-			    ngram_prefix, last_word > "/dev/stderr";
+			    ngram_prefix, last_word >> "/dev/stderr";
 	    }
 	} else {
 	    # insert N-gram transition to maximal suffix of target context
@@ -303,7 +311,7 @@ currorder <= order {
 		    probs[ngram_suffix] + bows[ngram_prefix] - prob > epsilon)
 		{
 		    printf "warning: ngram loses to backoff %s -> %s\n", \
-			    ngram_prefix, last_word > "/dev/stderr";
+			    ngram_prefix, last_word >> "/dev/stderr";
 		}
 	    }
 	}

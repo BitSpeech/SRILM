@@ -5,13 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.cc,v 1.57 2003/02/19 07:38:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.cc,v 1.118 2006/01/16 19:34:15 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
@@ -20,21 +19,17 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.cc
 
 #include "SArray.cc"
 #include "LHash.cc"
-#include "Map2.cc"
 #include "Array.cc"
 #include "WordAlign.h"                  /* for *_COST constants */
+#include "NBest.h"			/* for phoneSeparator defn */
 
-#ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_MAP2(NodeIndex, VocabContext, NodeIndex);
-#endif
+const char *LATTICE_OR		= "or";
+const char *LATTICE_CONCATE	= "concatenate";
+const char *LATTICE_NONAME	= "***NONAME***";
 
-/*
- * If the intlog weights of two transitions differ by no more than this
- * they are considered identical in PackedNodeList::packNodes().
- */
-#define PACK_TOLERANCE			0
+const char *NullNodeName	= "NULL";
 
-#define DebugPrintFatalMessages         1 
+#define DebugPrintFatalMessages         0 
 
 #define DebugPrintFunctionality         1 
 // for large functionality listed in options of the program
@@ -50,7 +45,7 @@ INSTANTIATE_SARRAY(NodeIndex,LatticeTransition);
 INSTANTIATE_LHASH(NodeIndex,LatticeTransition);
 #endif
 INSTANTIATE_LHASH(NodeIndex,LatticeNode);
-INSTANTIATE_LHASH(VocabIndex,PackedNode);
+INSTANTIATE_ARRAY(HTKWordInfo *);
 #endif
 
 /* **************************************************
@@ -67,7 +62,7 @@ NodeQueue::~NodeQueue()
 NodeIndex NodeQueue::popNodeQueue()
 {
     if (is_empty() == true) {
-        cerr << "popNodeQueue() on an empty queue\n";
+        dout() << "popNodeQueue() on an empty queue\n";
         exit(-1); 
     }
 
@@ -84,7 +79,7 @@ NodeIndex NodeQueue::popNodeQueue()
 QueueItem * NodeQueue::popQueueItem()
 {
     if (is_empty() == true) {
-        cerr << "popQueueItem() on an empty queue\n";
+        dout() << "popQueueItem() on an empty queue\n";
         exit(-1); 
     }
 
@@ -166,10 +161,148 @@ QueueItem::QueueItem(NodeIndex nodeIndex, unsigned clevel, LogP cweight)
 
 
 /* ************************************************************
+   function definitions for class LatticeFollowIter
+   ************************************************************ */
+
+LatticeFollowIter::LatticeFollowIter(Lattice &lat, LatticeNode &node,
+				     LHash<NodeIndex, LogP> *useVisitedNodes,
+				     LogP startWeight)
+    : lat(lat), transIter(node.outTransitions), subFollowIter(0),
+      visitedNodes(useVisitedNodes), startWeight(startWeight)
+{
+    /*
+     * Use shared visitedNodes table if passed from our recursive invoker,
+     * otherwise create our own.
+     */
+    if (useVisitedNodes == 0) {
+	visitedNodes = new LHash<NodeIndex, LogP>;
+	assert(visitedNodes != 0);
+
+	freeVisitedNodes = true;
+    } else {
+	freeVisitedNodes = false;
+    }
+}
+
+LatticeFollowIter::~LatticeFollowIter()
+{
+    delete subFollowIter;
+
+    if (freeVisitedNodes) {
+	delete visitedNodes;
+    }
+}
+
+void
+LatticeFollowIter::init()
+{
+    /* 
+     * terminate recursive iteration, if any
+     */
+    delete subFollowIter;
+    subFollowIter = 0;
+
+    /*
+     * restart top-level iteration
+     */
+    transIter.init();
+
+    /*
+     * forget visited nodes 
+     */
+    if (freeVisitedNodes) {
+	delete visitedNodes;
+	visitedNodes = new LHash<NodeIndex, LogP>;
+	assert(visitedNodes != 0);
+    }
+}
+
+LatticeNode *
+LatticeFollowIter::next(NodeIndex &followIndex, LogP &weight)
+{
+    LatticeNode *followNode;
+
+    /*
+     * if a recursive iteration is pending, continue it
+     */
+    if (subFollowIter != 0) {
+	followNode = subFollowIter->next(followIndex, weight);
+
+	if (followNode) {
+	    return followNode;
+	} else {
+	    delete subFollowIter;
+	    subFollowIter = 0;
+	}
+    }
+	    
+    /*
+     * otherwise proceed with the next transition at this node
+     */
+    LatticeTransition *trans;
+    Boolean visitedBefore;
+
+    do {
+	/*
+	 * find next follow node that hasn't already been visited
+	 */
+	do {
+	    trans = transIter.next(followIndex);
+
+	    if (trans == 0) break;
+
+	    /* record that node has been visited */
+	    LogP *oldWeight = visitedNodes->insert(followIndex, visitedBefore);
+
+	    /* if previous visit had lower weight, visit again */
+	    if (visitedBefore && *oldWeight < startWeight + trans->weight) {
+		visitedBefore = false;
+	    }
+		    
+	    if (!visitedBefore) {
+		/* record weight for this visit for future reference */
+		*oldWeight = startWeight + trans->weight;
+	    }
+	} while (visitedBefore);
+
+	if (trans == 0) {
+	    /* no more transitions to follow, so stop */
+	    break;
+	} else {
+	    LatticeNode *followNode = lat.findNode(followIndex);
+	    assert(followNode != 0);
+
+	    if (!lat.ignoreWord(followNode->word)) {
+		weight = startWeight + trans->weight;
+		return followNode;
+	    } else {
+		/*
+		 * recursively iterate over following nodes, sharing
+		 * visitedNodes table to avoid double visits and infinite loops.
+		 */
+		subFollowIter =
+		    new LatticeFollowIter(lat, *followNode, visitedNodes,
+					  startWeight + trans->weight);
+		assert(subFollowIter != 0);
+
+		LatticeNode *result = subFollowIter->next(followIndex, weight);
+		if (result) {
+		    return result;
+		}
+	    }
+	}
+    } while (1);
+
+    /* end of iteration reached */
+    return 0;
+}
+
+
+/* ************************************************************
    function definitions for class LatticeNode
    ************************************************************ */
 LatticeNode::LatticeNode()
-    : word(Vocab_None), posterior(LogP_Zero)
+    : flags(0), word(Vocab_None), posterior(LogP_Zero), htkinfo(0)
 {
 }
 
@@ -182,21 +315,33 @@ LatticeNode::LatticeNode()
    ************************************************************ */
 
 Lattice::Lattice(Vocab &vocab, const char *name)
-    : name(strdup(name)), vocab(vocab)
+    : name(strdup(name != 0 ? name : LATTICE_NONAME)),
+      initial(NoNode), final(NoNode), maxIndex(0),
+      duration(0.0), vocab(vocab), ignoreVocab(vocab),
+      useUnk(false), limitIntlogs(false), noBackoffWeights(false), top(true)
 {
-    assert(name != 0);
-
-    initial = 0;
-    final = 0;
-    top = 1; 
-
     /*
-     * To create a legal lattice, create single node that is both initial
-     * and final.
+     * Default is to ignore pause nodes (only)
      */
-    nodes.insert(0)->word = Vocab_None;
+    if (vocab.pauseIndex() != Vocab_None) {
+	ignoreVocab.addWord(vocab.pauseIndex());
+    }
+}
 
-    maxIndex = 0; 
+Lattice::Lattice(Vocab &vocab, const char *name, SubVocab &ignore)
+    : name(strdup(name != 0 ? name : LATTICE_NONAME)),
+      initial(NoNode), final(NoNode), maxIndex(0),
+      duration(0.0), vocab(vocab), ignoreVocab(vocab),
+      useUnk(false), limitIntlogs(false), noBackoffWeights(false), top(true)
+{
+    /*
+     * Copy words-to-be-ignored locally
+     */
+    VocabIter ignoreIter(ignore);
+    VocabIndex ignoreWord;
+    while (ignoreIter.next(ignoreWord)) {
+	ignoreVocab.addWord(ignoreWord);
+    }
 }
 
 Lattice::~Lattice()
@@ -210,6 +355,20 @@ Lattice::~Lattice()
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
 	node->~LatticeNode();
     }
+
+    for (unsigned i = 0; i < htkinfos.size(); i ++) {
+	delete htkinfos[i];
+    }
+}
+
+VocabString
+Lattice::getWord(VocabIndex word)
+{
+    if (word == Vocab_None) {
+	return NullNodeName;
+    } else {
+	return vocab.getWord(word);
+    }
 }
 
 /* To insert a node with name *word in the NodeLattice */
@@ -218,8 +377,10 @@ Lattice::insertNode(const char *word, NodeIndex nodeIndex)
 {
     VocabIndex windex;
 
-    if (strcmp(word, "NULL") == 0) {
+    if (strcmp(word, NullNodeName) == 0) {
 	windex = Vocab_None;
+    } else if (useUnk) {
+	windex = vocab.getIndex(word, vocab.unkIndex());
     } else {
 	windex = vocab.addWord(word);
     }
@@ -227,22 +388,25 @@ Lattice::insertNode(const char *word, NodeIndex nodeIndex)
     LatticeNode *node = nodes.insert(nodeIndex);
 
     node->word = windex;
+
+    if (maxIndex <= nodeIndex) {
+	maxIndex = nodeIndex + 1;
+    }
+
     return true; 
-    
 }
 
-/* To duplicate a node with a same word name without making 
+/* duplicate a node with a same word name without making 
    any commitment on edges
-   
    */
-NodeIndex Lattice::dupNode(VocabIndex windex, unsigned markedFlag) 
+NodeIndex
+Lattice::dupNode(VocabIndex windex, unsigned markedFlag, HTKWordInfo *htkinfo) 
 {
-
     LatticeNode *node = nodes.insert(maxIndex);
 
     node->word = windex;
-
     node->flags = markedFlag; 
+    node->htkinfo = htkinfo;
 
     return maxIndex++; 
 }
@@ -250,7 +414,6 @@ NodeIndex Lattice::dupNode(VocabIndex windex, unsigned markedFlag)
 /* remove the node and all of its edges (incoming and outgoing)
    and check to see whether it makes the graph disconnected
 */
-
 Boolean 
 Lattice::removeNode(NodeIndex nodeIndex) 
 {
@@ -292,32 +455,55 @@ Lattice::removeNode(NodeIndex nodeIndex)
     }
 
     removedNode->~LatticeNode();
+
+    if (nodeIndex == initial) {
+	initial = NoNode;
+    } 
+    if (nodeIndex == final) {
+	final = NoNode;
+    } 
     
     return true;
+}
+
+void
+Lattice::removeAll()
+{
+    LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
+    NodeIndex nodeIndex;
+
+    // remove all nodes
+    // (this also removes all transitions)
+    while (nodeIter.next(nodeIndex)) {
+	removeNode(nodeIndex);
+    }
+
+    maxIndex = 0;
 }
 
 // try to find a transition between the two given nodes.
 // return 0, if there is no transition.
 // return 1, if there is a transition.
-Boolean 
+LatticeTransition *
 Lattice::findTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex)
 {
     LatticeNode *toNode = nodes.find(toNodeIndex); 
     if (!toNode) {
       // the end node does not exist.
-      return false;
+      return 0;
     }
 
     LatticeNode *fromNode = nodes.find(fromNodeIndex);
     if (!fromNode) {
       // the begin node does not exist.
-      return false;
+      return 0;
     }
 
-    LatticeTransition * trans = toNode->inTransitions.find(fromNodeIndex); 
+    LatticeTransition *trans = toNode->inTransitions.find(fromNodeIndex); 
+
     if (!trans) {
       // the transition does not exist.
-      return false;
+      return 0;
     }
 
 #ifdef DEBUG
@@ -328,11 +514,11 @@ Lattice::findTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex)
 	dout() << "nonFatal error in Lattice::findTrans: asymmetric transition."
 	       << endl;
       }
-      return false;
+      return 0;
     }
 #endif
 
-    return true;
+    return trans;
 }
 
 
@@ -445,7 +631,7 @@ Lattice::removeTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex)
         if (debug(DebugPrintOutLoop)) {
 	  dout() << "nonFatal error in Lattice::removeTrans:\n" 
 		 << "   undefined source node in transition " 
-		 << (fromNodeIndex, toNodeIndex) << endl;
+		 << "(" << fromNodeIndex << ", " << toNodeIndex << ")\n";
 	}
 	return false;
     }
@@ -583,64 +769,85 @@ Lattice::clearMarkOnAllTrans(unsigned flag) {
     }
 }
 
-void
-Lattice::clearMarkOnNulls() {
-    LHashIter<NodeIndex, LatticeNode> nullNodeIter(nullNodes);
-    NodeIndex nodeIndex;
-    while (LatticeNode *node = nullNodeIter.next(nodeIndex)) {
-      node->flags = 0;
-    }
-}
-
-Boolean
-Lattice::markNodeNulls(NodeIndex nodeIndex, unsigned flag) {
-    LatticeNode * node = nullNodes.find(nodeIndex); 
-    if (!node) {
-        if (debug(DebugPrintOutLoop)) {
-	  dout() << "nonFatal Error in Lattice::markNodeNulls: "
-		 << nodeIndex << " is not a Null node\n";
-	}
-	return false;
-    }
-    node->flags = flag;
-    return true;
-}
-
-Boolean 
-Lattice::getFlagOfNull(NodeIndex nodeIndex, unsigned flag) {
-    LatticeNode * node = nullNodes.find(nodeIndex); 
-    if (!node) {
-        if (debug(DebugPrintOutLoop)) {
-	  dout() << "nonFatal Error in Lattice::getFlagOfNull: "
-		 << nodeIndex << " is not a Null node\n";
-	}
-	return false;
-    }
-    return (node->flags & flag);
-}
-
 // compute 'or' operation on two input lattices
 // using implantLattice, 
 // assume that the initial state of this lattice is empty.
 
 Boolean
-Lattice::latticeOr(Lattice *lat1, Lattice *lat2)
+Lattice::latticeOr(Lattice &lat1, Lattice &lat2)
 {
     initial = 1;
     final = 0;
 
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::latticeOr: doing OR operation\n"; 
-	     
+    if (debug(DebugPrintFunctionality)) {
+	dout() << "Lattice::latticeOr: doing OR on "
+	       << lat1.getName() << " and " << lat2.getName() << "\n"; 
     }
+
+    // if name is default, inherit if from the input lattice
+    if (strcmp(name, LATTICE_NONAME) == 0) {
+	free((void *)name);
+	name = strdup(lat1.name);
+	assert(name != 0);
+    }
+    // inherit HTK header info from first lattice
+    htkheader = lat1.htkheader;
 
     LatticeNode *newNode = nodes.insert(0);
     newNode->word = Vocab_None;
     newNode->flags = 0;
 
+    // get initial time as the minimum of the start times of the two lattices
+    LatticeNode *initialNode1 = lat1.findNode(lat1.initial);
+    LatticeNode *initialNode2 = lat2.findNode(lat2.initial);
+    if (initialNode1->htkinfo != 0 &&
+	initialNode1->htkinfo->time != HTK_undef_float ||
+        initialNode2->htkinfo != 0 &&
+	initialNode2->htkinfo->time != HTK_undef_float)
+    {
+	HTKWordInfo *linkinfo = new HTKWordInfo;
+	assert(linkinfo != 0);
+	newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+
+	if (initialNode1->htkinfo == 0 ||
+	    initialNode1->htkinfo->time == HTK_undef_float ||
+	    (initialNode2->htkinfo != 0 &&
+	     initialNode2->htkinfo->time != HTK_undef_float &&
+	     initialNode1->htkinfo->time > initialNode2->htkinfo->time))
+	{
+	    linkinfo->time = initialNode2->htkinfo->time;
+	} else {
+	    linkinfo->time = initialNode1->htkinfo->time;
+	} 
+    }
+
     newNode = nodes.insert(1);
     newNode->word = Vocab_None;
     newNode->flags = 0;
+
+    // get final time as the maximum of the end times of the two lattices
+    LatticeNode *finalNode1 = lat1.findNode(lat1.final);
+    LatticeNode *finalNode2 = lat2.findNode(lat2.final);
+    if (finalNode1->htkinfo != 0 &&
+	finalNode1->htkinfo->time != HTK_undef_float ||
+        finalNode2->htkinfo != 0 &&
+	finalNode2->htkinfo->time != HTK_undef_float)
+    {
+	HTKWordInfo *linkinfo = new HTKWordInfo;
+	assert(linkinfo != 0);
+	newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+
+	if (finalNode1->htkinfo == 0 ||
+	    finalNode1->htkinfo->time == HTK_undef_float ||
+	    (finalNode2->htkinfo != 0 &&
+	     finalNode2->htkinfo->time != HTK_undef_float &&
+	     finalNode1->htkinfo->time < finalNode2->htkinfo->time))
+	{
+	    linkinfo->time = finalNode2->htkinfo->time;
+	} else {
+	    linkinfo->time = finalNode1->htkinfo->time;
+	} 
+    }
 
     newNode = nodes.insert(2);
     newNode->word = Vocab_None;
@@ -658,54 +865,172 @@ Lattice::latticeOr(Lattice *lat1, Lattice *lat2)
     insertTrans(2, 0, t);
     insertTrans(3, 0, t);
     
-    if (!(implantLattice(2, lat1))) { return false; }
+    if (!(implantLattice(2, lat1))) return false;
+    if (!(implantLattice(3, lat2))) return false;
 
-    if (!(implantLattice(3, lat2))) { return false; }
+    limitIntlogs = lat1.limitIntlogs || lat2.limitIntlogs;
 
     return true;
-
 }
 
 Boolean
-Lattice::latticeCat(Lattice *lat1, Lattice *lat2)
+Lattice::latticeCat(Lattice &lat1, Lattice &lat2, float interSegmentTime)
 {
     initial = 1;
     final = 0;
 
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::latticeCat: doing CONCATENATE operation\n"; 
-	     
+    if (debug(DebugPrintFunctionality)) {
+	dout() << "Lattice::latticeCat: doing CONCATENATE on "
+	       << lat1.getName() << " and " << lat2.getName() << "\n"; 
+    } 
+
+    // if name is default, inherit if from the input lattice
+    if (strcmp(name, LATTICE_NONAME) == 0) {
+	free((void *)name);
+	name = strdup(lat1.name);
+	assert(name != 0);
+    }
+    // inherit HTK header info from first lattice
+    htkheader = lat1.htkheader;
+
+    LatticeNode *newNode = nodes.insert(1);
+    newNode->word = Vocab_None;
+    newNode->flags = 0;
+
+    // get initial time from first lattice
+    LatticeNode *initialNode1 = lat1.findNode(lat1.initial);
+    if (initialNode1->htkinfo != 0 &&
+	initialNode1->htkinfo->time != HTK_undef_float)
+    {
+	HTKWordInfo *linkinfo = new HTKWordInfo;
+	assert(linkinfo != 0);
+	newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+
+	linkinfo->time = initialNode1->htkinfo->time;
     }
 
-    LatticeNode *newNode = nodes.insert(0);
+    // get final time from first lattice
+    float finalTime1 = 0.0;
+    LatticeNode *finalNode1 = lat1.findNode(lat1.final);
+    if (finalNode1->htkinfo != 0 &&
+	finalNode1->htkinfo->time != HTK_undef_float)
+    {
+	finalTime1 = finalNode1->htkinfo->time;
+    }
+
+    newNode = nodes.insert(0);
     newNode->word = Vocab_None;
     newNode->flags = 0;
 
-    newNode = nodes.insert(1);
-    newNode->word = Vocab_None;
-    newNode->flags = 0;
+    // get final time from second lattice
+    LatticeNode *finalNode2 = lat2.findNode(lat2.final);
+    if (finalNode2->htkinfo != 0 &&
+	finalNode2->htkinfo->time != HTK_undef_float)
+    {
+	HTKWordInfo *linkinfo = new HTKWordInfo;
+	assert(linkinfo != 0);
+	newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
 
-    newNode = nodes.insert(2);
-    newNode->word = Vocab_None;
-    newNode->flags = 0;
+	// add interSegmentTime and final time, which are zero if no times were found
+	linkinfo->time = finalNode2->htkinfo->time + interSegmentTime + finalTime1;
+    }
 
-    newNode = nodes.insert(3);
-    newNode->word = Vocab_None;
-    newNode->flags = 0;
+    if (interSegmentTime != 0.0) {
+	newNode = nodes.insert(2);
+	newNode->word = Vocab_None;
+	newNode->flags = 0;
+	
+	newNode = nodes.insert(3);
+	newNode->word = vocab.pauseIndex();
+	HTKWordInfo *linkinfo = new HTKWordInfo;
+	assert(linkinfo != 0);
+	newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+	linkinfo->time = finalTime1;
+	{
+	    makeArray(char, pause, strlen(phoneSeparator)*2 + 12);
+	    sprintf(pause,"%s-,%.2f%s",
+		      phoneSeparator, interSegmentTime, phoneSeparator);
+	    linkinfo->div = strdup(pause);
+	}
+	newNode->flags = 0;
 
-    maxIndex = 4;
+	newNode = nodes.insert(4);
+	newNode->word = Vocab_None;
+	newNode->flags = 0;
+	
+	maxIndex = 5;
 
-    LatticeTransition t(0, 0);;
-    insertTrans(1, 2, t);
-    insertTrans(2, 3, t);
-    insertTrans(3, 0, t);
-    
-    if (!(implantLattice(2, lat1))) { return false; }
+	LatticeTransition t(0, 0);;
+	insertTrans(1, 2, t);
+	insertTrans(2, 3, t);
+	insertTrans(3, 4, t);
+	insertTrans(4, 0, t);
+	
+	if (!(implantLattice(2, lat1))) return false;
+	
+	if (!(implantLattice(4, lat2, finalTime1+interSegmentTime)))
+	    return false;
+    } else {
+	newNode = nodes.insert(2);
+	newNode->word = Vocab_None;
+	newNode->flags = 0;
+	
+	newNode = nodes.insert(3);
+	newNode->word = Vocab_None;
+	newNode->flags = 0;
+	
+	maxIndex = 4;
 
-    if (!(implantLattice(3, lat2))) { return false; }
+	LatticeTransition t(0, 0);;
+	insertTrans(1, 2, t);
+	insertTrans(2, 3, t);
+	insertTrans(3, 0, t);
+	
+	if (!(implantLattice(2, lat1, finalTime1))) return false;
+	if (!(implantLattice(3, lat2, finalTime1))) return false;
+    }
+
+    limitIntlogs = lat1.limitIntlogs || lat2.limitIntlogs;
 
     return true;
+}
 
+// add a string of words to the lattice
+// (similar to MultiAlign::addWords())
+void
+Lattice::addWords(const VocabIndex *words, Prob prob, Boolean addPauses)
+{
+    NodeIndex lastNode = initial;
+    LatticeTransition trans(ProbToLogP(prob), 0);
+
+    for (unsigned i = 0; words[i] != Vocab_None; i ++) {
+	NodeIndex wordNode = dupNode(words[i], 0);
+
+	insertTrans(lastNode, wordNode, trans);
+
+	if (addPauses) {
+	    NodeIndex pauseNode = dupNode(vocab.pauseIndex(), 0);
+
+	    insertTrans(lastNode, pauseNode, trans);
+
+	    trans.weight = LogP_One;
+	    insertTrans(pauseNode, wordNode, trans);
+	}
+
+	trans.weight = LogP_One;
+	lastNode = wordNode;
+    }
+
+    insertTrans(lastNode, final, trans);
+
+    if (addPauses) {
+	NodeIndex pauseNode = dupNode(vocab.pauseIndex(), 0);
+
+	insertTrans(lastNode, pauseNode, trans);
+
+	trans.weight = LogP_One;
+	insertTrans(pauseNode, final, trans);
+    }
 }
 
 // reading in recursively defined PFSGs
@@ -721,15 +1046,15 @@ Lattice::readRecPFSGs(File &file)
 
     NodeQueue nodeQueue; 
 
-    // Vocab locaVocab;
-    readPFSG(file); 
+    if (!readPFSG(file)) {
+      return false;
+    }
 
     while (fgetc(file) != EOF) {
       fseek(file, -1, SEEK_CUR); 
 
       Lattice *lat = new Lattice(vocab); 
-      Boolean succ = lat->readPFSG(file);
-      if (!succ) {
+      if (!lat->readPFSG(file)) {
 	if (debug(DebugPrintFunctionality)) {
 	  dout()  << "Lattice::readRecPFSGs: "
 		  << "failed in reading in dag PFSGs.\n";
@@ -739,8 +1064,7 @@ Lattice::readRecPFSGs(File &file)
 	return false; 
       }
       
-      char * subPFSGName = strdup(lat->getName()); 
-      VocabIndex word = vocab.addWord(subPFSGName);
+      VocabIndex word = vocab.addWord(lat->getName());
       Lattice **pt = subPFSGs.insert(word);
       *pt = lat; 
 
@@ -756,8 +1080,7 @@ Lattice::readRecPFSGs(File &file)
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
       // for non-terminal node, i.e., sub-PFSGs, get its non
       // recursive equivalent PFSG.
-      dout() << "Processing node (" << node->word
-	     << ")\n";
+      dout() << "Processing node (" << getWord(node->word) << ")\n";
       Lattice ** pt = subPFSGs.find(node->word);
       if (!pt) {
 	// terminal node
@@ -781,14 +1104,14 @@ Lattice::readRecPFSGs(File &file)
       
       if (debug(DebugPrintOutLoop)) {
 	dout() << "Lattice::readRecPFSGs: processing subPFSG (" 
-	       << nodeIndex << ", " << vocab.getWord(node->word) << ")\n";
+	       << nodeIndex << ", " << getWord(node->word) << ")\n";
       }
 
-      Lattice * lat = getNonRecPFSG(node->word);
+      Lattice *lat = getNonRecPFSG(node->word);
       if (!lat) {
 	continue; 
       }
-      implantLattice(nodeIndex, lat);
+      implantLattice(nodeIndex, *lat);
 
       dout() << "Lattice::readRecPFSGs: maxIndex (" 
 	     << maxIndex << ")\n";
@@ -812,7 +1135,7 @@ Lattice::getNonRecPFSG(VocabIndex nodeVocab)
 
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::getNonRecPFSG: processing subPFSG (" 
-	     << vocab.getWord(nodeVocab) << ")\n";
+	     << getWord(nodeVocab) << ")\n";
     }
 
     NodeQueue nodeQueue; 
@@ -845,40 +1168,58 @@ Lattice::getNonRecPFSG(VocabIndex nodeVocab)
 
       if (debug(DebugPrintOutLoop)) {
 	dout() << "Lattice::getNonRecPFSG: processing subPFSG (" 
-	       << nodeIndex << ", " << vocab.getWord(node->word) << ")\n";
+	       << nodeIndex << ", " << getWord(node->word) << ")\n";
       }
 
-      Lattice * lat = getNonRecPFSG(node->word);
+      Lattice *lat = getNonRecPFSG(node->word);
       if (!lat) {
 	continue;
       }
-      subPFSG->implantLattice(nodeIndex, lat);
+      subPFSG->implantLattice(nodeIndex, *lat);
     }
 
     return subPFSG; 
 }
 
-// substitute the current occurence of lat->word in subPFSG with
+// substitute the current occurence of lat.word in subPFSG with
 // lat
 Boolean
-Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice *lat)
+Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice &lat, float addTime)
 {
 
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::implantLattice: processing subPFSG (" 
-	     << lat->getName() << ", " << vtmNodeIndex << ")\n";
+	     << lat.getName() << ", " << vtmNodeIndex
+	     << ", times offset by " << addTime <<" seconds)\n";
     }
 
     // going through lat to duplicate all its nodes in the current lattice
-    LHashIter<NodeIndex, LatticeNode> nodeIter(lat->nodes, nodeSort);
+    LHashIter<NodeIndex, LatticeNode> nodeIter(lat.nodes, nodeSort);
     NodeIndex nodeIndex;
 
     while (LatticeNode *node = nodeIter.next(nodeIndex)) { 
-      // make one copy of the subPFSG' nodes in this current PFSG
+        // make one copy of the subPFSG' nodes in this current PFSG
 	LatticeNode *newNode = nodes.insert(maxIndex+nodeIndex);
 	newNode->flags = node->flags; 
-	VocabString wn = lat->vocab.getWord(node->word);
-	newNode->word = vocab.addWord(wn);
+	if (node->word == Vocab_None) {
+	    newNode->word = Vocab_None;
+	} else {
+	    // this is necessary because the two lattices might use
+	    // different vocabularies
+	    VocabString wn = lat.vocab.getWord(node->word);
+	    newNode->word = vocab.addWord(wn);
+	}
+
+	// copy HTKWordInfo information
+	if (node->htkinfo) {
+	    HTKWordInfo *linkinfo = new HTKWordInfo;
+	    assert(linkinfo != 0);
+	    newNode->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+
+	    *linkinfo = *node->htkinfo;
+	    linkinfo->word = newNode->word;	// see above
+	    linkinfo->time = linkinfo->time + addTime;
+	}
 
 	// clone transition
 	{ // for incoming nodes
@@ -899,14 +1240,14 @@ Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice *lat)
 	}
     }
 
-    NodeIndex subInitial = lat->getInitial();
+    NodeIndex subInitial = lat.getInitial();
     LatticeNode * initialNode;
     if (!(initialNode = 
           nodes.find(maxIndex+subInitial))) {
         // check initial node
         if (debug(DebugPrintFatalMessages)) {
           dout()  << "Fatal Error in Lattice::implantLattice: (" 
-		  << lat->getName() 
+		  << lat.getName() 
                   << ") undefined initial node Index ("
 		  << subInitial << ")\n";
         }
@@ -915,14 +1256,14 @@ Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice *lat)
       initialNode->word = Vocab_None;
     }
 
-    NodeIndex subFinal = lat->getFinal();
+    NodeIndex subFinal = lat.getFinal();
     LatticeNode *finalNode; 
     if (!(finalNode = 
           nodes.find(maxIndex+subFinal))) {
         // only check the last final node
         if (debug(DebugPrintFatalMessages)) {
           dout()  << "Fatal Error in Lattice::implantLattice: (" 
-		  << lat->getName() 
+		  << lat.getName() 
                   << ") undefined initial node Index ("
 		  << subFinal << ")\n";
         } 
@@ -938,8 +1279,8 @@ Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice *lat)
 	// processing incoming and outgoing nodes of node vtmNodeIndex;
 	LatticeNode * node = nodes.find(vtmNodeIndex);
 
-	NodeIndex subInitial = maxIndex+lat->getInitial();
-	NodeIndex subFinal = maxIndex+lat->getFinal();
+	NodeIndex subInitial = maxIndex+lat.getInitial();
+	NodeIndex subFinal = maxIndex+lat.getFinal();
 	{
 	  TRANSITER_T<NodeIndex,LatticeTransition> 
 	    transIter(node->inTransitions);
@@ -962,27 +1303,27 @@ Lattice::implantLattice(NodeIndex vtmNodeIndex, Lattice *lat)
     }
 
     removeNode(vtmNodeIndex);
-    maxIndex += lat->getMaxIndex();
+    maxIndex += lat.getMaxIndex();
 
     return true; 
 }
 
-// substitute all the occurences of lat->word in subPFSG with
+// substitute all the occurences of lat.word in subPFSG with
 // lat
 Boolean
-Lattice::implantLatticeXCopies(Lattice *lat)
+Lattice::implantLatticeXCopies(Lattice &lat)
 {
 
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::implantLatticeXCopies: processing subPFSG (" 
-	     << lat->getName() << ")\n";
+	     << lat.getName() << ")\n";
     }
 
     unsigned numCopies = 0;
     {
       LHashIter<NodeIndex, LatticeNode> nodeIter(nodes, nodeSort);
       NodeIndex nodeIndex;
-      VocabIndex subPFSGWord = vocab.getIndex(lat->getName());
+      VocabIndex subPFSGWord = vocab.getIndex(lat.getName());
       while (LatticeNode *node = nodeIter.next(nodeIndex)) { 
 	if (node->word == subPFSGWord) {
 	  numCopies++;
@@ -990,9 +1331,9 @@ Lattice::implantLatticeXCopies(Lattice *lat)
       }  
     }
 
-    // need to check whether numNodes is the same as lat->maxIndex
-    unsigned numNodes = lat->getNumNodes(); 
-    LHashIter<NodeIndex, LatticeNode> nodeIter(lat->nodes, nodeSort);
+    // need to check whether numNodes is the same as lat.maxIndex
+    unsigned numNodes = lat.getNumNodes(); 
+    LHashIter<NodeIndex, LatticeNode> nodeIter(lat.nodes, nodeSort);
     NodeIndex nodeIndex;
 
     while (LatticeNode *node = nodeIter.next(nodeIndex)) { 
@@ -1023,27 +1364,27 @@ Lattice::implantLatticeXCopies(Lattice *lat)
       }
     }
 
-    NodeIndex subInitial = lat->getInitial();
+    NodeIndex subInitial = lat.getInitial();
     LatticeNode * initialNode;
     if (!(initialNode = 
           nodes.find(subInitial+maxIndex+(numCopies-1)*numNodes))) {
         // only check the last initial node
         if (debug(DebugPrintFatalMessages)) {
           dout()  << "Fatal Error in Lattice::implantLatticeXCopies: (" 
-		  << lat->getName() 
+		  << lat.getName() 
                   << ") undefined initial node Index\n";
         }
         exit(-1); 
     }
 
-    NodeIndex subFinal = lat->getFinal();
+    NodeIndex subFinal = lat.getFinal();
     LatticeNode *finalNode; 
     if (!(finalNode = 
           nodes.find(subFinal+maxIndex+(numCopies-1)*numNodes))) {
         // only check the last final node
         if (debug(DebugPrintFatalMessages)) {
           dout()  << "Fatal Error in Lattice::implantLatticeXCopies: "
-		  << lat->getName() 
+		  << lat.getName() 
                   << "undefined final node Index\n";
         }
         exit(-1); 
@@ -1055,7 +1396,7 @@ Lattice::implantLatticeXCopies(Lattice *lat)
       unsigned k = 0;
       LHashIter<NodeIndex, LatticeNode> nodeIter(nodes, nodeSort);
       NodeIndex nodeIndex, fromNodeIndex, toNodeIndex;
-      VocabIndex subPFSGWord = vocab.getIndex(lat->getName());
+      VocabIndex subPFSGWord = vocab.getIndex(lat.getName());
       for (nodeIndex = 0; nodeIndex< maxIndex; nodeIndex++) {
 	
 	LatticeNode * node = nodes.find(nodeIndex); 
@@ -1063,9 +1404,9 @@ Lattice::implantLatticeXCopies(Lattice *lat)
 	  // processing incoming and outgoing nodes of node
 
 	  NodeIndex subInitial = 
-	    lat->getInitial()+maxIndex+(numCopies-1)*numNodes;
+	    lat.getInitial()+maxIndex+(numCopies-1)*numNodes;
 	  NodeIndex subFinal = 
-	    lat->getFinal()+maxIndex+(numCopies-1)*numNodes;
+	    lat.getFinal()+maxIndex+(numCopies-1)*numNodes;
 	  {
 	  TRANSITER_T<NodeIndex,LatticeTransition> 
 	    transIter(node->inTransitions);
@@ -1093,7 +1434,7 @@ Lattice::implantLatticeXCopies(Lattice *lat)
       } // end of going through the existing lattices
     }
 
-    maxIndex += numCopies* (lat->getMaxIndex());
+    maxIndex += numCopies * lat.getMaxIndex();
 
     return true; 
 }
@@ -1105,17 +1446,18 @@ Lattice::readPFSGs(File &file)
     dout()  << "Lattice::readPFSGs: reading in nested PFSGs...\n"; 
   }
 
+  removeAll();
+
   char buffer[1024];
-  char * subName = 0;
+  char *subName = 0;
 
   // usually, it is the main PFSG
-  readPFSG(file);
+  if (!readPFSG(file)) {
+    return false;
+  }
 
   while (fscanf(file, " name %1024s", buffer) == 1) {
 
-    // name is the current PFSG name
-    if (subName) {
-      free((void *)subName); }
     subName = strdup(buffer);
     assert(subName != 0);
 
@@ -1139,7 +1481,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "missing nodes in sub-PFSG of the PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
     
     
@@ -1150,19 +1492,17 @@ Lattice::readPFSGs(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSGs: "
 		      << "missing node " << n << " name\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	/*
 	 * Map word string to VocabIndex
 	 */
 	VocabIndex windex;
-	if (strcmp(buffer, "NULL") == 0) {
+	if (strcmp(buffer, NullNodeName) == 0) {
 	    windex = Vocab_None;
-
-	    LatticeNode *nullNode = nullNodes.insert(n+maxIndex); 
-	    nullNode->flags = 0; 
-
+	} else if (useUnk) {
+	    windex = vocab.getIndex(buffer, vocab.unkIndex());
 	} else {
 	    windex = vocab.addWord(buffer);
 	}
@@ -1181,7 +1521,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "missing initial node Index in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     LatticeNode * initialNode;
@@ -1192,7 +1532,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "undefined initial node Index\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     unsigned finalNodeIndex;
@@ -1201,7 +1541,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "missing final node Index in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     LatticeNode *finalNode; 
@@ -1212,7 +1552,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "undefined final node Index\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     // reading in all the transitions for the current subPFSG
@@ -1222,7 +1562,7 @@ Lattice::readPFSGs(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSGs: "
 		  << "missing transitions in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
     
     for (unsigned i = 0; i < numTransitions; i ++) {
@@ -1234,7 +1574,7 @@ Lattice::readPFSGs(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSGs: "
 		      << "missing transition " << i << " in PFSG file\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	for (unsigned k = 0; k < copies; k++) {
@@ -1248,7 +1588,7 @@ Lattice::readPFSGs(File &file)
 	      << copies << " copies of sub pfsg (" << subName << ")\n";
     }
 
-    // going through all the nodes to flaten the current PFSG
+    // going through all the nodes to flatten the current PFSG
     VocabIndex windex = vocab.addWord(subName);
     unsigned k = 0;            // number of copies consumed
     initialNodeIndex += maxIndex;
@@ -1330,13 +1670,17 @@ Lattice::readPFSGs(File &file)
 
 	if (debug(DebugPrintInnerLoop)) {
 	  dout()  << "Lattice::readPFSGs: done with "
-		  << "single flatening (" << subName << ")\n"; 
+		  << "single flattening (" << subName << ")\n"; 
 	}
 
       } // end of single flatening
     } // end of flatening loop
 
     maxIndex += copies*numNodes;
+
+    if (subName) {
+      free(subName);
+    }
   }
 
   return true;
@@ -1346,22 +1690,42 @@ Lattice::readPFSGs(File &file)
 Boolean
 Lattice::readPFSG(File &file)
 {
-    char buffer[1024];
+    removeAll();
 
     if (debug(DebugPrintOutLoop)) {
         dout() << "Lattice::readPFSG: reading in PFSG....\n"; 
     }
+
+    char buffer[1024];
 
     if (fscanf(file, " name %1024s", buffer) != 1) {
         if (debug(DebugPrintFatalMessages)) {
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "missing name in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     if (name) {
-      free((void *)name); }
+	free((void *)name);
+    }
+
+    /*
+     * try to parse duration from name string,
+     * and strip it from name if present
+     */
+    {
+	char *pos = strchr(buffer, '(');
+	double value;
+
+	if (pos != 0 && sscanf(pos, "(duration=%lf)", &value) == 1) {
+	    duration = value;
+	    *pos = '\0';
+	} else {
+	    duration = 0.0;
+	}
+    }
+
     name = strdup(buffer);
     assert(name != 0);
 
@@ -1372,7 +1736,7 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "missing nodes in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     maxIndex = numNodes; 
@@ -1385,19 +1749,17 @@ Lattice::readPFSG(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSG: "
 		      << "missing node " << n << " name\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	/*
 	 * Map word string to VocabIndex
 	 */
 	VocabIndex windex;
-	if (strcmp(buffer, "NULL") == 0) {
+	if (strcmp(buffer, NullNodeName) == 0) {
 	    windex = Vocab_None;
-
-	    LatticeNode *nullNode = nullNodes.insert(n); 
-	    nullNode->flags = 0; 
-
+	} else if (useUnk) {
+	    windex = vocab.getIndex(buffer, vocab.unkIndex());
 	} else {
 	    windex = vocab.addWord(buffer);
 	}
@@ -1414,7 +1776,7 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "missing initial node Index in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     LatticeNode * initialNode;
@@ -1423,7 +1785,7 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "undefined initial node Index\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     initial = initialNodeIndex;
@@ -1434,7 +1796,7 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "missing final node Index in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     LatticeNode *finalNode; 
@@ -1443,20 +1805,15 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "undefined final node Index\n";
 	}
-	exit(-1); 
+	return false;
     }
 
     final = finalNodeIndex;
 
-    // the definitions for ssIndex and seIndex are located in
-    // class Vocab of file /home/srilm/devel/lm/src/Vocab.h
     if (top) {
-      initialNode->word = vocab.ssIndex; 
-      finalNode->word = vocab.seIndex; 
-      nullNodes.remove(initialNodeIndex); 
-      nullNodes.remove(finalNodeIndex); 
-
-      top = 0;
+      initialNode->word = vocab.ssIndex(); 
+      finalNode->word = vocab.seIndex(); 
+      top = false;
     }
 
     unsigned numTransitions;
@@ -1465,7 +1822,7 @@ Lattice::readPFSG(File &file)
 	  dout()  << "Fatal Error in Lattice::readPFSG: "
 		  << "missing transitions in PFSG file\n";
 	}
-	exit(-1); 
+	return false;
     }
     
     for (unsigned i = 0; i < numTransitions; i ++) {
@@ -1477,7 +1834,7 @@ Lattice::readPFSG(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSG: "
 		      << "missing transition " << i << " in PFSG file\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	LatticeNode *fromNode = nodes.find(from);
@@ -1486,7 +1843,7 @@ Lattice::readPFSG(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSG: "
 		      << "undefined source node in transition " << i << "\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	LatticeNode *toNode = nodes.find(to);
@@ -1495,7 +1852,7 @@ Lattice::readPFSG(File &file)
 	      dout()  << "Fatal Error in Lattice::readPFSG: "
 		      << "undefined target node in transition " << i << "\n";
 	    }
-	    exit(-1); 
+	    return false;
 	}
 
 	LogP weight = IntlogToLogP(prob);
@@ -1512,9 +1869,92 @@ Lattice::readPFSG(File &file)
     return true;
 }
 
-#ifdef INSTANTIATE_TEMPLATES
-INSTANTIATE_SARRAY(NodeIndex,unsigned);
-#endif
+Boolean
+Lattice::readMesh(File &file) {
+    WordMesh inputMesh(vocab);
+
+    Boolean status = inputMesh.read(file);
+
+    if (!status) {
+	  return status;
+    }
+
+    // set the weight of the score we insert to 1
+    htkheader.x1scale = 1.0;
+
+    NodeIndex fromNodeIndex = getInitial();
+
+    Boolean haveSentStart = false;
+    Boolean haveSentEnd = false;
+
+    for (unsigned i = 0; i < inputMesh.length(); i ++) {
+	// insert NULL node as destination for the following words
+	// in this alignment column
+	NodeIndex toNodeIndex = getMaxIndex();
+	insertNode(NullNodeName, toNodeIndex);
+
+	LHash<VocabIndex,Prob> *words = inputMesh.wordColumn(i);
+	LHashIter<VocabIndex,Prob> wordsIter(*words);
+
+	Prob *prob;
+	VocabIndex word;
+
+	while (prob = wordsIter.next(word)) {
+	    // insert a HTK lattice link (which is a node between two NULL
+	    // nodes) for each word in this alignment column,
+	    // also put the log of the posterior prob in xscore1
+	    NodeIndex newNode = getMaxIndex();
+
+	    // replace the *DELETE* word with NULL node
+	    if (word == inputMesh.deleteIndex) {
+		insertNode(NullNodeName, newNode);
+	    } else {
+		insertNode(vocab.getWord(word), newNode);
+	    }
+
+	    if (word == vocab.ssIndex()) {
+		haveSentStart = true;
+	    }
+	    if (word == vocab.seIndex()) {
+		haveSentEnd = true;
+	    }
+
+	    LatticeNode *node = findNode(newNode);
+	    assert(node != 0);
+
+	    HTKWordInfo *linkinfo = new HTKWordInfo;
+	    assert(linkinfo != 0);
+	    node->htkinfo = htkinfos[htkinfos.size()] = linkinfo;
+
+	    node->htkinfo->xscore1 = ProbToLogP(*prob);
+	    LatticeTransition inTrans(ProbToLogP(*prob), 0);
+	    LatticeTransition outTrans(LogP_One, 0);
+	    insertTrans(fromNodeIndex, newNode, inTrans);
+	    insertTrans(newNode, toNodeIndex, outTrans);
+	}
+
+	// the next column of words will follow this column
+	fromNodeIndex = toNodeIndex;
+    }
+
+    // make last node the final one
+    setFinal(fromNodeIndex);
+
+    // provide sentence start/end tags if not found in lattice
+    if (!haveSentStart) {
+	LatticeNode *node = findNode(initial);
+	assert(node != 0);
+	node->word = vocab.ssIndex();
+    }
+    if (!haveSentEnd) {
+	LatticeNode *node = findNode(final);
+	assert(node != 0);
+	node->word = vocab.seIndex();
+    }
+
+    return true;
+}
+
 Boolean
 Lattice::writeCompactPFSG(File &file)
 {
@@ -1522,7 +1962,11 @@ Lattice::writeCompactPFSG(File &file)
       dout()  << "Lattice::writeCompactPFSG: writing ";
     }
 
-    fprintf(file, "name %s\n", name);
+    if (duration != 0.0) {
+	fprintf(file, "name %s(duration=%lg)\n", name, duration);
+    } else {
+	fprintf(file, "name %s\n", name);
+    }
 	
     /*
      * We remap the internal node indices to consecutive unsigned integers
@@ -1532,7 +1976,7 @@ Lattice::writeCompactPFSG(File &file)
      */
 
     // map nodeIndex to unsigned
-    SArray<NodeIndex,unsigned> nodeMap;
+    LHash<NodeIndex,unsigned> nodeMap;
     unsigned numNodes = 0;
     unsigned numTransitions = 0;
 
@@ -1545,55 +1989,45 @@ Lattice::writeCompactPFSG(File &file)
 	*nodeMap.insert(nodeIndex) = numNodes ++;
 	numTransitions += node->outTransitions.numEntries();
 
-	VocabString nodeName = "NULL";
-
-	if (nodeIndex != initial &&
-	    nodeIndex != final &&
-	    node->word != Vocab_None) 
-	{
-	    nodeName = vocab.getWord(node->word);
-	}
-	fprintf(file, " %s", nodeName);
+	fprintf(file, " %s", (nodeIndex == initial || nodeIndex == final) ?
+				NullNodeName : getWord(node->word));
     }
 
     fprintf(file, "\n");
 
-    fprintf(file, "initial %u\n", *nodeMap.find(initial));
-    fprintf(file, "final %u\n", *nodeMap.find(final));
+    if (initial != NoNode) {
+	fprintf(file, "initial %u\n", *nodeMap.find(initial));
+    }
+    if (final != NoNode) {
+	fprintf(file, "final %u\n", *nodeMap.find(final));
+    }
 
     fprintf(file, "transitions %u\n", numTransitions);
 
     if (debug(DebugPrintFunctionality)) {
-      dout()  << getNumNodes() << " nodes, "
+      dout()  << numNodes << " nodes, "
 	      << numTransitions << " transitions\n";
     }
 
     nodeIter.init(); 
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+        unsigned *fromNodeId = nodeMap.find(nodeIndex);
+
  	NodeIndex toNode;
 
 	TRANSITER_T<NodeIndex,LatticeTransition>
 	  transIter(node->outTransitions);
 	while (LatticeTransition *trans = transIter.next(toNode)) {
 	    unsigned int *toNodeId = nodeMap.find(toNode); 
-	    if (! (toNodeId)) {
-	        if (debug(DebugPrintInnerLoop)) {
-		  dout() << "nonFatal Error in Lattice::writeCompactPFSG: "
-			 << "node Map problem" << toNode <<"\n";
-		}
-		continue;
-	    }
+	    assert(toNodeId != 0);
 
 	    int logToPrint = LogPtoIntlog(trans->weight);
 
-	    if (logToPrint < minIntlog) {
+	    if (limitIntlogs && logToPrint < minIntlog) {
 		logToPrint = minIntlog;
 	    }
 
-	    fprintf(file, "%u %u %d\n",
-			*nodeMap.find(nodeIndex),
-			*toNodeId, 
-			logToPrint);
+	    fprintf(file, "%u %u %d\n", *fromNodeId, *toNodeId, logToPrint);
 	}
     }
 
@@ -1609,7 +2043,11 @@ Lattice::writePFSG(File &file)
       dout()  << "Lattice::writePFSG: writing ";
     }
 
-    fprintf(file, "name %s\n", name);
+    if (duration != 0.0) {
+	fprintf(file, "name %s(duration=%lg)\n", name, duration);
+    } else {
+	fprintf(file, "name %s\n", name);
+    }
 	
     NodeIndex nodeIndex;
 
@@ -1624,21 +2062,19 @@ Lattice::writePFSG(File &file)
 	   numTransitions += node->outTransitions.numEntries();
 	}
 
-	VocabString nodeName = "NULL";
-
-	if (nodeIndex != initial &&
-	    nodeIndex != final &&
-	    node && node->word != Vocab_None) 
-	{
-	    nodeName = vocab.getWord(node->word);
-	}
-	fprintf(file, " %s", nodeName);
+	fprintf(file, " %s",
+		(nodeIndex == initial || nodeIndex == final || node == 0) ?
+				NullNodeName : getWord(node->word));
     }
 
     fprintf(file, "\n");
 
-    fprintf(file, "initial %u\n", initial);
-    fprintf(file, "final %u\n", final);
+    if (initial != NoNode) {
+	fprintf(file, "initial %u\n", initial);
+    }
+    if (final != NoNode) {
+	fprintf(file, "final %u\n", final);
+    }
 
     fprintf(file, "transitions %u\n", numTransitions);
 
@@ -1656,7 +2092,7 @@ Lattice::writePFSG(File &file)
 	while (LatticeTransition *trans = transIter.next(toNode)) {
 	    int logToPrint = LogPtoIntlog(trans->weight);
 
-	    if (logToPrint < minIntlog) {
+	    if (limitIntlogs && logToPrint < minIntlog) {
 		logToPrint = minIntlog;
 	    }
 
@@ -1699,11 +2135,8 @@ Lattice::printNodeIndexNamePair(File &file)
     LHashIter<NodeIndex, LatticeNode> nodeIter(nodes, nodeSort);
     NodeIndex nodeIndex;
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
-
-        VocabString nodeName =
-		(node->word == Vocab_None) ? "NULL" :
-					vocab.getWord(node->word);
-	fprintf(file, "%d %s (%d)\n", nodeIndex, nodeName, node->word);
+	fprintf(file, "%d %s (%d)\n", nodeIndex,
+					getWord(node->word), node->word);
     }
 
     return true;
@@ -1793,10 +2226,8 @@ Boolean
 Lattice::removeAllXNodes(VocabIndex xWord)
 {
     if (debug(DebugPrintFunctionality)) {
-      VocabString nodeName =
-	(xWord == Vocab_None) ? "NULL" : vocab.getWord(xWord);
       dout() << "Lattice::removeAllXNodes: "
-	     << "removing all " << nodeName << endl;
+	     << "removing all " << getWord(xWord) << endl;
     }
 
     LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
@@ -1812,12 +2243,6 @@ Lattice::removeAllXNodes(VocabIndex xWord)
 	  continue; 
       }
 
-      // testing 
-      // VocabString nodeName =
-      // (node->word == Vocab_None) ? "NULL" : vocab.getWord(node->word);
-      // dout() << " Word name " << nodeName << "(" << node->word << ")\n";
-      // end of testing
-      
       if (node->word == xWord) {
 	// this node is a Null node
 	if (debug(DebugPrintInnerLoop)) {
@@ -1869,7 +2294,7 @@ Lattice::removeAllXNodes(VocabIndex xWord)
 
 	    unsigned flag = 0;
 	    // record where pause nodes were eliminated
-	    if (xWord != Vocab_None && xWord == vocab.pauseIndex) {
+	    if (xWord != Vocab_None && xWord == vocab.pauseIndex()) {
 		flag = pauseTFlag;
 	    }
 
@@ -1900,7 +2325,7 @@ Lattice::removeAllXNodes(VocabIndex xWord)
 }
 
 Boolean
-Lattice::recoverPause(NodeIndex nodeIndex, Boolean loop)
+Lattice::recoverPause(NodeIndex nodeIndex, Boolean loop, Boolean all)
 {
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::recoverPause: " 
@@ -1913,23 +2338,29 @@ Lattice::recoverPause(NodeIndex nodeIndex, Boolean loop)
 
     // going throught all the successive nodes of the current node (nodeIndex)
     LatticeNode *node = findNode(nodeIndex); 
+
+    // see if we want to insert a pause after this word unconditionally
+    Boolean alwaysInsertPause = all && !ignoreWord(node->word);
+
     TRANSITER_T<NodeIndex,LatticeTransition> 
       outTransIter(node->outTransitions);
     NodeIndex toNodeIndex; 
     while (LatticeTransition *trans = outTransIter.next(toNodeIndex)) {
       // processing nodes at the next level 
-      LatticeNode * toNode = findNode(toNodeIndex); 
+      LatticeNode *toNode = findNode(toNodeIndex); 
+      LogP weight = trans->weight; 
+      Boolean direct = trans->getFlag(directTFlag); 
 
+      // if we're inserting pauses everywhere OR
       // if the current edge is a pause edge. insert a pause node
       // and its two edges.
-      if (trans->getFlag(pauseTFlag)) {
-	LatticeNode * toNode = findNode(toNodeIndex); 
-
-	NodeIndex newNodeIndex = dupNode(vocab.pauseIndex, 0); 
+      if (alwaysInsertPause && toNode->word != vocab.pauseIndex() ||
+	  trans->getFlag(pauseTFlag)) {
+	NodeIndex newNodeIndex = dupNode(vocab.pauseIndex(), 0); 
 	LatticeNode *newNode = findNode(newNodeIndex); 
 	LatticeTransition *newTrans = newTransitions.insert(newNodeIndex); 
 	newTrans->flags = 0; 
-	newTrans->weight = trans->weight; 
+	newTrans->weight = weight; 
 
 	LatticeTransition t(unit(), 0);
 	insertTrans(newNodeIndex, toNodeIndex, t);
@@ -1938,7 +2369,7 @@ Lattice::recoverPause(NodeIndex nodeIndex, Boolean loop)
 	  insertTrans(newNodeIndex, newNodeIndex, t);
 	}
 	
-	if (!trans->getFlag(directTFlag)) {
+	if (!alwaysInsertPause && !direct) {
 	  removeTrans(nodeIndex, toNodeIndex); 
 	}
       }
@@ -1960,14 +2391,16 @@ Lattice::recoverPause(NodeIndex nodeIndex, Boolean loop)
    recover the pauses that have been removed.
    ******************************************************** */
 Boolean
-Lattice::recoverPauses(Boolean loop)
+Lattice::recoverPauses(Boolean loop, Boolean all)
 {
     if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::recoverPauses: recovering pauses\n";
+	dout() << "Lattice::recoverPauses: "
+	       << (all ? "inserting" : "recovering") << " pauses\n";
     }
 
     unsigned numNodes = getNumNodes();
-    NodeIndex sortedNodes[numNodes];
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
     unsigned numReachable = sortNodes(sortedNodes);
 
     if (numReachable != numNodes) {
@@ -1977,14 +2410,15 @@ Lattice::recoverPauses(Boolean loop)
     }
 
     for (unsigned i = 0; i < numReachable; i ++) {
-	recoverPause(sortedNodes[i], loop);
+	recoverPause(sortedNodes[i], loop, all);
     }
 
+    delete [] sortedNodes;
     return true; 
 }
 
 Boolean
-Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop)
+Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop, Boolean all)
 {
     unsigned firstPauTrans = 1;
 
@@ -1998,6 +2432,10 @@ Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop)
 
     // going through all the successive nodes of the current node (nodeIndex)
     LatticeNode *node = findNode(nodeIndex); 
+
+    // see if we want to insert a pause after this word unconditionally
+    Boolean alwaysInsertPause = all && !ignoreWord(node->word);
+
     TRANSITER_T<NodeIndex,LatticeTransition> 
       outTransIter(node->outTransitions);
     NodeIndex toNodeIndex; 
@@ -2008,24 +2446,25 @@ Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop)
 	       << "  the toNode index " << toNodeIndex << "\n";
       }
 
-      LatticeNode * toNode = findNode(toNodeIndex);
+      LatticeNode *toNode = findNode(toNodeIndex);
       LogP weight = trans->weight; 
       Boolean direct = trans->getFlag(directTFlag); 
 
+      // if we're inserting pauses everywhere, OR
       // if the current edge is a pause edge. insert a pause node
       // and its two edges.
-      if (trans->getFlag(pauseTFlag)) {
+      if (alwaysInsertPause && toNode->word != vocab.pauseIndex() ||
+	  trans->getFlag(pauseTFlag))
+      {
 	if (debug(DebugPrintInnerLoop)) {
 	  dout() << "Lattice::recoverCompactPause: "
 		 << "inserting pause node between ("
 		 << nodeIndex << ", " << toNodeIndex << ")\n"; 
 	}
 
-	LatticeNode * toNode = findNode(toNodeIndex); 
-	
 	if (firstPauTrans) { 
 	  firstPauTrans = 0; 
-	  newNodeIndex = dupNode(vocab.pauseIndex, 0); 
+	  newNodeIndex = dupNode(vocab.pauseIndex(), 0); 
 	  if (debug(DebugPrintInnerLoop)) {
 	    dout() << "Lattice::recoverCompactPause: "
 		   << "new node index ("
@@ -2036,7 +2475,7 @@ Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop)
 	LatticeTransition t(weight, 0);
 	insertTrans(newNodeIndex, toNodeIndex, t);
 	
-	if (!direct) {
+	if (!alwaysInsertPause && !direct) {
 	  removeTrans(nodeIndex, toNodeIndex); 
 	}
       }
@@ -2062,14 +2501,16 @@ Lattice::recoverCompactPause(NodeIndex nodeIndex, Boolean loop)
 /* this is to recover compact pauses in lattice
  */
 Boolean
-Lattice::recoverCompactPauses(Boolean loop)
+Lattice::recoverCompactPauses(Boolean loop, Boolean all)
 {
     if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::recoverCompactPauses: recovering Compact Pauses\n";
+      dout() << "Lattice::recoverCompactPauses: "
+	     << (all ? "inserting" : "recovering") << " compact pauses\n";
     }
 
     unsigned numNodes = getNumNodes();
-    NodeIndex sortedNodes[numNodes];
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
     unsigned numReachable = sortNodes(sortedNodes);
 
     if (numReachable != numNodes) {
@@ -2079,1161 +2520,11 @@ Lattice::recoverCompactPauses(Boolean loop)
     }
 
     for (unsigned i = 0; i < numReachable; i ++) {
-	recoverCompactPause(sortedNodes[i], loop);
+	recoverCompactPause(sortedNodes[i], loop, all);
     }
 
+    delete [] sortedNodes;
     return true; 
-}
-
-
-/* **************************************************************
-   minimization of lattices
-   **************************************************************
-   */
-
-/*
- * Compare two transition lists for equality
- */
-static Boolean
-compareTransitions(const TRANS_T<NodeIndex,LatticeTransition> &transList1,
-		   const TRANS_T<NodeIndex,LatticeTransition> &transList2)
-{
-    if (transList1.numEntries() != transList2.numEntries()) {
-	return false;
-    }
-
-#ifdef USE_SARRAY
-    // SArray already sorts indices internally
-    TRANSITER_T<NodeIndex,LatticeTransition> transIter1(transList1);
-    TRANSITER_T<NodeIndex,LatticeTransition> transIter2(transList2);
-
-    NodeIndex node1, node2;
-    while (transIter1.next(node1)) {
-	if (!transIter2.next(node2) || node1 != node2) {
-	    return false;
-	}
-    }
-#else
-    // assume random access is efficient
-    TRANSITER_T<NodeIndex,LatticeTransition> transIter1(transList1);
-    NodeIndex node1;
-    while (transIter1.next(node1)) {
-	if (!transList2.find(node1)) {
-	    return false;
-	}
-    }
-#endif
-
-    return true;
-}
-
-/*
- * Merge two nodes 
- */
-void
-Lattice::mergeNodes(NodeIndex nodeIndex1, NodeIndex nodeIndex2,
-			LatticeNode *node1, LatticeNode *node2, Boolean maxAdd)
-{
-    if (nodeIndex1 == nodeIndex2) {
-	return;
-    }
-
-    if (node1 == 0) node1 = findNode(nodeIndex1);
-    if (node2 == 0) node2 = findNode(nodeIndex2);
-
-    assert(node1 != 0 && node2 != 0);
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeName1 =
-	(node1->word == Vocab_None) ? "NULL" : getWord(node1->word);
-      VocabString nodeName2 =
-	(node2->word == Vocab_None) ? "NULL" : getWord(node2->word);
-      dout() << "Lattice::mergeNodes: "
-	     << "      i.e., (" << nodeName1 << ", " << nodeName2 << ")\n";
-    }
-
-    // add the incoming trans of nodeIndex2 to nodeIndex1
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      inTransIter2(node2->inTransitions);
-    NodeIndex fromNodeIndex;
-    while (LatticeTransition *trans = inTransIter2.next(fromNodeIndex)) {
-      insertTrans(fromNodeIndex, nodeIndex1, *trans, maxAdd);
-    }
-
-    // add the outgoing trans of nodeIndex2 to nodeIndex1
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      outTransIter2(node2->outTransitions);
-    NodeIndex toNodeIndex;
-    while (LatticeTransition *trans = outTransIter2.next(toNodeIndex)) {
-      insertTrans(nodeIndex1, toNodeIndex, *trans, maxAdd);
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::mergeNodes: "
-	     << "(" << nodeIndex2 << ") has been removed\n";
-    }
-    // delete this redudant node.
-    removeNode(nodeIndex2); 
-}
-
-/*
- * Try merging successors of nodeIndex
- */
-void
-Lattice::packNodeF(NodeIndex nodeIndex, Boolean maxAdd)
-{
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::packNodeF: "
-	     << "processing (" << nodeIndex << ") ***********\n"; 
-    }
-
-    LatticeNode *node = findNode(nodeIndex); 
-    // skip nodes that have already beend deleted
-    if (!node) {
-      return;
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeName =
-	(node->word == Vocab_None) ? "NULL" : getWord(node->word);
-      dout() << "Lattice::packNodeF: "
-	     << "      i.e., (" << nodeName << ")\n";
-    }
-
-    unsigned numTransitions = node->outTransitions.numEntries();
-    NodeIndex nodeList[numTransitions]; 
-    VocabIndex wordList[numTransitions];
-    
-    // going in a forward direction
-    // collect all the out-nodes of nodeIndex, because we need to 
-    // be able to delete transitions while iterating over them later
-    // Also, store the words on each node to allow quick equality checks
-    // without findNode() later.  Note we cannot save the findNode() result
-    // itself since node objects may more around as a result of deletions.
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      outTransIter(node->outTransitions);
-    unsigned position = 0; 
-    NodeIndex toNodeIndex;
-    while (outTransIter.next(toNodeIndex)) {
-	wordList[position] = findNode(toNodeIndex)->word;
-	nodeList[position] = toNodeIndex; 
-	position ++;
-    }
-
-    // do a pair-wise comparison for all the successor nodes.
-    for (unsigned i = 0; i < numTransitions; i ++) {
-	// check if node has been merged
-	if (Map_noKeyP(nodeList[i])) continue;
-
-	for (unsigned j = i + 1; j < numTransitions; j ++) {
-	    LatticeNode *nodeI, *nodeJ;
-
-	    if (!Map_noKeyP(nodeList[j]) &&
-		wordList[i] == wordList[j] &&
-		(nodeI = findNode(nodeList[i]),
-		 nodeJ = findNode(nodeList[j]),
-		 compareTransitions(nodeI->inTransitions,
-				    nodeJ->inTransitions)))
-	    {
-		mergeNodes(nodeList[i], nodeList[j], nodeI, nodeJ, maxAdd);
-
-		// mark node j as merged for check above
-		Map_noKey(nodeList[j]);
-	    }
-	}
-    }
-}
-
-/*
- * Try merging predecessors of nodeIndex
- */
-void
-Lattice::packNodeB(NodeIndex nodeIndex, Boolean maxAdd)
-{
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::packNodeB: "
-	     << "processing (" << nodeIndex << ") ***********\n"; 
-    }
-
-    LatticeNode *node = findNode(nodeIndex); 
-    // skip nodes that have already beend deleted
-    if (!node) {
-      return;
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeName =
-	(node->word == Vocab_None) ? "NULL" : getWord(node->word);
-      dout() << "Lattice::packNodeB: "
-	     << "      i.e., (" << nodeName << ")\n";
-    }
-
-    unsigned numTransitions = node->inTransitions.numEntries();
-    NodeIndex nodeList[numTransitions]; 
-    VocabIndex wordList[numTransitions];
-    
-    // going in a reverse direction
-    // collect all the in-nodes of nodeIndex, because we need to 
-    // be able to delete transitions while iterating over them
-    // Also, store the words on each node to allow quick equality checks
-    // without findNode() later.  Note we cannot save the findNode() result
-    // itself since node objects may more around as a result of deletions.
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      inTransIter(node->inTransitions);
-    unsigned position = 0; 
-    NodeIndex fromNodeIndex;
-    while (inTransIter.next(fromNodeIndex)) {
-	wordList[position] = findNode(fromNodeIndex)->word;
-	nodeList[position] = fromNodeIndex; 
-	position ++;
-    }
-
-    // do a pair-wise comparison for all the predecessor nodes.
-    for (unsigned i = 0; i < numTransitions; i ++) {
-	// check if node has been merged
-	if (Map_noKeyP(nodeList[i])) continue;
-
-	for (unsigned j = i + 1; j < numTransitions; j ++) {
-	    LatticeNode *nodeI, *nodeJ;
-
-	    if (!Map_noKeyP(nodeList[j]) &&
-	 	wordList[i] == wordList[j] &&
-		(nodeI = findNode(nodeList[i]),
-		 nodeJ = findNode(nodeList[j]),
-		 compareTransitions(nodeI->outTransitions,
-				    nodeJ->outTransitions)))
-	    {
-		mergeNodes(nodeList[i], nodeList[j], nodeI, nodeJ, maxAdd);
-
-		// mark node j as merged for check above
-		Map_noKey(nodeList[j]);
-	    }
-	}
-    }
-}
-
-/* ******************************************************** 
-
-   A straight forward implementation for packing bigram lattices.
-   combine nodes when their incoming or outgoing node sets are the
-   same.
-
-   ******************************************************** */
-Boolean 
-Lattice::simplePackBigramLattice(unsigned iters, Boolean maxAdd)
-{
-    // keep track of number of node to know when to stop iteration
-    unsigned numNodes = getNumNodes();
-
-    Boolean onlyOne = false;
-
-    if (iters == 0) {
-	iters = 1;
-	onlyOne = true; // do only one backward pass
-    }
-	
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::simplePackBigramLattice: "
-	     << "starting packing...."
-	     << " (" << numNodes  << " nodes)\n";
-    }
-
-    while (iters-- > 0) { 
-      NodeIndex sortedNodes[numNodes];
-      unsigned numReachable = sortNodes(sortedNodes, true);
-
-      if (numReachable != numNodes) {
-	dout() << "Lattice::simplePackBigramLattice: "
-	       << "warning: there are " << (numNodes - numReachable)
-	       << " unreachable nodes\n";
-      }
-
-      for (unsigned i = 0; i < numReachable; i ++) {
-	packNodeB(sortedNodes[i], maxAdd);
-      }
-
-      unsigned newNumNodes = getNumNodes();
-      
-      // finish the Backward reduction
-      if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::simplePackBigramLattice: "
-	       << "done with B Reduction"
-	       << " (" << newNumNodes  << " nodes)\n";
-      }
-
-      if (onlyOne) {
-	break;
-      }
-
-      // now sort into forward topological order
-      numReachable = sortNodes(sortedNodes, false);
-
-      if (numReachable != newNumNodes) {
-	dout() << "Lattice::simplePackBigramLattice: "
-	       << "warning: there are " << (newNumNodes - numReachable)
-	       << " unreachable nodes\n";
-      }
-
-      for (unsigned i = 0; i < numReachable; i ++) {
-	packNodeF(sortedNodes[i], maxAdd);
-      }
-
-      newNumNodes = getNumNodes();
-
-      if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::simplePackBigramLattice: "
-	       << "done with F Reduction"
-	       << " (" << newNumNodes  << " nodes)\n";
-      }
-      // finish one F-B iteration
-
-      // check that lattices got smaller -- if not, stop
-      if (newNumNodes == numNodes) {
-	break;
-      }
-      numNodes = newNumNodes;
-    }
-
-    return true; 
-}
-
-/* ********************************************************
-   this procedure tries to compare two nodes to see whether their
-   outgoing node sets overlap more than x.
-   ******************************************************** */
-
-Boolean 
-Lattice::approxMatchInTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			     int overlap)
-{
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxMatchInTrans: "
-	     << "try to match (" << nodeIndexI
-	     << ", " << nodeIndexJ << ") with overlap "
-	     << overlap << "\n"; 
-    }
-
-    LatticeNode * nodeI = findNode(nodeIndexI); 
-    LatticeNode * nodeJ = findNode(nodeIndexJ); 
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeNameI =
-	(nodeI->word == Vocab_None) ? "NULL" : getWord(nodeI->word);
-      VocabString nodeNameJ =
-	(nodeJ->word == Vocab_None) ? "NULL" : getWord(nodeJ->word);
-      dout() << "Lattice::approxMatchInTrans: "
-	     << "      i.e., (" << nodeNameI << ", " << nodeNameJ << ")\n";
-    }
-
-    unsigned numInTransI = nodeI->inTransitions.numEntries();
-    unsigned numInTransJ = nodeJ->inTransitions.numEntries();
-    unsigned minIJ = ( numInTransI > numInTransJ ) ? 
-      numInTransJ : numInTransI;
-
-    if (overlap > minIJ) return false;
-
-    unsigned nonOverlap = minIJ-overlap; 
-
-    NodeIndex toNodeIndex, fromNodeIndex;
-
-    if (debug(DebugPrintInnerLoop)) {
-      dout() << "Lattice::approxMatchInTrans: "
-	     << "number of transitions (" 
-	     << numInTransI << ", " << numInTransJ << ")\n";
-    }
-
-    // **********************************************************************
-    // preventing self loop generation
-    // **********************************************************************
-
-    if (nodeI->inTransitions.find(nodeIndexJ)) {
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxMatchInTrans: "
-	       << " preventing potential selfloop (" << nodeIndexJ
-	       << ", " << nodeIndexI << ")\n";
-      }
-      return false;
-    }
-
-    if (nodeI->outTransitions.find(nodeIndexJ)) {
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxMatchInTrans: "
-	       << " preventing potential selfloop (" << nodeIndexI
-	       << ", " << nodeIndexJ << ")\n";
-      }
-      return false;
-    }
-
-
-    // **********************************************************************
-    // compare the sink nodes of the incoming edges of the two given
-    // nodes.
-    // **********************************************************************
-
-    // loop over J
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      inTransIterJ(nodeJ->inTransitions);
-    while (inTransIterJ.next(fromNodeIndex)) {
-      
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxMatchInTrans: "
-	       << "loop (" << fromNodeIndex << ")\n";
-      }
-
-      LatticeTransition * transI = nodeI->inTransitions.find(fromNodeIndex);
-      if (!transI) {
-	// one mismatch occurs;
-	if (--nonOverlap < 0) { 
-	  return false; }
-      } else {
-	if (--overlap == 0) { 
-	  // already exceed minimum overlap required.
-	  break;
-	}
-      }
-    }
-
-    // **********************************************************************
-    // I and J are qualified for merging.
-    // **********************************************************************
-
-    // merging incoming node sets.
-    inTransIterJ.init(); 
-    while (LatticeTransition *trans = inTransIterJ.next(fromNodeIndex)) {
-      insertTrans(fromNodeIndex, nodeIndexI, *trans);
-    }
-
-    // merging outgoing nodes
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      outTransIterJ(nodeJ->outTransitions);
-    while (LatticeTransition *trans = outTransIterJ.next(toNodeIndex)) {
-      insertTrans(nodeIndexI, toNodeIndex, *trans);
-    }
-    
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxMatchInTrans: "
-	     << "(" << nodeIndexJ << ") has been merged with "
-	     << "(" << nodeIndexI << ") and has been removed\n";
-    }
-
-    // delete this redudant node.
-    removeNode(nodeIndexJ); 
-    
-    return true;
-}
-
-/* ********************************************************
-   this procedure is to pack two nodes if their OutNode sets 
-   overlap beyong certain threshold
-   
-   input: 
-   1) nodeIndex: the node to be processed;
-   2) nodeQueue: the current queue.
-   3) base: overlap base
-   4) ratio: overlap ratio
-
-   function:
-       going through all the in-nodes of nodeIndex, and tries to merge
-       as many as possible.
-   ******************************************************** */
-Boolean 
-Lattice::approxRedNodeF(NodeIndex nodeIndex, NodeQueue &nodeQueue, 
-			int base, double ratio)
-{
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeF: "
-	     << "processing (" << nodeIndex << ") ***********\n"; 
-    }
-
-    NodeIndex fromNodeIndex, toNodeIndex; 
-    LatticeNode * node = findNode(nodeIndex); 
-    if (!node) { // skip through this node, being merged.
-      return true; 
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeName =
-	(node->word == Vocab_None) ? "NULL" : getWord(node->word);
-      dout() << "Lattice::approxRedNodeF: "
-	     << "      i.e., (" << nodeName << ")\n";
-    }
-
-    // going in a forward direction
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      outTransIter(node->outTransitions);
-    unsigned numTransitions = node->outTransitions.numEntries();
-    NodeIndex list[numTransitions+1]; 
-    unsigned position = 0; 
-    
-    // collect all the out-nodes of nodeIndex
-    while (outTransIter.next(toNodeIndex)) {
-      list[position++] = toNodeIndex; 
-    }
-
-    // do a pair-wise comparison for all the out-nodes.
-    unsigned i, j; 
-    for (i = 0; i< position; i++) {
-        j = i+1; 
-
-	if (j >= position) { 
-	  break; }
-
-	LatticeNode * nodeI = findNode(list[i]);
-
-	// ***********************************
-	// compare nodeI with nodeJ:
-	//    Notice that numInTransI changes because
-	//    merger occurs in the loop. this is different
-	//    from exact match case.   
-	// ***********************************
-	unsigned merged = 0; 
-	while (j < position) {
-	  if (debug(DebugPrintInnerLoop)) {
-	    dout() << "Lattice::approxRedNodeF: "
-		   << "comparing (" << list[i] << ", "
-		   << list[j] << ")\n"; 
-	  }
-
-          LatticeNode * nodeI = findNode(list[i]);
-	  unsigned numInTransI = nodeI->inTransitions.numEntries();
-
-	  LatticeNode * nodeJ = findNode(list[j]);
-	  unsigned numInTransJ = nodeJ->inTransitions.numEntries();
-	  
-	  if (nodeI->word == nodeJ->word) {
-	    unsigned overlap; 
-	    if ((!base && (numInTransI < numInTransJ)) ||
-		(base && (numInTransI > numInTransJ))) {
-	      overlap = (unsigned ) floor(numInTransI*ratio + 0.5);
-	    } else {
-	      overlap = (unsigned ) floor(numInTransJ*ratio + 0.5);
-	    }
-
-	    overlap = (overlap > 0) ? overlap : 1;
-	    if (approxMatchInTrans(list[i], list[j], overlap)) {
-	      merged = 1; 
-	      list[j] = list[--position];
-	      continue;
-	    } 
-	  } 
-	  j++; 
-	}
-
-	// clear marks on the inNodes, if nodeI matches some other nodes.
-	if (merged) {
-	  nodeI = findNode(list[i]);
-	  TRANSITER_T<NodeIndex,LatticeTransition> 
-	    inTransIter(nodeI->inTransitions);
-	  while (inTransIter.next(fromNodeIndex)) {
-	    LatticeNode * fromNode = findNode(fromNodeIndex); 
-	    fromNode->unmarkNode(markedFlag); 
-	  }
-	}
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeF: "
-	     << "adding nodes ("; 
-    }
-
-    // **************************************************
-    // preparing next level nodes for merging processing.
-    // **************************************************
-    node = findNode(nodeIndex); 
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      transIter(node->outTransitions);
-    while (transIter.next(toNodeIndex)) {
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxRedNodeF: "
-	       << " " << toNodeIndex; 
-      }
-	  
-      nodeQueue.addToNodeQueueNoSamePrev(toNodeIndex); 
-      // nodeQueue.addToNodeQueue(toNodeIndex); 
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeF: "
-	     << ") to the queue\n"; 
-    }
-
-    // mark that the current node has been processed.
-    node->markNode(markedFlag);
-    
-    return true;
-}
-
-
-/* ********************************************************
-   this procedure tries to compare two nodes to see whether their
-   outgoing node sets overlap more than x.
-   ******************************************************** */
-
-Boolean 
-Lattice::approxMatchOutTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			     int overlap)
-{
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxMatchOutTrans: "
-	     << "try to match (" << nodeIndexI
-	     << ", " << nodeIndexJ << ") with overlap "
-	     << overlap << "\n"; 
-    }
-
-    LatticeNode * nodeI = findNode(nodeIndexI); 
-    LatticeNode * nodeJ = findNode(nodeIndexJ); 
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeNameI =
-	(nodeI->word == Vocab_None) ? "NULL" : getWord(nodeI->word);
-      VocabString nodeNameJ =
-	(nodeJ->word == Vocab_None) ? "NULL" : getWord(nodeJ->word);
-      dout() << "Lattice::approxMatchOutTrans: "
-	     << "      i.e., (" << nodeNameI << ", " << nodeNameJ << ")\n";
-    }
-
-    unsigned numOutTransI = nodeI->outTransitions.numEntries();
-    unsigned numOutTransJ = nodeJ->outTransitions.numEntries();
-    unsigned minIJ = ( numOutTransI > numOutTransJ ) ? 
-      numOutTransJ : numOutTransI;
-
-    if (overlap > minIJ) return false;
-
-    unsigned nonOverlap = minIJ-overlap; 
-
-    NodeIndex toNodeIndex, fromNodeIndex;
-
-    if (debug(DebugPrintInnerLoop)) {
-      dout() << "Lattice::approxMatchOutTrans: "
-	     << "number of transitions (" 
-	     << numOutTransI << ", " << numOutTransJ << ")\n";
-    }
-
-    // **********************************************************************
-    // preventing self loop generation
-    // **********************************************************************
-
-    if (nodeI->inTransitions.find(nodeIndexJ)) {
-      if (debug(DebugPrintInnerLoop)) {
-        dout() << "Lattice::approxMatchInTrans: "
-               << " preventing potential selfloop (" << nodeIndexJ
-               << ", " << nodeIndexI << ")\n";
-      }
-      return false;
-    }
-
-    if (nodeI->outTransitions.find(nodeIndexJ)) {
-      if (debug(DebugPrintInnerLoop)) {
-        dout() << "Lattice::approxMatchInTrans: "
-               << " preventing potential selfloop (" << nodeIndexI
-               << ", " << nodeIndexJ << ")\n";
-      }
-      return false;
-    }
-
-    // **********************************************************************
-    // compare the sink nodes of the outgoing edges of the two given
-    // nodes.
-    // **********************************************************************
-
-    // loop over J
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      outTransIterJ(nodeJ->outTransitions);
-    while (outTransIterJ.next(toNodeIndex)) {
-      
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxMatchOutTrans: "
-	       << "loop (" << toNodeIndex << ")\n";
-      }
-
-      LatticeTransition * transI = nodeI->outTransitions.find(toNodeIndex);
-      if (!transI) {
-	// one mismatch occurs;
-	if (--nonOverlap < 0) { 
-	  return false; }
-      } else {
-	if (--overlap == 0) { 
-	  // already exceed minimum overlap required.
-	  break;
-	}
-      }
-    }
-
-    // **********************************************************************
-    // I and J are qualified for merging.
-    // **********************************************************************
-
-    // merging outgoing node sets.
-    outTransIterJ.init(); 
-    while (LatticeTransition *trans = outTransIterJ.next(toNodeIndex)) {
-      insertTrans(nodeIndexI, toNodeIndex, *trans);
-    }
-
-    // merging incoming nodes
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      inTransIterJ(nodeJ->inTransitions);
-    while (LatticeTransition *trans = inTransIterJ.next(fromNodeIndex)) {
-      insertTrans(fromNodeIndex, nodeIndexI, *trans);
-    }
-    
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxMatchOutTrans: "
-	     << "(" << nodeIndexJ << ") has been merged with "
-	     << "(" << nodeIndexI << ") and has been removed\n";
-    }
-
-    // delete this redudant node.
-    removeNode(nodeIndexJ); 
-    
-    return true;
-}
-
-/* ********************************************************
-   this procedure is to pack two nodes if their OutNode sets 
-   overlap beyong certain threshold
-   
-   input: 
-   1) nodeIndex: the node to be processed;
-   2) nodeQueue: the current queue.
-   3) base: overlap base
-   4) ratio: overlap ratio
-
-   function:
-       going through all the in-nodes of nodeIndex, and tries to merge
-       as many as possible.
-   ******************************************************** */
-Boolean 
-Lattice::approxRedNodeB(NodeIndex nodeIndex, NodeQueue &nodeQueue, 
-			int base, double ratio)
-{
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeB: "
-	     << "processing (" << nodeIndex << ") ***********\n"; 
-    }
-
-    NodeIndex fromNodeIndex, toNodeIndex; 
-    LatticeNode * node = findNode(nodeIndex); 
-    if (!node) { // skip through this node, being merged.
-      return true; 
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      VocabString nodeName =
-	(node->word == Vocab_None) ? "NULL" : getWord(node->word);
-      dout() << "Lattice::approxRedNodeB: "
-	     << "      i.e., (" << nodeName << ")\n";
-    }
-
-    // going in a backward direction
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      inTransIter(node->inTransitions);
-    unsigned numTransitions = node->inTransitions.numEntries();
-    NodeIndex list[numTransitions+1]; 
-    unsigned position = 0; 
-    
-    // collect all the in-nodes of nodeIndex
-    while (inTransIter.next(fromNodeIndex)) {
-      list[position++] = fromNodeIndex; 
-    }
-
-    // do a pair-wise comparison for all the in-nodes.
-    unsigned i, j; 
-    for (i = 0; i< position; i++) {
-        j = i+1; 
-
-	if (j >= position) { 
-	  break; }
-
-	LatticeNode * nodeI = findNode(list[i]);
-	// ***********************************
-	// compare nodeI with nodeJ:
-	//    Notice that numInTransI changes because
-	//    merger occurs in the loop. this is different
-	//    from exact match case.   
-	// ***********************************
-	unsigned merged = 0; 
-	while (j < position) {
-	  if (debug(DebugPrintInnerLoop)) {
-	    dout() << "Lattice::approxRedNodeB: "
-		   << "comparing (" << list[i] << ", "
-		   << list[j] << ")\n"; 
-	  }
-
-          LatticeNode * nodeI = findNode(list[i]);
-	  unsigned numOutTransI = nodeI->outTransitions.numEntries();
-
-	  LatticeNode * nodeJ = findNode(list[j]);
-	  unsigned numOutTransJ = nodeJ->outTransitions.numEntries();
-	  if (nodeI->word == nodeJ->word) {
-	    unsigned overlap; 
-	    if ((!base && (numOutTransI < numOutTransJ)) ||
-		(base && (numOutTransI > numOutTransJ))) {
-	      overlap = (unsigned ) floor(numOutTransI*ratio + 0.5);
-	    } else {
-	      overlap = (unsigned ) floor(numOutTransJ*ratio + 0.5);
-	    }
-
-	    overlap = (overlap > 0) ? overlap : 1;
-	    if (approxMatchOutTrans(list[i], list[j], overlap)) {
-	      merged = 1; 
-	      list[j] = list[--position];
-	      continue;
-	    } 
-	  } 
-	  j++; 
-	}
-
-	// clear marks on the outNodes, if nodeI matches some other nodes.
-	if (merged) {
-	  nodeI = findNode(list[i]);
-	  TRANSITER_T<NodeIndex,LatticeTransition> 
-	    outTransIter(nodeI->outTransitions);
-	  while (outTransIter.next(toNodeIndex)) {
-	    LatticeNode * toNode = findNode(toNodeIndex); 
-	    toNode->unmarkNode(markedFlag); 
-	  }
-	}
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeB: "
-	     << "adding nodes ("; 
-    }
-
-    // **************************************************
-    // preparing next level nodes for merging processing.
-    // **************************************************
-    node = findNode(nodeIndex); 
-
-    if (!node) { 
-      if (debug(DebugPrintFatalMessages)) {
-	dout() << "warning: (Lattice::approxRedNodeB) "
-	       <<  " this node " << nodeIndex << " get deleted!\n";
-      }
-      return false;
-    }
-	
-    TRANSITER_T<NodeIndex,LatticeTransition> 
-      transIter(node->inTransitions);
-    while (transIter.next(fromNodeIndex)) {
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::approxRedNodeB: "
-	       << " " << fromNodeIndex; 
-      }
-	  
-      nodeQueue.addToNodeQueueNoSamePrev(fromNodeIndex); 
-      // nodeQueue.addToNodeQueue(fromNodeIndex); 
-    }
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::approxRedNodeB: "
-	     << ") to the queue\n"; 
-    }
-
-    // mark that the current node has been processed.
-    node->markNode(markedFlag);
-    
-    return true;
-}
-
-
-
-/* ******************************************************** 
-
-   An approximating algorithm for reducing bigram lattices.
-   combine nodes when their incoming or outgoing node sets overlap
-   a significant amount (decided by base and ratio).
-
-   ******************************************************** */
-Boolean 
-Lattice::approxRedBigramLattice(unsigned iters, int base, double ratio)
-{
-    // keep track of number of node to know when to stop iteration
-    unsigned numNodes = getNumNodes();
-
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::approxRedBigramLattice: "
-	     << "starting reducing...."
-	     << " (" << numNodes  << " nodes)\n";
-    }
-    // if it is a fast mode (default), it returns.
-    if (iters == 0) {
-      clearMarkOnAllNodes(markedFlag);
-
-      NodeQueue nodeQueue; 
-      nodeQueue.addToNodeQueue(final); 
-
-      // use width first approach to go through the whole lattice.
-      // mark the first level nodes and put them in the queue.
-      // going through the queue to process all the nodes in the lattice
-      // this is in a backward direction.
-      while (nodeQueue.is_empty() == false) {
-	NodeIndex nodeIndex = nodeQueue.popNodeQueue();
-
-	if (nodeIndex == initial) {
-	  continue;
-	}
-	LatticeNode * node = findNode(nodeIndex);
-	if (!node) { 
-	  continue; 
-	}
-	if (node->getFlag(markedFlag)) {
-	  continue;
-	}
-	approxRedNodeB(nodeIndex, nodeQueue, base, ratio); 
-      }
-
-      numNodes = getNumNodes();
-
-      if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::approxRedBigramLattice: "
-	       << "done with only one B Reduction"
-	       << " (" << numNodes  << " nodes)\n";
-      }
-      return true;
-    }
-
-    while (iters-- > 0) { 
-      clearMarkOnAllNodes(markedFlag);
-
-      // the queue must be empty. Going Backward
-      NodeQueue nodeQueue; 
-      nodeQueue.addToNodeQueue(final); 
-
-      // use width first approach to go through the whole lattice.
-      // mark the first level nodes and put them in the queue.
-      // going through the queue to process all the nodes in the lattice
-      // this is in a backward direction.
-      while (nodeQueue.is_empty() == false) {
-	NodeIndex nodeIndex = nodeQueue.popNodeQueue();
-	
-	if (nodeIndex == initial) {
-	  continue;
-	}
-	LatticeNode * node = findNode(nodeIndex);
-	if (!node) { 
-	  continue; 
-	}
-	if (node->getFlag(markedFlag)) {
-	  continue;
-	}
-
-	approxRedNodeB(nodeIndex, nodeQueue, base, ratio); 
-      }
-      // finish the Backward reduction
-      if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::approxRedBigramLattice: "
-	       << "done with B Reduction\n"; 
-      }
-      clearMarkOnAllNodes(markedFlag);
-
-      // the queue must be empty. Going Forward
-      nodeQueue.addToNodeQueue(initial); 
-
-      // use width first approach to go through the whole lattice.
-      // mark the first level nodes and put them in the queue.
-      // going through the queue to process all the nodes in the lattice
-      // this is in a forward direction.
-      while (nodeQueue.is_empty() == false) {
-	NodeIndex nodeIndex = nodeQueue.popNodeQueue();
-
-	if (nodeIndex == final) {
-	  continue;
-	}
-	LatticeNode * node = findNode(nodeIndex);
-	if (!node) { 
-	  continue; 
-	}
-	if (node->getFlag(markedFlag)) {
-	  continue;
-	}
-	
-	approxRedNodeF(nodeIndex, nodeQueue, base, ratio); 
-      }
-
-      unsigned newNumNodes = getNumNodes();
-
-      if (debug(DebugPrintFunctionality)) {
-	dout() << "Lattice::approxRedBigramLattice: "
-	       << "done with F Reduction"
-	       << " (" << newNumNodes  << " nodes)\n";
-      }
-      // finish one F-B iteration
-
-      // check that lattices got smaller -- if not, stop
-      if (newNumNodes == numNodes) {
-	break;
-      }
-      numNodes = newNumNodes;
-    }
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::approxRedBigramLattice: "
-	     << "done with multiple iteration(s)\n"; 
-    }
-    return true; 
-}
-
-/*
- * Compute outgoing transition prob on demand.  This saves LM computation
- * for transitions that are cached.
- */
-static Boolean
-computeOutWeight(PackInput &packInput)
-{
-  if (packInput.lm != 0) {
-    VocabIndex context[3];
-    context[0] = packInput.wordName;
-    context[1] = packInput.fromWordName;
-    context[2] = Vocab_None;
-
-    packInput.outWeight = packInput.lm->wordProb(packInput.toWordName, context);
-    packInput.lm = 0;
-  }
-
-  return true;
-}
-
-/* this function tries to pack together nodes in lattice
- * 1) for non-self loop case: only when trigram prob exists,
- *    the from nodes with the same wordName will be packed;
- * 2) for self loop case: 
- *    the from nodes with the same wordName will be packed, 
- *    regardless whether the trigram prob exists.
- *    But, the bigram and trigram will have separate nodes,
- *    which is reflected in two different out transitions from
- *    the mid node to the two different toNodes (bigram and trigram)
- */
-Boolean 
-PackedNodeList::packNodes(Lattice &lat, PackInput &packInput)
-{
-  PackedNode *packedNode = packedNodesByFromNode.find(packInput.fromWordName);
-
-  if (!packedNode && lastPackedNode != 0 &&
-      (packInput.toNodeIndex == lastPackedNode->toNode &&
-       computeOutWeight(packInput) &&
-       abs(LogPtoIntlog(packInput.outWeight) -
-	   LogPtoIntlog(lastPackedNode->outWeight)) <= PACK_TOLERANCE))
-  {
-    packedNode = lastPackedNode;
-    NodeIndex midNode = packedNode->midNodeIndex;
-
-    // the fromNode could be different this time around, so we need to
-    // re-cache the mid-node 
-    packedNode = packedNodesByFromNode.insert(packInput.fromWordName); 
-
-    packedNode->midNodeIndex = midNode; 
-    packedNode->toNode = packInput.toNodeIndex; 
-    packedNode->outWeight = packInput.outWeight; 
-
-    if (packInput.toNodeId == 2) { 
-      packedNode->toNodeId = 2; 
-    } else if (packInput.toNodeId == 3) { 
-      packedNode->toNodeId = 3; 
-    } else {
-      packedNode->toNodeId = 0; 
-    }
-
-    lastPackedNode = packedNode;
-  }
-
-  if (packedNode) {
-    // only one transition is needed;
-    LatticeTransition t(packInput.inWeight, packInput.inFlag);
-    lat.insertTrans(packInput.fromNodeIndex, packedNode->midNodeIndex, t);
-
-    if (!packInput.toNodeId) { 
-      // this is for non-self-loop node, no additional outgoing trans
-      // need to be added.
-
-      LatticeNode *midNode = lat.findNode(packedNode->midNodeIndex);
-      LatticeTransition * trans = 
-        midNode->outTransitions.find(packInput.toNodeIndex);
-
-      // if it is another toNode, we need to create a link to it.
-      if (!trans) {
-        // it indicates that there is another ngram node needed.
-        computeOutWeight(packInput);
-	LatticeTransition t(packInput.outWeight, packInput.outFlag);
-        lat.insertTrans(packedNode->midNodeIndex, packInput.toNodeIndex, t);
-
-	if (debug(DebugPrintInnerLoop)) {
-	  dout() << "PackedNodeList::packNodes: \n"
-		 << "insert (" << packInput.fromNodeIndex
-		 << ", " << packedNode->midNodeIndex << ", " 
-		 << packInput.toNodeIndex << ")\n";
-        }
-      }
-
-      return true;
-    } else {
-	if (debug(DebugPrintInnerLoop)) {
-	  dout() << "PackedNodeList::packNodes: \n"
-		 << "reusing (" << packInput.fromNodeIndex
-		 << ", " << packedNode->midNodeIndex << ", " 
-		 << packInput.toNodeIndex << ")\n";
-        }
-    }
-
-    // the following part is for selfLoop case
-    // the toNode is for p(a | a, x) doesn't exist.
-    if (packInput.toNodeId == 2) {
-      if (!packedNode->toNode) {
-        computeOutWeight(packInput);
-	LatticeTransition t(packInput.outWeight, packInput.outFlag); 
-	lat.insertTrans(packedNode->midNodeIndex, packInput.toNodeIndex, t);
-	packedNode->toNode = packInput.toNodeIndex;
-      }
-      return true;
-    }
-
-    // the toNode is for p(a | a, x) exists.
-    if (packInput.toNodeId == 3) {
-      if (!packedNode->toNode) {
-        computeOutWeight(packInput);
-	LatticeTransition t(packInput.outWeight, packInput.outFlag);
-	lat.insertTrans(packedNode->midNodeIndex, packInput.toNodeIndex, t);
-	packedNode->toNode = packInput.toNodeIndex;
-      }
-      return true;
-    }
-  } else {
-    // this is the first time to create triple.
-    NodeIndex newNodeIndex = lat.dupNode(packInput.wordName, markedFlag);
-    
-    LatticeTransition t1(packInput.inWeight, packInput.inFlag); 
-    lat.insertTrans(packInput.fromNodeIndex, newNodeIndex, t1);
-
-    computeOutWeight(packInput);
-    LatticeTransition t2(packInput.outWeight, packInput.outFlag);
-    lat.insertTrans(newNodeIndex, packInput.toNodeIndex, t2);
-
-    if (debug(DebugPrintInnerLoop)) {
-      dout() << "PackedNodeList::packNodes: \n"
-	     << "insert (" << packInput.fromNodeIndex
-	     << ", " << newNodeIndex << ", " 
-	     << packInput.toNodeIndex << ")\n";
-    }
-
-    packedNode = packedNodesByFromNode.insert(packInput.fromWordName); 
-
-    packedNode->midNodeIndex = newNodeIndex; 
-    packedNode->toNode = packInput.toNodeIndex; 
-    packedNode->outWeight = packInput.outWeight; 
-
-    if (packInput.toNodeId == 2) { 
-      packedNode->toNodeId = 2; 
-    } else if (packInput.toNodeId == 3) { 
-      packedNode->toNodeId = 3; 
-    } else {
-      packedNode->toNodeId = 0; 
-    }
-
-    lastPackedNode = packedNode;
-  }
-
-  return true;
 }
 
 /*
@@ -3305,7 +2596,9 @@ Lattice::sortNodesRecursive(NodeIndex nodeIndex, unsigned &numVisited,
 unsigned
 Lattice::sortNodes(NodeIndex *sortedNodes, Boolean reversed)
 {
-    Boolean visitedNodes[maxIndex];
+    Boolean *visitedNodes = new Boolean[maxIndex];
+    assert(visitedNodes != 0);
+
     for (NodeIndex j = 0; j < maxIndex; j ++) {
 	visitedNodes[j] = false;
     }
@@ -3318,6 +2611,8 @@ Lattice::sortNodes(NodeIndex *sortedNodes, Boolean reversed)
 	// reverse the node order from the way we generated it
 	reverseArray(sortedNodes, numVisited);
     }
+
+    delete [] visitedNodes;
 
     return numVisited;
 }
@@ -3337,7 +2632,7 @@ Lattice::latticeWER(const VocabIndex *words,
 {
     if (debug(DebugPrintFunctionality)) {
       dout() << "Lattice::latticeWER: "
-	     << "processing (" << words << ")\n";
+	     << "processing (" << (vocab.use(), words) << ")\n";
     }
 
     unsigned numWords = Vocab::length(words);
@@ -3348,7 +2643,8 @@ Lattice::latticeWER(const VocabIndex *words,
      */
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
-    NodeIndex sortedNodes[numNodes];
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
     unsigned numReachable = sortNodes(sortedNodes);
 
     if (numReachable != numNodes) {
@@ -3368,7 +2664,8 @@ Lattice::latticeWER(const VocabIndex *words,
 	ErrorType errType;	// error type
     } ChartEntry;
 
-    ChartEntry *chart[numWords + 2];
+    ChartEntry **chart = new ChartEntry *[numWords + 2];
+    assert(chart != 0);
 
     unsigned i;
     for (i = 0; i <= numWords + 1; i ++) {
@@ -3395,7 +2692,9 @@ Lattice::latticeWER(const VocabIndex *words,
      */
     LatticeNode *initialNode = findNode(initial);
     assert(initialNode != 0);
-    if (initialNode->word != vocab.ssIndex && initialNode->word != Vocab_None) {
+    if (initialNode->word != vocab.ssIndex() &&
+	initialNode->word != Vocab_None)
+    {
 	dout() << "warning: initial node has non-null word; will be ignored\n";
     }
 
@@ -3421,6 +2720,7 @@ Lattice::latticeWER(const VocabIndex *words,
 	    assert(nextNode != 0);
 
 	    unsigned haveIns = (nextNode->word != Vocab_None &&
+	    			    !ignoreWord(nextNode->word) &&
 				    !ignoreWords.getWord(nextNode->word));
 	    unsigned insCost = cost + haveIns * INS_COST;
 
@@ -3457,7 +2757,8 @@ Lattice::latticeWER(const VocabIndex *words,
 	     * Deletion error: current word not matched by lattice
 	     */
 	    {
-		unsigned haveDel = !ignoreWords.getWord(words[i - 1]);
+		unsigned haveDel = !ignoreWord(words[i - 1]) &&
+					!ignoreWords.getWord(words[i - 1]);
 		unsigned delCost = cost + haveDel * DEL_COST;
 
 		if (delCost < chart[i][curr].cost) {
@@ -3486,7 +2787,7 @@ Lattice::latticeWER(const VocabIndex *words,
 		/*
 		 * </s> (on final node) matches Vocab_None in word string
 		 */
-		if (word == vocab.seIndex) {
+		if (word == vocab.seIndex()) {
 		    word = Vocab_None;
 		}
 
@@ -3526,6 +2827,7 @@ Lattice::latticeWER(const VocabIndex *words,
 		assert(nextNode != 0);
 
 		unsigned haveIns = (nextNode->word != Vocab_None &&
+					!ignoreWord(nextNode->word) &&
 					!ignoreWords.getWord(nextNode->word));
 	        unsigned insCost = cost + haveIns * INS_COST;
 
@@ -3571,6 +2873,9 @@ Lattice::latticeWER(const VocabIndex *words,
 	}
 	delete [] chart[i];
     }
+    delete [] chart;
+
+    delete [] sortedNodes;
     
     return sub + ins + del;
 }
@@ -3589,6 +2894,8 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
      * 0) sort nodes in topological order
      * 1) forward pass: compute forward probabilities
      * 2) backward pass: compute backward probabilities and posteriors
+     * Note: avoid allocating large arrays on stack to avoid problems with
+     * resource limits.
      */
 
     if (debug(DebugPrintFunctionality)) {
@@ -3601,7 +2908,8 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
      */
     unsigned numNodes = getNumNodes(); 
 
-    NodeIndex sortedNodes[numNodes];
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
     unsigned numReachable = sortNodes(sortedNodes);
 
     if (numReachable != numNodes) {
@@ -3609,6 +2917,7 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
     }
     if (sortedNodes[0] != initial) {
 	dout() << "Lattice::computeForwardBackward: initial node is not first\n";
+	delete [] sortedNodes;
         return LogP_Zero;
     }
     unsigned finalPosition = 0;
@@ -3617,6 +2926,7 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
     }
     if (finalPosition == numReachable) {
 	dout() << "Lattice::computeForwardBackward: final node is not reachable\n";
+	delete [] sortedNodes;
         return LogP_Zero;
     }
 
@@ -3624,7 +2934,7 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
      * compute forward probabilities
      */
     for (unsigned i = 0; i < maxIndex; i ++) {
-	    forwardProbs[i] = LogP_Zero;
+	forwardProbs[i] = LogP_Zero;
     }
     forwardProbs[initial] = LogP_One;
 
@@ -3650,7 +2960,7 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
      * compute backward probabilities
      */
     for (unsigned i = 0; i < maxIndex; i ++) {
-	    backwardProbs[i] = LogP_Zero;
+	backwardProbs[i] = LogP_Zero;
     }
     backwardProbs[final] = LogP_One;
 
@@ -3684,9 +2994,15 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
 
     /*
      * array of partial min-max-posteriors
+     * Note: need to initialize all maxMinPosteriors to 0 since not all
+     * might be visited in topological order if nodes have become unreachable.
      */
-    LogP2 maxMinPosteriors[maxIndex];
-    maxMinPosteriors[initial] = LogP_One;
+    LogP2 *maxMinPosteriors = new LogP2[maxIndex];
+    assert(maxMinPosteriors != 0);
+
+    for (unsigned i = 0; i < maxIndex; i ++) {
+	maxMinPosteriors[i] = LogP_Zero;
+    }
 
     /*
      * compute unnormalized log posteriors, as well as min-max-posteriors
@@ -3701,7 +3017,9 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
 	/*
 	 * compute max-min-posteriors
 	 */
-	if (position > 0) {
+	if (position == 0) {
+	    maxMinPosteriors[nodeIndex] = node->posterior;
+	} else {
 	    LogP2 maxInPosterior = LogP_Zero;
 
 	    TRANSITER_T<NodeIndex,LatticeTransition>
@@ -3720,12 +3038,123 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
     }
 
     if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::computeForwardBackward: "
-	     << "unnormalized posterior = " << forwardProbs[final] 
-	     << " max-min path posterior = " << maxMinPosteriors[final] << endl;
+	dout() << "Lattice::computeForwardBackward: "
+	       << "unnormalized posterior = " << forwardProbs[final] 
+	       << " max-min path posterior = " << maxMinPosteriors[final]
+	       << endl;
     }
 
-    return maxMinPosteriors[final];
+    LogP2 result = maxMinPosteriors[final];
+
+    delete [] sortedNodes;
+    delete [] maxMinPosteriors;
+
+    return result;
+}
+
+/*
+ * Compute node forward/backward viterbi probabilities based on transition
+ * scores
+ * 	Returns the probability of the best path. 
+ */
+LogP
+Lattice::computeForwardBackwardViterbi(LogP forwardProbs[],
+				       LogP backwardProbs[])
+{
+    /*
+     * Algorithm: 
+     * 0) sort nodes in topological order
+     * 1) forward pass: compute forward probabilities
+     * 2) backward pass: compute backward probabilities
+     * Note: avoid allocating large arrays on stack to avoid problems with
+     * resource limits.
+     */
+
+    /*
+     * topological sort
+     */
+    unsigned numNodes = getNumNodes(); 
+    
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
+    unsigned numReachable = sortNodes(sortedNodes);
+
+    if (numReachable != numNodes) {
+	dout() << "Lattice::computeForwardBackwardViterbi: warning: called with unreachable nodes\n";
+    }
+    if (sortedNodes[0] != initial) {
+	dout() << "Lattice::computeForwardBackwardViterbi: initial node is not first\n";
+	delete [] sortedNodes;
+        return LogP_Zero;
+    }
+    unsigned finalPosition = 0;
+    for (finalPosition = 1; finalPosition < numReachable; finalPosition ++) {
+	if (sortedNodes[finalPosition] == final) break;
+    }
+    if (finalPosition == numReachable) {
+	dout() << "Lattice::computeForwardBackwardViterbi: final node is not reachable\n";
+	delete [] sortedNodes;
+        return LogP_Zero;
+    }
+
+    /*
+     * compute forward probabilities
+     */
+    for (unsigned i = 0; i < maxIndex; i ++) {
+	forwardProbs[i] = LogP_Zero;
+    }
+    forwardProbs[initial] = LogP_One;
+
+    for (int position = 1; position < numReachable; position ++) {
+	LatticeNode *node = nodes.find(sortedNodes[position]);
+        assert(node != 0);
+
+	LogP prob = LogP_Zero;
+
+        TRANSITER_T<NodeIndex,LatticeTransition>
+					inTransIter(node->inTransitions);
+	LatticeTransition *inTrans;
+	NodeIndex fromNodeIndex; 
+	while (inTrans = inTransIter.next(fromNodeIndex)) {
+            LogP pr = forwardProbs[fromNodeIndex] + inTrans->weight;
+            if (prob < pr) prob = pr;
+	}
+	forwardProbs[sortedNodes[position]] = prob;
+    }
+
+    /*
+     * compute backward probabilities
+     */
+    for (unsigned i = 0; i < maxIndex; i ++) {
+	backwardProbs[i] = LogP_Zero;
+    }
+    backwardProbs[final] = LogP_One;
+
+    for (int position = finalPosition - 1; position >= 0; position --) {
+	LatticeNode *node = nodes.find(sortedNodes[position]);
+        assert(node != 0);
+
+	LogP prob = LogP_Zero;
+
+        TRANSITER_T<NodeIndex,LatticeTransition>
+					outTransIter(node->outTransitions);
+	LatticeTransition *outTrans;
+	NodeIndex toNodeIndex; 
+	while (outTrans = outTransIter.next(toNodeIndex)) {
+            LogP pr = backwardProbs[toNodeIndex] + outTrans->weight;
+            if (prob < pr) prob = pr;
+	}
+	backwardProbs[sortedNodes[position]] = prob;
+    }
+
+    LogP bestProb = forwardProbs[final];
+
+    if (debug(DebugPrintFunctionality)) {
+	dout() << "Lattice::computeForwardBackwardViterbi: "
+	       << "best prob = " << bestProb << endl;
+    }
+
+    return bestProb;
 }
 
 /*
@@ -3733,12 +3162,33 @@ Lattice::computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
  * 	returns max-min path posterior
  */
 LogP2
-Lattice::computePosteriors(double posteriorScale)
+Lattice::computePosteriors(double posteriorScale, Boolean normalize)
 {
-    LogP2 forwardProbs[maxIndex];
-    LogP2 backwardProbs[maxIndex];
+    LogP2 *forwardProbs = new LogP2[maxIndex];
+    assert(forwardProbs != 0);
 
-    return computeForwardBackward(forwardProbs, backwardProbs, posteriorScale);
+    LogP2 *backwardProbs = new LogP2[maxIndex];
+    assert(backwardProbs != 0);
+
+    LogP2 result =
+	    computeForwardBackward(forwardProbs, backwardProbs, posteriorScale);
+
+    if (normalize) {
+	LogP2 totalPosterior = forwardProbs[final];
+
+	// normalize the node-level posteriors
+	LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
+	NodeIndex nodeIndex;
+
+	while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	    node->posterior -= totalPosterior;
+	}
+    }
+
+    delete [] forwardProbs;
+    delete [] backwardProbs;
+
+    return result;
 }
 
 /*
@@ -3746,6 +3196,7 @@ Lattice::computePosteriors(double posteriorScale)
  *
  *     Word lattices:
  *     version 2
+ *     name s
  *     initial i
  *     final f
  *     node n w a p n1 p1 n2 p2 ...
@@ -3757,8 +3208,11 @@ Lattice::computePosteriors(double posteriorScale)
 Boolean
 Lattice::writePosteriors(File &file, double posteriorScale)
 {
-    LogP2 forwardProbs[maxIndex];
-    LogP2 backwardProbs[maxIndex];
+    LogP2 *forwardProbs = new LogP2[maxIndex];
+    assert(forwardProbs != 0);
+
+    LogP2 *backwardProbs = new LogP2[maxIndex];
+    assert(backwardProbs != 0);
 
     LogP2 maxMinPosterior =
 	computeForwardBackward(forwardProbs, backwardProbs, posteriorScale);
@@ -3766,6 +3220,7 @@ Lattice::writePosteriors(File &file, double posteriorScale)
 				nodes.find(initial)->posterior : LogP_Zero;
 
     fprintf(file, "version 2\n");
+    fprintf(file, "name %s\n", name);
     fprintf(file, "initial %u\n", initial);
     fprintf(file, "final %u\n", final);
 
@@ -3774,10 +3229,8 @@ Lattice::writePosteriors(File &file, double posteriorScale)
 	LatticeNode *node = nodes.find(i);
 
         if (node) {
-	    fprintf(file, "node %u %s -1 %lf", i, 
-			node->word == Vocab_None ? "NULL" :
-					vocab.getWord(node->word),
-			(double)LogPtoProb(node->posterior - totalPosterior));
+	    fprintf(file, "node %u %s -1 %lf", i, getWord(node->word),
+			  (double)LogPtoProb(node->posterior - totalPosterior));
 
 	    TRANSITER_T<NodeIndex,LatticeTransition>
 					outTransIter(node->outTransitions);
@@ -3794,16 +3247,138 @@ Lattice::writePosteriors(File &file, double posteriorScale)
         }
     }
 
+    delete [] forwardProbs;
+    delete [] backwardProbs;
+
     return true;
+}
+
+/*
+ * Removed useless nodes, i.e., those that do not lie on a path from 
+ * 	start to end nodes
+ */
+unsigned
+Lattice::removeUselessNodes()
+{
+    /*
+     * Algorithm: 
+     * 0) sort nodes in topological order
+     * 1) forward pass: compute forward reachability
+     * 2) backward pass: compute backward reachability
+     * 3) remove all nodes that are not both forward and backward reachable
+     */
+
+    Boolean *forwardReachable = new Boolean[maxIndex];
+    assert(forwardReachable != 0);
+
+    Boolean *backwardReachable = new Boolean[maxIndex];
+    assert(backwardReachable != 0);
+
+    for (unsigned i = 0; i < maxIndex; i ++) {
+	forwardReachable[i] = false;
+	backwardReachable[i] = false;
+    }
+
+    /*
+     * topological sort
+     */
+    unsigned numNodes = getNumNodes(); 
+
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
+    unsigned numReachable = sortNodes(sortedNodes);
+
+    if (sortedNodes[0] != initial) {
+	dout() << "Lattice::removeUselessNodes: initial node is not first\n";
+	delete [] sortedNodes;
+        return 0;
+    }
+    unsigned finalPosition = 0;
+    for (finalPosition = 1; finalPosition < numReachable; finalPosition ++) {
+	if (sortedNodes[finalPosition] == final) break;
+    }
+    if (finalPosition == numReachable) {
+	dout() << "Lattice::removeUselessNodes: final node is not reachable\n";
+	delete [] sortedNodes;
+        return 0;
+    }
+
+    /*
+     * compute forward reachability
+     */
+    forwardReachable[initial] = true;
+
+    for (int position = 1; position < numReachable; position ++) {
+	LatticeNode *node = nodes.find(sortedNodes[position]);
+        assert(node != 0);
+
+        TRANSITER_T<NodeIndex,LatticeTransition>
+					inTransIter(node->inTransitions);
+	NodeIndex fromNodeIndex; 
+	while (inTransIter.next(fromNodeIndex)) {
+	    if (forwardReachable[fromNodeIndex]) {
+		forwardReachable[sortedNodes[position]] = true;
+		break;
+	    }
+	}
+    }
+
+    /*
+     * compute backward reachability
+     */
+    backwardReachable[final] = true;
+
+    for (int position = finalPosition - 1; position >= 0; position --) {
+	LatticeNode *node = nodes.find(sortedNodes[position]);
+        assert(node != 0);
+
+        TRANSITER_T<NodeIndex,LatticeTransition>
+					outTransIter(node->outTransitions);
+	NodeIndex toNodeIndex; 
+	while (outTransIter.next(toNodeIndex)) {
+	    if (backwardReachable[toNodeIndex]) {
+		backwardReachable[sortedNodes[position]] = true;
+	    }
+	}
+    }
+
+    /*
+     * prune unreachable nodes
+     */
+    unsigned numRemoved = 0;
+
+    for (int i = 0; i < maxIndex; i ++) {
+	if (!(forwardReachable[i] && backwardReachable[i])) {
+	    if (removeNode(i)) {
+		numRemoved += 1;
+	    }
+	}
+    }
+
+    delete [] forwardReachable;
+    delete [] backwardReachable;
+    delete [] sortedNodes;
+
+    if (debug(DebugPrintFunctionality)) {
+      dout() << "Lattice::removeUselessNodes: removed "
+	     << numRemoved << " nodes\n";
+    }
+
+    return numRemoved;
 }
 
 /*
  * Prune lattice nodes based on posterior probabilities
  *	all nodes (and attached transitions) with posteriors less than
  *	theshold of the total posterior are removed.
+ *	If maxDensity is specified (non-zero), then threshold is iteratively
+ *	lowered until the lattice density falls below the given value
+ *	The "fast" option avoid recomputing posteriors after each pruning
+ *	step, and just removes useless nodes instead.
  */
 Boolean
-Lattice::prunePosteriors(Prob threshold, double posteriorScale)
+Lattice::prunePosteriors(Prob threshold, double posteriorScale,
+			    double maxDensity, unsigned maxNodes, Boolean fast)
 {
     // keep track of number of node to know when to stop iteration
     unsigned numNodes = getNumNodes();
@@ -3813,8 +3388,16 @@ Lattice::prunePosteriors(Prob threshold, double posteriorScale)
 	       << "starting with " << numNodes << " nodes\n";
     }
 
+    LogP2 maxMinPosterior;
+
+    if (fast) {
+    	maxMinPosterior = computePosteriors(posteriorScale);
+    }
+
     while (numNodes > 0) {
-	LogP2 maxMinPosterior = computePosteriors(posteriorScale);
+	if (!fast) {
+	    maxMinPosterior = computePosteriors(posteriorScale);
+	}
 
 	if (maxMinPosterior == LogP_Zero) {
 	    dout() << "Lattice::prunePosteriors: "
@@ -3834,10 +3417,49 @@ Lattice::prunePosteriors(Prob threshold, double posteriorScale)
 	    }
 	}
 
+	if (fast) {
+	    removeUselessNodes();
+	}
+
 	unsigned newNumNodes = getNumNodes();
 
 	if (newNumNodes == numNodes) {
-	    break;
+	    if (maxDensity > 0.0 || maxNodes > 0) {
+		unsigned numRealNodes;
+		double d = computeDensity(numRealNodes);
+		if (maxDensity > 0.0 && d == HUGE_VAL) {
+		    dout() << "Lattice::prunePosteriors: "
+			   << "cannot compute lattice density\n";
+		    break;
+		} else if (maxDensity > 0.0 && d > maxDensity ||
+			   maxNodes > 0 && numRealNodes > maxNodes) 
+		{
+		    threshold *= 1.25893;	// 10^(1/10)
+
+		    // avoid disconnecting lattice, keep threshold below 1
+		    if (threshold > 1.0) {
+			break;
+		    }
+
+		    if (debug(DebugPrintFunctionality)) {
+			dout() << "Lattice::prunePosteriors: "
+		               << "density = " << d << ", "
+			       << numRealNodes << " real nodes, "
+			       << "increasing threshold to "
+			       << threshold << "\n";
+		    }
+		} else {
+		    if (debug(DebugPrintFunctionality)) {
+			dout() << "Lattice::prunePosteriors: "
+		               << "density = " << d << ", "
+			       << numRealNodes << " real nodes, "
+			       << "stopping\n";
+		    }
+		    break;
+		}
+	    } else {
+		break;
+	    }
 	}
 	numNodes = newNumNodes;
 
@@ -3847,7 +3469,314 @@ Lattice::prunePosteriors(Prob threshold, double posteriorScale)
 	}
     }
 
-    return true;
+    return numNodes > 0;
+}
+
+/*
+ * Determine duration of lattice
+ *	If the lattice has HTK information, use the start/end node times
+ *	If not, look for (duration=D) string in lattice name.
+ *	Otherwise give up and return 0.
+ */
+double
+Lattice::getDuration()
+{
+    // try to determine lattice duration from HTK info
+    LatticeNode *initialNode = findNode(initial);
+    assert(initialNode != 0);
+    LatticeNode *finalNode = findNode(final);
+    assert(finalNode != 0);
+
+    if (initialNode->htkinfo != 0 &&
+	initialNode->htkinfo->time != HTK_undef_float &&
+	finalNode->htkinfo != 0 &&
+	finalNode->htkinfo->time != HTK_undef_float)
+    {
+	return finalNode->htkinfo->time - initialNode->htkinfo->time;
+    } else {
+	return duration;
+    }
+}
+
+/*
+ * Compute lattice density (number of non-null nodes/unit time).
+ * Also returns number of non-null nodes.
+ */
+double
+Lattice::computeDensity(unsigned &numNodes, double dur)
+{
+    if (dur == 0.0) {
+	dur = getDuration();
+    }
+
+    if (dur == 0.0) {
+	return HUGE_VAL;
+    }
+
+    // count non-null nodes
+    unsigned numNonNulls = 0;
+
+    LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
+    NodeIndex nodeIndex;
+
+    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	if (node->word != Vocab_None &&
+	    node->word != vocab.ssIndex() &&
+	    node->word != vocab.seIndex())
+	{
+	    numNonNulls ++;
+	}
+    }
+
+    numNodes = numNonNulls;
+
+    return numNonNulls / dur;
+}
+
+/*
+ * Compute forward and backward Viterbi pointers
+ */
+LogP
+Lattice::computeViterbi(NodeIndex forwardPreds[], NodeIndex *backwardPreds)
+{
+    /*
+     * topological sort
+     */
+    unsigned numNodes = getNumNodes(); 
+
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
+    unsigned numReachable = sortNodes(sortedNodes);
+
+    if (numReachable != numNodes) {
+	dout() << "Lattice::computeViterbi: warning: called with unreachable nodes\n";
+    }
+    if (sortedNodes[0] != initial) {
+	dout() << "Lattice::computeViterbi: initial node is not first\n";
+	delete [] sortedNodes;
+        return LogP_Inf;
+    }
+
+    unsigned finalPosition = 0;
+    for (finalPosition = 1; finalPosition < numReachable; finalPosition ++) {
+	if (sortedNodes[finalPosition] == final) break;
+    }
+    if (finalPosition == numReachable) {
+	dout() << "Lattice::computeViterbi: final node is not reachable\n";
+	delete [] sortedNodes;
+        return LogP_Inf;
+    }
+
+    LogP *viterbiProbs = new LogP[maxIndex];		// maximum prob to node
+    assert(viterbiProbs != 0);
+
+    /*
+     * compute forward Viterbi probabilities and best predecessors
+     */
+    for (unsigned i = 0; i < maxIndex; i ++) {
+	    viterbiProbs[i] = LogP_Zero;
+	    forwardPreds[i] = NoNode;
+    }
+    viterbiProbs[initial] = LogP_One;
+
+    for (int position = 1; position < numReachable; position ++) {
+	NodeIndex nodeIndex = sortedNodes[position];
+	LatticeNode *node = nodes.find(nodeIndex);
+	assert(node != 0);
+
+	LogP max = LogP_Zero;
+	NodeIndex best = NoNode;
+
+	TRANSITER_T<NodeIndex,LatticeTransition>
+					inTransIter(node->inTransitions);
+	LatticeTransition *inTrans;
+	NodeIndex fromNodeIndex; 
+	while (inTrans = inTransIter.next(fromNodeIndex)) {
+	    LogP prob = viterbiProbs[fromNodeIndex] + inTrans->weight;
+
+	    if (prob > max) {
+		max = prob;
+		best = fromNodeIndex;
+	    }
+	}
+	viterbiProbs[nodeIndex] = max;
+	forwardPreds[nodeIndex] = best;
+    }
+
+    LogP result = viterbiProbs[final];
+
+    if (backwardPreds != 0) {
+	/*
+	 * compute backward Viterbi probabilities and best predecessors
+	 */
+	for (unsigned i = 0; i < maxIndex; i ++) {
+		viterbiProbs[i] = LogP_Zero;
+		backwardPreds[i] = NoNode;
+	}
+	viterbiProbs[final] = LogP_One;
+
+	for (int position = numReachable - 2; position >= 0; position --) {
+	    NodeIndex nodeIndex = sortedNodes[position];
+	    LatticeNode *node = nodes.find(nodeIndex);
+	    assert(node != 0);
+
+	    LogP max = LogP_Zero;
+	    NodeIndex best = NoNode;
+
+	    TRANSITER_T<NodeIndex,LatticeTransition>
+					    outTransIter(node->outTransitions);
+	    LatticeTransition *outTrans;
+	    NodeIndex toNodeIndex; 
+	    while (outTrans = outTransIter.next(toNodeIndex)) {
+		LogP prob = viterbiProbs[toNodeIndex] + outTrans->weight;
+
+		if (prob > max) {
+		    max = prob;
+		    best = toNodeIndex;
+		}
+	    }
+	    viterbiProbs[nodeIndex] = max;
+	    backwardPreds[nodeIndex] = best;
+	}
+    }
+
+    delete [] sortedNodes;
+    delete [] viterbiProbs;
+
+    return result;
+}
+
+/*
+ * Compute word sequence with highest probability path through latttice
+ */
+LogP
+Lattice::bestWords(VocabIndex *words, unsigned maxWords, SubVocab &ignoreWords)
+{
+    NBestWordInfo *winfo = new NBestWordInfo[maxWords];
+    assert(winfo != 0);
+
+    LogP result = bestWords(winfo, maxWords, ignoreWords);
+
+    for (unsigned i = 0; i < maxWords; i ++) {
+	words[i] = winfo[i].word;
+
+	if (words[i] == Vocab_None) break;
+    }
+
+    delete [] winfo;
+
+    return result;
+}
+
+/* 
+ * Generalized version returning acoustic and timing information
+ */
+LogP
+Lattice::bestWords(NBestWordInfo *winfo, unsigned maxWords,
+							SubVocab &ignoreWords)
+{
+    /*
+     * Algorithm: 
+     * 0) sort nodes in topological order
+     * 1) forward pass: compute viterbi probabilities
+     * 2) backward pass: backtrace highest probability path
+     * Note: we allocate large arrays on the heap rather than the stack
+     * to avoid running into resource limits.
+     */
+    if (debug(DebugPrintFunctionality)) {
+      dout() << "Lattice::bestWords: processing\n";
+    }
+
+    NodeIndex *viterbiPreds = new NodeIndex[maxIndex];
+    assert(viterbiPreds != 0);
+
+    LogP result = computeViterbi(viterbiPreds);
+
+    if (result == LogP_Inf) {
+	delete [] viterbiPreds;
+	winfo[0].word = Vocab_None;
+	return LogP_Zero;
+    }
+
+    NodeIndex *nodesOnPath = new NodeIndex[maxIndex + 1];
+    assert(nodesOnPath != 0);
+
+    unsigned numWords = 0;
+    unsigned numNodes = 0;
+    NodeIndex current = final;
+    do {
+	LatticeNode *node = nodes.find(current);
+
+	if (node->word != Vocab_None) {
+	    nodesOnPath[numNodes ++] = current;
+		
+	    if (!ignoreWord(node->word) && !ignoreWords.getWord(node->word)) {
+	        numWords ++;
+	    }
+	}
+	current = viterbiPreds[current];
+    } while (current != NoNode);
+
+    if (numWords > maxWords) {
+	// not enough room for words, return zero length string and log(0)
+        dout() << "Lattice::bestWords: "
+	       << "word string longer than " << maxWords << endl;
+
+	winfo[0].word = Vocab_None;
+	result = LogP_Zero;
+    } else {
+	// reverse and copy node information into result buffer
+	unsigned i = numWords;		// word index
+
+	if (i < maxWords) {
+	    winfo[i].word = Vocab_None;
+	}
+
+	for (unsigned j = 0; j < numNodes; j ++) {
+	    LatticeNode *node = nodes.find(nodesOnPath[j]);
+
+	    if (!ignoreWord(node->word) && !ignoreWords.getWord(node->word)) {
+		winfo[--i].word = node->word;
+
+		if (node->htkinfo == 0) {
+		    winfo[i].invalidate();
+		} else {
+		    // find the time of the predecessor node
+		    float startTime = 0.0;
+		    LatticeNode *predNode;
+
+		    if (j < numNodes - 1 &&
+			(predNode = nodes.find(nodesOnPath[j+1])) &&
+			predNode->htkinfo)
+		    {
+			startTime = predNode->htkinfo->time;
+		    }
+
+		    winfo[i].start = startTime;
+		    winfo[i].duration = node->htkinfo->time - startTime;
+		    winfo[i].acousticScore = node->htkinfo->acoustic;
+
+		    if (node->htkinfo->language != HTK_undef_float) {
+			winfo[i].languageScore = node->htkinfo->language;
+		    } else {
+			winfo[i].languageScore = node->htkinfo->ngram;
+		    }
+		}
+
+		winfo[i].wordPosterior = winfo[i].transPosterior = 1.0;
+	    }
+	}
+    }
+
+    if (debug(DebugPrintFunctionality)) {
+      dout() << "Lattice::bestWords: "
+	     << "best path prob = " << result << endl;
+    }
+
+    delete [] viterbiPreds;
+    delete [] nodesOnPath;
+
+    return result;
 }
 
 /* check connectivity of this lattice given two nodeIndices.
@@ -3928,1097 +3857,6 @@ Lattice::areConnected(NodeIndex fromNodeIndex, NodeIndex toNodeIndex,
     return false; 
 }
 
-// higher level functions.
-
-/* this method creates one pause for all the outgoing transitions of a 
-   particular node that have pause marks.
-   it works.
-   */
-/* this code is to replace weights on the links of a given lattice with
- * the LM weights.
- */
-Boolean 
-Lattice::replaceWeights(LM &lm)
-{
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::replaceWeights: "
-	     << "replacing weights with new LM\n";
-    }
-
-    LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
-    NodeIndex nodeIndex;
-
-    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
-
-      NodeIndex toNodeIndex;
-      VocabIndex wordIndex;
-      if (nodeIndex == initial) {
-	wordIndex = vocab.ssIndex;
-      } else {
-	wordIndex = node->word; 
-      }
-      // need to check to see whether the word is in the vocab
-
-
-      TRANSITER_T<NodeIndex,LatticeTransition> transIter(node->outTransitions);
-      while (transIter.next(toNodeIndex)) {
-	LatticeNode * toNode = nodes.find(toNodeIndex);
-
-	VocabIndex toWordIndex;
-        LogP weight;
-
-	if (toNodeIndex == final) {
-	  toWordIndex = vocab.seIndex; }
-	else {
-	  toWordIndex = toNode->word; }
-
-	if (toWordIndex == Vocab_None || toWordIndex == lm.vocab.pauseIndex) {
-	  /*
-	   * NULL and pause nodes don't receive an language model weight
-	   */
-	  weight = LogP_One;
-	} else {
-	  VocabIndex context[2];
-	  context[0] = wordIndex; 
-	  context[1] = Vocab_None; 
-
-	  weight = lm.wordProb(toWordIndex, context); 
-	}
-
-	setWeightTrans(nodeIndex, toNodeIndex, weight);
-      }
-    }
-
-    return true; 
-}
-
-// *************************************************
-// compact expansion to trigram
-// *************************************************
-
-
-// *************************************************
-/*  Basic Algorithm: 
- *  Try to expand self loop to accomodate trigram
- *  the basic idea has two steps:
- *  1) ignore the loop edge and process other edge combinations
- *     just like in other cases, this is done in the main expandNodeToTrigram 
- *     program
- *  2) IN THIS PROGRAM: 
- *     a) duplicate the loop node (called postNode); 
- *     b) add an additional node (called preNode) between fromNode and the 
- *        loop node (postNode);
- *     c) create links between fromNode, preNode, postNode and toNode; and 
- *        create the loop edge on the loop node (postNode).
- */
-void 
-Lattice::initASelfLoopDB(SelfLoopDB &selfLoopDB, LM &lm, 
-			NodeIndex nodeIndex, LatticeNode *node, 
-			LatticeTransition *trans)
-{
-    selfLoopDB.preNodeIndex = selfLoopDB.postNodeIndex2 = 
-      selfLoopDB.postNodeIndex3 = 0; 
-    selfLoopDB.nodeIndex = nodeIndex; 
-
-    selfLoopDB.selfTransFlags = trans->flags;
-
-    selfLoopDB.wordName = node->word; 
-
-    VocabIndex context[3];
-    context[0] = selfLoopDB.wordName; 
-    context[1] = selfLoopDB.wordName; 
-    context[2] = Vocab_None; 
-
-    selfLoopDB.loopProb = lm.wordProb(selfLoopDB.wordName, context); 
-}
-
-void 
-Lattice::initBSelfLoopDB(SelfLoopDB &selfLoopDB, LM &lm, 
-			NodeIndex fromNodeIndex, LatticeNode * fromNode, 
-			LatticeTransition *fromTrans)
-{
-    // reinitialize the preNode
-    selfLoopDB.preNodeIndex = 0; 
-
-    // 
-    selfLoopDB.fromNodeIndex = fromNodeIndex; 
-    selfLoopDB.fromWordName = fromNode->word; 
-
-    // 
-    selfLoopDB.fromSelfTransFlags = fromTrans->flags; 
-
-    // compute prob for the link between preNode and postNode
-    VocabIndex context[3];
-    context[0] = selfLoopDB.wordName; 
-    context[1] = selfLoopDB.fromWordName; 
-    context[2] = Vocab_None; 
-    
-    selfLoopDB.prePostProb =
-			lm.wordProb(selfLoopDB.wordName, context); 
-
-    // compute prob for fromPreProb; 
-    context[0] = selfLoopDB.fromWordName; 
-    context[1] = Vocab_None;
-
-    selfLoopDB.fromPreProb = 
-    			lm.wordProb(selfLoopDB.wordName, context); 
-}
-
-void 
-Lattice::initCSelfLoopDB(SelfLoopDB &selfLoopDB, NodeIndex toNodeIndex, 
-			LatticeTransition *toTrans)
-{
-    selfLoopDB.toNodeIndex = toNodeIndex;
-    selfLoopDB.selfToTransFlags = toTrans->flags;
-}
-
-/* 
- * creating an expansion network for a self loop node.
- * the order in which the network is created is reverse:
- *  1) build the part of the network starting from postNode to toNode
- *  2) use PackedNodeList class function to build the part of 
- *     the network starting from fromNode to PostNode. 
- *
- */
-Boolean
-Lattice::expandSelfLoop(LM &lm, SelfLoopDB &selfLoopDB, 
-			       PackedNodeList &packedSelfLoopNodeList)
-{
-    unsigned id = 0;
-    NodeIndex postNodeIndex, toNodeIndex = selfLoopDB.toNodeIndex;
-    LogP fromPreProb = selfLoopDB.fromPreProb; 
-    LogP prePostProb = selfLoopDB.prePostProb; 
-
-    VocabIndex wordName = selfLoopDB.wordName; 
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::expandSelfLoop: "
-	     << "nodeIndex (" << selfLoopDB.nodeIndex << ")\n";
-    }
-
-    // create the part of the network from postNode to toNode 
-    //   if it doesn't exist.
-    // first compute the probs of the links in that part.
-    VocabIndex context[3];
-    context[0] = wordName; 
-    context[1] = wordName; 
-    context[2] = Vocab_None; 
-
-    LatticeNode *toNode = findNode(toNodeIndex); 
-    VocabIndex toWordName = toNode->word; 
-
-    LogP triProb = lm.wordProb(toWordName, context);
-
-    unsigned usedContextLength;
-    lm.contextID(context, usedContextLength);
-
-    context[1] = Vocab_None;
-    LogP biProb = lm.wordProb(toWordName, context);
-
-    LogP postToProb; 
-
-    if (usedContextLength > 1) {
-
-      // get trigram prob for (post, to) edge: p(c|a, a)
-      postToProb = triProb; 
-
-      // create post node and loop if it doesn't exist;
-      if (!selfLoopDB.postNodeIndex3) {
-	selfLoopDB.postNodeIndex3 = 
-	  postNodeIndex = dupNode(wordName, markedFlag);
-	
-	// create the loop, put trigram prob p(a|a,a) on the loop
-	LatticeTransition t(selfLoopDB.loopProb, selfLoopDB.selfTransFlags);
-	insertTrans(postNodeIndex, postNodeIndex, t); 
-	// end of creating of loop
-      }
-
-      postNodeIndex = selfLoopDB.postNodeIndex3; 
-      id = 3; 
-
-    } else {
-      
-      // get an adjusted weight for the link between preNode to postNode
-      LogP wordBOW = triProb - biProb;
-
-      prePostProb = combWeights(prePostProb, wordBOW); 
-
-      // get existing weight of (node, toNode) as the weight for (post, to).
-      LatticeNode *node = findNode(selfLoopDB.nodeIndex); 
-      if (!node) {
-	if (debug(DebugPrintFatalMessages)) {
-	  dout() << "Fatal Error in Lattice::expandSelfLoop: "
-		 << "can't find node " << selfLoopDB.nodeIndex << "\n"; 
-	}
-	exit(-1);
-      }
-
-      // compute postToProb
-      postToProb = biProb; 
-
-      // create post node and loop if it doesn't exist;
-      if (!selfLoopDB.postNodeIndex2) {
-	selfLoopDB.postNodeIndex2 = 
-	  postNodeIndex = dupNode(wordName, markedFlag);
-
-	// create the loop, put trigram prob p(a|a,a) on the loop
-	LatticeTransition t(selfLoopDB.loopProb, selfLoopDB.selfTransFlags);
-	insertTrans(postNodeIndex, postNodeIndex, t); 
-	// end of creating loop
-      }
-      postNodeIndex = selfLoopDB.postNodeIndex2; 
-      id = 2; 
-    }
-
-    // create link from postNode to toNode if (postNode, toNode) doesn't exist;
-    toNode = findNode(toNodeIndex); 
-    LatticeTransition *postToTrans = toNode->inTransitions.find(postNodeIndex);
-    if (!postToTrans) {
-      // create link from postNode to toNode;
-      LatticeTransition t(postToProb, selfLoopDB.selfToTransFlags); 
-      insertTrans(postNodeIndex, toNodeIndex, t); 
-    }
-    // done with first part of the network. 
-
-    // create the part of the network from fromNode to postNode.
-    // create preNode and (from, pre) edge.
-    NodeIndex preNodeIndex = selfLoopDB.preNodeIndex; 
-
-    PackInput packSelfLoop;
-    packSelfLoop.wordName = wordName; 
-    packSelfLoop.fromWordName = selfLoopDB.fromWordName;
-    packSelfLoop.toWordName = toNode->word; 
-    packSelfLoop.fromNodeIndex = selfLoopDB.fromNodeIndex; 
-    packSelfLoop.toNodeIndex = postNodeIndex; 
-    packSelfLoop.inWeight = selfLoopDB.fromPreProb;
-    packSelfLoop.inFlag = selfLoopDB.fromSelfTransFlags; 
-    packSelfLoop.outWeight = prePostProb; 
-    packSelfLoop.toNodeId = id; 
-    packSelfLoop.lm = 0; 
-
-    packedSelfLoopNodeList.packNodes(*this, packSelfLoop); 
-
-    return true;
-}
-
-Boolean 
-Lattice::expandNodeToTrigram(NodeIndex nodeIndex, LM &lm, unsigned maxNodes)
-{
-    SelfLoopDB selfLoopDB; 
-
-    PackedNodeList packedNodeList, 
-      packedSelfLoopNodeList; 
-
-    LatticeTransition *outTrans;
-    NodeIndex fromNodeIndex;
-    NodeIndex toNodeIndex;
-    LatticeTransition *inTrans;
-    LatticeNode *fromNode; 
-    VocabIndex context[3];
-    LatticeNode *node = findNode(nodeIndex); 
-    if (!node) {
-	if (debug(DebugPrintFatalMessages)) {
-            dout() << "Lattice::expandNodeToTrigram: "
-		   << "Fatal Error: current node doesn't exist!\n";
-	}
-	exit(-1); 
-    }
-
-    LatticeTransition * selfLoop = node->inTransitions.find(nodeIndex); 
-    Boolean selfLoopFlag; 
-    if (selfLoop) { 
-      selfLoopFlag = true; 
-      initASelfLoopDB(selfLoopDB, lm, nodeIndex, node, selfLoop); 
-    } else {
-      selfLoopFlag = false; 
-    }
-
-    TRANSITER_T<NodeIndex,LatticeTransition> inTransIter(node->inTransitions);
-    TRANSITER_T<NodeIndex,LatticeTransition> outTransIter(node->outTransitions);
-
-    VocabIndex wordName = node->word; 
-
-    VocabString nodeName =
-      (wordName == Vocab_None) ? "NULL" : getWord(wordName);
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::expandNodeToTrigram: "
-	     << "processing word name: " << nodeName << ", Index: " 
-	     << nodeIndex << "\n";
-    }
-
-    // going through all its incoming edges
-    while (inTrans = inTransIter.next(fromNodeIndex)) {
-
-      if (nodeIndex == fromNodeIndex) {
-
-	if (debug(DebugPrintOutLoop)) {
-	  dout() << "Lattice::expandNodeToTrigram: jump over self loop: " 
-	         << fromNodeIndex << "\n"; 
-	}
-
-	continue; 
-      }
-
-      fromNode = findNode(fromNodeIndex); 
-      if (!fromNode) {
-	if (debug(DebugPrintFatalMessages)) {
-	    dout() << "Lattice::expandNodeToTrigram: "
-		   << "Fatal Error: fromNode " 
-	           << fromNodeIndex << " doesn't exist!\n";
-	}
-	exit(-1); 
-      }
-      VocabIndex fromWordName = fromNode->word; 
-
-      if (debug(DebugPrintOutLoop)) {
-	VocabString fromNodeName =
-	  (fromWordName == Vocab_None) ? "NULL" : getWord(fromWordName);
-	dout() << "Lattice::expandNodeToTrigram: processing incoming edge: (" 
-	       << fromNodeIndex << ", " << nodeIndex << ")\n" 
-	       << "      (" << fromNodeName << ", " << nodeName << ")\n"; 
-      }
-
-      // compute in bigram prob
-      LogP inWeight; 
-      if (fromNodeIndex == getInitial()) {
-	context[0] = fromWordName; 
-	context[1] = Vocab_None; 
-	inWeight = lm.wordProb(wordName, context);
-      } else { 
-	inWeight = inTrans->weight;
-      }
-
-      context[0] = wordName; 
-      context[1] = fromWordName; 
-      context[2] = Vocab_None; 
-
-      unsigned inFlag = inTrans->flags; 
-
-      // initialize it for self loop processing.
-      if (selfLoopFlag) {
-	initBSelfLoopDB(selfLoopDB, lm, fromNodeIndex, fromNode, inTrans);
-      }
-
-      // going through all the outgoing edges
-      //       node = findNode(nodeIndex); 
-
-      outTransIter.init(); 
-      while (LatticeTransition * outTrans = outTransIter.next(toNodeIndex)) {
-	
-	if (nodeIndex == toNodeIndex) {
-	  dout() << " In expandNodeToTrigram: self loop: " 
-	         << toNodeIndex << "\n"; 
-	  
-	  continue; 
-	}
-
-	LatticeNode * toNode = findNode(toNodeIndex); 
-	if (!toNode) {
-	    if (debug(DebugPrintFatalMessages)) {
-	        dout() << "Lattice::expandNodeToTrigram: "
-		       << "Fatal Error: toNode " 
-	               << toNode << " doesn't exist!\n";
-	    }
-	    exit(-1); 
-	}
-
-	if (debug(DebugPrintInnerLoop)) {
-	  VocabString toNodeName =
-	    (toNode->word == Vocab_None) ? "NULL" : getWord(toNode->word);
-	  dout() << "Lattice::expandNodeToTrigram: the toNodeIndex (" 
-	         << toNodeIndex << " has name " << toNodeName << ")\n"; 
-	}
-
-	// initialize selfLoopDB;
-	if (selfLoopFlag) { 
-	  initCSelfLoopDB(selfLoopDB, toNodeIndex, outTrans); 
-	}
-
-	// duplicate a node if the trigram exists.
-
-	// computed on demand in packNodes(), saving work for cached transitions
-	// LogP logProb = lm.wordProb(toNode->word, context);
-	  
-	if (debug(DebugPrintInnerLoop)) {
-	  VocabString toNodeName =
-	    (toNode->word == Vocab_None) ? "NULL" : getWord(toNode->word);
-	  dout() << "Lattice::expandNodeToTrigram: tripleIndex (" 
-	         << toNodeIndex << " | " << nodeIndex << ", "
-	         << fromNodeIndex << ")\n"
-	         << "      trigram prob: (" 
-	         << toNodeName << " | " << context << ") found!!!!!!!!\n"; 
-	}
-
-	// create one node and two edges to place trigram prob
-	// I need to do packing nodes here.
-
-	PackInput packInput;
-	packInput.fromWordName = fromWordName;
-	packInput.wordName = wordName;
-	packInput.toWordName = toNode->word;
-	packInput.fromNodeIndex = fromNodeIndex;
-	packInput.toNodeIndex = toNodeIndex; 
-	packInput.inWeight = inWeight; 
-	// computed on demand in packNodes()
-	//packInput.outWeight = logProb; 
-	packInput.lm = &lm;
-	packInput.inFlag = inFlag; 
-	packInput.outFlag = outTrans->flags; 
-	packInput.nodeIndex = nodeIndex; 
-	packInput.toNodeId = 0;
-	
-	if (debug(DebugPrintInnerLoop)) {
-	  dout() << "Lattice::expandNodeToTrigram: "
-	         << "outgoing edge for first incoming edge: (" 
-	         << nodeIndex << ", " << toNodeIndex << ") is reused\n"; 
-	}
-
-	packedNodeList.packNodes(*this, packInput); 
-
-        if (maxNodes > 0 && getNumNodes() > maxNodes) {
-	  dout() << "Lattice::expandNodeToTrigram: "
-	         << "aborting with number of nodes exceeding "
-	         << maxNodes << endl;
-	  return false;
-	}
-	
-	// processing selfLoop
-	if (selfLoopFlag) { 
-	  expandSelfLoop(lm, selfLoopDB, packedSelfLoopNodeList); 
-	}
-      }	  // end of inter-loop
-    } // end of out-loop
-
-    // processing selfLoop case
-    if (selfLoopFlag) { 
-          node = findNode(nodeIndex);
-	  node->inTransitions.remove(nodeIndex);
-	  node = findNode(nodeIndex);
-	  selfLoop = node->outTransitions.remove(nodeIndex);
-	  if (!selfLoop) {
-	    dout() << "Lattice::expandNodeToTrigram: "
-	           << "nonFatal Error: non symetric setting\n";
-	    exit(-1); 
-	  }
-    }
-
-    // remove bigram transitions along with the old node
-    removeNode(nodeIndex); 
-    return true; 
-}
-
-Boolean 
-Lattice::expandToTrigram(LM &lm, unsigned maxNodes)
-{
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::expandToTrigram: "
-	     << "starting expansion to conventional trigram lattice ...\n";
-    }
-
-    unsigned numNodes = getNumNodes(); 
-
-    NodeIndex sortedNodes[numNodes];
-    unsigned numReachable = sortNodes(sortedNodes);
-
-    if (numReachable != numNodes) {
-      if (debug(DebugPrintOutLoop)) {
-	dout() << "Lattice::expandToTrigram: warning: called with unreachable nodes\n";
-      }
-    }
-
-    for (unsigned i = 0; i < numReachable; i++) {
-      NodeIndex nodeIndex = sortedNodes[i];
-
-      if (nodeIndex == initial || nodeIndex == final) {
-	continue;
-      }
-      if (!expandNodeToTrigram(nodeIndex, lm, maxNodes)) {
-	return false;
-      }
-    }
-    return true; 
-}
-
-/*
- * Expand bigram lattice to trigram, with bigram packing 
- *   (just like in nodearray.)
- *
- *   BASIC ALGORITHM: 
- *      1) foreach node u connecting with the initial NULL node, 
- *              let W be the set of nodes that have edge go into
- *              node u.
- *              a) get the set of outgoing edges e(u) of node u whose 
- *                      the other ends of nodes are not marked as processed.
- *
- *              b) for each edge e = (u, v) in e(u): 
- *                      for each node w in W do:
- *                        i)  if p(v | u, w) exists, 
- *                              duplicate u to get u' ( word name ), 
- *                              and edge (w, u') and (u', v)
- *                              with all the attributes.
- *                              place p(v | u, w) on edge (u', v)
- *
- *                       ii)  if p(v | u, w) does not exist,
- *                              add p(v | u) on edge (u, v)
- *                              multiply bo(w,u) to p(u | w) on (w, u)
- * 
- *  reservedFlag: to indicate that not all the outGoing nodes from the 
- *      current node have trigram probs and this bigram edge needs to be 
- *      preserved for bigram prob.
- */
-Boolean 
-Lattice::expandNodeToCompactTrigram(NodeIndex nodeIndex, Ngram &ngram,
-							unsigned maxNodes)
-{
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::expandNodeToCompactTrigram: \n";
-    }
-
-    SelfLoopDB selfLoopDB; 
-    PackedNodeList packedNodeList, 
-      packedSelfLoopNodeList; 
-    LatticeTransition *outTrans;
-    NodeIndex fromNodeIndex, backoffNodeIndex;
-    NodeIndex toNodeIndex;
-    LatticeNode *fromNode; 
-    VocabIndex * bowContext = 0; 
-    int inBOW = 0; 
-    VocabIndex context[3];
-    LatticeNode *node = findNode(nodeIndex); 
-    if (!node) {
-        if (debug(DebugPrintFatalMessages)) {
-	  dout() << "Fatal Error in Lattice::expandNodeToCompactTrigram: "
-		 << "current node has lost!\n";
-	}
-	exit(-1); 
-    }
-
-    LatticeTransition * selfLoop = node->inTransitions.find(nodeIndex); 
-    Boolean selfLoopFlag; 
-    if (selfLoop) { 
-      selfLoopFlag = true; 
-      initASelfLoopDB(selfLoopDB, ngram, nodeIndex, node, selfLoop); 
-    } else {
-      selfLoopFlag = false; 
-    }
-
-    TRANSITER_T<NodeIndex,LatticeTransition> inTransIter(node->inTransitions);
-    TRANSITER_T<NodeIndex,LatticeTransition> outTransIter(node->outTransitions);
-
-    VocabIndex wordName = node->word; 
-
-    VocabString nodeName =
-      (wordName == Vocab_None) ? "NULL" : getWord(wordName);
-
-    if (debug(DebugPrintOutLoop)) {
-      dout() << "Lattice::expandNodeToCompactTrigram: "
-	     << " processing word name: " << nodeName << ", Index: " 
-	     << nodeIndex << "\n";
-    }
-
-    // going through all its incoming edges
-    unsigned numInTrans = node->inTransitions.numEntries(); 
-
-    while (LatticeTransition *inTrans = inTransIter.next(fromNodeIndex)) {
-
-      if (nodeIndex == fromNodeIndex) {
-	if (debug(DebugPrintInnerLoop)) {
-	  dout() << "Lattice::expandNodeToCompactTrigram: "
-		 << "jump over self loop: " 
-		 << fromNodeIndex << "\n"; 
-	}
-	continue; 
-      }
-
-      fromNode = findNode(fromNodeIndex); 
-      if (!fromNode) {
-	if (debug(DebugPrintFatalMessages)) {
-	  dout() << "Fatal Error in Lattice::expandNodeToCompactTrigram: "
-		 << "fromNode " 
-		 << fromNodeIndex << " doesn't exist!\n";
-	}
-	exit(-1); 
-      }
-      VocabIndex fromWordName = fromNode->word; 
-
-      VocabString fromNodeName =
-	(fromWordName == Vocab_None) ? "NULL" : getWord(fromWordName);
-
-      if (debug(DebugPrintInnerLoop)) {
-	dout() << "Lattice::expandNodeToCompactTrigram: "
-	       << "processing incoming edge: (" 
-	       << fromNodeIndex 
-	       << ", " << nodeIndex << ")\n"
-	       << "      (" << fromNodeName << ", " << nodeName << ")\n"; 
-      }
-
-      // compute in-coming bigram prob
-      LogP inWeight; 
-      if (fromNodeIndex == getInitial()) {
-	context[0] = fromWordName; 
-	context[1] = Vocab_None; 
-	// this transition can have never been processed.
-	inWeight = ngram.wordProb(wordName, context);
-	inTrans->weight = inWeight; 
-
-	if (debug(DebugPrintInnerLoop)) {
-	  dout() << "Lattice::expandNodeToCompactTrigram: "
-		 << "processing incoming edge: (" 
-		 << fromNodeIndex 
-		 << ", " << nodeIndex << ")\n"
-		 << "      (" << fromNodeName << ", " << nodeName << ") = "
-		 << "  " << inWeight << ";\n"; 
-	}
-      } else { 
-	// the in-coming trans has been processed and 
-	// we should preserve this value.
-	inWeight = inTrans->weight;
-      }
-
-      context[0] = wordName; 
-      context[1] = fromWordName; 
-      context[2] = Vocab_None; 
-
-      // LogP inWeight = ngram.wordProb(wordName, context);
-      unsigned inFlag = inTrans->flags; 
-
-      // initialize it for self loop processing.
-      if (selfLoopFlag) {
-	initBSelfLoopDB(selfLoopDB, ngram, fromNodeIndex, fromNode, inTrans); }
-
-      // going through all the outgoing edges
-      outTransIter.init(); 
-      while (LatticeTransition *outTrans = outTransIter.next(toNodeIndex)) {
-	
-	if (nodeIndex == toNodeIndex) {
-	  if (debug(DebugPrintInnerLoop)) {
-	    dout() << "Lattice::expandNodeToCompactTrigram: "
-		   << "self loop: " 
-		   << toNodeIndex << "\n"; 
-	  }
-	  continue; 
-	}
-
-	LatticeNode * toNode = findNode(toNodeIndex); 
-	if (!toNode) {
-	  if (debug(DebugPrintFatalMessages)) {
-	    dout() << "Fatal Error in Lattice::expandNodeToCompactTrigram: "
-		   << "toNode " 
-		   << toNode << " doesn't exist!\n";
-	  }
-	  exit(-1); 
-	}
-
-	if (debug(DebugPrintInnerLoop)) {
-	  VocabString toNodeName =
-	    (toNode->word == Vocab_None)?"NULL" : getWord(toNode->word);
-	  dout() << "Lattice::expandNodeToCompactTrigram: "
-		 << "the toNodeIndex (" 
-		 << toNodeIndex << " has name " << toNodeName << ")\n"; 
-	}
-
-	// initialize selfLoopDB;
-	if (selfLoopFlag) { 
-	  initCSelfLoopDB(selfLoopDB, toNodeIndex, outTrans); 
-	}
-
-	// duplicate a node if the trigram exists.
-	// see class Ngram in file /home/srilm/devel/lm/src/Ngram.h
-	
-	LogP * triProb; 
-
-	if (triProb = ngram.findProb(toNode->word, context)) {
-	  LogP logProb = *triProb; 
-	  
-	  if (debug(DebugPrintInnerLoop)) {
-	    VocabString toNodeName =
-	      (toNode->word == Vocab_None)?"NULL" : getWord(toNode->word);
-	    dout() << "Lattice::expandNodeToCompactTrigram: "
-		   << "tripleIndex (" 
-		   << toNodeIndex << " | " << nodeIndex << ", "
-		   << fromNodeIndex << ")\n"
-		   << "      trigram prob: (" 
-		   << toNodeName << " | " << context << ") found!!!!!!!!\n"; 
-	  }
-
-	  // create one node and two edges to place trigram prob
-	  PackInput packInput;
-	  packInput.fromWordName = fromWordName;
-	  packInput.wordName = wordName;
-	  packInput.toWordName = toNode->word;
-	  packInput.fromNodeIndex = fromNodeIndex;
-	  packInput.toNodeIndex = toNodeIndex; 
-	  packInput.inWeight = inWeight; 
-	  packInput.inFlag = inFlag; 
-	  packInput.outWeight = logProb; 
-	  packInput.outFlag = outTrans->flags; 
-	  packInput.nodeIndex = nodeIndex; 
-	  packInput.toNodeId = 0;
-	  packInput.lm = 0;
-	  
-	  packedNodeList.packNodes(*this, packInput); 
-
-	  // to remove the outGoing edge if all the outgoing nodes have
-	  // trigram probs.
-	  if (numInTrans == 1 && 
-	      !(outTrans->getFlag(reservedTFlag))) {
-
-	    if (debug(DebugPrintInnerLoop)) {
-	      dout() << "Lattice::expandNodeToCompactTrigram: "
-		     << "outgoing edge: (" 
-		     << nodeIndex << ", " << toNodeIndex << ") is removed\n"; 
-	    }
-	    removeTrans(nodeIndex, toNodeIndex); 
-	  }
-
-	  if (maxNodes > 0 && getNumNodes() > maxNodes) {
-	    dout() << "Lattice::expandNodeToCompactTrigram: "
-		   << "aborting with number of nodes exceeding "
-		   << maxNodes << endl;
-	    return false;
-	  }
-	} else {
-	  // there is no trigram prob for this context
-
-	  if (debug(DebugPrintInnerLoop)) {
-	    dout() << "Lattice::expandNodeToCompactTrigram: "
-		   << "no trigram context (" 
-		   << context << ") has been found -- keep " 
-		   << fromNodeIndex << "\n"; 
-	  }
-
-	  // note down backoff context and in-coming node for 
-	  // preservation, in case explicit trigram does not exist.
-	  bowContext = context; 
-	  outTrans->markTrans(reservedTFlag); 
-	  backoffNodeIndex = fromNodeIndex;
-	}
-	
-	// processing selfLoop
-	if (selfLoopFlag) { 
-	  expandSelfLoop(ngram, selfLoopDB, packedSelfLoopNodeList); 
-	}
-      }	  // end of inter-loop
-
-      // processing incoming bigram cases.
-      if (!bowContext) {
-  	  // for this context, all the toNodes have trigram probs
-
-	  if (debug(DebugPrintInnerLoop)) {
-	    dout() << "Lattice::expandNodeToCompactTrigram: "
-		   << "incoming edge ("
-		   << fromNodeIndex << ", " << nodeIndex
-		   << ") is removed\n"; 
-	  }
-
-  	  removeTrans(fromNodeIndex, nodeIndex); 
-      } else {
-	  if (debug(DebugPrintInnerLoop)) {
-	      dout() << "Lattice::expandNodeToCompactTrigram: "
-		     << "updating trigram backoffs on edge("
-		     << fromNodeIndex << ", " << nodeIndex << ")\n"; 
-	  }
-
- 	  LogP * wordBOW = ngram.findBOW(bowContext);
-	  if (!(wordBOW)) {
-  	      if (debug(DebugPrintOutLoop)) {
-		dout() << "nonFatal Error in Lattice::expandNodeToCompactTrigram: "
-		       << "language model - BOW (" 
-		       << bowContext << ") missing!\n";
-	      }
-
-	      static LogP zerobow = 0.0; 
-	      wordBOW = &zerobow; 
-	  }
-
-	  LogP logProbW = *wordBOW; 
-	  LogP weight = combWeights(inWeight, logProbW); 
-
-	  setWeightTrans(backoffNodeIndex, nodeIndex, weight); 
-
-	  bowContext = 0;
-	  inBOW = 1; 
-      }
-
-      numInTrans--;
-    } // end of out-loop
-
-    // if trigram prob exist for all the tri-node paths
-    if (!inBOW) {
-
-        if (debug(DebugPrintInnerLoop)) {
-	  dout() << "Lattice::expandNodeToCompactTrigram: "
-		 << "node "
-		 << nodeName << " (" << nodeIndex
-		 << ") has trigram probs for all its contexts\n"
-		 << " and its bigram lattice node is removed\n"; 
-	}
-
-        removeNode(nodeIndex); 
-    } else {
-        node = findNode(nodeIndex);
-        if (selfLoopFlag) { 
-	  node->inTransitions.remove(nodeIndex);
-	  node = findNode(nodeIndex);
-	  selfLoop = node->outTransitions.remove(nodeIndex);
-	  if (!selfLoop) {
-
- 	      if (debug(DebugPrintFatalMessages)) {
-		dout() << "nonFatal Error in Lattice::expandNodeToCompactTrigram: "
-		       << "non symetric setting \n";
-	      }
-	      exit(-1); 
-	  }
-	} 
-
-	// process backoff to bigram weights. 
-	TRANSITER_T<NodeIndex,LatticeTransition> 
-	  outTransIter(node->outTransitions);
-	while (LatticeTransition *outTrans = outTransIter.next(toNodeIndex)) {
-	  
-	  LatticeNode * toNode = findNode(toNodeIndex);
-	  context[0] = wordName; 
-	  context[1] = Vocab_None; 
-	  LogP weight = ngram.wordProb(toNode->word, context); 
-
-	  setWeightTrans(nodeIndex, toNodeIndex, weight); 
-	}
-    }
-
-    return true; 
-}
-
-Boolean 
-Lattice::expandToCompactTrigram(Ngram &ngram, unsigned maxNodes)
-{
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::expandToCompactTrigram: "
-	     << "starting expansion to compact trigram lattice ...\n";
-    }
-
-    unsigned numNodes = getNumNodes(); 
-
-    NodeIndex sortedNodes[numNodes];
-    unsigned numReachable = sortNodes(sortedNodes);
-
-    if (numReachable != numNodes) {
-      if (debug(DebugPrintOutLoop)) {
-	dout() << "Lattice::expandToCompactTrigram: warning: called with unreachable nodes\n";
-      }
-    }
-
-    for (unsigned i = 0; i < numReachable; i++) {
-      NodeIndex nodeIndex = sortedNodes[i];
-
-      if (nodeIndex == initial || nodeIndex == final) {
-	continue;
-      }
-      if (!expandNodeToCompactTrigram(nodeIndex, ngram, maxNodes)) {
-	return false;
-      }
-    }
-    return true; 
-}
-
-/*
- * Expand lattice to implement general LMs
- * Algorithm: replace each node in lattice with copies that are 
- * associated with specific LM contexts. The mapping 
- *	(original node, context) -> new node
- * is constructed incrementally as the lattice is traversed in topological
- * order.
- *
- *	expandMap[startNode, <s>] := newStartNode;
- *	expandMap[endNode, </s>] := newEndNode;
- * 
- *	for oldNode in topological order
- *	    for expandMap[oldNode, c] = newNode
- *		for oldNode2 in successors(oldNode)
- *		    c2 = lmcontext(c + word(oldNode2));
- *		    find or create expandMap[oldNode2, c2] = newNode2;
- *		    word(newNode2) := word(oldNodes2);
- *		    prob(newNode->newNode2) := P(word(newNode2) | c);
- *	    delete oldNode;
- *	    delete expandMap[oldNode]; # to save space
- */
-Boolean
-Lattice::expandNodeToLM(VocabIndex oldIndex, LM &lm, unsigned maxNodes, 
-		        Map2<NodeIndex, VocabContext, NodeIndex> &expandMap)
-{
-    Map2Iter2<NodeIndex, VocabContext, NodeIndex>
-					    expandIter(expandMap, oldIndex);
-    
-    NodeIndex *newIndex;
-    VocabContext context;
-
-    while (newIndex = expandIter.next(context)) {
-
-	// node structure might have been moved as a result of insertions
-	LatticeNode *oldNode = findNode(oldIndex);
-	assert(oldNode != 0);
-
-	unsigned contextLength = Vocab::length(context);
-
-	VocabIndex newContext[contextLength + 2];
-	Vocab::copy(&newContext[1], context);
-
-	TRANSITER_T<NodeIndex,LatticeTransition> 
-			      transIter(oldNode->outTransitions);
-	NodeIndex oldIndex2;
-	while (LatticeTransition *oldTrans = transIter.next(oldIndex2)) {
-	    LatticeNode *oldNode2 = findNode(oldIndex2);
-	    assert(oldNode2 != 0);
-
-	    VocabIndex word = oldNode2->word;
-
-	    // determine context used by LM
-	    // (use at least one word since that is always given at each node)
-	    unsigned usedLength = 1;
-	    newContext[0] = word;
-
-	    // find all possible following words and determine maximal context
-	    // needed for wordProb computation
-	    TRANSITER_T<NodeIndex,LatticeTransition> 
-			      transIter2(oldNode2->outTransitions);
-	    NodeIndex oldIndex3;
-	    while (transIter2.next(oldIndex3)) {
-		LatticeNode *oldNode3 = findNode(oldIndex3);
-		assert(oldNode3 != 0);
-		
-		unsigned usedLength2;
-		lm.contextID(oldNode3->word, newContext, usedLength2);
-
-		if (usedLength2 > usedLength) {
-		    usedLength = usedLength2;
-		}
-	    }
-
-	    // back-off weight to truncate the context
-	    LogP bow = lm.contextBOW(newContext, usedLength);
-
-	    // truncate context to what LM uses
-	    VocabIndex saved = newContext[usedLength];
-	    newContext[usedLength] = Vocab_None;
-
-	    Boolean found;
-	    NodeIndex *newIndex2 =
-		expandMap.insert(oldIndex2, (VocabContext)newContext, found);
-
-	    if (!found) {
-		// create new node copy and store it in map
-		*newIndex2 = dupNode(word, oldNode2->flags);
-
-		if (maxNodes > 0 && getNumNodes() > maxNodes) {
-		    dout() << "Lattice::expandNodeToLM: "
-			   << "aborting with number of nodes exceeding "
-			   << maxNodes << endl;
-		    return false;
-		}
-	    }
-
-	    LatticeTransition newTrans(lm.wordProb(word, context) + bow,
-							   oldTrans->flags);
-	    insertTrans(*newIndex, *newIndex2, newTrans, 0);
-
-	    // restore full context
-	    newContext[usedLength] = saved;
-	} 
-    }
-
-    // old node (and transitions) is fully replaced by expanded nodes 
-    // (and transitions)
-    removeNode(oldIndex);
-
-    // save space in expandMap by deleting entries that are no longer used
-    expandMap.remove(oldIndex);
-
-    return true;
-}
-
-Boolean 
-Lattice::expandToLM(LM &lm, unsigned maxNodes)
-{
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::expandToLM: "
-	     << "starting expansion to general LM ...\n";
-    }
-
-    unsigned numNodes = getNumNodes(); 
-
-    NodeIndex sortedNodes[numNodes];
-    unsigned numReachable = sortNodes(sortedNodes);
-
-    if (numReachable != numNodes) {
-      if (debug(DebugPrintOutLoop)) {
-	dout() << "Lattice::expandToLM: warning: called with unreachable nodes\n";
-      }
-    }
-
-    Map2<NodeIndex, VocabContext, NodeIndex> expandMap;
-
-    // prime expansion map with initial/final nodes
-    LatticeNode *startNode = findNode(initial);
-    assert(startNode != 0);
-    VocabIndex newStartIndex = dupNode(startNode->word, startNode->flags);
-
-    VocabIndex context[2];
-    context[1] = Vocab_None;
-    context[0] = vocab.ssIndex;
-    *expandMap.insert(initial, context) = newStartIndex;
-
-    LatticeNode *endNode = findNode(final);
-    assert(endNode != 0);
-    VocabIndex newEndIndex = dupNode(endNode->word, endNode->flags);
-
-    context[0] = vocab.seIndex;
-    *expandMap.insert(final, context) = newEndIndex;
-
-    for (unsigned i = 0; i < numReachable; i++) {
-      NodeIndex nodeIndex = sortedNodes[i];
-
-      if (nodeIndex == final) {
-	removeNode(final);
-      } else {
-        if (!expandNodeToLM(nodeIndex, lm, maxNodes, expandMap)) {
-	  return false;
-        }
-      }
-    }
-
-    initial = newStartIndex;
-    final = newEndIndex;
-
-    return true; 
-}
-
-inline Boolean 
-checkLimit(LogP limits[], unsigned level, LogP value, LogP pruning)
-{
-
-  LogP margin = pruning; 
-
-  // initialize the limit value.
-  if (limits[level] == 1) {
-    limits[level+1] = 1; 
-    limits[level] = value;
-    return true; 
-  }
-    
-  // if the current value is with the margin of the current limit, 
-  // accept this node.
-  if (limits[level] + margin <= value) {
-    // if the current value is better than the limit, reset the limit
-    // to the current value.
-    if (limits[level] <= value) {
-      limits[level] = value;
-    }
-    return true;
-  } else {
-    return false;
-  }	  
-}
-
 Boolean
 Lattice::computeNodeEntropy()
 {
@@ -5050,18 +3888,18 @@ Lattice::computeNodeEntropy()
       }
 
       if (fanOut) {
-	fanOutEntropy += (double) fanOut*log10(fanOut); 
+	fanOutEntropy += (double) fanOut*log10((double)fanOut); 
       }
 
       if (fanIn) {
-	fanInEntropy += (double) fanIn*log10(fanIn); 
+	fanInEntropy += (double) fanIn*log10((double)fanIn); 
       }
     }
 
-    fanOutEntropy = log10(total) - fanOutEntropy/total; 
-    fanInEntropy = log10(total) - fanInEntropy/total; 
+    fanOutEntropy = log10((double)total) - fanOutEntropy/total; 
+    fanInEntropy = log10((double)total) - fanInEntropy/total; 
 
-    double uniform = log10(getNumNodes()); 
+    double uniform = log10((double)getNumNodes()); 
 
     printf("The fan-in/out/uniform entropies are ( %f %f %f )\n", 
 	   fanInEntropy, fanOutEntropy, uniform); 
@@ -5070,44 +3908,125 @@ Lattice::computeNodeEntropy()
 
 }
 
-/*
- * Reduce lattice by collapsing all nodes with the same word
- *	(except those in the exceptions sub-vocabulary)
- */
-Boolean
-Lattice::collapseSameWordNodes(SubVocab &exceptions)
+void
+Lattice::splitMultiwordNodes(MultiwordVocab &vocab, LM &lm)
 {
-    LHash<VocabIndex, NodeIndex> wordToNodeMap;
+    VocabIndex emptyContext[1];
+    emptyContext[0] = Vocab_None;
 
     if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::collapseSameWordNodes: "
-	     << "starting with " << getNumNodes() << " nodes\n";
+      dout() << "Lattice::splitMultiwordNodes: splitting multiword nodes\n";
     }
 
-    NodeIndex nodeIndex;
-    LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
-    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+    unsigned numNodes = getNumNodes(); 
 
-	if (node->word != Vocab_None && !exceptions.getWord(node->word)) {
-	    Boolean foundP;
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
+    unsigned numReachable = sortNodes(sortedNodes);
 
-	    NodeIndex *oldNode = wordToNodeMap.insert(node->word, foundP);
+    for (unsigned i = 0; i < numReachable; i++) {
+      NodeIndex nodeIndex = sortedNodes[i];
+      LatticeNode *node = findNode(nodeIndex); 
 
-	    if (!foundP) {
-		// word is new, save its node index
-		*oldNode = nodeIndex;
-	    } else {
-		// word has been found before -- merge nodes
-		mergeNodes(*oldNode, nodeIndex);
-	    }
+      VocabIndex oneWord[2];
+      oneWord[0] = node->word;
+      oneWord[1] = Vocab_None;
+      VocabIndex expanded[maxWordsPerLine + 1];
+
+      unsigned expandedLength =
+		vocab.expandMultiwords(oneWord, expanded, maxWordsPerLine);
+
+      /*
+       * We don't split multiwords that are in the LM
+       */
+      if (expandedLength > 1 &&
+	  lm.wordProb(node->word, emptyContext) == LogP_Zero)
+      {
+	// change orignal node to emit first component word
+	node->word = expanded[0];
+
+	// update the HTKWordInfo information attached to this node
+	HTKWordInfo *htkinfo = node->htkinfo;
+
+	if (htkinfo != 0) {
+	    htkinfo->word = expanded[0];
 	}
+
+	NodeIndex prevNodeIndex = nodeIndex;
+	NodeIndex firstNewIndex;
+	
+	// create new nodes for all subsequent word components, and
+	// string them together with zero weight transitions
+	for (unsigned i = 1; i < expandedLength; i ++) {
+
+	    HTKWordInfo *newinfo = 0;
+
+	    /* 
+	     * if original node hat HTKWordInfo attached, create dummy
+	     * HTKWordInfo for new node
+	     */
+	    if (htkinfo != 0) {
+		newinfo = new HTKWordInfo;
+		assert(newinfo != 0);
+
+		htkinfos[htkinfos.size()] = newinfo;
+		newinfo->word = expanded[i];
+
+		if (htkinfo->time != HTK_undef_float) {
+		    // make all the multiword components have the same time
+		    newinfo->time = htkinfo->time;
+		}
+
+		// scores of all subsequent components are 0 since the first
+		// component carries the full scores
+		if (htkinfo->acoustic != HTK_undef_float) {
+		    newinfo->acoustic = LogP_One;
+		}
+		if (htkinfo->language != HTK_undef_float) {
+		    newinfo->language = LogP_One;
+		}
+		if (htkinfo->ngram != HTK_undef_float) {
+		    newinfo->ngram = LogP_One;
+		}
+		if (htkinfo->pron != HTK_undef_float) {
+		    newinfo->pron = LogP_One;
+		}
+	    }
+
+	    NodeIndex newNodeIndex = dupNode(expanded[i], 0, newinfo);
+
+	    // delay inserting the first new transition to not interfere
+	    // with removal of old links below
+	    if (prevNodeIndex == nodeIndex) {
+		firstNewIndex = newNodeIndex;
+	    } else {
+	        LatticeTransition trans;
+	        insertTrans(prevNodeIndex, newNodeIndex, trans);
+	    }
+	    prevNodeIndex = newNodeIndex;
+	}
+
+	// node may have moved since others were added!!!
+        node = findNode(nodeIndex); 
+
+	// copy original outgoing transitions onto final new node
+        TRANSITER_T<NodeIndex,LatticeTransition>
+				transIter(node->outTransitions);
+	NodeIndex toNodeIndex;
+        while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
+	    // prevNodeIndex still has the last of the newly created nodes
+	    insertTrans(prevNodeIndex, toNodeIndex, *trans);
+	    removeTrans(nodeIndex, toNodeIndex);
+	}
+
+	// now insert new transition out of original node
+	{
+	    LatticeTransition trans;
+	    insertTrans(nodeIndex, firstNewIndex, trans);
+	}
+      }
     }
 
-    if (debug(DebugPrintFunctionality)) {
-      dout() << "Lattice::collapseSameWordNodes: "
-	     << "finished with " << getNumNodes() << " nodes\n";
-    }
-
-    return true;
+    delete [] sortedNodes;
 }
 

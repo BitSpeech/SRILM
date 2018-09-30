@@ -4,11 +4,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.13 2003/02/15 06:19:14 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "option.h"
@@ -364,7 +365,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * no-event state.
 	 */
 	VocabIndex initialContext[2];
-	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	if (len > 0 && context[len - 1] == vocab.ssIndex()) {
 	    initialContext[0] = context[len - 1];
 	    initialContext[1] = Vocab_None;
 	    prefix = len - 1;
@@ -539,7 +540,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		     */
 		    if (repeatFrom > prevContextLength ||
 			currWord != prevContext[repeatFrom - 1] ||
-			currWord == vocab.unkIndex)
+			currWord == vocab.unkIndex())
 		    {
 			continue;
 		    }
@@ -584,7 +585,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		    unsigned i;
 		    for (i = 0; i < currEventProps->deleteWords; i ++) {
 			if (startNewContext[0] == Vocab_None ||
-			    startNewContext[0] == vocab.ssIndex) 
+			    startNewContext[0] == vocab.ssIndex()) 
 			{
 			    break;
 			}
@@ -719,7 +720,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 	    trellis.init(pos);
 	    trellis.setProb(emptyState, trellis.sumLogP(pos - 1));
 
-	    if (currWord == vocab.unkIndex) {
+	    if (currWord == vocab.unkIndex()) {
 		stats.numOOVs ++;
 	    } else {
 	        stats.zeroProbs ++;
@@ -822,7 +823,7 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	 * Also, we have to prepend the sentence-begin token,
 	 * and append the sentence-end token.
 	 */
-	VocabIndex reversed[len + 2 + 1];
+	makeArray(VocabIndex, reversed, len + 2 + 1);
 	len = prepareSentence(sentence, reversed, len);
 
 	/*
@@ -843,7 +844,7 @@ HiddenNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 
     if (debug(DEBUG_PRINT_VITERBI)) {
 	len = trellis.where();
-	HiddenNgramState bestStates[len];
+	makeArray(HiddenNgramState, bestStates, len);
 
 	if (trellis.viterbi(bestStates, len) == 0) {
 	    dout() << "Viterbi backtrace failed\n";

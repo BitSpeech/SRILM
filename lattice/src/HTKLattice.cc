@@ -1,0 +1,1748 @@
+/*
+ * HTKLattice.cc --
+ *	HTK Standard Lattice Format support for SRILM lattices
+ *
+ *	Note: there is no separate HTKLattice class, only I/O methods!
+ *
+ */
+
+#ifndef lint
+static char Copyright[] = "Copyright (c) 2003-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.cc,v 1.40 2006/01/16 19:34:15 stolcke Exp $";
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include <assert.h>
+
+#include "Prob.h"
+#include "Array.cc"
+#include "LHash.cc"
+#include "Lattice.h"
+#include "MultiwordVocab.h"
+#include "NBest.h"		// for phoneSeparator defn
+
+#ifdef INSTANTIATE_TEMPLATES
+INSTANTIATE_ARRAY(HTKWordInfo);
+#endif
+
+/* from Lattice.cc */
+#define DebugPrintFatalMessages         1 
+#define DebugPrintFunctionality         1 
+
+const char *HTKLattice_Version = "1.1";
+
+const char *HTK_null_word = "!NULL";
+
+const char HTK_single_quote = '\'';
+const char HTK_double_quote = '\"';
+const char HTK_escape_quote = '\\';
+
+const float HTK_def_tscale = 1.0;
+const float HTK_def_acscale = 1.0;
+const float HTK_def_lmscale = 1.0;
+const float HTK_def_ngscale = 1.0;
+const float HTK_def_wdpenalty = 0.0;
+const float HTK_def_prscale = 1.0;
+const float HTK_def_duscale = 0.0;
+const float HTK_def_xscale = 0.0;
+
+HTKHeader::HTKHeader()
+    : logbase(10), tscale(HTK_def_tscale), acscale(HTK_def_acscale),
+      ngscale(HTK_def_ngscale), lmscale(HTK_def_lmscale),
+      wdpenalty(HTK_def_wdpenalty), prscale(HTK_def_prscale),
+      duscale(HTK_def_duscale), amscale(HTK_undef_float),
+      x1scale(HTK_def_xscale), x2scale(HTK_def_xscale), x3scale(HTK_def_xscale),
+      x4scale(HTK_def_xscale), x5scale(HTK_def_xscale), x6scale(HTK_def_xscale),
+      x7scale(HTK_def_xscale), x8scale(HTK_def_xscale), x9scale(HTK_def_xscale),
+      vocab(0), lmname(0), ngname(0), hmms(0),
+      wordsOnNodes(false), scoresOnNodes(false), useQuotes(false)
+{
+};
+
+HTKHeader::HTKHeader(double acscale, double lmscale, double ngscale,
+			double prscale, double duscale, double wdpenalty,
+			double x1scale, double x2scale, double x3scale,
+			double x4scale, double x5scale, double x6scale,
+			double x7scale, double x8scale, double x9scale)
+    : logbase(10), tscale(HTK_def_tscale), acscale(acscale),
+      ngscale(ngscale), lmscale(lmscale),
+      wdpenalty(wdpenalty), prscale(prscale),
+      duscale(duscale), amscale(HTK_undef_float),
+      x1scale(x2scale), x2scale(x2scale), x3scale(x3scale),
+      x4scale(x4scale), x5scale(x5scale), x6scale(x6scale),
+      x7scale(x7scale), x8scale(x8scale), x9scale(x9scale),
+      vocab(0), lmname(0), ngname(0), hmms(0),
+      wordsOnNodes(false), scoresOnNodes(false), useQuotes(false)
+{
+};
+
+HTKHeader::~HTKHeader()
+{
+    if (vocab) free(vocab);
+    if (lmname) free(lmname);
+    if (ngname) free(ngname);
+    if (hmms) free(hmms);
+}
+
+HTKHeader &
+HTKHeader::operator= (const HTKHeader &other)
+{
+    if (&other == this) {
+	return *this;
+    }
+
+    if (vocab) free(vocab);
+    if (lmname) free(lmname);
+    if (ngname) free(ngname);
+    if (hmms) free(hmms);
+
+    tscale = other.tscale;
+    acscale = other.acscale;
+    ngscale = other.ngscale;
+    lmscale = other.lmscale;
+    wdpenalty = other.wdpenalty;
+    prscale = other.prscale;
+    duscale = other.duscale;
+    x1scale = other.x1scale;
+    x2scale = other.x2scale;
+    x3scale = other.x3scale;
+    x4scale = other.x4scale;
+    x5scale = other.x5scale;
+    x6scale = other.x6scale;
+    x7scale = other.x7scale;
+    x8scale = other.x8scale;
+    x9scale = other.x9scale;
+    amscale = other.amscale;
+    if (other.vocab == 0) {
+	vocab = 0;
+    } else {
+	vocab = strdup(other.vocab);
+	assert(vocab != 0);
+    }
+    if (other.lmname == 0) {
+	lmname = 0;
+    } else {
+	lmname = strdup(other.lmname);
+	assert(lmname != 0);
+    }
+    if (other.ngname == 0) {
+	ngname = 0;
+    } else {
+	ngname = strdup(other.ngname);
+	assert(ngname != 0);
+    }
+    if (other.hmms == 0) {
+	hmms = 0;
+    } else {
+	hmms = strdup(other.hmms);
+	assert(hmms != 0);
+    }
+
+    return *this;
+}
+
+
+HTKWordInfo::HTKWordInfo()
+    : time(HTK_undef_float), word(Vocab_None), var(HTK_undef_uint),
+      div(0), states(0),
+      acoustic(HTK_undef_float), ngram(HTK_undef_float),
+      language(HTK_undef_float), pron(HTK_undef_float),
+      duration(HTK_undef_float), xscore1(HTK_undef_float),
+      xscore2(HTK_undef_float), xscore3(HTK_undef_float),
+      xscore4(HTK_undef_float), xscore5(HTK_undef_float),
+      xscore6(HTK_undef_float), xscore7(HTK_undef_float),
+      xscore8(HTK_undef_float), xscore9(HTK_undef_float),
+      posterior(HTK_undef_float)
+{
+}
+
+HTKWordInfo::HTKWordInfo(const HTKWordInfo &other)
+    : div(0), states(0)
+{
+    *this = other;
+}
+
+HTKWordInfo::~HTKWordInfo()
+{
+    if (div) free(div);
+    if (states) free(states);
+}
+
+HTKWordInfo &
+HTKWordInfo::operator= (const HTKWordInfo &other)
+{
+    if (&other == this) {
+	return *this;
+    }
+
+    if (div) free(div);
+    if (states) free(states);
+
+    time = other.time;
+    word = other.word;
+    var = other.var;
+    if (other.div == 0) {
+	div = 0;
+    } else {
+	div = strdup(other.div);
+	assert(div != 0);
+    }
+    if (other.states == 0) {
+	states = 0;
+    } else {
+	states = strdup(other.states);
+	assert(states != 0);
+    }
+    acoustic = other.acoustic;
+    ngram = other.ngram;
+    language = other.language;
+    pron = other.pron;
+    duration = other.duration;
+    xscore1 = other.xscore1;
+    xscore2 = other.xscore2;
+    xscore3 = other.xscore3;
+    xscore4 = other.xscore4;
+    xscore5 = other.xscore5;
+    xscore6 = other.xscore6;
+    xscore7 = other.xscore7;
+    xscore8 = other.xscore8;
+    xscore9 = other.xscore9;
+    posterior = other.posterior;
+    return *this;
+}
+
+/* 
+ * Format HTKWordInfo (for debugging)
+ */
+ostream &
+operator<< (ostream &stream, HTKWordInfo &link)
+{
+    stream << "[HTKWordInfo";
+
+    if (link.word != Vocab_None) {
+	stream << " WORD=" << link.word;
+    }
+    if (link.time != HTK_undef_float) {
+	stream << " time=" << link.time;
+    }
+    if (link.var != HTK_undef_uint) {
+	stream << " var=" << link.var;
+    }
+    if (link.div != 0) {
+	stream << " div=" << link.div;
+    }
+    if (link.states != 0) {
+	stream << " s=" << link.states;
+    }
+    if (link.acoustic != HTK_undef_float) {
+	stream << " a=" << link.acoustic;
+    }
+    if (link.ngram != HTK_undef_float) {
+	stream << " n=" << link.ngram;
+    }
+    if (link.language != HTK_undef_float) {
+	stream << " l=" << link.language;
+    }
+    if (link.pron != HTK_undef_float) {
+	stream << " r=" << link.pron;
+    }
+    if (link.duration != HTK_undef_float) {
+	stream << " ds=" << link.duration;
+    }
+    if (link.xscore1 != HTK_undef_float) {
+	stream << " x1=" << link.xscore1;
+    }
+    if (link.xscore2 != HTK_undef_float) {
+	stream << " x2=" << link.xscore2;
+    }
+    if (link.xscore3 != HTK_undef_float) {
+	stream << " x3=" << link.xscore3;
+    }
+    if (link.xscore4 != HTK_undef_float) {
+	stream << " x4=" << link.xscore4;
+    }
+    if (link.xscore5 != HTK_undef_float) {
+	stream << " x5=" << link.xscore5;
+    }
+    if (link.xscore6 != HTK_undef_float) {
+	stream << " x6=" << link.xscore6;
+    }
+    if (link.xscore7 != HTK_undef_float) {
+	stream << " x7=" << link.xscore7;
+    }
+    if (link.xscore8 != HTK_undef_float) {
+	stream << " x8=" << link.xscore8;
+    }
+    if (link.xscore9 != HTK_undef_float) {
+	stream << " x9=" << link.xscore9;
+    }
+    if (link.posterior != HTK_undef_float) {
+	stream << " p=" << link.posterior;
+    }
+    stream << "]";
+    return stream;
+}
+
+
+/*
+ * Find the next key=value pair in line, return string value, nad 
+ * advance line pointer past it.
+ * The string pointed to by line is modified in the process.
+ */
+static char *
+getHTKField(char *&line, char *&value, Boolean useQuotes)
+{
+    char *cp = line;
+    char *key;
+
+    do {
+	switch (*cp) {
+	case '\0':
+	case '#':
+		return 0;
+		break;
+	case ' ':
+	case '\t':
+	case '\n':
+		cp ++;
+		break;
+	default:
+		key = cp;
+
+		while (*cp != '\0' && !isspace(*cp) && *cp != '=') cp++;
+
+		if (*cp == '=') {
+		    *(cp++) = '\0';	// terminate key string
+		    value = cp;		// beginning of value string
+		    char *cpv = cp;	// target location for copying value
+
+		    char inquote = '\0';
+
+		    /*
+		     * Quotes are only treated specially if they 
+		     * occur in first position
+		     */
+		    if (useQuotes &&
+			(*cp == HTK_single_quote || *cp == HTK_double_quote))
+		    {
+			inquote = *(cp++);
+		    }
+
+		    while (*cp != '\0') {
+			if (useQuotes && *cp == HTK_escape_quote) {
+			    /*
+			     * Backslash quote processing
+			     */
+			    cp ++;
+			    if (*cp == '\0') {
+				/*
+				 * Shouldn't happen, we just ignore it
+				 */
+				break;
+			    } else if (*cp == '0') {
+				/*
+				 * Octal char code
+				 */
+				unsigned charcode;
+				unsigned charlen;
+				sscanf(cp, "%o%n", &charcode, &charlen);
+				*(cpv++) = charcode;
+				cp += charlen;
+			    } else {
+				/*
+				 * Other quoted character
+				 */
+				*(cpv++) = *(cp++);
+			    }
+			} else if (!inquote && isspace(*cp)) {
+			    /*
+			     * String deliminted by White-space
+			     */
+			    cp ++;
+			    break;
+			} else if (inquote && *cp == inquote) {
+			    /*
+			     * String delimited by end quote
+			     */
+			    cp ++;
+			    break;
+			} else {
+			    /* 
+			     * Character in string
+			     */
+			    *(cpv++) = *(cp++);
+			}
+		    }
+		    *cpv = '\0';	// terminate value string
+		} else {
+		    value = cp;		// beginning of value string
+		    if (*cp != '\0') {
+			*(cp++) = '\0';	// terminate value string
+		    }
+		}
+
+		line = cp;
+		return key;
+	}
+    } while (1);
+}
+
+/*
+ * Convert string to log score 
+ */
+static inline LogP
+getHTKscore(const char *value, double logbase, File &file)
+{
+    if (logbase > 0.0) {
+	LogP score;
+	if (parseLogP(value, score)) {
+	    return score * ProbToLogP(logbase);
+	} else {
+	    file.position() << "warning: malformed HTK log score "
+			    << value << endl;
+	    return LogP_Zero;
+	}
+    } else {
+	return ProbToLogP(atof(value));
+    }
+}
+
+/*
+ * Output quoted version of string
+ */
+static void
+printQuoted(FILE *f, const char *name, Boolean useQuotes)
+{
+    Boolean octalPrinted = false;
+
+    if (!useQuotes) {
+	fputs(name, f);
+    } else {
+	for (const char *cp = name; *cp != '\0'; cp ++) {
+	    if (*cp == ' ' || *cp == HTK_escape_quote ||
+		cp == name &&
+		    (*cp == HTK_single_quote || *cp == HTK_double_quote) ||
+		octalPrinted && isdigit(*cp))
+	    {
+		/*
+		 * This character needs to be quoted
+		 */
+		putc(HTK_escape_quote, f);
+		putc(*cp, f);
+		octalPrinted = false;
+	    } else if (!isprint(*cp) || isspace(*cp)) {
+		/*
+		 * Print as octal char code
+		 */
+		fprintf(f, "%c0%o", HTK_escape_quote, *cp);
+		octalPrinted = true;
+	    } else {
+		/*
+		 * Print as plain character
+		 */
+		putc(*cp, f);
+		octalPrinted = false;
+	    }
+	}
+    }
+}
+
+/*
+ * Set user-specified parameters in the HTK lattice header structure
+ */
+void
+Lattice::setHTKHeader(HTKHeader &header)
+{
+    if (header.logbase != HTK_undef_float) {
+	htkheader.logbase = header.logbase;
+    }
+    if (header.acscale != HTK_undef_float) {
+	htkheader.acscale = header.acscale;
+    }
+    if (header.lmscale != HTK_undef_float) {
+	htkheader.lmscale = header.lmscale;
+    }
+    if (header.ngscale != HTK_undef_float) {
+	htkheader.ngscale = header.ngscale;
+    }
+    if (header.prscale != HTK_undef_float) {
+	htkheader.prscale = header.prscale;
+    }
+    if (header.duscale != HTK_undef_float) {
+	htkheader.duscale = header.duscale;
+    }
+    if (header.wdpenalty != HTK_undef_float) {
+	// scale user-specific wdpenalty from user-specified/default logbase
+	if (htkheader.logbase > 0.0) {
+	    htkheader.wdpenalty =
+			header.wdpenalty * ProbToLogP(htkheader.logbase);
+	} else {
+	    htkheader.wdpenalty = ProbToLogP(header.wdpenalty);
+	}
+    }
+    if (header.x1scale != HTK_undef_float) {
+	htkheader.x1scale = header.x1scale;
+    }
+    if (header.x2scale != HTK_undef_float) {
+	htkheader.x2scale = header.x2scale;
+    }
+    if (header.x3scale != HTK_undef_float) {
+	htkheader.x3scale = header.x3scale;
+    }
+    if (header.x4scale != HTK_undef_float) {
+	htkheader.x4scale = header.x4scale;
+    }
+    if (header.x5scale != HTK_undef_float) {
+	htkheader.x5scale = header.x5scale;
+    }
+    if (header.x6scale != HTK_undef_float) {
+	htkheader.x6scale = header.x6scale;
+    }
+    if (header.x7scale != HTK_undef_float) {
+	htkheader.x7scale = header.x7scale;
+    }
+    if (header.x8scale != HTK_undef_float) {
+	htkheader.x8scale = header.x8scale;
+    }
+    if (header.x9scale != HTK_undef_float) {
+	htkheader.x9scale = header.x9scale;
+    }
+    if (header.amscale != HTK_undef_float) {
+	htkheader.amscale = header.amscale;
+    }
+    htkheader.wordsOnNodes = header.wordsOnNodes;
+    htkheader.scoresOnNodes = header.scoresOnNodes;
+    htkheader.useQuotes = header.useQuotes;
+}
+
+
+/*
+ * Input lattice in HTK format
+ *	Algorithm:
+ *	- each HTK node becomes a null node.
+ *	- each HTK link becomes a non-null node.
+ *	- word and other link information is added to the non-null nodes.
+ *	- link information attached to HTK nodes is added to non-null nodes.
+ *	- lattice transition weights are computed as a log-linear combination
+ *	  of HTK scores.
+ * Arguments:
+ *	- if header != 0, supplied scaling parameters override information
+ *	  from lattice header
+ *	- if useNullNodes == false null nodes corresponding to original
+ *	  HTK nodes are eliminated
+ */
+Boolean
+Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
+{
+    removeAll();
+
+    unsigned HTKnumlinks = 0;
+    unsigned HTKnumnodes = 0;
+    float HTKlogbase = (float) M_E;
+    unsigned HTKfinal = HTK_undef_uint;
+    unsigned HTKinitial = HTK_undef_uint;
+    char HTKdirection = 'f';
+    char HTKwdpenalty[100];
+    HTKwdpenalty[0] = HTKwdpenalty[sizeof(HTKwdpenalty)-1] = '\0';
+
+    LHash<unsigned, NodeIndex> nodeMap;		// maps HTK nodes->lattice nodes
+    Array<HTKWordInfo> nodeInfoMap;		// node-based link information
+
+    // dummy word used temporarily to represent HTK nodes
+    // (could have used null nodes, but this way we preserve null nodes in
+    // the input lattice)
+    const char *HTKNodeWord = "***HTK_Node***";
+    VocabIndex HTKNodeDummy = useNullNodes ? Vocab_None :
+					     vocab.addWord(HTKNodeWord);
+
+    /*
+     * Override supplied header parameters
+     */
+    if (header != 0) {
+	setHTKHeader(*header);
+    }
+
+    /*
+     * Parse HTK lattice file
+     */
+    while (char *line = file.getline()) {
+	char *key;
+	char *value;
+
+	/*
+	 * Parse key=value pairs
+	 * (we test for frequent fields first to save time)
+	 * We assume that header information comes before node information,
+	 * which comes before link information.  However, this is is not
+	 * enforced, and incomplete lattices may result if the input file
+	 * contains things out of order.
+	 */
+	while (key = getHTKField(line, value, htkheader.useQuotes)) {
+#define keyis(x)	(strcmp(key, (x)) == 0)
+	    /*
+	     * Link fields
+	     */
+	    if (keyis("J")) {
+		unsigned HTKlinkno = atoi(value);
+
+		/*
+		 * parse link fields
+		 */
+		HTKWordInfo *linkinfo = new HTKWordInfo;
+		assert(linkinfo != 0);
+				// allocates new HTKWordInfo pointer in lattice
+		htkinfos[htkinfos.size()] = linkinfo;
+
+		unsigned HTKstartnode, HTKendnode;
+		NodeIndex startIndex = NoNode, endIndex = NoNode;
+
+		while (key = getHTKField(line, value, htkheader.useQuotes)) {
+		    if (keyis("S") || keyis("START")) {
+			HTKstartnode = atoi(value);
+			Boolean found;
+			NodeIndex *startIndexPtr =
+				nodeMap.insert(HTKstartnode, found);
+			if (!found) {
+			    // node index not seen before; create it
+			    *startIndexPtr = dupNode(Vocab_None);
+			}
+			startIndex = *startIndexPtr;
+
+		    } else if (keyis("E") || keyis("END")) {
+			HTKendnode = atoi(value);
+			Boolean found;
+			NodeIndex *endIndexPtr =
+				nodeMap.insert(HTKendnode, found);
+			if (!found) {
+			    // node index not seen before; create it
+			    *endIndexPtr = dupNode(Vocab_None);
+			}
+			endIndex = *endIndexPtr;
+
+		    } else if (keyis("W") || keyis("WORD")) {
+			if (strcmp(value, HTK_null_word) == 0) {
+			    linkinfo->word = Vocab_None;
+			} else if (useUnk) {
+			    linkinfo->word =
+					vocab.getIndex(value, vocab.unkIndex());
+			} else {
+			    linkinfo->word = vocab.addWord(value);
+			}
+		    } else if (keyis("v") || keyis("var")) {
+			linkinfo->var = atoi(value);
+		    } else if (keyis("d") || keyis("div")) {
+			linkinfo->div = strdup(value);
+			assert(linkinfo->div != 0);
+		    } else if (keyis("s") || keyis("states")) {
+			linkinfo->states = strdup(value);
+			assert(linkinfo->states != 0);
+		    } else if (keyis("a") || keyis("acoustic")) {
+			linkinfo->acoustic = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("n") || keyis("ngram")) {
+			linkinfo->ngram = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("l") || keyis("language")) {
+			linkinfo->language = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("r")) {
+			linkinfo->pron = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("ds")) {
+			linkinfo->duration = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x1")) {
+			linkinfo->xscore1 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x2")) {
+			linkinfo->xscore2 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x3")) {
+			linkinfo->xscore3 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x4")) {
+			linkinfo->xscore4 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x5")) {
+			linkinfo->xscore5 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x6")) {
+			linkinfo->xscore6 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x7")) {
+			linkinfo->xscore7 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x8")) {
+			linkinfo->xscore8 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x9")) {
+			linkinfo->xscore9 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("p")) {
+			linkinfo->posterior = atof(value);
+		    } else {
+			file.position() << "unexpected link field name "
+					<< key << endl;
+			if (!useNullNodes) vocab.remove(HTKNodeDummy);
+			return false;
+		    }
+		}
+
+		if (startIndex == NoNode) {
+		    file.position() << "missing start node spec\n";
+		    if (!useNullNodes) vocab.remove(HTKNodeDummy);
+		    return false;
+		}
+
+		if (endIndex == NoNode) {
+		    file.position() << "missing end node spec\n";
+		    if (!useNullNodes) vocab.remove(HTKNodeDummy);
+		    return false;
+		}
+
+		/*
+		 * fill in unspecified link info from associated node info
+		 * 'forward' lattices use end-node information.
+		 * 'backward' lattices use start-node information.
+		 */
+		HTKWordInfo *nodeinfo = 0;
+		if (HTKdirection == 'f') {
+		    nodeinfo = &nodeInfoMap[HTKendnode];
+		} else if (HTKdirection == 'b') {
+		    nodeinfo = &nodeInfoMap[HTKstartnode];
+		}
+
+		if (nodeinfo != 0) {
+		    linkinfo->time = nodeinfo->time;
+
+		    if (linkinfo->word == Vocab_None) {
+			linkinfo->word = nodeinfo->word;
+		    }
+		    if (linkinfo->var == HTK_undef_uint) {
+			linkinfo->var = nodeinfo->var;
+		    }
+		    if (linkinfo->div == 0 && nodeinfo->div != 0) {
+			linkinfo->div = strdup(nodeinfo->div);
+			assert(linkinfo->div != 0);
+		    }
+		    if (linkinfo->states == 0 && nodeinfo->states != 0) {
+			linkinfo->states = strdup(nodeinfo->states);
+			assert(linkinfo->states != 0);
+		    }
+		    if (linkinfo->acoustic == HTK_undef_float) {
+			linkinfo->acoustic = nodeinfo->acoustic;
+		    }
+		    if (linkinfo->pron == HTK_undef_float) {
+			linkinfo->pron = nodeinfo->pron;
+		    }
+		    if (linkinfo->duration == HTK_undef_float) {
+			linkinfo->duration = nodeinfo->duration;
+		    }
+		    if (linkinfo->xscore1 == HTK_undef_float) {
+			linkinfo->xscore1 = nodeinfo->xscore1;
+		    }
+		    if (linkinfo->xscore2 == HTK_undef_float) {
+			linkinfo->xscore2 = nodeinfo->xscore2;
+		    }
+		    if (linkinfo->xscore3 == HTK_undef_float) {
+			linkinfo->xscore3 = nodeinfo->xscore3;
+		    }
+		    if (linkinfo->xscore4 == HTK_undef_float) {
+			linkinfo->xscore4 = nodeinfo->xscore4;
+		    }
+		    if (linkinfo->xscore5 == HTK_undef_float) {
+			linkinfo->xscore5 = nodeinfo->xscore5;
+		    }
+		    if (linkinfo->xscore6 == HTK_undef_float) {
+			linkinfo->xscore6 = nodeinfo->xscore6;
+		    }
+		    if (linkinfo->xscore7 == HTK_undef_float) {
+			linkinfo->xscore7 = nodeinfo->xscore7;
+		    }
+		    if (linkinfo->xscore8 == HTK_undef_float) {
+			linkinfo->xscore8 = nodeinfo->xscore8;
+		    }
+		    if (linkinfo->xscore9 == HTK_undef_float) {
+			linkinfo->xscore9 = nodeinfo->xscore9;
+		    }
+		}
+
+		/*
+		 * Create lattice node
+		 */
+		NodeIndex newNode = dupNode(linkinfo->word, 0, linkinfo);
+
+		/*
+		 * Compute lattice transition weight as a weighted combination
+		 * of HTK lattice scores
+		 */
+		LogP weight = LogP_One;
+
+		if (linkinfo->acoustic != HTK_undef_float) {
+		    weight += htkheader.acscale * linkinfo->acoustic;
+		}
+		if (linkinfo->ngram != HTK_undef_float) {
+		    weight += htkheader.ngscale * linkinfo->ngram;
+		}
+		if (linkinfo->language != HTK_undef_float) {
+		    weight += htkheader.lmscale * linkinfo->language;
+		}
+		if (linkinfo->pron != HTK_undef_float) {
+		    weight += htkheader.prscale * linkinfo->pron;
+		}
+		if (linkinfo->duration != HTK_undef_float) {
+		    weight += htkheader.duscale * linkinfo->duration;
+		}
+		if (!ignoreWord(linkinfo->word)) {
+		    weight += htkheader.wdpenalty;
+		}
+		if (linkinfo->xscore1 != HTK_undef_float) {
+		    weight += htkheader.x1scale * linkinfo->xscore1;
+		}
+		if (linkinfo->xscore2 != HTK_undef_float) {
+		    weight += htkheader.x2scale * linkinfo->xscore2;
+		}
+		if (linkinfo->xscore3 != HTK_undef_float) {
+		    weight += htkheader.x3scale * linkinfo->xscore3;
+		}
+		if (linkinfo->xscore4 != HTK_undef_float) {
+		    weight += htkheader.x4scale * linkinfo->xscore4;
+		}
+		if (linkinfo->xscore5 != HTK_undef_float) {
+		    weight += htkheader.x5scale * linkinfo->xscore5;
+		}
+		if (linkinfo->xscore6 != HTK_undef_float) {
+		    weight += htkheader.x6scale * linkinfo->xscore6;
+		}
+		if (linkinfo->xscore7 != HTK_undef_float) {
+		    weight += htkheader.x7scale * linkinfo->xscore7;
+		}
+		if (linkinfo->xscore8 != HTK_undef_float) {
+		    weight += htkheader.x8scale * linkinfo->xscore8;
+		}
+		if (linkinfo->xscore9 != HTK_undef_float) {
+		    weight += htkheader.x9scale * linkinfo->xscore9;
+		}
+
+		/*
+		 * Add transitions from start node, and to end node
+		 */
+		LatticeTransition trans1(weight, 0);
+		insertTrans(startIndex, newNode, trans1);
+
+		LatticeTransition trans2(LogP_One, 0);
+		insertTrans(newNode, endIndex, trans2);
+
+		continue;
+
+	    /*
+	     * Node fields
+	     */
+	    } else if (keyis("I")) {
+		unsigned HTKnodeno = atoi(value);
+
+		/*
+		 * create a null node for this HTK node,
+		 * and record node-related info.
+		 */
+		NodeIndex nullNodeIndex = dupNode(HTKNodeDummy);
+
+		*nodeMap.insert(HTKnodeno) = nullNodeIndex;
+		HTKWordInfo &nodeinfo = nodeInfoMap[HTKnodeno];
+
+		/*
+		 * parse node fields
+		 */
+		while (key = getHTKField(line, value, htkheader.useQuotes)) {
+		    if (keyis("t") || keyis("time")) {
+			nodeinfo.time = atof(value);
+		    } else if (keyis("W") || keyis("WORD")) {
+			if (strcmp(value, HTK_null_word) == 0) {
+			    nodeinfo.word = Vocab_None;
+			} else if (useUnk) {
+			    nodeinfo.word =
+					vocab.getIndex(value, vocab.unkIndex());
+			} else {
+			    nodeinfo.word = vocab.addWord(value);
+			}
+		    } else if (keyis("v") || keyis("var")) {
+			nodeinfo.var = atoi(value);
+		    } else if (keyis("d") || keyis("div")) {
+			nodeinfo.div = strdup(value);
+			assert(nodeinfo.div != 0);
+		    } else if (keyis("s") || keyis("states")) {
+			nodeinfo.states = strdup(value);
+			assert(nodeinfo.states != 0);
+		    } else if (keyis("a") || keyis("acoustic")) {
+			nodeinfo.acoustic = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("r")) {
+			nodeinfo.pron = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("ds")) {
+			nodeinfo.duration = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x1")) {
+			nodeinfo.xscore1 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x2")) {
+			nodeinfo.xscore2 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x3")) {
+			nodeinfo.xscore3 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x4")) {
+			nodeinfo.xscore4 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x5")) {
+			nodeinfo.xscore5 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x6")) {
+			nodeinfo.xscore6 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x7")) {
+			nodeinfo.xscore7 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x8")) {
+			nodeinfo.xscore8 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("x9")) {
+			nodeinfo.xscore9 = getHTKscore(value, HTKlogbase, file);
+		    } else if (keyis("p")) {
+			nodeinfo.posterior = atof(value);
+		    } else {
+			file.position() << "unexpected node field name "
+					<< key << endl;
+			if (!useNullNodes) vocab.remove(HTKNodeDummy);
+			return false;
+		    }
+		}
+
+		if (nodeinfo.time != HTK_undef_float) {
+		    // record node time, but no word-related info
+		    LatticeNode *nullNode = findNode(nullNodeIndex);
+		    assert(nullNode != 0);
+
+		    HTKWordInfo *nullInfo = new HTKWordInfo;
+		    assert(nullInfo != 0);
+		    htkinfos[htkinfos.size()] = nullInfo;
+
+		    nullNode->htkinfo = nullInfo;
+		    nullInfo->time = nodeinfo.time;
+		}
+
+		continue;
+
+	    /*
+	     * Header fields
+	     */
+	    } else if (keyis("V") || keyis("VERSION")) {
+		; 		// ignore
+	    } else if ( keyis("U") || keyis("UTTERANCE")) {
+		if (name) free((void *)name);
+
+		// HACK: strip duration spec (which shouldn't be there)
+		char *p = strstr(value, "(duration=");
+		if (p != 0) *p = '\0';
+		    
+		name = strdup(value);
+		assert(name != 0);
+	    } else if (keyis("base")) {
+		HTKlogbase = atof(value);
+
+		if (HTKwdpenalty[0] &&
+		    (header == 0 || header->wdpenalty == HTK_undef_float))
+		{
+		    // recompute wdpenalty with new logbase
+		    htkheader.wdpenalty =
+				    getHTKscore(HTKwdpenalty, HTKlogbase, file);
+		}
+	    } else if (keyis("start")) {
+		HTKinitial = atoi(value);
+	    } else if (keyis("end")) {
+		HTKfinal = atoi(value);
+	    } else if (keyis("dir")) {
+		HTKdirection = value[0];
+	    } else if (keyis("tscale")) {
+		htkheader.tscale = atof(value);
+	    } else if (keyis("hmms")) {
+		htkheader.hmms = strdup(value);
+		assert(htkheader.hmms != 0);
+	    } else if (keyis("ngname")) {
+		htkheader.ngname = strdup(value);
+		assert(htkheader.ngname != 0);
+	    } else if (keyis("lmname")) {
+		htkheader.lmname = strdup(value);
+		assert(htkheader.lmname != 0);
+	    } else if (keyis("vocab")) {
+		htkheader.vocab = strdup(value);
+		assert(htkheader.vocab != 0);
+	    } else if (keyis("acscale")) {
+		if (header == 0 || header->acscale == HTK_undef_float) {
+		    htkheader.acscale = atof(value);
+		}
+	    } else if (keyis("ngscale")) {
+		if (header == 0 || header->ngscale == HTK_undef_float) {
+		    htkheader.ngscale = atof(value);
+		}
+	    } else if (keyis("lmscale")) {
+		if (header == 0 || header->lmscale == HTK_undef_float) {
+		    htkheader.lmscale = atof(value);
+		}
+	    } else if (keyis("prscale")) {
+		if (header == 0 || header->prscale == HTK_undef_float) {
+		    htkheader.prscale = atof(value);
+		}
+	    } else if (keyis("duscale")) {
+		if (header == 0 || header->duscale == HTK_undef_float) {
+		    htkheader.duscale = atof(value);
+		}
+	    } else if (keyis("wdpenalty")) {
+		if (header == 0 || header->wdpenalty == HTK_undef_float) {
+		    htkheader.wdpenalty = getHTKscore(value, HTKlogbase, file);
+		    strncpy(HTKwdpenalty, value, sizeof(HTKwdpenalty)-1);
+		}
+	    } else if (keyis("x1scale")) {
+		if (header == 0 || header->x1scale == HTK_undef_float) {
+		    htkheader.x1scale = atof(value);
+		}
+	    } else if (keyis("x2scale")) {
+		if (header == 0 || header->x2scale == HTK_undef_float) {
+		    htkheader.x2scale = atof(value);
+		}
+	    } else if (keyis("x3scale")) {
+		if (header == 0 || header->x3scale == HTK_undef_float) {
+		    htkheader.x3scale = atof(value);
+		}
+	    } else if (keyis("x4scale")) {
+		if (header == 0 || header->x4scale == HTK_undef_float) {
+		    htkheader.x4scale = atof(value);
+		}
+	    } else if (keyis("x5scale")) {
+		if (header == 0 || header->x5scale == HTK_undef_float) {
+		    htkheader.x5scale = atof(value);
+		}
+	    } else if (keyis("x6scale")) {
+		if (header == 0 || header->x6scale == HTK_undef_float) {
+		    htkheader.x6scale = atof(value);
+		}
+	    } else if (keyis("x7scale")) {
+		if (header == 0 || header->x7scale == HTK_undef_float) {
+		    htkheader.x7scale = atof(value);
+		}
+	    } else if (keyis("x8scale")) {
+		if (header == 0 || header->x8scale == HTK_undef_float) {
+		    htkheader.x8scale = atof(value);
+		}
+	    } else if (keyis("x9scale")) {
+		if (header == 0 || header->x9scale == HTK_undef_float) {
+		    htkheader.x9scale = atof(value);
+		}
+	    } else if (keyis("amscale")) {
+		if (header == 0 || header->amscale == HTK_undef_float) {
+		    htkheader.amscale = atof(value);
+		}
+	    } else if (keyis("NODES") || keyis("N")) {
+		HTKnumnodes = atoi(value);
+	    } else if (keyis("LINKS") || keyis("L")) {
+		HTKnumlinks = atoi(value);
+	    } else {
+		file.position() << "unknown field name " << key << endl;
+		if (!useNullNodes) vocab.remove(HTKNodeDummy);
+		return false;
+	    }
+#undef keyis
+	}
+    }
+
+    if (HTKnumnodes == 0) {
+	file.position() << "lattice has no nodes\n";
+	if (!useNullNodes) vocab.remove(HTKNodeDummy);
+	return false;
+    }
+
+    /*
+     * Set up initial node
+     */
+    HTKWordInfo *initialinfo;
+    LatticeNode *initialNode;
+
+    if (HTKinitial != HTK_undef_uint) {
+	initialinfo = &nodeInfoMap[HTKinitial];
+	NodeIndex *initialPtr = nodeMap.find(HTKinitial);
+	if (initialPtr) {
+	    initial = *initialPtr;
+	    initialNode = findNode(initial);
+	} else {
+	    file.position() << "undefined start node " << HTKinitial << endl;
+	    if (!useNullNodes) vocab.remove(HTKNodeDummy);
+	    return false;
+	}
+    } else {
+	// search for start node: the one without incoming transitions
+	LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
+	NodeIndex nodeIndex;
+	while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	    if (node->inTransitions.numEntries() == 0) {
+		initial = nodeIndex;
+		initialNode = node;
+		break;
+	    }
+	}
+
+	// now find the HTK node info associated with first node
+	LHashIter<unsigned, NodeIndex> nodeMapIter(nodeMap);
+	unsigned htkNode;
+	while (NodeIndex *pfsgNode = nodeMapIter.next(htkNode)) {
+	    if (*pfsgNode == initial) {
+		HTKinitial = htkNode;
+		initialinfo = &nodeInfoMap[HTKinitial];
+		break;
+	    }
+	}
+    }
+    initialNode->word = vocab.ssIndex();
+
+    // attach HTK initial node info to lattice initial node
+    if (initialinfo) {
+	initialNode->htkinfo = new HTKWordInfo(*initialinfo);
+	assert(initialNode->htkinfo != 0);
+	htkinfos[htkinfos.size()] = initialNode->htkinfo;
+    }
+
+    /*
+     * Set up final node
+     */
+    HTKWordInfo *finalinfo;
+    LatticeNode *finalNode;
+
+    if (HTKfinal != HTK_undef_uint) {
+	finalinfo = &nodeInfoMap[HTKfinal];
+	NodeIndex *finalPtr = nodeMap.find(HTKfinal);
+	if (finalPtr) {
+	    final = *finalPtr;
+	    finalNode = findNode(final);
+	} else {
+	    file.position() << "undefined end node " << HTKfinal << endl;
+	    if (!useNullNodes) vocab.remove(HTKNodeDummy);
+	    return false;
+	}
+    } else {
+	// search for end node: the one without outgoing transitions
+	LHashIter<NodeIndex, LatticeNode> nodeIter(nodes);
+	NodeIndex nodeIndex;
+	while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	    if (node->outTransitions.numEntries() == 0) {
+		final = nodeIndex;
+		finalNode = node;
+		break;
+	    }
+	}
+
+	// now find the HTK node info associated with final node
+	LHashIter<unsigned, NodeIndex> nodeMapIter(nodeMap);
+	unsigned htkNode;
+	while (NodeIndex *pfsgNode = nodeMapIter.next(htkNode)) {
+	    if (*pfsgNode == final) {
+		HTKfinal = htkNode;
+		finalinfo = &nodeInfoMap[HTKfinal];
+		break;
+	    }
+	}
+    }
+    finalNode->word = vocab.seIndex();
+
+    // attach HTK final node info to lattice final node
+    if (finalinfo) {
+	finalNode->htkinfo = new HTKWordInfo(*finalinfo);
+	assert(finalNode->htkinfo != 0);
+	htkinfos[htkinfos.size()] = finalNode->htkinfo;
+    }
+
+    // eliminate dummy nodes 
+    if (!useNullNodes) {
+	removeAllXNodes(HTKNodeDummy);
+	vocab.remove(HTKNodeDummy);
+    }
+
+    return true;
+}
+
+/*
+ * allowAsTrans()
+ *  Determine if this node has the appropriate properties to be printed 
+ *  as just an HTK transition.  The purpose is to allow a more compact printing.
+ *  If an internal lattice node meets these characteristics then it need not 
+ *  be printed as an HTK node, and it's transitions can also be saved from
+ *  printing because the node itself will be printed as the transition.
+ * 
+ *  Check for these properties:
+ *    - must have one outgoing transition
+ *    - must have one incoming transition
+ *    - nodes on each side must be HTK null nodes
+ *    - don't allow as a transition if an adjacent node could also be allowed
+ *      (this last case should allow for the collapsing of these two nodes,
+ *	but it's not impl.)
+ */
+static Boolean
+allowAsTrans(Lattice &lat, NodeIndex nodeIndex)
+{
+    LatticeNode *node = lat.findNode(nodeIndex);
+    assert(node != 0);
+  
+    if (node->inTransitions.numEntries() == 1 &&
+	node->outTransitions.numEntries() == 1)
+    {
+	TRANSITER_T<NodeIndex,LatticeTransition>
+	    outTransIter(node->outTransitions);
+	NodeIndex next;
+	while (outTransIter.next(next)) {
+	    LatticeNode *nextNode = lat.findNode(next); 
+	    assert(nextNode != 0);
+	    // check if next node is a NULL (the final node also acts as one)
+	    if (nextNode->word == Vocab_None || next == lat.getFinal()) {
+		TRANSITER_T<NodeIndex,LatticeTransition> 
+		    inTransIter(node->inTransitions);
+		NodeIndex prev;
+		while (inTransIter.next(prev)) {
+		    LatticeNode *prevNode = lat.findNode(prev); 
+		    assert(prevNode != 0);
+
+		    // check if prev node is a NULL
+		    // (the inital node also acts as one)
+		    if (prevNode->word == Vocab_None ||
+			prev == lat.getInitial())
+		    {
+			// check if next node would be allowed as a transition
+			if (allowAsTrans(lat, next)) {
+			    // if we have a string of two nodes that could be
+			    // transitions, that should be redundant and allow
+			    // them to be combined, for now we'll just treat
+			    // it as a case that returns false because two
+			    // adjacent transitions is a problem (a node
+			    // between them is required) so the first node
+			    // will not be allowed as a transition
+			    return false;
+			} else {
+			    return true;
+			}
+		    }
+		}
+	    }
+	}
+    }
+    return false;
+}
+
+static double
+scaleHTKScore(double score, double logscale)
+{
+    if (logscale == 0.0) {
+	return LogPtoProb(score);
+    } else {
+	return score * logscale;
+    }
+}
+
+static void
+writeScoreInfo(File &file, HTKWordInfo &htkinfo, HTKScoreMapping scoreMapping,
+								double logscale)
+{
+    if (scoreMapping != mapHTKacoustic &&
+	  htkinfo.acoustic != HTK_undef_float)
+    {
+	fprintf(file, "\ta=%lg", scaleHTKScore(htkinfo.acoustic, logscale));
+    }
+    if (htkinfo.pron != HTK_undef_float)
+    {
+	fprintf(file, "\tr=%lg", scaleHTKScore(htkinfo.pron, logscale));
+    }
+    if (htkinfo.duration != HTK_undef_float)
+    {
+	fprintf(file, "\tds=%lg", scaleHTKScore(htkinfo.duration, logscale));
+    }
+    if (htkinfo.xscore1 != HTK_undef_float)
+    {
+	fprintf(file, "\tx1=%lg", scaleHTKScore(htkinfo.xscore1, logscale));
+    }
+    if (htkinfo.xscore2 != HTK_undef_float)
+    {
+	fprintf(file, "\tx2=%lg", scaleHTKScore(htkinfo.xscore2, logscale));
+    }
+    if (htkinfo.xscore3 != HTK_undef_float)
+    {
+	fprintf(file, "\tx3=%lg", scaleHTKScore(htkinfo.xscore3, logscale));
+    }
+    if (htkinfo.xscore4 != HTK_undef_float)
+    {
+	fprintf(file, "\tx4=%lg", scaleHTKScore(htkinfo.xscore4, logscale));
+    }
+    if (htkinfo.xscore5 != HTK_undef_float)
+    {
+	fprintf(file, "\tx5=%lg", scaleHTKScore(htkinfo.xscore5, logscale));
+    }
+    if (htkinfo.xscore6 != HTK_undef_float)
+    {
+	fprintf(file, "\tx6=%lg", scaleHTKScore(htkinfo.xscore6, logscale));
+    }
+    if (htkinfo.xscore7 != HTK_undef_float)
+    {
+	fprintf(file, "\tx7=%lg", scaleHTKScore(htkinfo.xscore7, logscale));
+    }
+    if (htkinfo.xscore8 != HTK_undef_float)
+    {
+	fprintf(file, "\tx8=%lg", scaleHTKScore(htkinfo.xscore8, logscale));
+    }
+    if (htkinfo.xscore9 != HTK_undef_float)
+    {
+	fprintf(file, "\tx9=%lg", scaleHTKScore(htkinfo.xscore9, logscale));
+    }
+}
+
+static void
+writeWordInfo(File &file, HTKWordInfo &htkinfo)
+{
+    if (htkinfo.var != HTK_undef_uint)
+    {
+	fprintf(file, "\tv=%u", htkinfo.var);
+    }
+    if (htkinfo.div != 0)
+    {
+	fprintf(file, "\td=%s", htkinfo.div);
+    }
+    if (htkinfo.states != 0)
+    {
+	fprintf(file, "\ts=%s", htkinfo.states);
+    }
+}
+
+/*
+ * Output lattice in HTK format
+ *	Algorithm:
+ *	- each lattice node becomes an HTK node
+ *        (unless it has only one incoming and one outgoing transition,
+ *	  both to HTK null nodes)
+ *	- each lattice transitions becomes an HTK link.
+ *        (unless it exists on a node which has been flagged to print as a
+ *	  transition, then the links are ignored)
+ *	- word information is added to the HTK nodes.
+ *        (all words and scores must be printed on the HTK transitions,
+ *	  not on the words)
+ *	- link information attached to each node is added to the HTK link
+ *	  leading into the node.
+ *	- lattice transition weights are mapped to one of the
+ *	  HTK score fields as indicated by the second argument.
+ */
+Boolean
+Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
+						    Boolean printPosteriors)
+{
+    if (debug(DebugPrintFunctionality)) {
+	dout()  << "Lattice::writeHTK: writing ";
+    }
+
+    fprintf(file, "# Header (generated by SRILM)\n");
+    fprintf(file, "VERSION=%s\n", HTKLattice_Version);
+    fprintf(file, "UTTERANCE="); printQuoted(file, name, htkheader.useQuotes);
+    fputc('\n', file);
+    fprintf(file, "base=%g\n", htkheader.logbase);
+    fprintf(file, "dir=%s\n", "f");		// forward lattice
+
+    double logscale = 1.0 / ProbToLogP(htkheader.logbase);
+
+    /* 
+     * Ancillary header information preserved from readHTK()
+     */
+    if (htkheader.tscale != HTK_def_tscale) {
+	fprintf(file, "tscale=%g\n", htkheader.tscale);
+    }
+    if (htkheader.acscale != HTK_def_acscale) {
+	fprintf(file, "acscale=%g\n", htkheader.acscale);
+    }
+    if (htkheader.lmscale != HTK_def_lmscale) {
+	fprintf(file, "lmscale=%g\n", htkheader.lmscale);
+    }
+    if (htkheader.ngscale != HTK_def_ngscale) {
+	fprintf(file, "ngscale=%g\n", htkheader.ngscale);
+    }
+    if (htkheader.prscale != HTK_def_prscale) {
+	fprintf(file, "prscale=%g\n", htkheader.prscale);
+    }
+    if (htkheader.wdpenalty != HTK_def_wdpenalty) {
+	fprintf(file, "wdpenalty=%lg\n", scaleHTKScore(htkheader.wdpenalty, logscale));
+    }
+    if (htkheader.duscale != HTK_def_duscale) {
+	fprintf(file, "duscale=%g\n", htkheader.duscale);
+    }
+    if (htkheader.x1scale != HTK_def_xscale) {
+	fprintf(file, "x1scale=%g\n", htkheader.x1scale);
+    }
+    if (htkheader.x2scale != HTK_def_xscale) {
+	fprintf(file, "x2scale=%g\n", htkheader.x2scale);
+    }
+    if (htkheader.x3scale != HTK_def_xscale) {
+	fprintf(file, "x3scale=%g\n", htkheader.x3scale);
+    }
+    if (htkheader.x4scale != HTK_def_xscale) {
+	fprintf(file, "x4scale=%g\n", htkheader.x4scale);
+    }
+    if (htkheader.x5scale != HTK_def_xscale) {
+	fprintf(file, "x5scale=%g\n", htkheader.x5scale);
+    }
+    if (htkheader.x6scale != HTK_def_xscale) {
+	fprintf(file, "x6scale=%g\n", htkheader.x6scale);
+    }
+    if (htkheader.x7scale != HTK_def_xscale) {
+	fprintf(file, "x7scale=%g\n", htkheader.x7scale);
+    }
+    if (htkheader.x8scale != HTK_def_xscale) {
+	fprintf(file, "x8scale=%g\n", htkheader.x8scale);
+    }
+    if (htkheader.x9scale != HTK_def_xscale) {
+	fprintf(file, "x9scale=%g\n", htkheader.x9scale);
+    }
+    if (htkheader.amscale != HTK_undef_float && printPosteriors) {
+	fprintf(file, "amscale=%g\n", htkheader.amscale);
+    }
+    if (htkheader.hmms != 0) {
+	fprintf(file, "hmms=");
+	printQuoted(file, htkheader.hmms, htkheader.useQuotes);
+	fputc('\n', file);
+    }
+    if (htkheader.lmname != 0) {
+	fprintf(file, "lmname=");
+	printQuoted(file, htkheader.lmname, htkheader.useQuotes);
+	fputc('\n', file);
+    }
+    if (htkheader.ngname != 0) {
+	fprintf(file, "ngname=");
+	printQuoted(file, htkheader.ngname, htkheader.useQuotes);
+	fputc('\n', file);
+    }
+    if (htkheader.vocab != 0) {
+	fprintf(file, "vocab=");
+	printQuoted(file, htkheader.vocab, htkheader.useQuotes);
+	fputc('\n', file);
+    }
+	
+    /*
+     * We remap the internal node indices to consecutive unsigned integers
+     * to allow a compact output representation.
+     * We iterate over all nodes, renumbering them, and also counting the
+     * number of transitions overall.
+     * (Nodes which can be treated as transitions are not added as nodes.)
+     */
+    LHash<NodeIndex,unsigned> nodeMap;		// map nodeIndex to unsigned
+    LHash<NodeIndex,Boolean> treatNodeAsTrans;	// keep a hash of nodes to be 
+                                                //  printed only as transitions
+    unsigned numNodes = 0;
+    unsigned numTransitions = 0;
+
+    LHashIter<NodeIndex, LatticeNode> nodeIter(nodes, nodeSort);
+    NodeIndex nodeIndex;
+
+    if (!htkheader.wordsOnNodes && !htkheader.scoresOnNodes) {
+	// store nodes that can be treated as transitions for future reference
+	while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	    if (allowAsTrans(*this, nodeIndex)) {
+		*treatNodeAsTrans.insert(nodeIndex) = true;
+	    }
+	}
+    }
+
+    // count number of nodes and transitions
+    nodeIter.init();
+    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+	if(treatNodeAsTrans.find(nodeIndex)) {
+	    numTransitions ++;
+	} else {
+	    *nodeMap.insert(nodeIndex) = numNodes ++;
+	
+	    NodeIndex toNodeIndex;
+	    TRANSITER_T<NodeIndex,LatticeTransition>
+		transIter(node->outTransitions);
+	    while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
+		// only count transitions here when the destination node
+		// is not being treated as a transition
+		if(!treatNodeAsTrans.find(toNodeIndex)) {
+		    numTransitions ++;
+		}
+	    }
+	}
+    }
+
+    if (initial != NoNode) {
+	fprintf(file, "start=%u\n",  *nodeMap.find(initial));
+    }
+    if (final != NoNode) {
+	fprintf(file, "end=%u\n",  *nodeMap.find(final));
+    }
+    fprintf(file, "NODES=%u LINKS=%u\n", numNodes, numTransitions);
+
+    if (debug(DebugPrintFunctionality)) {
+      dout()  << numNodes << " nodes, "
+	      << numTransitions << " transitions\n";
+    }
+
+    fprintf(file, "# Nodes\n");
+
+    nodeIter.init(); 
+    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+        // skip printing this node if it can be treated as just a transition
+        if (treatNodeAsTrans.find(nodeIndex)) continue;
+
+	fprintf(file, "I=%u", *nodeMap.find(nodeIndex));
+
+ 	if (htkheader.wordsOnNodes) {
+	    fprintf(file, "\tW=");
+	    printQuoted(file, (node->word == vocab.ssIndex() ||
+			       node->word == vocab.seIndex() ||
+			       node->word == Vocab_None) ?
+				    HTK_null_word : vocab.getWord(node->word),
+			htkheader.useQuotes);
+	}
+
+	if (node->htkinfo != 0) {
+	    HTKWordInfo &htkinfo = *node->htkinfo;
+
+	    if (htkinfo.time != HTK_undef_float) {
+		fprintf(file, "\tt=%g", htkinfo.time);
+	    }
+	    if (htkheader.scoresOnNodes) {
+		writeScoreInfo(file, htkinfo, scoreMapping, logscale);
+	    }
+	    if (htkheader.wordsOnNodes) {
+		writeWordInfo(file, htkinfo);
+	    }
+	}
+	if (printPosteriors) {
+	    fprintf(file, "\tp=%lg", (double)LogPtoProb(node->posterior));
+	}
+	fprintf(file, "\n");
+    }
+
+    fprintf(file, "# Links\n");
+
+    unsigned linkNumber = 0;
+    nodeIter.init(); 
+    while (LatticeNode *node = nodeIter.next(nodeIndex)) {
+      // if this node can be treated as a transition, print it as one and 
+      // don't print it's own transitions as HTK transitions
+      if (treatNodeAsTrans.find(nodeIndex)) {
+	
+	// get this node's neighboring nodes
+	TRANSITER_T<NodeIndex,LatticeTransition> 
+	    outTransIter(node->outTransitions);
+	NodeIndex nextIndex;
+	outTransIter.next(nextIndex);
+	LatticeNode *nextNode = findNode(nextIndex); 
+	assert(nextNode != 0);
+	
+	TRANSITER_T<NodeIndex,LatticeTransition> 
+	    inTransIter(node->inTransitions);
+	NodeIndex prevIndex;
+	inTransIter.next(prevIndex);
+	LatticeNode *prevNode = findNode(prevIndex); 
+	assert(prevNode != 0);
+	
+	unsigned *toNodeId = nodeMap.find(nextIndex); 
+	assert(toNodeId != 0);
+
+	unsigned *fromNodeId = nodeMap.find(prevIndex); 
+	assert(fromNodeId != 0);
+	
+	fprintf(file, "J=%u\tS=%u\tE=%u", linkNumber++, *fromNodeId, *toNodeId);
+	
+	if (!htkheader.wordsOnNodes) {
+	    fprintf(file, "\tW=");
+	    printQuoted(file, (node->word == vocab.ssIndex() ||
+			       node->word == vocab.seIndex() ||
+			       node->word == Vocab_None) ?
+			HTK_null_word : vocab.getWord(node->word),
+			htkheader.useQuotes);
+	}
+	
+	if (node->htkinfo != 0) {
+	    HTKWordInfo &htkinfo = *node->htkinfo;
+
+	    writeScoreInfo(file, htkinfo, scoreMapping, logscale);
+	    writeWordInfo(file, htkinfo);
+
+	    if (scoreMapping != mapHTKngram &&
+		htkinfo.ngram != HTK_undef_float)
+	    {
+		fprintf(file, "\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
+	    }
+	    if (scoreMapping != mapHTKlanguage &&
+		htkinfo.language != HTK_undef_float)
+	    {
+		fprintf(file, "\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
+	    }
+	}
+	
+	/*
+	 * map transition weight to one of the standard HTK scores
+	 */
+	if (scoreMapping != mapHTKnone) {
+	    LatticeTransition *thisTrans =
+				node->outTransitions.find(nextIndex);
+	    assert(thisTrans != 0);
+	    LatticeTransition *prevTrans =
+				prevNode->outTransitions.find(nodeIndex);
+	    assert(prevTrans != 0);
+
+	    LogP combinedWeight = thisTrans->weight + 
+				  prevTrans->weight;
+
+	    fprintf(file, "\t%c=%lg",
+		    (scoreMapping == mapHTKacoustic ? 'a' :
+		     (scoreMapping == mapHTKngram ? 'n' :
+		      (scoreMapping == mapHTKlanguage ? 'l' : '?'))),
+		    scaleHTKScore(combinedWeight, logscale));
+	}
+
+	if (printPosteriors) {
+	    fprintf(file, "\tp=%lg", (double)LogPtoProb(node->posterior));
+	}
+	
+	fprintf(file, "\n");
+      } else {
+        // treat this node in the normal sense if it can't be treated solely
+	// as a trans (but we have to ignore transitions to nodes that were
+	// printed only as transitions)
+	unsigned *fromNodeId = nodeMap.find(nodeIndex);
+
+ 	NodeIndex toNodeIndex;
+
+	TRANSITER_T<NodeIndex,LatticeTransition>
+					transIter(node->outTransitions);
+	while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
+	    // skip printing this transition if the destination node is being
+	    // treated as a transition (the transition weight is taken care of
+	    // in printing of transition node case)
+	    if (treatNodeAsTrans.find(toNodeIndex)) continue;
+
+	    LatticeNode *toNode = findNode(toNodeIndex);
+	    assert(toNode != 0);
+
+	    unsigned *toNodeId = nodeMap.find(toNodeIndex); 
+	    assert(toNodeId != 0);
+
+	    fprintf(file, "J=%u\tS=%u\tE=%u",
+				linkNumber++, *fromNodeId, *toNodeId);
+
+	    if (!htkheader.wordsOnNodes) {
+		fprintf(file, "\tW=");
+		printQuoted(file, (toNode->word == vocab.ssIndex() ||
+				   toNode->word == vocab.seIndex() ||
+				   toNode->word == Vocab_None) ?
+				   HTK_null_word : vocab.getWord(toNode->word),
+			    htkheader.useQuotes);
+	    }
+
+	    if (toNode->htkinfo != 0) {
+		HTKWordInfo &htkinfo = *toNode->htkinfo;
+
+		if (!htkheader.scoresOnNodes) {
+		    writeScoreInfo(file, htkinfo, scoreMapping, logscale);
+		}
+		if (!htkheader.wordsOnNodes){
+		    writeWordInfo(file, htkinfo);
+		}
+
+		if (scoreMapping != mapHTKngram &&
+		    htkinfo.ngram != HTK_undef_float)
+		{
+		    fprintf(file, "\tn=%lg", scaleHTKScore(htkinfo.ngram, logscale));
+		}
+		if (scoreMapping != mapHTKlanguage &&
+		    htkinfo.language != HTK_undef_float)
+		{
+		    fprintf(file, "\tl=%lg", scaleHTKScore(htkinfo.language, logscale));
+		}
+	    }
+
+	    /*
+	     * map transition weight to one of the standard HTK scores
+	     */
+	    if (scoreMapping != mapHTKnone) {
+		fprintf(file, "\t%c=%lg",
+			    (scoreMapping == mapHTKacoustic ? 'a' :
+			     (scoreMapping == mapHTKngram ? 'n' :
+			      (scoreMapping == mapHTKlanguage ? 'l' : '?'))),
+			    scaleHTKScore(trans->weight, logscale));
+	    }
+
+	    fprintf(file, "\n");
+	  }
+      }
+    }
+
+    return true;
+}
+
+
+/* 
+ * Compute pronunciation scores
+ * 	(for nodes with HTKWordInfo that have phone backtraces)
+ */
+Boolean
+Lattice::scorePronunciations(VocabMultiMap &dictionary, Boolean intlogs)
+{
+    if (debug(DebugPrintFunctionality)) {
+      dout() << "Lattice::scorePronunciations: starting\n";
+    }
+
+    Vocab &phoneVocab = dictionary.vocab2;
+
+    /*
+     * Go through all HTKWordInfo structures, extract the phone sequences,
+     * and look up their probabilities in the dictionary
+     */
+    for (unsigned i = 0; i < htkinfos.size(); i ++) {
+	HTKWordInfo *info = htkinfos[i];
+
+	/*
+	 * only rescore words that have pronunciations and a non-NULL
+	 */
+	if (info->div != 0) {
+	    if (info->word == Vocab_None) {
+		dout() << "Lattice::scorePronunciations: warning: " << name
+		       << " has pronunciation on " << HTK_null_word << " node"
+		       << " (time = " << info->time << ")\n";
+
+		info->pron = LogP_Zero;
+	    } else {
+		/*
+		 * parse the phone sequence from the string
+		 * example:
+		 * d=:#[s]t,0.12:s[t]r,0.03:t[r]ay,0.05:r[ay]k,0.09:ay[k]#,0.09:
+		 * and convert into an index string
+		 */
+		makeArray(char, phoneString, strlen(info->div) + 1);
+		strcpy(phoneString, info->div);
+
+		Array<VocabIndex> phones;
+		unsigned numPhones = 0;
+
+		for (char *s = strtok(phoneString, phoneSeparator);
+		     s != 0;
+		     s = strtok(NULL, phoneSeparator))
+		{
+		    // skip empty components (at beginning and end)
+		    if (s[0] == '\0') continue;
+
+		    // strip duration part
+		    char *e = strchr(s, ',');
+		    if (e != 0) *e = '\0';
+
+		    // strip context from triphone labels
+		    e = strchr(s, '[');
+		    if (e != 0) s = e + 1;
+
+		    e = strrchr(s, ']');
+		    if (e != 0) *e = '\0';
+
+		    phones[numPhones ++] = phoneVocab.addWord(s);
+		}
+		phones[numPhones] = Vocab_None;
+
+		// find pronunciation prob
+		Prob p = dictionary.get(info->word, phones.data());
+
+		if (p == 0.0) {
+		    // missing pronunciation get score 0
+		    info->pron = LogP_One;
+		} else {
+		    if (intlogs) {
+			info->pron = IntlogToLogP(p);
+		    } else {
+			info->pron = ProbToLogP(p);
+		    }
+		}
+	    }
+	}
+    }
+
+    return true;
+}
+

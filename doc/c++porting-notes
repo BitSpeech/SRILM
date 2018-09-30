@@ -4,7 +4,7 @@ C++ porting notes
 
 I originally wrote this code using gcc/g++ as the compiler.
 
-Below is a list of changes I had to make to accomodate SGI and Sun CC
+Below is a list of changes I had to make to accomodate SGI, Sun and Intel C++
 compilers.
 
 o Explicitly instantiate templates only in g++ (#ifdef __GNUG__).
@@ -23,15 +23,21 @@ o Use Sun CC -xar option to build libraries. This includes needed
   refer to the appropriate archive command).
 
 o To work around an internal compiler error in gcc 2.7.2, I had to
-  add empty destructors in a few classes.
+  add empty destructors in a few classes. Howver, I no longer use gcc 2.7.2
+  in testing, so current version are no longer guaranteed to work with it.
+
+o Intel C++ doesn't support arrays of non-POD objects on the stack.  I had
+  to replace those with matching calls to new/delete.
 
 Compilers that work
 -------------------
 
-+ gcc/g++ 2.7.2
-+ gcc/g++ 2.8.1
+(as of last checking, meaning current versions may not work out of the box)
+
++ gcc/g++ 2.8.1, 2.95.3, 3.2 and 3.3
 + Sun SC4.0
 + SGI NCC
++ Intel C++ 7.1
 
 Compilers that don't work on this code
 --------------------------------------

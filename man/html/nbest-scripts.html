@@ -1,11 +1,11 @@
-<! $Id: nbest-scripts.1,v 1.27 2003/02/16 20:45:45 stolcke Exp $>
+<! $Id: nbest-scripts.1,v 1.34 2005/07/05 18:26:36 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-scripts</TITLE>
 <BODY>
 <H1>nbest-scripts</H1>
 <H2> NAME </H2>
-nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite - rescore and evaluate N-best lists
+nbest-scripts, combine-rover-controls, compare-sclite, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite - rescore and evaluate N-best lists
 <H2> SYNOPSIS </H2>
 <B> rescore-decipher </B>
 [<B>-bytelog</B>]
@@ -13,11 +13,15 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 [<B>-multiwords</B>]
 [<B>-pretty</B>
 <I>mapfile</I>]<I></I>
+[<B>-ngram-tool</B>
+<I>program</I>]<I></I>
 [<B>-filter</B>
 <I>command</I>]<I></I>
 [<B>-norescore</B>]
 [<B>-lm-only</B>]
+[<B>-count-oovs</B>]
 [<B>-limit-vocab</B>]
+[<B>-fast</B>]
 <I> nbest-file-list </I>
 <I> score-dir </I>
 <B> -lm </B>
@@ -65,6 +69,13 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <I> nbest-lattice-options </I>
 ] ]
 <BR>
+<B> combine-rover-controls </B>
+[
+<B>lambda=</B><I>weights</I><B></B>
+]
+<I> rover-control </I>
+[ ... ]
+<BR>
 <B> nbest-posteriors </B>
 [
 <B>weight=</B><I>W</I><B></B>
@@ -98,6 +109,9 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <B> sentid-to-ctm </B>
 <I> hyps </I>
 <BR>
+<B> fix-ctm </B>
+<I> ctmfile </I>
+<BR>
 <B> compute-sclite </B>
 <B> -r </B>
 <I> refs </I>
@@ -110,6 +124,7 @@ nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-p
 <I> subset </I>
 ...]
 [<B>-multiwords</B>|
+[<B>-noperiods</B>]
 [<B>-R</B>]
 [<B>-g</B>
 <I>glmfile</I>]<I></I>
@@ -166,6 +181,14 @@ The
 <I> mapfile </I>
 contains one mapping per line, the first field specifying the word to be
 replaced and subsequent fields forming the replacement string.
+<B>-ngram-tool</B><B></B>
+specifies a non-standard program to perform the actual LM evaluation
+(by default, 
+<A HREF="ngram.html">ngram(1)</A>
+is used).
+Such a program must understand
+<B>ngram</B>'s<B></B>
+command-line options related to N-best rescoring.
 <B>-filter</B><B></B>
 specifies a
 <I> command </I>
@@ -191,11 +214,27 @@ and
 may be used together to perform textual rewriting of N-best lists.
 <B>-lm-only</B><B></B>
 dumps out LM scores only, instead of complete N-best lists.
+<B>-count-oovs</B><B></B>
+writes the count of out-of-vocabulary and zero-probability words to
+the output score files (instead of rescored N-best lists).
 <B> -limit-vocab </B>
 saves memory by arranging for
 <A HREF="ngram.html">ngram(1)</A> 
 to load only those N-gram parameters that are relevant to the vocabulary
 of the N-best lists to be rescored.
+The option
+<B> -fast </B>
+performs rescoring using only functions built into
+<A HREF="ngram.html">ngram(1)</A>.
+This avoids some computational and I/O overhead and therefore runs faster,
+but the options
+<B>-filter</B>,<B></B>
+<B>-pretty</B>,<B></B>
+and 
+<B> -lm-only </B>
+are not supported, and 
+<B> -nodecipherlm </B>
+is obligatory.
 <P>
 <B> rescore-acoustic </B>
 replaces the acoustic scores in a set of N-best lists by a weighted 
@@ -328,6 +367,19 @@ can process N-best lists in any of the formats described in
 <I>as long as all N-best lists for a given utterance are in the same format</I>.
 When Decipher formats are used only their acoustic scores are used.
 <P>
+<B> combine-rover-controls </B>
+takes one or more
+<B> nbest-rover </B>
+control files as arguments and outputs a new control file that specifies
+the combination of the input files.
+Each input system is given equal weight.
+Directory names in the input files are adjusted to reflect the relative
+location of the input files.
+The optional
+<B> lambda= </B>
+argument may be used to specify a space-separated list of system weights;
+the default weights are uniform.
+<P>
 <B> nbest-posteriors </B>
 rescales the scores in an N-best list to reflect (weighted) posterior
 probabilities.
@@ -402,6 +454,18 @@ format.
 The script relies on an encoding of conversation IDs, channel, and utterance
 time marks in the sentence IDs and may need adjustment to local conventions.
 <P>
+<B> fix-ctm </B>
+converts output produced by the
+<B> -output-ctm </B>
+option of 
+<A HREF="nbest-lattice.html">nbest-lattice(1)</A>
+and
+<A HREF="lattice-tool.html">lattice-tool(1)</A>
+to a format suitable for scoring with NIST
+<A HREF="sclite.html">sclite(1)</A>.
+It, too, relies on information encoded in the sentids IDs and may need
+adjustments.
+<P>
 <B> compute-sclite </B>
 is a wrapper around 
 the NIST 
@@ -444,6 +508,9 @@ or
 <B> -M </B>
 splits ``multiwords'' joined by underscores into their component words
 prior to scoring.
+<B> -noperiods </B>
+deletes periods from the hypotheses prior to scoring
+(typically used to bridge different conventions for spelled letters).
 <B> -R </B>
 preserves reject words in the hypotheses for scoring (as appropriate if
 references also contain rejects).
@@ -506,6 +573,6 @@ lists.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-2003 SRI International
+Copyright 1995-2004 SRI International
 </BODY>
 </HTML>

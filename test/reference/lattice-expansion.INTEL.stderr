@@ -14,7 +14,7 @@ Lattice::simplePackBigramLattice: done with F Reduction (44 nodes)
 Lattice::removeAllXNodes: removing all -pau-
 Lattice::removeAllXNodes: removing all NULL
 Lattice::expandToTrigram: starting expansion to conventional trigram lattice ...
-Lattice::recoverCompactPauses: recovering Compact Pauses
+Lattice::recoverCompactPauses: recovering compact pauses
 Lattice::writeCompactPFSG: writing 89 nodes, 214 transitions
 processing file g07a01_unpr_A_0017232_0017558.gz
      to be dumped to tmp/g07a01_unpr_A_0017232_0017558.gz
@@ -28,5 +28,5 @@ Lattice::simplePackBigramLattice: done with F Reduction (334 nodes)
 Lattice::removeAllXNodes: removing all -pau-
 Lattice::removeAllXNodes: removing all NULL
 Lattice::expandToTrigram: starting expansion to conventional trigram lattice ...
-Lattice::recoverCompactPauses: recovering Compact Pauses
+Lattice::recoverCompactPauses: recovering compact pauses
 Lattice::writeCompactPFSG: writing 808 nodes, 4606 transitions

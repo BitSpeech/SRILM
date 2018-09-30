@@ -47,12 +47,15 @@ DDEESSCCRRIIPPTTIIOONN
        The weights obtained are meant to be used for N-best  list
        rescoring with rreessccoorree--rreewweeiigghhtt (see nnbbeesstt--ssccrriippttss(1)).
 
+OOPPTTIIOONNSS
        Each  filename  argument  can  be an ASCII file, or a com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
        cate stdin/stdout.
 
-OOPPTTIIOONNSS
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --ddeebbuugg _l_e_v_e_l
               Controls  the  amount  of  output  (the  higher the
@@ -80,45 +83,60 @@ OOPPTTIIOONNSS
        --11bbeesstt Select  optimization  for  standard  sentence-level
               hypothesis selection.
 
+       --11bbeesstt--ffiirrsstt
+              Optimized  first  using --11bbeesstt mode, then switch to
+              full optimization.  This is  an  effective  way  to
+              quickly  bring  the  score  weights near an optimal
+              point, and then fine-tune  them  jointly  with  the
+              posterior scale parameter.
+
        --eerrrroorrss _d_i_r
               In  1-best mode, optimize for error counts that are
               stored in separate files in directory _d_i_r.  Each N-
               best list must have a matching error counts file of
               the same basename in _d_i_r.   Each  file  contains  7
               columns of numbers in the format
-                   wcr wer nerr nsub ndel nins nw
-              Only the 3rd column (number of errors) and the last
-              column (number of reference  words) is used by  the
-              program.
-              If  this option is omitted, errors will be computed
-              from the N-best hypotheses and the reference  tran-
+                   wcr wer nsub ndel nins nerr nw
+              Only  the  last  two  columns (number of errors and
+              words, respectively) are used.
+              If this option is omitted, errors will be  computed
+              from  the N-best hypotheses and the reference tran-
               scripts.
 
        --mmaaxx--nnbbeesstt _n
-              Limits  the  number of hypotheses read from each N-
+              Limits the number of hypotheses read from  each  N-
               best list to the first _n.
 
        --rreessccoorree--llmmww _l_m_w
-              Sets the language model weight  used  in  combining
-              the  language model log probabilities with acoustic
+              Sets  the  language  model weight used in combining
+              the language model log probabilities with  acoustic
               log probabilities.  This is used to compute initial
               aggregate hypotheses scores.
 
        --rreessccoorree--wwttww _w_t_w
-              Sets  the word transition weight used to weight the
+              Sets the word transition weight used to weight  the
               number of words relative to the acoustic log proba-
-              bilities.   This  is used to compute initial aggre-
+              bilities.  This is used to compute  initial  aggre-
               gate hypotheses scores.
 
        --ppoosstteerriioorr--ssccaallee _s_c_a_l_e
-              Initial value  for  scaling  log  posteriors.   The
-              total  weighted  log score is divided by _s_c_a_l_e when
+              Initial  value  for  scaling  log  posteriors.  The
+              total weighted log score is divided by  _s_c_a_l_e  when
               computing normalized posterior probabilities.  This
-              controls  the peakedness of the posterior distribu-
+              controls the peakedness of the posterior  distribu-
               tion.  The default value is whatever was chosen for
-              --rreessccoorree--llmmww,  so  that  language  model scores are
-              scaled to have weight 1, and acoustic  scores  have
+              --rreessccoorree--llmmww, so that  language  model  scores  are
+              scaled  to  have weight 1, and acoustic scores have
               weight 1/_l_m_w.
+
+       --ccoommbbiinnee--lliinneeaarr
+              Compute aggregate  scores  by  linear  combination,
+              rather   than  log-linear  combination.   (This  is
+              appropriate if the input scores represent  log-pos-
+              terior probabilities.)
+
+       --nnoonn--nneeggaattiivvee
+              Constrain search to non-negative weight values.
 
        --vvooccaabb _f_i_l_e
               Read  the  N-best  list vocabulary from _f_i_l_e.  This
@@ -152,6 +170,13 @@ OOPPTTIIOONNSS
               Read several noise tags from _f_i_l_e, instead  of,  or
               in  addition  to, the single noise tag specified by
               --nnooiissee.
+
+       --hhiiddddeenn--vvooccaabb file
+              Read a subvocabulary from _f_i_l_e and  constrain  word
+              alignments  to  only  group  those  words  that are
+              either all in or outside the  subvocabulary.   This
+              may  be  used  to  keep  ``hidden event'' tags from
+              aligning with regular words.
 
        --iinniitt--llaammbbddaass _'_w_1 _w_2 _._._._'
               Initialize the score weights to the  values  speci-
@@ -201,53 +226,57 @@ OOPPTTIIOONNSS
               results, where _D is the dimensionality of the prob-
               lem.
 
+       --mmaaxx--ttiimmee _T
+              Abort search if new lower-error point  isn't  found
+              in _T seconds.
+
        --eeppssiilloonn--sstteeppddoowwnn _s
 
        --mmiinn--eeppssiilloonn _m
-              If _s is a value greater  than  zero,  the  learning
-              rate  will  be multiplied by _s every time the error
-              does not decrease  after  a  number  of  iterations
-              specified  by  --mmaaxx--bbaadd--iitteerrss.  Training stops when
+              If  _s  is  a  value greater than zero, the learning
+              rate will be multiplied by _s every time  the  error
+              does  not  decrease  after  a  number of iterations
+              specified by --mmaaxx--bbaadd--iitteerrss.  Training  stops  when
               the learning rate falls below _m in this manner.
 
        --ccoonnvveerrggee _x
-              Stops optimization when the (smoothed)  loss  func-
-              tion  changes  relatively  by  less than _x from one
+              Stops  optimization  when the (smoothed) loss func-
+              tion changes relatively by less  than  _x  from  one
               iteration to the next.
 
        --qquuiicckkpprroopp
-              Use the approximate second-order  method  known  as
+              Use  the  approximate  second-order method known as
               "QuickProp" (Fahlman 1989).
 
        --iinniitt--aammooeebbaa--ssiimmpplleexx _'_s_1 _s_2 _._._._'
-              Defines  the  step size for the initial Amoeba sim-
-              plex.  One value for each non-fixed  search  dimen-
-              sion  should  be specified, plus optionally a value
+              Defines the step size for the initial  Amoeba  sim-
+              plex.   One  value for each non-fixed search dimen-
+              sion should be specified, plus optionally  a  value
               for  the  posterior  scaling  parameter  (which  is
               searched as an added dimension).
 
        --pprriinntt--hhyyppss _f_i_l_e
-              Write  the best word hypotheses to _f_i_l_e after opti-
+              Write the best word hypotheses to _f_i_l_e after  opti-
               mization.
 
        --wwrriittee--rroovveerr--ccoonnttrrooll _f_i_l_e
-              Writes a control  file  for  nnbbeesstt--rroovveerr  to  _f_i_l_e,
-              reflecting  the  names of the input directories and
+              Writes  a  control  file  for  nnbbeesstt--rroovveerr to _f_i_l_e,
+              reflecting the names of the input  directories  and
               the optimized parameter values.  The format of _f_i_l_e
-              is  described  in  nnbbeesstt--ssccrriippttss(1).   The  file is
-              rewritten for each new minimal error weight  combi-
+              is described  in  nnbbeesstt--ssccrriippttss(1).   The  file  is
+              rewritten  for each new minimal error weight combi-
               nation found.
 
-       ----     Signals  the  end  of  options, such that following
-              command-line arguments  are  interpreted  as  addi-
+       ----     Signals the end of  options,  such  that  following
+              command-line  arguments  are  interpreted  as addi-
               tional scorefiles even if they start with `-'.
 
        _s_c_o_r_e_d_i_r...
-              Any  additional arguments name directories contain-
-              ing further score files.  In each directory,  there
-              must  exist one file named after the sentence ID it
-              corresponds to (the file may also  end  in  ``.gz''
-              and  contain compressed data).  The total number of
+              Any additional arguments name directories  contain-
+              ing  further score files.  In each directory, there
+              must exist one file named after the sentence ID  it
+              corresponds  to  (the  file may also end in ``.gz''
+              and contain compressed data).  The total number  of
               score dimensions is thus 3 (for the standard scores
               from the N-best list) plus the number of additional
               score directories specified.
@@ -255,29 +284,31 @@ OOPPTTIIOONNSS
 SSEEEE AALLSSOO
        nbest-lattice(1), nbest-scripts(1), nbest-format(5).
        S. Katagiri, C.H. Lee, & B.-H. Juang, "A Generalized Prob-
-       abilistic  Descent Method", in _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e _A_c_o_u_s_t_i_-
+       abilistic Descent Method", in _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e  _A_c_o_u_s_t_i_-
        _c_a_l _S_o_c_i_e_t_y _o_f _J_a_p_a_n_, _F_a_l_l _M_e_e_t_i_n_g, pp. 141-142, 1990.
-       S. E. Fahlman, "Faster-Learning Variations on  Back-Propa-
+       S.  E. Fahlman, "Faster-Learning Variations on Back-Propa-
        gation: An Empirical Study", in D. Touretzky, G. Hinton, &
        T. Sejnowski (eds.), _P_r_o_c_e_e_d_i_n_g_s _o_f _t_h_e _1_9_8_8 _C_o_n_n_e_c_t_i_o_n_i_s_t
        _M_o_d_e_l_s _S_u_m_m_e_r _S_c_h_o_o_l, pp. 38-51, Morgan Kaufmann, 1989.
-       W.  H.  Press,  B.  P.  Flannery, S. A. Teukolsky, & W. T.
-       Vetterling, _N_u_m_e_r_i_c_a_l _R_e_c_i_p_e_s _i_n _C_: _T_h_e _A_r_t _o_f  _S_c_i_e_n_t_i_f_i_c
+       W. H. Press, B. P. Flannery, S. A. Teukolsky, & W. T. Vet-
+       terling,  _N_u_m_e_r_i_c_a_l  _R_e_c_i_p_e_s  _i_n  _C_: _T_h_e _A_r_t _o_f _S_c_i_e_n_t_i_f_i_c
        _C_o_m_p_u_t_i_n_g, Cambridge University Press, 1988.
 
 BBUUGGSS
-       Gradient-based  optimization  is  not  supported  (yet) in
-       1-best mode; use simplex-search optimization instead.
+       Gradient-based optimization  is  not  supported  (yet)  in
+       1-best  mode or in conjunction with the --ccoommbbiinnee--lliinneeaarr or
+       --nnoonn--nneeggaattiivvee  options;  use  simplex-search  optimization
+       instead.
        The N-best directory in the control file output by --wwrriittee--
-       rroovveerr--ccoonnttrrooll  is  inferred from the first N-best filename
-       specified with --nnbbeesstt--ffiilleess, and will therefore only  work
+       rroovveerr--ccoonnttrrooll is inferred from the first  N-best  filename
+       specified  with --nnbbeesstt--ffiilleess, and will therefore only work
        if all N-best lists are placed in the same directory.
 
 AAUUTTHHOORRSS
        Andreas Stolcke <stolcke@speech.sri.com>
        Dimitra Vergyri <dverg@speech.sri.com>
-       Copyright 2000-2002 SRI International
+       Copyright 2000-2005 SRI International
 
 
 
-SRILM Tools        $Date: 2002/02/23 23:12:29 $ nbest-optimize(1)
+SRILM Tools        $Date: 2005/07/04 17:04:14 $ nbest-optimize(1)

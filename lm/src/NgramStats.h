@@ -2,9 +2,9 @@
  * NgramStats.h --
  *	N-gram statistics
  *
- * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.20 2002/07/23 16:44:04 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.23 2005/09/25 05:17:22 stolcke Exp $
  *
  */
 
@@ -13,8 +13,7 @@
 
 #include <stdio.h>
 
-//#define USE_SARRAY_TRIE
-
+#include "XCount.h"
 #include "LMStats.h"
 
 #include "Trie.h"
@@ -85,6 +84,8 @@ public:
     CountT sumCounts() { return sumCounts(order); };
     CountT sumCounts(unsigned int order);
 					/* sum child counts on parent nodes */
+    unsigned pruneCounts(CountT minCount);
+					/* remove low-count N-grams */
 
     void dump();			/* debugging dump */
     void memStats(MemStats &stats);	/* compute memory stats */
@@ -136,7 +137,11 @@ private:
  * Instantiate the count trie for integer and float count types
  */
 
+#ifdef USE_SHORT_COUNTS
+typedef XCount NgramCount;
+#else
 typedef unsigned int NgramCount;
+#endif
 
 class NgramStats: public NgramCounts<NgramCount>
 {

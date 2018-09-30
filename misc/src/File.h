@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.7 2003/01/30 18:49:38 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.9 2006/01/05 19:32:42 stolcke Exp $
  *
  */
 
@@ -12,11 +12,12 @@
 #define _File_h_
 
 #include <stdio.h>
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 const unsigned int maxWordsPerLine = 50000;
 
-char *const wordSeparators = " \t\r\n";
+extern const char *wordSeparators;
 
 typedef FILE * FILEptr;
 

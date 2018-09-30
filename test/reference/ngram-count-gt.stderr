@@ -1,8 +1,10 @@
+using GoodTuring for 1-grams
 Good-Turing discounting 1-grams
 GT-count [0] = 0
 GT-count [1] = 8810
 GT-count [2] = 3821
-warning: discount coeff 1 is out of range: 0
+warning: discount coeff 1 is out of range: -3.62691e-16
+using GoodTuring for 2-grams
 Good-Turing discounting 2-grams
 GT-count [0] = 0
 GT-count [1] = 271981
@@ -13,6 +15,7 @@ GT-count [5] = 9255
 GT-count [6] = 6346
 GT-count [7] = 4882
 GT-count [8] = 3701
+using GoodTuring for 3-grams
 Good-Turing discounting 3-grams
 GT-count [0] = 0
 GT-count [1] = 1065684

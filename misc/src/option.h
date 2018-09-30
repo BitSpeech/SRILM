@@ -12,7 +12,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.10 1999/08/07 19:35:46 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.11 2006/01/05 06:05:17 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _OPTION
@@ -35,9 +35,9 @@ extern "C" {
 
 typedef struct Option {
     int		type;		/* Indicates option type;  see below */
-    char	*key;		/* The key string that flags option */
+    _CONST char	*key;		/* The key string that flags option */
     _VoidPtr	address;	/* Address of variable to modify */
-    char	*docMsg;	/* Documentation message */
+    _CONST char	*docMsg;	/* Documentation message */
 } Option;
 /*
  * Values for type:

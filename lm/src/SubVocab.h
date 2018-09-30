@@ -2,9 +2,9 @@
  * SubVocab.h --
  *	Vocabulary subset class
  *
- * Copyright (c) 1996,1999 SRI International.  All Rights Reserved.
+ * Copyright (c) 1996,1999,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.h,v 1.3 1999/10/12 23:06:44 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.h,v 1.4 2003/10/10 01:23:39 stolcke Exp $
  *
  */
 
@@ -26,6 +26,11 @@ public:
 
     virtual VocabIndex addWord(VocabString name);
     virtual VocabIndex addWord(VocabIndex wid);
+
+    // parameters tied to the base vocabulary 
+    virtual Boolean &unkIsWord() { return _baseVocab.unkIsWord(); };
+    virtual Boolean &toLower() { return _baseVocab.toLower(); };
+    virtual VocabString &metaTag() { return _baseVocab.metaTag(); };
 
     inline Vocab &baseVocab() { return _baseVocab; };
 

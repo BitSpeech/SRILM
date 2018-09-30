@@ -28,12 +28,15 @@ DDEESSCCRRIIPPTTIIOONN
        from  each  grid  position,  thus allowing an even greater
        number of potential hypotheses.
 
+OOPPTTIIOONNSS
        Each filename argument can be an ASCII  file,  or  a  com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
        cate stdin/stdout.
 
-OOPPTTIIOONNSS
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --ddeebbuugg _l_e_v_e_l
               Controls the  amount  of  output  (the  higher  the
@@ -101,18 +104,21 @@ OOPPTTIIOONNSS
               best list to the first _n.
 
        --mmaaxx--rreessccoorree _m
-              Only choose among the top _m hypotheses  when  opti-
-              mizing  word  error.   This  is convenient to limit
-              computation for long N-best lists.  The  cutoff  is
-              made after reading all hypotheses (subject to --mmaaxx--
-              nnbbeesstt) and reordering them according to the  poste-
-              rior probabilities.
+              In  N-best  mode,  only  choose  among  the  top  _m
+              hypotheses  when  optimizing  word  error.  This is
+              convenient to limit  computation  for  long  N-best
+              lists.   The  cutoff  is  made  after  reading  all
+              hypotheses (subject to --mmaaxx--nnbbeesstt)  and  reordering
+              them according to the posterior probabilities.
               The worst-case time taken in N-best error minimiza-
               tion is proportional to _m times _n, where _n  is  the
               length  of  the  N-best list (or the value given to
               --mmaaxx--nnbbeesstt).  However, in practice the average time
               per sentence is independent of _m, so this option is
               usually not necessary.
+              In lattice mode,  only  align  the  top  _m  scoring
+              hypotheses (after reweighting and sorting) into the
+              lattice.
 
        --ppoosstteerriioorr--pprruunnee _t_h_r_e_s_h_o_l_d
               Don't process N-best  hypotheses  whose  cumulative
@@ -131,6 +137,15 @@ OOPPTTIIOONNSS
               The  default is to ignore backtrace information and
               record only  sentence-level  scores  and  the  word
               identities.
+
+       --oouuttppuutt--ccttmm
+              Output  word  hypotheses  in NIST CTM (conversation
+              time mark) format.  Note that word start times will
+              be  relative  to the segment start times, the first
+              column will contain the N-best  filename,  and  the
+              channel  field  is  always  1.  The word confidence
+              field  contains  posterior   probabilities.    This
+              option also implies --nnbbeesstt--bbaacckkttrraaccee.
 
        --rreessccoorree--llmmww _l_m_w
               Sets  the  language  model weight used in combining
@@ -246,11 +261,11 @@ OOPPTTIIOONNSS
 
        --rreeffss _r_e_f_e_r_e_n_c_e_s
               Read  a  table  of  reference transcripts from file
-              _r_e_f_e_r_e_n_c_e, for when multiple N-best lists are  pro-
-              cessed (see --nnbbeesstt--ffiilleess).  Each line in _r_e_f_e_r_e_n_c_e_s
-              must contain the sentence ID (the last component in
-              the  N-best filename path, minus any suffixes) fol-
-              lowed by zero or more reference words.
+              _r_e_f_e_r_e_n_c_e,  for  when  multiple  N-best  lists  are
+              processed  (see --nnbbeesstt--ffiilleess).  Each line in _r_e_f_e_r_-
+              _e_n_c_e_s must contain the sentence ID (the last compo-
+              nent  in  the  N-best filename path, minus any suf-
+              fixes) followed by zero or more reference words.
 
        The following options only affect lattice mode.
 
@@ -313,6 +328,13 @@ OOPPTTIIOONNSS
               in the first field, followed by a string  of  phone
               symbols.
 
+       --hhiiddddeenn--vvooccaabb file
+              Read  a  subvocabulary from _f_i_l_e and constrain word
+              meshes to only align those words  that  are  either
+              all  in  or outside the subvocabulary.  This may be
+              used to keep ``hidden event''  tags  from  aligning
+              with regular words.
+
        --rreeccoorrdd--hhyyppss
               Record  the  ranks of the hyps contributing to each
               word hypothesis in the resulting word lattice;  the
@@ -335,11 +357,19 @@ BBUUGGSS
        rescoring   modes   (e.g.,   --llaattttiiccee--ffiilleess,  --ddiiccttiioonnaarryy,
        --rreeccoorrdd--hhyyppss, and --nnbbeesstt--bbaacckkttrraaccee are currently effective
        only in mesh-lattice mode).
+       It  is  a common mistake (not a bug) to use the default LM
+       weight with N-best lists directly from Decipher.  Decipher
+       N-best lists have the recognizer's LM weight already built
+       in, so they should be processed with
+            nbest-lattice -rescore-lmw 1 -posterior-scale _L_M_W
+       where _L_M_W is the LM weight during  recognition.   This  is
+       not  an  issue if the N-best lists have been rescored with
+       rreessccoorree--ddeecciipphheerr.
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1996-2002 SRI International
+       Copyright 1996-2004 SRI International
 
 
 
-SRILM Tools        $Date: 2003/02/15 09:20:36 $  nbest-lattice(1)
+SRILM Tools        $Date: 2004/12/03 17:59:01 $  nbest-lattice(1)

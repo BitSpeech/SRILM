@@ -4,23 +4,31 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-optimize.cc,v 1.32 2003/02/21 22:07:41 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-optimize.cc,v 1.45 2006/01/09 18:08:21 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <iostream.h>
 #include <locale.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 #include <math.h>
+#if defined(sun) || defined(sgi)
+#include <ieeefp.h>
+#endif
+#include <signal.h>
 
-extern "C" {
-    int isnan(double);		// not always defined in <math.h>
-}
+#ifndef SIGALRM
+#define NO_TIMEOUT
+#endif
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "zio.h"
@@ -37,7 +45,6 @@ extern "C" {
 #define DEBUG_ALIGNMENT	2
 #define DEBUG_SCORES 3
 #define DEBUG_RANKING 4
-
 
 typedef float NBestScore;			/* same as LogP */
 
@@ -62,7 +69,9 @@ unsigned bestError;				/* lower error count */
 Array<double> lambdaSteps;			/* simplex step sizes  */
 Array<double> simplex;				/* current simplex points  */
 
+static int version = 0;
 static int oneBest = 0;				/* optimize 1-best error */
+static int oneBestFirst = 0;			/* 1-best then nbest error */
 static int noReorder = 0;
 static unsigned debug = 0;
 static char *vocabFile = 0;
@@ -70,6 +79,7 @@ static int toLower = 0;
 static int multiwords = 0;
 static char *noiseTag = 0;
 static char *noiseVocabFile = 0;
+static char *hiddenVocabFile = 0;
 static char *refFile = 0;
 static char *errorsDir = 0;
 static char *nbestFiles = 0;
@@ -84,6 +94,8 @@ static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
 static double posteriorScale = 0.0;
 static double posteriorScaleStep = 1.0;
+static int combineLinear = 0;
+static int nonNegative = 0;
 
 static char *initLambdas = 0;
 static char *initSimplex = 0;
@@ -97,14 +109,17 @@ static unsigned maxIters = 100000;
 static double converge = 0.0001;
 static unsigned maxBadIters = 10;
 static unsigned maxAmoebaRestarts = 100000;
+static unsigned maxTime = 0;
 
 static int optRest;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "refs", &refFile, "reference transcripts" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of training N-best files" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_TRUE, "1best", &oneBest, "optimize 1-best error" },
+    { OPT_TRUE, "1best-first", &oneBestFirst, "optimize 1-best error before full optimization" },
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before aligning and align refs first" },
     { OPT_STRING, "errors", &errorsDir, "directory containing error counts" },
     { OPT_STRING, "vocab", &vocabFile, "set vocabulary" },
@@ -112,10 +127,13 @@ static Option options[] = {
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
+    { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "subvocabulary to be kept separate in mesh alignment" },
     { OPT_STRING, "write-rover-control", &writeRoverControl, "nbest-rover control output file" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
+    { OPT_TRUE, "combine-linear", &combineLinear, "combine scores linearly (not log-linearly" },
+    { OPT_TRUE, "non-negative", &nonNegative, "limit search to non-negative weights" },
     { OPT_STRING, "init-lambdas", &initLambdas, "initial lambda values" },
     { OPT_STRING, "init-amoeba-simplex", &initSimplex, "initial amoeba simplex points" },
     { OPT_FLOAT, "alpha", &alpha, "sigmoid slope parameter" },
@@ -127,12 +145,31 @@ static Option options[] = {
     { OPT_UINT, "maxiters", &maxIters, "maximum number of learning iterations" },
     { OPT_UINT, "max-bad-iters", &maxBadIters, "maximum number of iterations without improvement" },
     { OPT_UINT, "max-amoeba-restarts", &maxAmoebaRestarts, "maximum number of Amoeba restarts" },
+#ifndef NO_TIMEOUT
+    { OPT_UINT, "max-time", &maxTime, "abort search after this many seconds" },
+#endif
     { OPT_FLOAT, "converge", &converge, "minimum relative change in objective function" },
     { OPT_STRING, "print-hyps", &printHyps, "output file for final top hyps" },
-    { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_TRUE, "quickprop", &quickprop, "use QuickProp gradient descent" },
+    { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_REST, "-", &optRest, "indicate end of option list" },
 };
+
+static Boolean abortSearch = false;
+
+#ifndef NO_TIMEOUT
+/*
+ * deal with different signal hander types
+ */
+#ifndef _sigargs
+#define _sigargs int
+#endif
+
+void catchAlarm(_sigargs)
+{
+    abortSearch = true;
+}
+#endif /* !NO_TIMEOUT */
 
 double
 sigmoid(double x)
@@ -213,12 +250,23 @@ hypScore(unsigned hyp, NBestScore **scores)
 	}
     }
 
-    LogP score = 0.0;
+    LogP score;
 
     double *weights = lambdas.data(); /* bypass index range check for speed */
 
-    for (unsigned i = 0; i < numScores; i ++) {
-	score += weightLogP(weights[i], scores[i][hyp]);
+    if (combineLinear) {
+	/* linear combination, even though probabilities are encoded as logs */
+	Prob prob = 0.0;
+	for (unsigned i = 0; i < numScores; i ++) {
+	    prob += weights[i] * LogPtoProb(scores[i][hyp]);
+	}
+	score = ProbToLogP(prob);
+    } else {
+	/* log-linear combination */
+	score = 0.0;
+	for (unsigned i = 0; i < numScores; i ++) {
+	    score += weightLogP(weights[i], scores[i][hyp]);
+	}
     }
     return ((*cachedScores)[hyp] = score);
 }
@@ -344,10 +392,10 @@ computeDerivs(RefString id, NBestScore **scores, WordMesh &alignment)
 	 * Compute the auxiliary vectors for derivatives
 	 */
 	Boolean dummy;
-	Prob corA[numScores];
+	makeArray(Prob, corA, numScores);
 	wordScore(*corHyps, scores, dummy, corA);
 
-	Prob bicA[numScores];
+	makeArray(Prob, bicA, numScores);
 	wordScore(*bicHyps, scores, dummy, bicA);
 
 	/*
@@ -500,7 +548,6 @@ double
 computeErrors(NBestSet &nbestSet, double *weights)
 {
     int result = 0;
-    double result_tmp = 0;
 
     Array<double> savedLambdas;
 
@@ -554,7 +601,7 @@ printLambdas(ostream &str, Array<double> &lambdas, const char *controlFile = 0)
     str << endl;
 
     str << "   normed =";
-    for (unsigned i = 0; i < numScores; i ++) {
+    for (i = 0; i < numScores; i ++) {
 	str << " " << lambdas[i]/normalizer;
     }
     str << endl;
@@ -651,7 +698,7 @@ train(NBestSet &nbestSet)
 		 << endl;
 	}
 
-	if (iter == 1 || !isnan(totalLoss) && totalError < bestError) {
+	if (iter == 1 || finite(totalLoss) && totalError < bestError) {
 	    cerr << "NEW BEST ERROR: " << totalError 
 		 << " (" << ((double)totalError/numRefWords) << "/word)\n";
 	    printLambdas(cerr, lambdas, writeRoverControl);
@@ -659,11 +706,22 @@ train(NBestSet &nbestSet)
 	    bestError = totalError;
 	    bestLambdas = lambdas;
 	    badIters = 0;
+
+#ifndef NO_TIMEOUT
+	    if (maxTime) {
+		alarm(maxTime);
+	    }
+#endif /* !NO_TIMEOUT */
 	} else {
 	    badIters ++;
 	}
 
-	if (badIters > maxBadIters || isnan(totalLoss)) {
+	if (abortSearch) {
+	    cerr << "search timed out after " << maxTime << " seconds\n";
+	    break;
+	}
+
+	if (badIters > maxBadIters || !finite(totalLoss)) {
 	    if (epsilonStepdown > 0.0) {
 		epsilon *= epsilonStepdown;
 		if (epsilon < minEpsilon) {
@@ -716,10 +774,18 @@ amoebaComputeErrors(NBestSet &nbestSet, double *p)
 
     for (i = 0, j = 1; i < numScores; i++) {
 	if (fixLambdas[i]) {
-	    weights[i] = lambdas[i];
+	    weights[i] = lambdas[i] / p[0];
 	} else {
 	    weights[i] = p[j] / p[0];
 	    j++;
+	}
+
+	/*
+	 * Check for negative weights if -non-negative is in effect.
+	 * Return large error count for disallowed values.
+	 */
+	if (nonNegative && weights[i] < 0.0) {
+	    return numRefWords;
 	}
     }
 
@@ -732,6 +798,12 @@ amoebaComputeErrors(NBestSet &nbestSet, double *p)
 
 	bestError = (int) error;
 	bestLambdas = weights;
+
+#ifndef NO_TIMEOUT
+	if (maxTime) {
+	    alarm(maxTime);
+	}
+#endif /* !NO_TIMEOUT */
     }
 
     return error;
@@ -744,7 +816,7 @@ double
 amoebaEval(NBestSet &nbest, double **p, double *y, double *psum, unsigned ndim,
 	   double (*funk) (NBestSet &, double[]), unsigned ihi, double fac)
 {
-    double ptry[ndim];
+    makeArray(double, ptry, ndim);
     double fac1 = (1.0 - fac) / ndim;
     double fac2 = fac1 - fac;
 
@@ -790,7 +862,7 @@ amoeba(NBestSet &nbest, double **p, double *y, unsigned ndim, double ftol,
        double (*funk) (NBestSet &, double[]), unsigned &nfunk)
 {
     unsigned ihi, inhi, mpts = ndim + 1;
-    double psum[ndim];
+    makeArray(double, psum, ndim);
 
     if (debug >= DEBUG_TRAIN) {
 	cerr << "Starting amoeba with " << ndim << " dimensions" << endl;
@@ -803,7 +875,7 @@ amoeba(NBestSet &nbest, double **p, double *y, unsigned ndim, double ftol,
     unsigned ilo = 0;
     unsigned unchanged = 0;
 
-    while (1) {
+    while (true) {
 	double ysave, ytry;
 	double ylo_pre = y[ilo];
 
@@ -875,6 +947,10 @@ amoeba(NBestSet &nbest, double **p, double *y, unsigned ndim, double ftol,
 	    for (unsigned i = 0; i < ndim; i++) {
 		swap(p[0][i], p[ilo][i]);
 	    }
+	    break;
+	}
+
+	if (abortSearch) {
 	    break;
 	}
 
@@ -989,10 +1065,8 @@ void
 trainAmoeba(NBestSet &nbestSet)
 {
     // Before training reset the lambdas to their unscaled version
-    for(unsigned i = 0; i < numScores; i++) {
-	if (!fixLambdas[i]) {
-	    lambdas[i] *= posteriorScale;
-	}
+    for (unsigned i = 0; i < numScores; i++) {
+	lambdas[i] *= posteriorScale;
     }
 
     // Initialize ameoba points
@@ -1001,14 +1075,14 @@ trainAmoeba(NBestSet &nbestSet)
     // the vector even if it is kept fixed).
     int numFreeWeights = numScores - numFixedWeights + 1;
 
-    double *points[numFreeWeights + 1];
+    makeArray(double *, points, numFreeWeights + 1);
     for (unsigned i = 0; i <= numFreeWeights; i++) {
 	points[i] = new double[numFreeWeights];
 	assert(points[i] != 0);
     }
 
-    double errs[numFreeWeights + 1];
-    double prevPoints[numFreeWeights];
+    makeArray(double, errs, numFreeWeights + 1);
+    makeArray(double, prevPoints, numFreeWeights);
 
     prevPoints[0] = points[0][0] = posteriorScale;
     simplex[0] = posteriorScaleStep;
@@ -1020,7 +1094,7 @@ trainAmoeba(NBestSet &nbestSet)
 	}
     }
 
-    double *dir[numFreeWeights + 1];
+    makeArray(double *, dir, numFreeWeights + 1);
     for (unsigned i = 0; i <= numFreeWeights; i++) {
 	dir[i] = new double[numFreeWeights];
 	assert(dir[i] != 0);
@@ -1158,6 +1232,11 @@ trainAmoeba(NBestSet &nbestSet)
 	    cerr << "maximum number of Amoeba restarts reached" << endl;
 	    loop = 0;
 	}
+
+	if (abortSearch) {
+	    cerr << "search timed out after " << maxTime << " seconds\n";
+	    loop = 0;
+	}
     }
 
     for (unsigned i = 0; i <= numFreeWeights; i++) {
@@ -1167,9 +1246,7 @@ trainAmoeba(NBestSet &nbestSet)
 
     // Scale the lambdas back
     for (unsigned i = 0; i < numScores; i++) {
-	if (!fixLambdas[i]) {
-	    lambdas[i] /= posteriorScale;
-	}
+	lambdas[i] /= posteriorScale;
     }
 }
 
@@ -1273,21 +1350,151 @@ printTopHyps(File &file, NBestSet &nbestSet)
 }
 
 /*
+ * Align N-best lists
+ */
+
+typedef struct {
+    LogP score;
+    unsigned rank;
+} HypRank;			/* used in sorting nbest hyps by score */
+
+static int
+compareHyps(const void *h1, const void *h2)
+{
+    LogP score1 = ((HypRank *)h1)->score;
+    LogP score2 = ((HypRank *)h2)->score;
+    
+    return score1 > score2 ? -1 :
+		score1 < score2 ? 1 : 0;
+}
+
+void
+alignNbest(NBestSet &nbestSet, RefList &refs,
+					SubVocabDistance &subvocabDistance)
+{
+    NBestSetIter iter(nbestSet);
+    NBestList *nbest;
+    RefString id;
+
+    while (nbest = iter.next(id)) {
+	unsigned numWords;
+	VocabIndex *ref = refs.findRef(id);
+
+	assert(ref != 0);
+
+	unsigned numHyps = nbest->numHyps();
+
+	/*
+	 * Sort hyps by initial scores.  (Combined initial scores are
+	 * stored in acousticScore from before.)
+	 * Keep hyp order outside of N-best lists, since scores must be
+	 * kept in sync.
+	 */
+	makeArray(HypRank, reordering, numHyps);
+	NBestScore ***scores = nbestScores.find(id);
+	assert(scores != 0);
+
+	/*
+	 * Copy combined scores back into N-best list acoustic score for
+	 * posterior probability computation (since computePosteriors()
+	 * doesn't take additional scores).
+	 */
+	for (unsigned j = 0; j < numHyps; j ++) {
+	    reordering[j].rank = j;
+	    reordering[j].score = 
+		nbest->getHyp(j).acousticScore = hypScore(j, *scores);
+	}
+
+	if (!noReorder) {
+	    qsort(reordering, numHyps, sizeof(HypRank), compareHyps);
+	}
+	
+	/*
+	 * compute posteriors for passing to alignWords().
+	 * Note: these now reflect all scores and initial lambdas.
+	 */
+	nbest->computePosteriors(0.0, 0.0, 1.0);
+
+	/*
+	 * create word-mesh for multiple alignment
+	 */
+	WordMesh *alignment = new WordMesh(nbestSet.vocab);
+	if (hiddenVocabFile) {
+	    alignment = new WordMesh(nbestSet.vocab, 0, &subvocabDistance);
+	} else {
+	    alignment = new WordMesh(nbestSet.vocab);
+	}
+	assert(alignment != 0);
+
+	*nbestAlignments.insert(id) = alignment;
+
+	numWords = Vocab::length(ref);
+
+	/*
+	 * Default is to start alignment with hyps strings,
+	 * or with the reference if -align-refs-first was given.
+	 *	Note we give reference posterior 1 only to constrain the
+	 *	alignment. The loss computation in training ignores the
+	 *	posteriors assigned to hyps at this point.
+	 */
+	HypID hypID;
+
+	if (noReorder) {
+	    hypID = refID;
+	    alignment->alignWords(ref, 1.0, 0, &hypID);
+	}
+
+	/*
+	 * Now align all N-best hyps, in order of decreasing scores
+	 */
+	for (unsigned j = 0; j < numHyps; j ++) {
+	    unsigned hypRank = reordering[j].rank;
+	    NBestHyp &hyp = nbest->getHyp(hypRank);
+
+	    hypID = hypRank;
+
+	    /*
+	     * Check for overflow in the hypIDs
+	     */
+	    if ((unsigned)hypID != hypRank || hypID == refID) {
+		cerr << "Sorry, too many hypotheses in " << id << endl;
+		exit(2);
+	    }
+
+	    alignment->alignWords(hyp.words, hyp.posterior, 0, &hypID);
+	}
+
+	if (!noReorder) {
+	    hypID = refID;
+	    alignment->alignWords(ref, 1.0, 0, &hypID);
+	}
+
+	if (debug >= DEBUG_ALIGNMENT) {
+	    dumpAlignment(cerr, *alignment);
+	}
+    }
+}
+
+/*
  * Read a single score file into a column of the score matrix
  */
 Boolean
 readScoreFile(const char *scoreDir, RefString id, NBestScore *scores,
 							unsigned numHyps) 
 {
-    char fileName[strlen(scoreDir) + 1 + strlen(id) + strlen(GZIP_SUFFIX) + 1];
+    makeArray(char, fileName,
+	      strlen(scoreDir) + 1 + strlen(id) + strlen(GZIP_SUFFIX) + 1);
 					
     sprintf(fileName, "%s/%s", scoreDir, id);
 
     /* 
      * If plain file doesn't exist try gzipped version
      */
-    if (access(fileName, F_OK) < 0) {
+    FILE *fp = 0;
+    if ((fp = fopen(fileName, "r")) == NULL) {
 	strcat(fileName, GZIP_SUFFIX);
+    } else {
+	fclose(fp);
     }
 
     File file(fileName, "r", 0);
@@ -1358,15 +1565,19 @@ readErrorsFile(const char *errorsDir, RefString id, NBestList &nbest,
 							unsigned &numWords)
 {
     unsigned numHyps = nbest.numHyps();
-    char fileName[strlen(errorsDir) + 1 + strlen(id) + strlen(GZIP_SUFFIX) + 1];
+    makeArray(char, fileName,
+	      strlen(errorsDir) + 1 + strlen(id) + strlen(GZIP_SUFFIX) + 1);
 					
     sprintf(fileName, "%s/%s", errorsDir, id);
 
     /* 
      * If plain file doesn't exist try gzipped version
      */
-    if (access(fileName, F_OK) < 0) {
+    FILE *fp;
+    if ((fp = fopen(fileName, "r")) == NULL) {
 	strcat(fileName, GZIP_SUFFIX);
+    } else {
+	fclose(fp);
     }
 
     File file(fileName, "r", 0);
@@ -1410,21 +1621,6 @@ readErrorsFile(const char *errorsDir, RefString id, NBestList &nbest,
     return !file.error();
 }
 
-typedef struct {
-    LogP score;
-    unsigned rank;
-} HypRank;			/* used in sorting nbest hyps by score */
-
-static int
-compareHyps(const void *h1, const void *h2)
-{
-    LogP score1 = ((HypRank *)h1)->score;
-    LogP score2 = ((HypRank *)h2)->score;
-    
-    return score1 > score2 ? -1 :
-		score1 < score2 ? 1 : 0;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -1432,6 +1628,11 @@ main(int argc, char **argv)
     setlocale(LC_COLLATE, "");
 
     argc = Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
 
     if (!nbestFiles) {
 	cerr << "cannot proceed without nbest files\n";
@@ -1446,7 +1647,7 @@ main(int argc, char **argv)
 	exit(2);
     }
 
-    if (oneBest && !initSimplex) {
+    if ((oneBest || oneBestFirst) && !initSimplex) {
 	cerr << "1-best optimization only supported in simplex mode\n";
 	exit(2);
     }
@@ -1464,7 +1665,7 @@ main(int argc, char **argv)
 	vocab.read(file);
     }
 
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     /*
      * Skip noise tags in scoring
@@ -1476,6 +1677,18 @@ main(int argc, char **argv)
     if (noiseTag) {				/* backward compatibility */
 	nullLM.noiseVocab.addWord(noiseTag);
     }
+
+    /*
+     * Optionally read a subvocabulary that is to be kept separate from
+     * regular words during alignment
+     */
+    SubVocab hiddenVocab(vocab);
+    if (hiddenVocabFile) {
+	File file(hiddenVocabFile, "r");
+
+	hiddenVocab.read(file);
+    }
+    SubVocabDistance subvocabDistance(vocab, hiddenVocab);
 
     /*
      * Posterior scaling:  if not specified (= 0.0) use LMW for
@@ -1557,6 +1770,7 @@ main(int argc, char **argv)
 	    if (sscanf(&initLambdas[offset], " =%lf%n",
 						&lambdas[i], &consumed) > 0)
 	    {
+	        lambdas[i] /= posteriorScale;
 		fixLambdas[i] = true;
 		numFixedWeights++;
 	    } else if (sscanf(&initLambdas[offset], "%lf%n",
@@ -1597,19 +1811,7 @@ main(int argc, char **argv)
 	    }
 	}
 
-	/*
-	 * no sense in searching posterior scaling dimension in 1-best mode
-	 */
-	if (oneBest) {
-	    posteriorScaleStep = 0.0;
-	}
-
-	if (oneBest || sscanf(&initSimplex[offset], "%lf%n",
-				       &posteriorScaleStep, &consumed) <= 0)
-	{
-	    cerr << "Posterior scale step size set to " << posteriorScaleStep
-	         << endl;
-	}
+	sscanf(&initSimplex[offset], "%lf%n", &posteriorScaleStep, &consumed);
     }
 
     /*
@@ -1625,7 +1827,7 @@ main(int argc, char **argv)
 	/*
 	 * Allocate score matrix for this nbest list
 	 */
-	NBestScore **scores = new (NBestScore *)[numScores];
+	NBestScore **scores = new NBestScore *[numScores];
 	assert(scores != 0);
 
 	for (unsigned i = 0; i < numScores; i ++) {
@@ -1639,7 +1841,7 @@ main(int argc, char **argv)
 	for (unsigned j = 0; j < nbest->numHyps(); j ++) {
 	    scores[0][j] = nbest->getHyp(j).acousticScore;
 	    scores[1][j] = nbest->getHyp(j).languageScore;
-	    scores[2][j] = nbest->getHyp(j).numWords;
+	    scores[2][j] = (NBestScore) nbest->getHyp(j).numWords;
 	}
 
 	/*
@@ -1655,9 +1857,11 @@ main(int argc, char **argv)
 	/*
 	 * Scale scores to help prevent underflow
 	 */
-	for (unsigned i = 0; i < numScores; i ++) {
-	    for (unsigned j = nbest->numHyps(); j > 0; j --) {
-		scores[i][j-1] -= scores[i][0];
+	if (!combineLinear) {
+	    for (unsigned i = 0; i < numScores; i ++) {
+		for (unsigned j = nbest->numHyps(); j > 0; j --) {
+		    scores[i][j-1] -= scores[i][0];
+		}
 	    }
 	}
 	
@@ -1665,39 +1869,26 @@ main(int argc, char **argv)
 	 * save score matrix under nbest id
 	 */
 	*nbestScores.insert(id) = scores;
-
-	/*
-	 * Copy combined scores back into N-best list acoustic score for
-	 * posterior probability computation (since computePosteriors()
-	 * doesn't take additional scores).
-	 */
-	for (unsigned j = 0; j < nbest->numHyps(); j ++) {
-	    nbest->getHyp(j).acousticScore = hypScore(j, scores);
-	}
     }
 
     if (debug >= DEBUG_SCORES) {
 	dumpScores(cerr, trainSet);
     }
 
-    if (oneBest) {
-	cerr << (errorsDir ? "reading" : "computing") << " error counts...\n";
-    } else {
-	cerr << "aligning nbest lists...\n";
-    }
+    cerr << (errorsDir ? "reading" : "computing") << " error counts...\n";
 
     iter.init();
 
     numRefWords = 0;
 
     /*
-     * Create multiple alignments
+     * Compute hyp errors
      */
     while (nbest = iter.next(id)) {
 	unsigned numWords;
 	VocabIndex *ref = refs.findRef(id);
 
-	if (!ref && (!oneBest || oneBest && !errorsDir)) {
+	if (!(ref || (oneBest && !oneBestFirst) && errorsDir)) {
 	    cerr << "missing reference for " << id << endl;
 	    exit(1);
 	}
@@ -1713,103 +1904,22 @@ main(int argc, char **argv)
 	 * in sausage (default) mode we need to construct multiple alignment
 	 * of reference and all n-best hyps.
 	 */
-	if (oneBest) {
-	    if (errorsDir) {
-		/*
-		 *  read error counts 
-		 */
-		if (!readErrorsFile(errorsDir, id, *nbest, numWords)) {
-		    cerr << "couldn't get error counts for " << id << endl;
-		    exit(2);
-		}
-	    } else {
-		/*
-		 * need to recompute hyp errors (after removeNoise() above)
-		 */
-		unsigned sub, ins, del;
-		nbest->wordError(ref, sub, ins, del);
-
-		numWords = Vocab::length(ref);
+	if (errorsDir) {
+	    /*
+	     *  read error counts 
+	     */
+	    if (!readErrorsFile(errorsDir, id, *nbest, numWords)) {
+		cerr << "couldn't get error counts for " << id << endl;
+		exit(2);
 	    }
 	} else {
-	    unsigned numHyps = nbest->numHyps();
-
 	    /*
-	     * Sort hyps by initial scores.  (Combined initial scores are
-	     * stored in acousticScore from before.)
-	     * Keep hyp order outside of N-best lists, since scores must be
-	     * kept in sync.
+	     * need to recompute hyp errors (after removeNoise() above)
 	     */
-	    HypRank reordering[numHyps];
-	    NBestScore ***scores = nbestScores.find(id);
-	    assert(scores != 0);
-
-	    for (unsigned j = 0; j < numHyps; j ++) {
-		reordering[j].rank = j;
-		reordering[j].score = nbest->getHyp(j).acousticScore;
-	    }
-	    if (!noReorder) {
-		qsort(reordering, numHyps, sizeof(HypRank), compareHyps);
-	    }
-	    
-	    /*
-	     * compute posteriors for passing to alignWords().
-	     * Note: these now reflect all scores and initial lambdas.
-	     */
-	    nbest->computePosteriors(0.0, 0.0, 1.0);
-
-	    /*
-	     * create word-mesh for multiple alignment
-	     */
-	    WordMesh *alignment = new WordMesh(vocab);
-	    assert(alignment != 0);
-
-	    *nbestAlignments.insert(id) = alignment;
+	    unsigned sub, ins, del;
+	    nbest->wordError(ref, sub, ins, del);
 
 	    numWords = Vocab::length(ref);
-
-	    /*
-	     * Default is to start alignment with hyps strings,
-	     * or with the reference if -align-refs-first was given.
-	     *	Note we give reference posterior 1 only to constrain the
-	     *	alignment. The loss computation in training ignores the
-	     *	posteriors assigned to hyps at this point.
-	     */
-	    HypID hypID;
-
-	    if (noReorder) {
-	    	hypID = refID;
-		alignment->alignWords(ref, 1.0, 0, &hypID);
-	    }
-
-	    /*
-	     * Now align all N-best hyps, in order of decreasing scores
-	     */
-	    for (unsigned j = 0; j < numHyps; j ++) {
-		unsigned hypRank = reordering[j].rank;
-		NBestHyp &hyp = nbest->getHyp(hypRank);
-
-		hypID = hypRank;
-
-		/*
-		 * Check for overflow in the hypIDs
-		 */
-		if ((unsigned)hypID != hypRank || hypID == refID) {
-		    cerr << "Sorry, too many hypotheses in " << id << endl;
-		    exit(2);
-		}
-
-		alignment->alignWords(hyp.words, hyp.posterior, 0, &hypID);
-	    }
-
-	    if (!noReorder) {
-		hypID = refID;
-		alignment->alignWords(ref, 1.0, 0, &hypID);
-	    }
-
-	    if (debug >= DEBUG_ALIGNMENT) {
-		dumpAlignment(cerr, *alignment);
-	    }
 	}
 
 	/*
@@ -1827,21 +1937,79 @@ main(int argc, char **argv)
 	numRefWords = 1;
     }
 
-    unsigned errors = (int) computeErrors(trainSet, lambdas.data());
-    printLambdas(cout, lambdas);
+#ifndef NO_TIMEOUT
+    /*
+     * set up search time-out handler
+     */
+    if (maxTime) {
+	signal(SIGALRM, catchAlarm);
+    }
+#endif /* !NO_TIMEOUT */
 
-    if (initSimplex == 0) {
-	train(trainSet);
-    } else {
-	trainAmoeba(trainSet);
+    double oldPosteriorScaleStep = posteriorScaleStep;
+ 
+    if (oneBest || oneBestFirst) {
+    	oneBest = true;
+	posteriorScaleStep = 0.0;
+	
+	cerr << "Posterior scale step size set to " << posteriorScaleStep
+	     << endl;
+
+	unsigned errors = (int)computeErrors(trainSet, lambdas.data());
+	printLambdas(cout, lambdas);
+
+	if (initSimplex == 0) {
+	    train(trainSet);
+	} else {
+	    trainAmoeba(trainSet);
+	}
+	cout << "original errors = " << errors
+	     << " (" << ((double)errors/numRefWords) << "/word)"
+	     << endl;
+	cout << "best errors = " << bestError
+	     << " (" << ((double)bestError/numRefWords) << "/word)" 
+	     << endl;
     }
 
-    cout << "original errors = " << errors
-	 << " (" << ((double)errors/numRefWords) << "/word)"
-	 << endl;
-    cout << "best errors = " << bestError
-	 << " (" << ((double)bestError/numRefWords) << "/word)" 
-	 << endl;
+    if (oneBestFirst) {
+	// restart search at best point found in 1-best search
+	lambdas = bestLambdas;
+
+	// scale weights to LMW==1
+	if (lambdas[1] != 0.0) {
+	    posteriorScale = lambdas[1];
+	    for (unsigned i = 0; i < numScores; i ++) {
+		lambdas[i] /= posteriorScale;
+	    }
+	}
+    }
+
+    if (!oneBest || oneBestFirst) {
+    	oneBest = false;
+
+        posteriorScaleStep = oldPosteriorScaleStep;
+	cerr << "Posterior scale step size set to " << posteriorScaleStep
+	     << endl;
+
+	cerr << "aligning nbest lists...\n";
+	alignNbest(trainSet, refs, subvocabDistance);
+ 
+	unsigned errors = (int) computeErrors(trainSet, lambdas.data());
+	printLambdas(cout, lambdas);
+
+	if (initSimplex == 0) {
+	    train(trainSet);
+	} else {
+	    trainAmoeba(trainSet);
+	}
+	cout << "original errors = " << errors
+	     << " (" << ((double)errors/numRefWords) << "/word)"
+	     << endl;
+	cout << "best errors = " << bestError
+	     << " (" << ((double)bestError/numRefWords) << "/word)" 
+	     << endl;
+    }
+
     printLambdas(cout, bestLambdas, writeRoverControl);
 
     if (printHyps) {

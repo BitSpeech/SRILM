@@ -5,11 +5,12 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2000, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testProb.cc,v 1.4 2001/06/28 23:02:32 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testProb.cc,v 1.6 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -30,6 +31,9 @@ main(int argc, char **argv)
     	cerr << "usage: testProb p1 [p2]\n";
 	exit(2);
     }
+
+    cout << "log(0) = " << LogP_Zero << endl;
+    cout << "log(inf) = " << LogP_Inf << endl;
 
     if (argc < 3) {
     	Prob p;

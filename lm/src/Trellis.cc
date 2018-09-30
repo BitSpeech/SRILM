@@ -10,10 +10,11 @@
 
 #ifndef lint
 static char Trellis_Copyright[] = "Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.19 2001/12/22 18:27:19 stolcke Exp $";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.21 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -409,7 +410,7 @@ TrellisSlice<StateT>::init()
 #if __GNUC__ == 2 && __GNUC_MINOR__ <= 8
 	node->clear();
 #else
-	node->~TrellisNode();
+	node->~TrellisNode<StateT>();
 #endif
     }
     nodes.clear(0);

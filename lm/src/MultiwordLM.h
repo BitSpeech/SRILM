@@ -11,7 +11,7 @@
  *
  * Copyright (c) 2001,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.h,v 1.3 2002/08/25 17:27:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.h,v 1.4 2003/07/13 17:24:19 stolcke Exp $
  *
  */
 
@@ -33,6 +33,8 @@ public:
     virtual LogP wordProb(VocabIndex word, const VocabIndex *context);
     virtual void *contextID(VocabIndex word, const VocabIndex *context,
 							unsigned &length);
+    virtual LogP contextBOW(const VocabIndex *context, unsigned length);
+
     virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
 

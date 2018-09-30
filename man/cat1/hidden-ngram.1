@@ -20,7 +20,14 @@ DDEESSCCRRIIPPTTIIOONN
        hhiiddddeenn--nnggrraamm is a generalization of sseeggmmeenntt(1).
 
 OOPPTTIIOONNSS
+       Each  filename  argument  can  be an ASCII file, or a com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --tteexxtt _f_i_l_e
               Specifies the file containing the word sequences to
@@ -82,6 +89,11 @@ OOPPTTIIOONNSS
               poses.  The second and any additional  interpolated
               models  can  also  be class N-grams (using the same
               --ccllaasssseess definitions).
+
+       --ffaaccttoorreedd
+              Interpret the files specified by --llmm, --mmiixx--llmm, etc.
+              as   factored  N-gram  model  specifications.   See
+              nnggrraamm(1) for more details.
 
        --llaammbbddaa _w_e_i_g_h_t
               Set the weight of the main model when interpolating
@@ -236,8 +248,8 @@ BBUUGGSS
        unless --ssiimmppllee--ccllaasssseess is also specified.
 
 SSEEEE AALLSSOO
-       ngram-count(1),  disambig(1), segment(1), ngram-format(5),
-       classes-format(5).
+       ngram(1),  ngram-count(1), disambig(1), segment(1), ngram-
+       format(5), classes-format(5).
        A. Stolcke  et  al.,  ``Automatic  Detection  of  Sentence
        Boundaries  and  Disfluencies based on Recognized Words,''
        _P_r_o_c_. _I_C_S_L_P, 2247-2250, Sydney.
@@ -245,8 +257,8 @@ SSEEEE AALLSSOO
 AAUUTTHHOORRSS
        Andreas Stolcke <stolcke@speech.sri.com>,
        Anand Venkataraman <anand@speech.sri.com>.
-       Copyright 1998-2002 SRI International
+       Copyright 1998-2004 SRI International
 
 
 
-SRILM Tools        $Date: 2003/01/28 17:36:50 $   hidden-ngram(1)
+SRILM Tools        $Date: 2004/12/03 17:59:01 $   hidden-ngram(1)

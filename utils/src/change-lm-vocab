@@ -1,15 +1,17 @@
 #!/bin/sh
 #
 # change-lm-vocab --
-#	create a langauge model from an existing one by changing its
+#	create a language model from an existing one by changing its
 #	vocabulary.
 #	All n-grams in the new vocab are retained with their original
 #	probabilities.  Backoff weights are recomputed and backed-off
 #	unigrams for all new words are added.
+#	-subset option performs subsetting of the vocabulary without adding
+#	new words.
 #
-# usage: change-lm-vocab -vocab vocabfile -lm oldlm -write-lm newlm
+# usage: change-lm-vocab [-subset] -vocab vocabfile -lm oldlm -write-lm newlm
 #
-# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.6 2002/08/06 23:35:32 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.7 2003/04/12 20:11:49 stolcke Exp $
 #
 
 oldlm=-

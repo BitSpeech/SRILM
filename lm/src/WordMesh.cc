@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.22 2002/04/24 14:28:44 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.37 2006/01/09 18:08:21 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -25,14 +25,19 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1
  */
 const VocabString deleteWord = "*DELETE*";
 
-WordMesh::WordMesh(Vocab &vocab, VocabDistance *distance)
-    : MultiAlign(vocab), numAligns(0), totalPosterior(0.0), distance(distance)
+WordMesh::WordMesh(Vocab &vocab, const char *myname, VocabDistance *distance)
+    : MultiAlign(vocab, myname), numAligns(0), totalPosterior(0.0),
+      distance(distance)
 {
     deleteIndex = vocab.addWord(deleteWord);
 }
 
 WordMesh::~WordMesh()
 {
+    if (name != 0) {
+	free(name);
+    }
+
     for (unsigned i = 0; i < numAligns; i ++) {
 	delete aligns[i];
 
@@ -81,6 +86,9 @@ comparePosteriors(VocabIndex w1, VocabIndex w2)
 Boolean
 WordMesh::write(File &file)
 {
+    if (name != 0) {
+	fprintf(file, "name %s\n", name);
+    }
     fprintf(file, "numaligns %u\n", numAligns);
     fprintf(file, "posterior %lg\n", totalPosterior);
 
@@ -112,6 +120,22 @@ WordMesh::write(File &file)
 	}
 	fprintf(file, "\n");
 
+	/*
+	 * Print column and transition posterior sums,
+	 * if different from total Posterior
+	 */
+	Prob myPosterior = columnPosteriors[sortedAligns[i]];
+
+	if (myPosterior != totalPosterior) {
+	    fprintf(file, "posterior %u %lg\n", i, myPosterior);
+	}
+
+	Prob transPosterior = transPosteriors[sortedAligns[i]];
+
+	if (transPosterior != totalPosterior) {
+	    fprintf(file, "transposterior %u %lg\n", i, transPosterior);
+	}
+
 	/* 
 	 * Print reference word (if known)
 	 */
@@ -131,7 +155,7 @@ WordMesh::write(File &file)
 	     * Only output hyp IDs if they are different from the refID
 	     * (to avoid redundancy with "reference" line)
 	     */
-	    if (hypList->size() > (word == refWord)) {
+	    if (hypList->size() > (unsigned) (word == refWord)) {
 		fprintf(file, "hyps %u %s", i, vocab.getWord(word));
 
 		for (unsigned j = 0; j < hypList->size(); j++) {
@@ -169,14 +193,24 @@ WordMesh::read(File &file)
    
     char *line;
 
+    totalPosterior = 1.0;
+
     while (line = file.getline()) {
 	char arg1[100];
 	double arg2;
 	unsigned parsed;
 	unsigned index;
 
-	if (sscanf(line, "numaligns %u", &numAligns) == 1) {
+	if (sscanf(line, "numaligns %u", &parsed) == 1) {
+	    if (numAligns > 0) {
+		file.position() << "repeated numaligns specification\n";
+		return false;
+	    }
+	    numAligns = parsed;
+		
 	    for (unsigned i = 0; i < numAligns; i ++) {
+		sortedAligns[i] = i;
+
 		aligns[i] = new LHash<VocabIndex,Prob>;
 		assert(aligns[i] != 0);
 
@@ -185,12 +219,43 @@ WordMesh::read(File &file)
 
 		hypMap[i] = new LHash<VocabIndex,Array<HypID> >;
 		assert(hypMap[i] != 0);
+
+		columnPosteriors[i] = transPosteriors[i] = totalPosterior;
 	    }
+	} else if (sscanf(line, "name %100s", arg1) == 1) {
+	    if (name != 0) {
+		free(name);
+	    }
+	    name = strdup(arg1);
+	    assert(name != 0);
+	} else if (sscanf(line, "posterior %100s %lg", arg1, &arg2) == 2 &&
+	           // scan node index with %s so we fail if only one numerical
+		   // arg is given (which case handled below)
+		   sscanf(arg1, "%u", &index) == 1)
+	    {
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
+
+	    columnPosteriors[index] = arg2;
+	} else if (sscanf(line, "transposterior %u %lg", &index, &arg2) == 2) {
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
+
+	    transPosteriors[index] = arg2;
 	} else if (sscanf(line, "posterior %lg", &arg2) == 1) {
 	    totalPosterior = arg2;
+	    for (unsigned j = 0; j < numAligns; j ++) {
+		columnPosteriors[j] = transPosteriors[j] = arg2;
+	    }
 	} else if (sscanf(line, "align %u%n", &index, &parsed) == 1) {
-	    assert(index < numAligns);
-	    sortedAligns[index] = index;
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
 
 	    char *cp = line + parsed;
 	    while (sscanf(cp, "%100s %lg%n", arg1, &arg2, &parsed) == 2) {
@@ -201,8 +266,10 @@ WordMesh::read(File &file)
 		cp += parsed;
 	    }
 	} else if (sscanf(line, "reference %u %100s", &index, arg1) == 2) {
-	    assert(index < numAligns);
-	    sortedAligns[index] = index;
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
 
 	    VocabIndex refWord = vocab.addWord(arg1);
 
@@ -212,8 +279,10 @@ WordMesh::read(File &file)
 	    Array<HypID> *hypList = hypMap[index]->insert(refWord);
 	    (*hypList)[hypList->size()] = refID;
 	} else if (sscanf(line, "hyps %u %100s%n", &index, arg1, &parsed) == 2){
-	    assert(index < numAligns);
-	    sortedAligns[index] = index;
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
 
 	    VocabIndex word = vocab.addWord(arg1);
 	    Array<HypID> *hypList = hypMap[index]->insert(word);
@@ -230,8 +299,10 @@ WordMesh::read(File &file)
 		cp += parsed;
 	    }
 	} else if (sscanf(line, "info %u %100s%n", &index, arg1, &parsed) == 2){
-	    assert(index < numAligns);
-	    sortedAligns[index] = index;
+	    if (index >= numAligns) {
+		file.position() << "position index exceeds numaligns\n";
+		return false;
+	    }
 
 	    VocabIndex word = vocab.addWord(arg1);
 	    NBestWordInfo *winfo = wordInfo[index]->insert(word);
@@ -255,7 +326,9 @@ WordMesh::read(File &file)
  * if word == deleteIndex : compute deletion cost
  */
 double
-WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
+WordMesh::alignError(const LHash<VocabIndex,Prob>* column,
+		     Prob columnPosterior,
+		     VocabIndex word)
 {
     if (column == 0) {
 	/*
@@ -265,9 +338,9 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
 	    return 0.0;
 	} else {
 	    if (distance) {
-		return totalPosterior * distance->penalty(word);
+		return columnPosterior * distance->penalty(word);
 	    } else {
-		return totalPosterior;
+		return columnPosterior;
 	    }
 	}
     } else {
@@ -289,7 +362,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
 		return deletePenalty;
 	    } else {
 		Prob *deleteProb = column->find(deleteIndex);
-		return  totalPosterior - (deleteProb ? *deleteProb : 0.0);
+		return  columnPosterior - (deleteProb ? *deleteProb : 0.0);
 	    }
 	} else {
 	    /*
@@ -318,7 +391,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
 		return totalDistance;
 	    } else {
 	        Prob *wordProb = column->find(word);
-		return totalPosterior - (wordProb ? *wordProb : 0.0);
+		return columnPosterior - (wordProb ? *wordProb : 0.0);
 	    }
 	}
     }
@@ -331,11 +404,12 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column, VocabIndex word)
  */
 double
 WordMesh::alignError(const LHash<VocabIndex,Prob>* column1, 
+		     Prob columnPosterior,
 		     const LHash<VocabIndex,Prob>* column2,
-		     Prob totalPosterior2)
+		     Prob columnPosterior2)
 {
     if (column2 == 0) {
-	return alignError(column1, deleteIndex);
+	return alignError(column1, columnPosterior, deleteIndex);
     } else {
 	/*
 	 * compute weighted sum of aligning each of the column2 entries,
@@ -347,7 +421,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column1,
 	Prob *prob;
 	VocabIndex word2;
 	while (prob = iter.next(word2)) {
-	    double error = alignError(column1, word2);
+	    double error = alignError(column1, columnPosterior, word2);
 
 	    /*
 	     * Handle case where one of the entries has posterior 1, but 
@@ -357,7 +431,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column1,
 	     * where posterior 1 occurs in column1 (as well as speeding things
 	     * up).
 	     */
-	    if (*prob == totalPosterior2) {
+	    if (*prob == columnPosterior2) {
 		return *prob * error;
 	    } else {
 		totalDistance += *prob * error;
@@ -378,26 +452,76 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 			    Prob *wordScores, const HypID *hypID)
 {
     unsigned numWords = Vocab::length(words);
-    NBestWordInfo winfo[numWords + 1];
+    NBestWordInfo *winfo = new NBestWordInfo[numWords + 1];
+    assert(winfo != 0);
 
     /*
      * Fill word info array with word IDs and dummy info
+     * Note: loop below also handles the final Vocab_None.
      */
     for (unsigned i = 0; i <= numWords; i ++) {
 	winfo[i].word = words[i];
 	winfo[i].invalidate();
+	winfo[i].wordPosterior = 0.0;
+	winfo[i].transPosterior = 0.0;
     }
 
     alignWords(winfo, score, wordScores, hypID);
+
+    delete [] winfo;
 }
 
-void
+/*
+ * This is the generalized version of alignWords():
+ *	- merges NBestWordInfo into the existing alignment
+ *	- aligns word string between any two existing alignment positions
+ *	- optionally returns the alignment positions assigned to aligned words
+ *	- optionally returns the posterior probabilities of aligned words
+ * Alignment positions are integers corresponding to word equivalence classes.
+ * They are assigned in increasing order; hence numerical order does not
+ * correspond to topological (temporal) order.
+ *
+ *	- 'from' specifies the alignment position just BEFORE the first word.
+ *	  A value of numAligns means the first word should start the alignment.
+ *	- 'to' specifies the alignment position just AFTER the last word.
+ *	  A value of numAligns means the last word should end the alignment.
+ *
+ * Returns false if the 'from' position does not strictly precede the 'to'.
+ */
+Boolean
 WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
-			    Prob *wordScores, const HypID *hypID)
+		    	Prob *wordScores, const HypID *hypID,
+			unsigned from, unsigned to, unsigned *wordAlignment) 
 {
-    unsigned refLength = numAligns;
+    /*
+     * Compute word string length
+     */
     unsigned hypLength = 0;
     for (unsigned i = 0; winfo[i].word != Vocab_None; i ++) hypLength ++;
+
+    /*
+     * Locate start and end positions to align to
+     */
+    unsigned fromPos = 0;
+    unsigned refLength = 0;
+
+    if (numAligns > 0) {
+	unsigned toPos = numAligns - 1;
+
+	for (unsigned p = 0; p < numAligns; p ++) {
+	    if (sortedAligns[p] == from) fromPos = p + 1;
+	    if (sortedAligns[p] == to) toPos = p - 1;
+	}
+
+    	refLength = toPos - fromPos + 1;
+
+        if (toPos + 1 < fromPos) {
+	    
+	    return false;
+	}
+    }
+    Boolean fullAlignment = (refLength == numAligns);
+
 
     typedef struct {
 	double cost;			// minimal cost of partial alignment
@@ -444,7 +568,8 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
     chart[0][0].error = CORR_ALIGN;
 
     for (unsigned j = 1; j <= hypLength; j ++) {
-	chart[0][j].cost = chart[0][j-1].cost + alignError(0, winfo[j-1].word);
+	chart[0][j].cost = chart[0][j-1].cost +
+				alignError(0, totalPosterior, winfo[j-1].word);
 	chart[0][j].error = INS_ALIGN;
     }
 
@@ -453,15 +578,18 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
      */
     for (unsigned i = 1; i <= refLength; i ++) {
 	double deletePenalty =
-			    alignError(aligns[sortedAligns[i-1]], deleteIndex);
+		    alignError(aligns[sortedAligns[fromPos+i-1]],
+			       columnPosteriors[sortedAligns[fromPos+i-1]],
+			       deleteIndex);
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
 	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
 	    double minCost = chart[i-1][j-1].cost +
-				alignError(aligns[sortedAligns[i-1]],
-							winfo[j-1].word);
+			alignError(aligns[sortedAligns[fromPos+i-1]],
+				   columnPosteriors[sortedAligns[fromPos+i-1]],
+				   winfo[j-1].word);
 	    WordAlignType minError = SUB_ALIGN;
 
 	    double delCost = chart[i-1][j].cost + deletePenalty;
@@ -471,7 +599,9 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 	    }
 
 	    double insCost = chart[i][j-1].cost +
-				alignError(0, winfo[j-1].word);
+			alignError(0,
+			           transPosteriors[sortedAligns[fromPos+i-1]],
+				   winfo[j-1].word);
 	    if (insCost < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -492,11 +622,31 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 
 	while (i > 0 || j > 0) {
 
+	    Prob wordPosterior = score;
+	    Prob transPosterior = score;
+
+	    /*
+	     * Use word- and transition-specific posteriors if supplied.
+	     * Note: the transition posterior INTO the first word is
+	     * given on the Vocab_None item at winfo[hypLength].
+	     */
+	    if (j > 0 && winfo[j-1].wordPosterior != 0.0) {
+		wordPosterior = winfo[j-1].wordPosterior;
+	    }
+	    if (j > 0 && winfo[j-1].transPosterior != 0.0) {
+		transPosterior = winfo[j-1].transPosterior;
+	    } else if (j == 0 && winfo[hypLength].transPosterior != 0.0) {
+		transPosterior = winfo[hypLength].transPosterior;
+	    }
+
 	    switch (chart[i][j].error) {
 
 	    case CORR_ALIGN:
 	    case SUB_ALIGN:
-		*aligns[sortedAligns[i-1]]->insert(winfo[j-1].word) += score;
+		*aligns[sortedAligns[fromPos+i-1]]->insert(winfo[j-1].word) +=
+								wordPosterior;
+		columnPosteriors[sortedAligns[fromPos+i-1]] += wordPosterior;
+		transPosteriors[sortedAligns[fromPos+i-1]] += transPosterior;
 
 		/*
 		 * Check for preexisting word info and merge if necesssary
@@ -504,7 +654,7 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		if (winfo[j-1].valid()) {
 		    Boolean foundP;
 		    NBestWordInfo *oldInfo =
-		    		wordInfo[sortedAligns[i-1]]->
+		    		wordInfo[sortedAligns[fromPos+i-1]]->
 						insert(winfo[j-1].word, foundP);
 		    if (foundP) {
 			oldInfo->merge(winfo[j-1]);
@@ -518,26 +668,32 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		     * Add hyp ID to the hyp list for this word 
 		     */
 		    Array<HypID> &hypList = 
-			*hypMap[sortedAligns[i-1]]->insert(winfo[j-1].word);
+		    *hypMap[sortedAligns[fromPos+i-1]]->insert(winfo[j-1].word);
 		    hypList[hypList.size()] = *hypID;
 		}
 
+		if (wordAlignment) {
+		    wordAlignment[j-1] = sortedAligns[fromPos+i-1];
+		}
 		if (wordScores) {
 		    wordScores[j-1] =
-			    *aligns[sortedAligns[i-1]]->insert(winfo[j-1].word);
+		    *aligns[sortedAligns[fromPos+i-1]]->find(winfo[j-1].word);
 		}
 
 		i --; j --;
 		break;
 	    case DEL_ALIGN:
-		*aligns[sortedAligns[i-1]]->insert(deleteIndex) += score;
+		*aligns[sortedAligns[fromPos+i-1]]->insert(deleteIndex) +=
+								transPosterior;
+		columnPosteriors[sortedAligns[fromPos+i-1]] += transPosterior;
+		transPosteriors[sortedAligns[fromPos+i-1]] += transPosterior;
 
 		if (hypID) {
 		    /*
 		     * Add hyp ID to the hyp list for this word 
 		     */
 		    Array<HypID> &hypList = 
-			*hypMap[sortedAligns[i-1]]->insert(deleteIndex);
+			*hypMap[sortedAligns[fromPos+i-1]]->insert(deleteIndex);
 		    hypList[hypList.size()] = *hypID;
 		}
 
@@ -548,10 +704,10 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		 * Make room for new alignment column in sortedAligns
 		 * and position new column
 		 */
-		for (unsigned k = numAligns; k > i; k --) {
+		for (unsigned k = numAligns; k > fromPos + i; k --) {
 		    sortedAligns[k] = sortedAligns[k-1];
 		}
-		sortedAligns[i] = numAligns;
+		sortedAligns[fromPos + i] = numAligns;
 
 		aligns[numAligns] = new LHash<VocabIndex,Prob>;
 		assert(aligns[numAligns] != 0);
@@ -562,10 +718,21 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		hypMap[numAligns] = new LHash<VocabIndex,Array<HypID> >;
 		assert(hypMap[numAligns] != 0);
 
-		if (totalPosterior != 0.0) {
-		    *aligns[numAligns]->insert(deleteIndex) = totalPosterior;
+		/*
+		 * The transition posterior from the preceding to the following
+		 * position becomes the posterior for *delete* at the new
+		 * position (that's why we need transition posteriors!).
+		 */
+		Prob nullPosterior = totalPosterior;
+		if (fromPos+i > 0) {
+		    nullPosterior = transPosteriors[sortedAligns[fromPos+i-1]];
 		}
-		*aligns[numAligns]->insert(winfo[j-1].word) = score;
+		if (nullPosterior != 0.0) {
+		    *aligns[numAligns]->insert(deleteIndex) = nullPosterior;
+		}
+		*aligns[numAligns]->insert(winfo[j-1].word) = wordPosterior;
+		columnPosteriors[numAligns] = nullPosterior + wordPosterior;
+		transPosteriors[numAligns] = nullPosterior + transPosterior;
 
 		/*
 		 * Record word info if given
@@ -603,14 +770,33 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		    hypList[hypList.size()] = *hypID;
 		}
 
+		if (wordAlignment) {
+		    wordAlignment[j-1] = numAligns;
+		}
 		if (wordScores) {
-		    wordScores[j-1] = score;
+		    wordScores[j-1] = wordPosterior;
 		}
 
 		numAligns ++;
 		j --;
 		break;
 	    }
+	}
+
+	/* 
+	 * Add the transition posterior INTO the FIRST hyp word to
+	 * to the transition posterior into the first alignment position
+	 * This only applies when doing a partial alignment that doesn't
+	 * start at the 0th position.
+	 */
+	if (fromPos+i > 0) {
+	    Prob transPosterior = score;
+
+	    if (winfo[hypLength].transPosterior != 0.0) {
+		transPosterior = winfo[hypLength].transPosterior;
+	    }
+
+	    transPosteriors[sortedAligns[fromPos+i-1]] += transPosterior;
 	}
     }
 
@@ -621,7 +807,15 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 	*allHyps.insert(*hypID) = *hypID;
     }
 
-    totalPosterior += score;
+    /*
+     * Only change total posterior if the alignment spanned the whole mesh.
+     * This ensure totalPosterior reflects the initia/final node posterior
+     * in a lattice.
+     */
+    if (fullAlignment) {
+	totalPosterior += score;
+    }
+    return true;
 }
 
 void
@@ -679,9 +873,10 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
     for (unsigned j = 1; j <= hypLength; j ++) {
 	unsigned pos = other.sortedAligns[j-1];
 	chart[0][j].cost = chart[0][j-1].cost +
-			   alignError(0,
-				      other.aligns[other.sortedAligns[j-1]],
-				      other.totalPosterior);
+		   alignError(0,
+			      totalPosterior,
+			      other.aligns[other.sortedAligns[j-1]],
+			      other.columnPosteriors[other.sortedAligns[j-1]]);
 	chart[0][j].error = INS_ALIGN;
     }
 
@@ -690,16 +885,19 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
      */
     for (unsigned i = 1; i <= refLength; i ++) {
 	double deletePenalty =
-			    alignError(aligns[sortedAligns[i-1]], deleteIndex);
+			    alignError(aligns[sortedAligns[i-1]],
+				       columnPosteriors[sortedAligns[i-1]],
+				       deleteIndex);
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
 	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
 	    double minCost = chart[i-1][j-1].cost +
-			     alignError(aligns[sortedAligns[i-1]],
-					other.aligns[other.sortedAligns[j-1]],
-					other.totalPosterior);
+		     alignError(aligns[sortedAligns[i-1]],
+				columnPosteriors[sortedAligns[i-1]],
+				other.aligns[other.sortedAligns[j-1]],
+				other.columnPosteriors[other.sortedAligns[j-1]]);
 	    WordAlignType minError = SUB_ALIGN;
 
 	    double delCost = chart[i-1][j].cost + deletePenalty;
@@ -709,9 +907,10 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 	    }
 
 	    double insCost = chart[i][j-1].cost +
-			     alignError(0,
-					other.aligns[other.sortedAligns[j-1]],
-					other.totalPosterior);
+		     alignError(0,
+				transPosteriors[sortedAligns[i-1]],
+				other.aligns[other.sortedAligns[j-1]],
+				other.columnPosteriors[other.sortedAligns[j-1]]);
 	    if (insCost < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -792,11 +991,21 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 		    }
 		}
 
+		columnPosteriors[sortedAligns[i-1]] +=
+			score * other.columnPosteriors[other.sortedAligns[j-1]];
+		transPosteriors[sortedAligns[i-1]] +=
+			score * other.transPosteriors[other.sortedAligns[j-1]];
+
 		i --; j --;
 
 		break;
 	    case DEL_ALIGN:
-		*aligns[sortedAligns[i-1]]->insert(deleteIndex) += score;
+		*aligns[sortedAligns[i-1]]->insert(deleteIndex) +=
+						score * other.totalPosterior;
+		columnPosteriors[sortedAligns[i-1]] +=
+						score * other.totalPosterior;
+		transPosteriors[sortedAligns[i-1]] +=
+						score * other.totalPosterior;
 
 		/*
 		 * Add all hyp IDs from "other" alignment to our delete hyp
@@ -833,9 +1042,20 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 		hypMap[numAligns] = new LHash<VocabIndex,Array<HypID> >;
 		assert(hypMap[numAligns] != 0);
 
-		if (totalPosterior != 0.0) {
-		    *aligns[numAligns]->insert(deleteIndex) = totalPosterior;
+		/*
+		 * The transition posterior from the preceding to the following
+		 * position becomes the posterior for *delete* at the new
+		 * position (that's why we need transition posteriors!).
+		 */
+		Prob nullPosterior = totalPosterior;
+		if (i > 0) {
+		    nullPosterior = transPosteriors[sortedAligns[i-1]];
 		}
+		if (nullPosterior != 0.0) {
+		    *aligns[numAligns]->insert(deleteIndex) = nullPosterior;
+		}
+		columnPosteriors[numAligns] = nullPosterior;
+		transPosteriors[numAligns] = nullPosterior;
 
 		/*
 		 * Add all hypIDs previously recorded to the *DELETE*
@@ -901,6 +1121,11 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 		    }
 		}
 
+		columnPosteriors[numAligns] +=
+			score * other.columnPosteriors[other.sortedAligns[j-1]];
+		transPosteriors[numAligns] +=
+			score * other.transPosteriors[other.sortedAligns[j-1]];
+
 		numAligns ++;
 		j --;
 		break;
@@ -917,7 +1142,51 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 	*allHyps.insert(id) = id;
     }
 
-    totalPosterior += score;
+    totalPosterior += score * other.totalPosterior;
+}
+
+/*
+ * Incremental partial alignments using alignWords() can leave the 
+ * posteriors of null entries defective (because not all transition posteriors
+ * were added to the alignment).
+ * This function normalized the null posteriors so that the total column
+ * posteriors sum to the totalPosterior.
+ */
+void
+WordMesh::normalizeDeletes()
+{
+    for (unsigned i = 0; i < numAligns; i ++) {
+
+	LHashIter<VocabIndex,Prob> alignIter(*aligns[i]);
+
+	Prob wordPosteriorSum = 0.0;
+
+	Prob *prob;
+	VocabIndex word;
+	while (prob = alignIter.next(word)) {
+	    if (word != deleteIndex) {
+		wordPosteriorSum += *prob;
+	    }
+	}
+
+	Prob deletePosterior;
+	if (wordPosteriorSum - totalPosterior > Prob_Epsilon) {
+	    cerr << "WordMesh::normalizeDeletes: word posteriors exceed total: "
+		 << wordPosteriorSum << endl;
+	    deletePosterior = 0.0;
+	} else {
+	    deletePosterior = totalPosterior - wordPosteriorSum;
+	}
+
+	if (deletePosterior < Prob_Epsilon) {
+	    aligns[i]->remove(deleteIndex);
+	} else {
+	    *aligns[i]->insert(deleteIndex) = deletePosterior;
+	}
+
+	columnPosteriors[i] = totalPosterior;
+	transPosteriors[i] = totalPosterior;
+    }
 }
 
 /*
@@ -1072,6 +1341,27 @@ WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
 				unsigned flags, double delBias)
 {
+    NBestWordInfo *winfo = new NBestWordInfo[length];
+    assert(winfo != 0);
+
+    double result =
+		minimizeWordError(winfo, length, sub, ins, del, flags, delBias);
+
+    for (unsigned i = 0; i < length; i ++) {
+	words[i] = winfo[i].word;
+	if (words[i] == Vocab_None) break;
+    }
+
+    delete [] winfo;
+
+    return result;
+}
+
+double
+WordMesh::minimizeWordError(NBestWordInfo *winfo, unsigned length,
+				double &sub, double &ins, double &del,
+				unsigned flags, double delBias)
+{
     unsigned numWords = 0;
     sub = ins = del = 0.0;
 
@@ -1100,7 +1390,22 @@ WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 
 	if (bestWord != deleteIndex) {
 	    if (numWords < length) {
-		words[numWords ++] = bestWord;
+		NBestWordInfo *thisInfo =
+				    wordInfo[sortedAligns[i]]->find(bestWord);
+		if (thisInfo) {
+		    winfo[numWords] = *thisInfo;
+		} else {
+		    winfo[numWords].word = bestWord;
+		    winfo[numWords].invalidate();
+		}
+
+		/* 
+		 * Always return the word posterior into the NBestWordInfo
+		 */
+		winfo[numWords].wordPosterior = bestProb;
+		winfo[numWords].transPosterior = bestProb;
+
+		numWords += 1;
 	    }
 	    ins += deleteProb;
 	    sub += totalPosterior - deleteProb - bestProb;
@@ -1109,9 +1414,22 @@ WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 	}
     }
     if (numWords < length) {
-	words[numWords] = Vocab_None;
+	winfo[numWords].word = Vocab_None;;
+	winfo[numWords].invalidate();
     }
 
     return sub + ins + del;
+}
+
+/*
+ * Return confusion set for a given position
+ */
+LHash<VocabIndex,Prob> *
+WordMesh::wordColumn(unsigned columnNumber) {
+    if (columnNumber < numAligns) {
+	return aligns[sortedAligns[columnNumber]];
+    } else {
+	return 0;
+    }
 }
 

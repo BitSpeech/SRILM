@@ -17,61 +17,66 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lattice/src/RCS/Makefile,v 1.7 2002/08/24 21:29:29 stolcke Exp $
+#    $Header: /home/srilm/devel/lattice/src/RCS/Makefile,v 1.24 2006/01/09 22:47:54 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
 include $(SRILM)/common/Makefile.common.variables
 
-ifneq ($(CC), $(subst gcc,,$(CC)))
-CC += -Wreturn-type 
-endif
-
-ifneq ($(CXX), $(subst g++,,$(CXX)))
-CXX += -Wreturn-type -DINSTANTIATE_TEMPLATES
-endif
-
 # Flags for generating "compact" data structures
 # Note: We link with the compact LM library, but we don't use sorted arrays
 # in lattices because of the big performance penalty and the small memory
 # savings.
-#COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+COMPACT_FLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+
+# Flags for generating "short" data structures
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
 
 # Define variables.
 
 # Example Library declarations files.
 
-EXTERNAL_LIB_HEADERS = \
-	$(SRCDIR)/Lattice.h
+EXTERNAL_LIB_HEADERS =			\
+	$(SRCDIR)/Lattice.h		\
+	$(SRCDIR)/HTKLattice.h		\
+	$(SRCDIR)/LatticeLM.h
 
 INTERNAL_LIB_HEADERS = 
 
 # Example Library source files.
 LIB_SOURCES = 				\
-	$(SRCDIR)/Lattice.cc
+	$(SRCDIR)/Lattice.cc		\
+	$(SRCDIR)/LatticeAlign.cc	\
+	$(SRCDIR)/LatticeExpand.cc	\
+	$(SRCDIR)/LatticeNBest.cc	\
+	$(SRCDIR)/LatticeNgrams.cc	\
+	$(SRCDIR)/LatticeReduce.cc	\
+	$(SRCDIR)/HTKLattice.cc		\
+	$(SRCDIR)/LatticeLM.cc
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES)))
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
 
 # Example Library.
-LIBRARY = $(OBJDIR)/liblattice.a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)lattice$(LIB_SUFFIX)
 
 ADDITIONAL_INCLUDES += \
 	$(TCL_INCLUDE)
 
 ADDITIONAL_LDFLAGS += \
-	-u $(SYMBOL_PREFIX)matherr
+	$(MATHERR_LINK)
 
 OTHER_LIBRARIES = \
-	-loolm \
-	-ldstruct \
-	-lmisc
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)flm$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)oolm$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX)
 
 ADDITIONAL_LIBRARIES += \
 	$(OTHER_LIBRARIES) \
 	$(TCL_LIBRARY) \
-	-lm
+	$(MATH_LIBRARY)
 
 # Example programs.
 
@@ -85,12 +90,12 @@ PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \
 	$(REAL_PROGRAM_NAMES)
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 
 # Libraries to be linked with the Example programs.
@@ -128,7 +133,7 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	$(PROGRAMS)
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^ $(DEMANGLE_FILTER)
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^ $(DEMANGLE_FILTER)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 $(PROGRAMS): $(LIBRARY) $(OTHER_LIBRARIES)
@@ -137,7 +142,7 @@ $(PROGRAMS): $(LIBRARY) $(OTHER_LIBRARIES)
 
 EXPORTED_HEADERS   = $(EXTERNAL_LIB_HEADERS)
 EXPORTED_LIBRARIES = $(LIBRARY)
-EXPORTED_PROGRAMS  = $(REAL_PROGRAM_NAMES:%=$(BINDIR)/%)
+EXPORTED_PROGRAMS  = $(REAL_PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 release:	release-headers release-libraries release-programs
 

@@ -1,5 +1,5 @@
-.\" $Id: nbest-mix.1,v 1.5 2002/02/06 15:44:22 stolcke Exp $
-.TH nbest-mix 1 "$Date: 2002/02/06 15:44:22 $" "SRILM Tools"
+.\" $Id: nbest-mix.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $
+.TH nbest-mix 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 nbest-mix \- interpolate N-best posterior probabilities
 .SH SYNOPSIS
@@ -25,9 +25,16 @@ printed.
 The command line arguments form an alternating list of 
 weight values and N-best file names.
 .SH OPTIONS
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-debug " level"
 Controls the amount of output (the higher the
@@ -100,4 +107,4 @@ Hopefully not.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1998,2002 SRI International
+Copyright 1998\-2004 SRI International

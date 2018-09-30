@@ -6,8 +6,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.13 2002/08/02 02:42:36 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /tmp_mnt/home/srilm/devel/lm/src/RCS/Prob.cc,v 1.14 2003/03/04 04:58:30 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -18,9 +18,9 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.cc,v 1.13 
 
 #include "Prob.h"
 
-const LogP LogP_Zero = -1.0/0.0;		/* log(0) */
+const LogP LogP_Zero = -HUGE_VAL;		/* log(0) */
+const LogP LogP_Inf = HUGE_VAL;			/* log(Inf) */
 const LogP LogP_One = 0.0;			/* log(1) */
-const LogP LogP_Inf = 1.0/0.0;			/* log(Inf) */
 
 const int LogP_Precision = 7;	/* number of significant decimals in a LogP */
 

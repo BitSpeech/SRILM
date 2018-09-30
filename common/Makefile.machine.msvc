@@ -1,0 +1,105 @@
+#
+#    File:   Makefile.machine.msvc
+#    Author: The SRI DECIPHER (TM) System
+#    Date:   Fri Feb 19 22:45:31 PST 1999
+#
+#    Description:
+#	Machine dependent compilation options and variable definitions
+#	for x86 with Microsoft Visual C platform
+#
+#    Copyright (c) 2005 SRI International.  All Rights Reserved.
+#
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.msvc,v 1.2 2006/01/11 06:27:53 stolcke Exp $
+#
+
+   # Use the MSVC compiler.
+   MACHINE_TYPE = msvc
+   MSC_FLAGS =  -DNEED_RAND48 -DWIN32  -EHsc  -W2 -nologo 
+   CC = CL.exe $(MSC_FLAGS)  
+   CXX = CL.exe  $(MSC_FLAGS) -DINSTANTIATE_TEMPLATES
+   AR = LIB.exe -NOLOGO -IGNORE:4006 -IGNORE:4221
+   ARCHIVE = $(AR)
+   LINK.c = LINK.exe $(LDFLAGS)
+   LINK.cc = LINK.exe $(LDFLAGS)
+
+   OUTPUT_OPTION = -Fo$@
+   LD_OUTPUT_OPTION = -OUT:$@
+   AR_OUTPUT_OPTION = /OUT:$@
+
+   # suffixes used for various files
+   EXE_SUFFIX = .exe
+   OBJ_SUFFIX = .obj
+   LIB_SUFFIX = .lib
+   LIB_PREFIX = 
+
+   # Optional compilation flags.
+   OPTIMIZE_FLAGS =  -O2 -ML -DNDEBUG   -FD -EHsc  -GS  
+   DEBUG_FLAGS = -DDEBUG -D_DEBUG -Yd -MLd -Od -MLd -RTC1 -Z7
+   PROFILE_FLAGS = -O2 -ML -DNDEBUG   -FD -EHsc  -GS 
+
+   # Optional linking flags.
+   EXPORT_LDFLAGS = -RELEASE
+   DEBUG_LDFLAGS = -DEBUG
+   PROFILE_LDFLAGS = -MAP
+
+   # Linker doesn't want compiler optimization flags
+   LD_OPTION_FLAGS =
+   MATHERR_LINK =
+
+   # Shared compilation flags.
+   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+
+   # Shared linking flags.
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -LIBPATH:$(SRILM_LIBDIR) -FORCE:MULTIPLE -NOLOGO -IGNORE:4006 -IGNORE:4088 -IGNORE:4221
+
+   # Other useful compilation flags.
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
+
+   # Other useful include directories.
+   ADDITIONAL_INCLUDES = 
+
+   # Other useful linking flags.
+   ADDITIONAL_LDFLAGS = 
+
+   # Other useful libraries.
+   ADDITIONAL_LIBRARIES = 
+
+   # Extra files to remove
+   EXTRA_REMOVE_PROGRAMS = $(ALL_PROGRAMS:.exe=.map) $(ALL_PROGRAMS:.exe=.pdb)
+   EXTRA_REMOVE_DEPENDENCIES = vc70.idb
+
+   # run-time linker path flag
+   RLD_FLAG = 
+
+   # no separate math library needed
+   MATH_LIBRARY = 
+
+   # Tcl support not available
+   TCL_INCLUDE = 
+   TCL_LIBRARY = 
+   NO_TCL = X
+
+   # No ranlib
+   RANLIB = :
+
+   # prefix of matherr symbol
+   SYMBOL_PREFIX = 
+
+   # Not needed
+   DEMANGLE_FILTER =
+
+   # Generate dependencies from source files.
+   GEN_DEP = gcc $(INCLUDES) -MM
+
+   GEN_DEP.cc = g++ $(INCLUDES) -MM
+
+   # Run lint.
+   LINT = lint
+   LINT_FLAGS = -DDEBUG $(CFLAGS)
+
+   # Location of gawk binary
+   GAWK = /usr/bin/gawk
+
+   PERL = /usr/bin/perl

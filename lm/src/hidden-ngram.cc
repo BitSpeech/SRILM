@@ -6,16 +6,19 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc,v 1.38 2003/01/28 17:34:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: hidden-ngram.cc,v 1.45 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
+#include <assert.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "VocabMap.h"
@@ -24,6 +27,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/hidden-ngram.cc
 #include "Ngram.h"
 #include "ClassNgram.h"
 #include "SimpleClassNgram.h"
+#include "ProductNgram.h"
 #include "BayesMix.h"
 #include "NgramStats.h"
 #include "Trellis.cc"
@@ -36,12 +40,14 @@ typedef const VocabIndex *VocabContext;
 #define DEBUG_TRANSITIONS	2
 #define DEBUG_TRELLIS	        3
 
+static int version = 0;
 static unsigned numNbest = 1;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
 static char *classesFile = 0;
 static int simpleClasses = 0;
+static int factored = 0;
 static char *mixFile  = 0;
 static char *mixFile2 = 0;
 static char *mixFile3 = 0;
@@ -65,6 +71,7 @@ static char *textFile = 0;
 static char *textMapFile = 0;
 static char *escape = 0;
 static int keepUnk = 0;
+static int keepnull = 1;
 static int toLower = 0;
 static double lmw = 1.0;
 static double mapw = 1.0;
@@ -87,9 +94,11 @@ const VocabString noHiddenEvent = "*noevent*";
 VocabIndex noEventIndex;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
     { OPT_STRING, "classes", &classesFile, "class definitions" },
     { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
+    { OPT_TRUE, "factored", &factored, "use a factored LM" },
     { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
     { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
     { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
@@ -112,6 +121,7 @@ static Option options[] = {
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden vocabulary" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
+    { OPT_FALSE, "nonull", &keepnull, "remove <NULL> in factored LM" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_STRING, "text", &textFile, "text file to disambiguate" },
     { OPT_STRING, "text-map", &textMapFile, "text+map file to disambiguate" },
@@ -362,10 +372,15 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids[],
      * do it and return. Otherwise do forward-backward.
      */
     if (!fb && !fwOnly && !posteriors && !hiddenCounts) {
-	VocabContext hiddenContexts[numNbest][len + 2];	  
-						// One extra state for initial.
+	//VocabContext hiddenContexts[numNbest][len + 2];	  
+	makeArray(VocabContext *, hiddenContexts, numNbest);
 
-	for (unsigned n = 0; n < numNbest; n ++) {
+	unsigned n;
+	for (n = 0; n < numNbest; n ++) {
+	    hiddenContexts[n] = new VocabContext[len + 2];
+						// One extra state for initial.
+	    assert(hiddenContexts[n]);
+
 	    if (trellis.nbest_viterbi(hiddenContexts[n], len + 1,
 						    n, totalProb[n]) != len + 1)
 	    {
@@ -381,6 +396,11 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids[],
 	    }
 	    hiddenWids[n][len] = Vocab_None;
 	}
+
+	for (n = 0; n < numNbest; n ++) {
+	    delete [] hiddenContexts[n];
+	}
+
 	return numNbest;
     } else {
 	/*
@@ -691,17 +711,18 @@ disambiguateFile(File &file, SubVocab &hiddenVocab, LM &lm,
 	if (numWords == maxWordsPerLine) {
 	    file.position() << "too many words per sentence\n";
 	} else {
-	    VocabIndex wids[maxWordsPerLine + 1];
-	    VocabIndex *hiddenWids[numNbest];
+	    makeArray(VocabIndex, wids, maxWordsPerLine + 1);
+	    makeArray(VocabIndex *, hiddenWids, numNbest);
 
 	    for (unsigned n = 0; n < numNbest; n++) {
 		hiddenWids[n] = new VocabIndex[maxWordsPerLine + 1];
+		assert(hiddenWids[n] != 0);
 	    }
 
 	    lm.vocab.getIndices(sentence, wids, maxWordsPerLine,
-							  lm.vocab.unkIndex);
+							  lm.vocab.unkIndex());
 
-	    LogP totalProb[numNbest];
+	    makeArray(LogP, totalProb, numNbest);
 	    unsigned numHyps = disambiguateSentence(wids, hiddenWids, totalProb,
 						    dummyMap, lm, hiddenCounts,
 						    numNbest);
@@ -774,7 +795,7 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
 	    wids[lineStart + numWords] = Vocab_None;
 
 	    lm.vocab.getIndices(words, &wids[lineStart], numWords,
-							lm.vocab.unkIndex);
+							lm.vocab.unkIndex());
 	    lineStart += numWords;
 	}
     }
@@ -784,11 +805,12 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
 	return;
     }
 
-    VocabIndex *hiddenWids[numNbest];
-    LogP totalProb[numNbest];
+    makeArray(VocabIndex *, hiddenWids, numNbest);
+    makeArray(LogP, totalProb, numNbest);
 
     for (unsigned n = 0; n < numNbest; n++) {
 	hiddenWids[n] = new VocabIndex[lineStart + 1];
+	assert(hiddenWids[n] != 0);
     }
 
     unsigned numHyps =
@@ -878,7 +900,8 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
 	    /*
 	     * First field is the observed word
 	     */
-	    wids[numWords] = lm.vocab.getIndex(mapFields[0], lm.vocab.unkIndex);
+	    wids[numWords] =
+			lm.vocab.getIndex(mapFields[0], lm.vocab.unkIndex());
 	    
 	    /*
 	     * Parse the remaining words as either probs or hidden events
@@ -902,17 +925,18 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
 
 		map.put((VocabIndex)numWords, w2, prob);
 	    }
-	} while (wids[numWords ++] != lm.vocab.seIndex &&
+	} while (wids[numWords ++] != lm.vocab.seIndex() &&
 		 (line = file.getline()));
 
 	if (numWords > 0) {
 	    wids[numWords] = Vocab_None;
 
-	    VocabIndex *hiddenWids[numNbest];
-	    LogP totalProb[numNbest];
+	    makeArray(VocabIndex *, hiddenWids, numNbest);
+	    makeArray(LogP, totalProb, numNbest);
 
 	    for (unsigned n = 0; n < numNbest; n++) {
 		hiddenWids[n] = new VocabIndex[numWords + 1];
+		assert(hiddenWids[n] != 0);
 	    }
 
 	    unsigned numHyps =
@@ -950,18 +974,20 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
 
 LM *
 makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
-			    unsigned order, LM *oldLM, double lambda)
+		    unsigned order, LM *oldLM, double lambda1, double lambda2)
 {
     File file(filename, "r");
 
     /*
      * create class-ngram if -classes were specified, otherwise a regular ngram
      */
-    Ngram *lm = (classVocab != 0) ?
-		  (simpleClasses ?
+    Ngram *lm = factored ? 
+		  new ProductNgram((ProductVocab &)vocab, order) :
+		  (classVocab != 0) ?
+		    (simpleClasses ?
 			new SimpleClassNgram(vocab, *classVocab, order) :
 		        new ClassNgram(vocab, *classVocab, order)) :
-		  new Ngram(vocab, order);
+		    new Ngram(vocab, order);
     assert(lm != 0);
 
     lm->debugme(debug);
@@ -980,6 +1006,11 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
     }
 
     if (oldLM) {
+	/*
+	 * Compute mixture lambda (make sure 0/0 = 0)
+	 */
+	Prob lambda = (lambda1 == 0.0) ? 0.0 : lambda1/lambda2;
+
 	LM *newLM = new BayesMix(vocab, *lm, *oldLM, 0, lambda);
 	assert(newLM != 0);
 
@@ -999,17 +1030,35 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
+    if (factored && classesFile) {
+	cerr << "factored and class N-gram models are mutually exclusive\n";
+	exit(2);
+    }
+
     if (numNbest <= 0) numNbest = 1;		  
 				// Silent fix.  Ought to say something here.
 
     /*
      * Construct language model
      */
-    Vocab vocab;
-    vocab.toLower = toLower? true : false;
-    vocab.unkIsWord = keepUnk ? true : false;
+    Vocab *vocab;
 
-    SubVocab hiddenVocab(vocab);
+    vocab = factored ? new ProductVocab : new Vocab;
+    assert(vocab != 0);
+
+    vocab->unkIsWord() = keepUnk ? true : false;
+    vocab->toLower() = toLower ? true : false;
+
+    if (factored) {
+	((ProductVocab *)vocab)->nullIsWord() = keepnull ? true : false;
+    }
+
+    SubVocab hiddenVocab(*vocab);
     SubVocab *classVocab = 0;
 
     LM    *hiddenLM = 0;
@@ -1019,20 +1068,22 @@ main(int argc, char **argv)
 	File file(lmFile, "r");
 
 	/*
-	 * create base N-gram model (either word or class-based)
+	 * create based N-gram model (either factored,  word or class-based)
 	 */
-	if (classesFile) {
-	    classVocab = new SubVocab(vocab);
+	if (factored) {
+	    hiddenLM = new ProductNgram(*(ProductVocab *)vocab, order);
+	} else if (classesFile) {
+	    classVocab = new SubVocab(*vocab);
 	    assert(classVocab != 0);
 
 	    if (simpleClasses) {
-		hiddenLM = new SimpleClassNgram(vocab, *classVocab, order);
+		hiddenLM = new SimpleClassNgram(*vocab, *classVocab, order);
 	    } else {
 		cerr << "warning: state space will get very large; consider using -simple-classes\n";
-		hiddenLM = new ClassNgram(vocab, *classVocab, order);
+		hiddenLM = new ClassNgram(*vocab, *classVocab, order);
 	    }
 	} else {
-	    hiddenLM = new Ngram(vocab, order);
+	    hiddenLM = new Ngram(*vocab, order);
 	}
 	assert(hiddenLM != 0);
 
@@ -1044,7 +1095,7 @@ main(int argc, char **argv)
 	    ((ClassNgram *)hiddenLM)->readClasses(file);
 	}
     } else {
-	hiddenLM = new NullLM(vocab);
+	hiddenLM = new NullLM(*vocab);
 	assert(hiddenLM != 0);
 	hiddenLM->debugme(debug);
     }
@@ -1062,43 +1113,57 @@ main(int argc, char **argv)
 				mixLambda4 - mixLambda5 - mixLambda6 -
 				mixLambda7 - mixLambda8 - mixLambda9;
 
-	useLM = makeMixLM(mixFile, vocab, classVocab, order, useLM,
-				mixLambda1/(mixLambda + mixLambda1));
+	useLM = makeMixLM(mixFile, *vocab, classVocab, order, useLM,
+				mixLambda1,
+				mixLambda + mixLambda1);
 
 	if (mixFile2) {
-	    useLM = makeMixLM(mixFile2, vocab, classVocab, order, useLM,
-				mixLambda2/(mixLambda + mixLambda1 +
-							mixLambda2));
+	    useLM = makeMixLM(mixFile2, *vocab, classVocab, order, useLM,
+				mixLambda2,
+				mixLambda + mixLambda1 + mixLambda2);
 	}
 	if (mixFile3) {
-	    useLM = makeMixLM(mixFile3, vocab, classVocab, order, useLM,
-				mixLambda3/(mixLambda + mixLambda1 +
-						mixLambda2 + mixLambda3));
+	    useLM = makeMixLM(mixFile3, *vocab, classVocab, order, useLM,
+				mixLambda3,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3);
 	}
 	if (mixFile4) {
-	    useLM = makeMixLM(mixFile4, vocab, classVocab, order, useLM,
-				mixLambda4/(mixLambda + mixLambda1 +
-					mixLambda2 + mixLambda3 + mixLambda4));
+	    useLM = makeMixLM(mixFile4, *vocab, classVocab, order, useLM,
+				mixLambda4,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4);
 	}
 	if (mixFile5) {
-	    useLM = makeMixLM(mixFile5, vocab, classVocab, order, useLM,
-								mixLambda5);
+	    useLM = makeMixLM(mixFile5, *vocab, classVocab, order, useLM,
+				mixLambda5,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5);
 	}
 	if (mixFile6) {
-	    useLM = makeMixLM(mixFile6, vocab, classVocab, order, useLM,
-								mixLambda6);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda6,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6);
 	}
 	if (mixFile7) {
-	    useLM = makeMixLM(mixFile7, vocab, classVocab, order, useLM,
-								mixLambda7);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda7,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7);
 	}
 	if (mixFile8) {
-	    useLM = makeMixLM(mixFile8, vocab, classVocab, order, useLM,
-								mixLambda8);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda8,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7 + mixLambda8);
 	}
 	if (mixFile9) {
-	    useLM = makeMixLM(mixFile9, vocab, classVocab, order, useLM,
-								mixLambda9);
+	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+				mixLambda9, 1.0);
 	}
     }
 
@@ -1114,7 +1179,7 @@ main(int argc, char **argv)
      * Allocate fractional counts tree
      */
     if (countsFile) {
-	hiddenCounts = new NgramCounts<NgramFractCount>(vocab, order);
+	hiddenCounts = new NgramCounts<NgramFractCount>(*vocab, order);
 	assert(hiddenCounts);
 	hiddenCounts->debugme(debug);
     }
@@ -1134,7 +1199,7 @@ main(int argc, char **argv)
 	 * We still have to assign an index to it, so just use the regular
 	 * vocabulary.
 	 */
-	noEventIndex = vocab.addWord(noHiddenEvent);
+	noEventIndex = vocab->addWord(noHiddenEvent);
     } else {
 	/*
 	 * Add noevent token to hidden vocabulary

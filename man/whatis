@@ -10,23 +10,24 @@ classes-format (5)	- File format for word class definitions
 disambig (1)		- disambiguate text tokens using an N-gram model
 hidden-ngram (1)	- tag hidden events between words
 lattice-tool (1)	- manipulate word lattices
-lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm (1) - manipulate N-gram language models
+lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm (1) - manipulate N-gram language models
 multi-ngram (1) 	- build multiword N-gram models
 nbest-format (5)	- File formats for N-best hypotheses lists
 nbest-lattice (1)	- rescore N-best lists and lattices
 nbest-mix (1)		- interpolate N-best posterior probabilities
 nbest-optimize (1)	- optimize score combination for N-best word error minimization
 nbest-pron-score (1)	- score pronunciations and pauses in N-best hypotheses
-nbest-scripts, compare-sclite, compute-sclite, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite (1) - rescore and evaluate N-best lists
+nbest-scripts, combine-rover-controls, compare-sclite, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite (1) - rescore and evaluate N-best lists
 ngram (1)		- apply N-gram language models
 ngram-class (1) 	- induce word classes from N-gram statistics
 ngram-count (1) 	- count N-grams and estimate language models
 ngram-format (5)	- File format for ARPA backoff N-gram models
 ngram-merge (1) 	- merge N-gram counts
 pfsg-format (5) 	- File format for Decipher(TM) probabilistic finite-state grammars
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg (1) - create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, htklat-vocab, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg (1) - create and manipulate finite-state networks
 ppl-scripts, add-ppls, compare-ppls, compute-best-mix, compute-best-sentence-mix, hits-from-log, ppl-from-log, subtract-ppls (1) - manipulate perplexities
 segment (1)		- segment text using N-gram language model
 segment-nbest (1)	- rescore and segment N-best lists using hidden segment N-gram model
+select-vocab (1)	- Select a maximum-likelihood vocabulary from a mixture of corpora.
 training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, make-kn-counts, make-kn-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, reverse-text, uniform-classes, vp2text (1) - miscellaneous conveniences for language model training
 wlat-format (5) 	- File format for SRILM word posterior lattices

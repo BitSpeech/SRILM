@@ -1,36 +1,52 @@
 /*
  * XCount.h --
- *	Extended counts.
+ *	Sparse integer counts stored in 2 bytes.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/XCount.h,v 1.1 1995/06/22 07:47:55 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/XCount.h,v 1.4 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
-#ifndef _XCOUNT_H_
-#define _XCOUNT_H_
+#ifndef _XCount_h_
+#define _XCount_h_
+
+#include <iostream>
+using namespace std;
 
 #include "Boolean.h"
+#include "Array.h"
 
 #define XCOUNT_MAXBITS		(15)
 #define XCOUNT_MAXINLINE	((1 << XCOUNT_MAXBITS)-1)
 
-/*
- * We'd really like to declare XCount as a structure with bitfields,
- * but then the compiler will align them on word boundaries and we 
- * won't see a size advantage over fill int's.
+class XCount {
+public:
+    XCount(unsigned value = 0);
+    ~XCount();
 
-typedef struct {
-	Boolean extended:1;
-	unsigned int count:XCOUNT_MAXBITS;
-} XCount;
+    XCount & operator= (const XCount &other);
+    XCount & operator+= (unsigned value)
+	{ *this = (unsigned)*this + value; return *this; };
+    XCount & operator+= (XCount &value)
+	{ *this = (unsigned)*this + (unsigned)value; return *this; };
 
- */
-typedef unsigned short XCount;
+    operator unsigned() const;
 
-unsigned int XCount_Get(XCount xcount);
-unsigned int XCount_Set(XCount &xcount, unsigned int value);
+    void write(ostream &str) const;
+	
+private:
+    unsigned short count:XCOUNT_MAXBITS;
+    Boolean indirect:1;
 
-#endif /* _XCOUNT_H_ */
+    static void freeXCountTableIndex(unsigned short);
+    static unsigned short getXCountTableIndex();
+
+    static Array<unsigned> xcountTable;
+    static unsigned short freeList;
+};
+
+ostream &operator<<(ostream &str, const XCount &count);
+
+#endif /* _XCount_h_ */
 

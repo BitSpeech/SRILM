@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.cc,v 1.1 2001/12/30 23:24:12 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2001,2004 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.cc,v 1.4 2006/01/06 19:23:27 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -16,10 +16,13 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.
 #include "MultiwordVocab.h"
 
 #include "LHash.cc"
+#include "Array.cc"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(VocabIndex, VocabIndex *);
 #endif
+
+const char *MultiwordSeparator = "_";
 
 MultiwordVocab::~MultiwordVocab()
 {
@@ -58,8 +61,8 @@ MultiwordVocab::addWord(VocabString name)
 	/*
 	 * split multiword
 	 */
-	char wordString[strlen(name) + 1];
-	VocabIndex widString[maxWordsPerLine + 1];
+	makeArray(char, wordString, strlen(name) + 1);
+	makeArray(VocabIndex, widString, maxWordsPerLine + 1);
 
 	strcpy(wordString, name);
 
@@ -129,11 +132,14 @@ MultiwordVocab::remove(VocabIndex index)
 /*
  * Expand a string of multiwords into components
  *	return length of expanded string
+ *	optionally, if lengths is non-null, it also return the 
+ *	lengths of the individual multiword expansions
  */
 unsigned
 MultiwordVocab::expandMultiwords(const VocabIndex *words,
 				VocabIndex *expanded, unsigned maxExpanded,
-				Boolean reverse)
+				Boolean reverse,
+				unsigned *lengths)
 {
     unsigned j = 0;
 
@@ -150,6 +156,10 @@ MultiwordVocab::expandMultiwords(const VocabIndex *words,
 	 */
 	if (comps == 0) {
 	    expanded[j++] = words[i];
+
+	    if (lengths != 0) {
+	        lengths[i] = 1;
+	    }
 	} else {
 	    unsigned compsLength = Vocab::length(*comps);
 
@@ -165,6 +175,10 @@ MultiwordVocab::expandMultiwords(const VocabIndex *words,
 		    expanded[j] = (*comps)[k];
 		}
 		j ++;
+	    }
+
+	    if (lengths != 0) {
+		lengths[i] = compsLength;
 	    }
 	}
     }

@@ -9,14 +9,15 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.13 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.18 2006/01/05 21:08:24 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
-   GCC_FLAGS = -V2.8.1 -mcpu=pentiumpro -Wreturn-type -Wimplicit
-   CC = gcc $(GCC_FLAGS)
-   CXX = g++ -Wno-deprecated $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_BIN = /usr/local/lang/gcc-3.4.3/bin
+   GCC_FLAGS = -mtune=pentium3 -Wreturn-type -Wimplicit
+   CC = $(GCC_BIN)/gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = $(GCC_BIN)/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    OPTIMIZE_FLAGS = -g -O2 -malign-double 
    DEBUG_FLAGS = -g -DDEBUG

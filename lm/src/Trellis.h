@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.16 2002/03/01 17:05:32 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.17 2004/06/21 20:27:16 stolcke Exp $
  *
  */
 
@@ -37,6 +37,9 @@ template <class StateT> class TrellisIter;
  * hypotheses.  See the next class for a description of the contents of the
  * hypothesis.
  */
+template <class StateT> class TrellisNode;
+template <class StateT> inline ostream& operator <<(ostream& os, const TrellisNode<StateT>& node);
+
 template <class StateT>
 class TrellisNode
 {
@@ -62,7 +65,7 @@ private:
  * At the moment, we only print out the node's nbest list when asked to
  * print out the node contents.
  */
-template<class StateT>
+template <class StateT>
 inline ostream&
 operator <<(ostream& os, const TrellisNode<StateT>& node) {
     return os << node.nbest;
@@ -85,7 +88,7 @@ struct Hyp {
     Hyp(LogP s, StateT b, int w): score(s), prev(b), whichbest(w) {};
 };
 
-template<class StateT>
+template <class StateT>
 inline ostream&
 operator<<(ostream& os, const Hyp<StateT>& h) {
     if (Map_noKeyP(h.prev)) {
@@ -103,6 +106,9 @@ operator<<(ostream& os, const Hyp<StateT>& h) {
  * initialized, we must explicitly set the size of that state's nbest list
  * to the numNbest member of Trellis.
  */
+template <class StateT> class TrellisNBestList;
+template <class StateT> inline ostream& operator<< (ostream& os, const TrellisNBestList<StateT>& nbest);
+
 template <class StateT>
 class TrellisNBestList {
     friend ostream& operator<< <StateT>(ostream& os,
@@ -124,7 +130,7 @@ private:
     Hyp<StateT> *nblist;
 };
 
-template<class StateT>
+template <class StateT>
 inline ostream&
 operator<< (ostream& os, const TrellisNBestList<StateT>& nbest)
 {
@@ -145,6 +151,10 @@ operator<< (ostream& os, const TrellisNBestList<StateT>& nbest)
  * of all the nbest paths from this time slice.  That is what the global list
  * stores.
  */
+
+template <class StateT> class TrellisSlice;
+template <class StateT> ostream& operator<<(ostream& os, const TrellisSlice<StateT>& slice);
+
 template <class StateT>
 class TrellisSlice
 {
@@ -178,6 +188,9 @@ private:
  * The Trellis class. This is implemented as an array of time slices
  * stored in the member trellis.
  */
+template <class StateT> class Trellis;
+template <class StateT> inline ostream& operator<<(ostream& os, const Trellis<StateT>& trellis);
+
 template <class StateT>
 class Trellis
 {
@@ -253,7 +266,7 @@ private:
 
 };
 
-template<class StateT>
+template <class StateT>
 inline ostream&
 operator<<(ostream& os, const Trellis<StateT>& trellis) {
     for (unsigned i = 0; i < trellis.size(); i++) {

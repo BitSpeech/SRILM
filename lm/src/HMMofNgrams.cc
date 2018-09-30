@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997,2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.10 2003/02/15 06:56:29 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "HMMofNgrams.h"
@@ -33,10 +34,10 @@ HMMofNgrams::HMMofNgrams(Vocab &vocab, unsigned order)
     /*
      * Remove standard vocab items not applicable to state space
      */
-    stateVocab.remove(stateVocab.unkIndex);
-    stateVocab.remove(stateVocab.ssIndex);
-    stateVocab.remove(stateVocab.seIndex);
-    stateVocab.remove(stateVocab.pauseIndex);
+    stateVocab.remove(stateVocab.unkIndex());
+    stateVocab.remove(stateVocab.ssIndex());
+    stateVocab.remove(stateVocab.seIndex());
+    stateVocab.remove(stateVocab.pauseIndex());
 
     /*
      * Add initial, final states
@@ -333,7 +334,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	 * The 0 column corresponds to the <s> prefix, and we are in the
 	 * INITIAL state.
 	 */
-	if (len > 0 && context[len - 1] == vocab.ssIndex) {
+	if (len > 0 && context[len - 1] == vocab.ssIndex()) {
 	    prefix = len - 1;
 	} else {
 	    prefix = len;
@@ -413,7 +414,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	     * Also, the </s> token cannot be emitted this way; it has
 	     * to be matched by the FINAL state.
 	     */
-	    if (currWord != vocab.seIndex && prevState->ngram) {
+	    if (currWord != vocab.seIndex() && prevState->ngram) {
 		LogP wProb =
 			prevState->ngram->wordProb(currWord, currContext);
 
@@ -458,7 +459,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 		 * The </s> token can only be matched by the FINAL state
 		 * and vice-versa.
 		 */
-		if (currWord == vocab.seIndex) {
+		if (currWord == vocab.seIndex()) {
 		    if (toIndex == finalState) {
 			wProb = LogP_One;
 		    } else {
@@ -483,14 +484,14 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 			 */
 			wProb = toState->ngram->wordProb(currWord, currContext)
 				- SubLogP(LogP_One,
-				    toState->ngram->wordProb(vocab.seIndex,
+				    toState->ngram->wordProb(vocab.seIndex(),
 							     currContext));
 		    }
 		}
 
 		if (!haveEosProb) {
 		    eosProb = prevState->ngram ? 
-			prevState->ngram->wordProb(vocab.seIndex, currContext) :
+			prevState->ngram->wordProb(vocab.seIndex(), currContext) :
 			LogP_One;
 		    haveEosProb = true;
 		}
@@ -533,7 +534,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 		trellis.update(index, index, LogP_One);
 	    }
 
-	    if (currWord == vocab.unkIndex) {
+	    if (currWord == vocab.unkIndex()) {
 		stats.numOOVs ++;
 	    } else {
 		stats.zeroProbs ++;
@@ -604,7 +605,7 @@ HMMofNgrams::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	totalProb = LM::sentenceProb(sentence, stats);
     } else {
-	VocabIndex reversed[len + 2 + 1];
+	makeArray(VocabIndex, reversed, len + 2 + 1);
 
 	/*
 	 * Contexts are represented most-recent-word-first.
@@ -630,7 +631,7 @@ HMMofNgrams::sentenceProb(const VocabIndex *sentence, TextStats &stats)
     }
 
     if (debug(DEBUG_PRINT_VITERBI)) {
-	HMMIndex bestStates[len + 2];
+	makeArray(HMMIndex, bestStates, len + 2);
 
 	if (trellis.viterbi(bestStates, len + 2) == 0) {
 	    dout() << "Viterbi backtrace failed\n";

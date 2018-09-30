@@ -4,15 +4,16 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/speech/stolcke/project/lm/src/dstruct/RCS/MemStats.h,v 1.1 1995/06/22 07:35:01 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/MemStats.h,v 1.2 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _MemStats_h_
 #define _MemStats_h_
 
+#include <iostream>
+using namespace std;
 #include <stddef.h>
-#include <iostream.h>
 
 /*
  * The MemStats structure is used to return memory accounting 

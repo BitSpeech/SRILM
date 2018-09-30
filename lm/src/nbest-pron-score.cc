@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-pron-score.cc,v 1.4 2003/01/27 03:01:23 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2002-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.8 2006/01/05 08:44:25 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -15,18 +15,21 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-pron-scor
 #include <assert.h>
 
 #include "option.h"
-#include "Array.cc"
+#include "version.h"
 #include "File.h"
+#include "zio.h"
+
+#include "Array.cc"
 #include "Prob.h"
 #include "MultiwordVocab.h"
 #include "NBest.h"
 #include "Ngram.h"
 #include "VocabMultiMap.h"
 #include "RefList.h"
-#include "zio.h"
 
 #define DEBUG_SCORES	2
 
+static int version = 0;
 static unsigned debug = 0;
 static int toLower = 0;
 static int multiwords = 0;
@@ -36,12 +39,13 @@ static char *pauseLMFile = 0;
 static char *dictFile = 0;
 static char *pronScoreDir = 0;
 static char *pauseScoreDir = 0;
+static double pauseScoreWeight = 0.0;
 static unsigned maxNbest = 0;
 static int intlogs = 0;
 
-static char *noPauseTag = "<nopause>";
-static char *shortPauseTag = "<shortpause>";
-static char *longPauseTag = "<longpause>";
+static char *noPauseTag = (char *)"<nopause>";
+static char *shortPauseTag = (char *)"<shortpause>";
+static char *longPauseTag = (char *)"<longpause>";
 static double minPauseDur = 0.06;
 static double longPauseDur = 0.6;
 static VocabIndex noPauseIndex;
@@ -49,6 +53,7 @@ static VocabIndex shortPauseIndex;
 static VocabIndex longPauseIndex;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
@@ -60,6 +65,7 @@ static Option options[] = {
     { OPT_STRING, "pause-lm", &pauseLMFile, "pause language model" },
     { OPT_STRING, "pron-score-dir", &pronScoreDir, "pronunciation score directory" },
     { OPT_STRING, "pause-score-dir", &pauseScoreDir, "pause score directory" },
+    { OPT_FLOAT, "pause-score-weight", &pauseScoreWeight, "pause score weight for adding with pron scores" },
     { OPT_TRUE, "intlogs", &intlogs, "dictionary uses intlog probabilities" },
 
     { OPT_STRING, "no-pause", &noPauseTag, "no pause tag" },
@@ -99,7 +105,8 @@ writeScores(LogP *scores, unsigned numScores, const char *filename)
 void
 processNbest(const char *nbestFile, MultiwordVocab &vocab,
 			VocabMultiMap &dictionary, Ngram &pauseLM,
-			const char *pronScoreFile, const char *pauseScoreFile)
+			const char *pronScoreFile, const char *pauseScoreFile,
+			double pauseScoreWeight)
 {
     Vocab &phoneVocab = dictionary.vocab2;
 
@@ -121,8 +128,8 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 	return;
     }
 
-    LogP pronScores[numHyps];
-    LogP pauseScores[numHyps];
+    makeArray(LogP, pronScores, numHyps);
+    makeArray(LogP, pauseScores, numHyps);
 
     Boolean warning = false;
     
@@ -157,7 +164,8 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 		/*
 		 * copy phone string to buffer for parsing
 		 */
-		char phoneString[strlen(hyp.wordInfo[i].phones) + 1];
+		makeArray(char, phoneString,
+			  strlen(hyp.wordInfo[i].phones) + 1);
 		strcpy(phoneString, hyp.wordInfo[i].phones);
 
 		/*
@@ -202,14 +210,14 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 	 * compute pause score:
 	 *	sum of pause LM log probabilites of all pauses in hyp
 	 */
-	if (pauseScoreFile) {
+	if (pauseScoreFile || pauseScoreWeight != 0) {
 	    LogP pauseScore = LogP_One;
 
 	    VocabIndex lastWord = Vocab_None; 
 	    NBestTimestamp pauseLength = 0;
 
 	    for (unsigned i = 0; hyp.words[i] != Vocab_None; i ++) {
-		if (hyp.words[i] == vocab.pauseIndex) {
+		if (hyp.words[i] == vocab.pauseIndex()) {
 		    pauseLength += hyp.wordInfo[i].duration;
 		} else {
 		    VocabIndex context[3];
@@ -256,7 +264,12 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 		}
 	    }
 
-	    pauseScores[h] = pauseScore;
+	    if (pauseScoreFile) {
+		pauseScores[h] = pauseScore;
+	    }
+	    if (pauseScoreWeight != 0.0) {
+		pronScores[h] += pauseScoreWeight * pauseScore;
+	    }
 	}
     }
 
@@ -277,8 +290,13 @@ main (int argc, char *argv[])
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     MultiwordVocab vocab;
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     noPauseIndex = vocab.addWord(noPauseTag);
     shortPauseIndex = vocab.addWord(shortPauseTag);
@@ -316,7 +334,8 @@ main (int argc, char *argv[])
      */
     if (rescoreFile) {
 	processNbest(rescoreFile, vocab, dictionary, pauseLM,
-				dictFile ? "-" : 0, pauseLMFile ? "-" : 0);
+				dictFile ? "-" : 0, pauseLMFile ? "-" : 0,
+				pauseScoreWeight);
     }
 
     /*
@@ -331,23 +350,26 @@ main (int argc, char *argv[])
 
 	    RefString sentid = idFromFilename(fname);
 
-	    char pronScoreFile[(pronScoreDir ? strlen(pronScoreDir) : 0) + 1
-				 + strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
+	    makeArray(char, pronScoreFile,
+		      (pronScoreDir ? strlen(pronScoreDir) : 0) + 1
+				 + strlen(sentid) + strlen(GZIP_SUFFIX) + 1);
 	    if (pronScoreDir) {
 		sprintf(pronScoreFile, "%s/%s%s", pronScoreDir, sentid,
 								GZIP_SUFFIX);
 	    }
 
-	    char pauseScoreFile[(pauseScoreDir ? strlen(pauseScoreDir) : 0) + 1
-				+ strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
+	    makeArray(char, pauseScoreFile,
+		      (pauseScoreDir ? strlen(pauseScoreDir) : 0) + 1
+				+ strlen(sentid) + strlen(GZIP_SUFFIX) + 1);
 	    if (pauseScoreDir) {
 		sprintf(pauseScoreFile, "%s/%s%s", pauseScoreDir, sentid,
 								GZIP_SUFFIX);
 	    }
 
 	    processNbest(fname, vocab, dictionary, pauseLM,
-					pronScoreDir ? pronScoreFile : 0,
-					pauseScoreDir ? pauseScoreFile : 0);
+				    pronScoreDir ? (char *)pronScoreFile : 0,
+				    pauseScoreDir ? (char *)pauseScoreFile : 0,
+				    pauseScoreWeight);
 	}
     }
 

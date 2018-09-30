@@ -13,7 +13,7 @@
 #	  into memory.
 #	- ngram-counts loads only those counts exceeding cutoff values.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.14 2003/02/27 18:19:07 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-big-lm,v 1.15 2005/01/05 23:46:10 stolcke Exp $
 #
 
 name=biglm
@@ -82,6 +82,10 @@ while [ $# -gt 0 ]; do
     -kndiscount7)	kndiscount7=1; using_kn=1 ;;
     -kndiscount8)	kndiscount8=1; using_kn=1 ;;
     -kndiscount9)	kndiscount9=1; using_kn=1 ;;
+    -kndiscount)	kndiscount1=1; kndiscount2=1; kndiscount3=1;
+			kndiscount4=1; kndiscount5=1; kndiscount6=1;
+			kndiscount7=1; kndiscount8=1; kndiscount9=1;
+			using_kn=1 ;;
     -read)	if [ "$2" = - -o "$2" = "/dev/stdin" ]; then
 			echo "$0: cannot read from stdin" >&2
 			exit 2

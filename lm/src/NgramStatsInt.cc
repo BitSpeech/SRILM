@@ -1,11 +1,11 @@
 /*
- * NgramStatsUnsigned.cc --
+ * NgramStatsInt.cc --
  *	Instantiation of NgramCounts<unsigned>
  */
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1996, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/NgramStatsInt.cc,v 1.3 1996/09/08 21:06:34 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStatsInt.cc,v 1.4 2005/09/23 19:27:45 stolcke Exp $";
 #endif
 
 #include "NgramStats.cc"

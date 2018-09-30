@@ -9,7 +9,7 @@
 # scale=S		sets transition weight scaling factor to S
 #			(default -1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.6 2001/11/20 02:03:12 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.7 2003/07/14 17:56:03 stolcke Exp $
 #
 BEGIN {
 	pfsg_name = "from_fsm";
@@ -21,6 +21,10 @@ BEGIN {
 	    getline pid < "/dev/pid";
 	}
 	tmpfile = "/tmp/fsm.tmp" pid;
+
+	# hack to remove tmpfile when killed
+	print "" | "trap '/bin/rm -f " tmpfile "' 0 1 2 15 30; cat >/dev/null";
+
 	num_newnodes = 0;
 	initial_node = -1;
 	empty_output = "NULL";
@@ -138,6 +142,4 @@ END {
 		}
 	    }
 	}
-
-	system("/bin/rm -f " tmpfile);
 }

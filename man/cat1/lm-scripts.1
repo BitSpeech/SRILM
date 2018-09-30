@@ -3,14 +3,17 @@ lm-scripts(1)                                       lm-scripts(1)
 
 
 NNAAMMEE
-       lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-
-       lm,  make-lm-subset,  make-sub-lm,  remove-lowprob-ngrams,
-       reverse-lm, sort-lm - manipulate N-gram language models
+       lm-scripts,  add-dummy-bows,  change-lm-vocab,  empty-sen-
+       tence-lm,  make-hiddens-lm,  make-lm-subset,  make-sub-lm,
+       remove-lowprob-ngrams, reverse-lm, sort-lm - manipulate N-
+       gram language models
 
 SSYYNNOOPPSSIISS
        aadddd--dduummmmyy--bboowwss [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
        cchhaannggee--llmm--vvooccaabb --vvooccaabb _v_o_c_a_b --llmm _l_m_-_f_i_l_e --wwrriittee--llmm _n_e_w_-_l_m_-
        _f_i_l_e [--ttoolloowweerr] [--ssuubbsseett] [_n_g_r_a_m_-_o_p_t_i_o_n_s...]
+       eemmppttyy--sseenntteennccee--llmm  --pprroobb  _p  --llmm _l_m_-_f_i_l_e --wwrriittee--llmm _n_e_w_-_l_m_-
+       _f_i_l_e [_n_g_r_a_m_-_o_p_t_i_o_n_s...]
        mmaakkee--hhiiddddeennss--llmm [_l_m_-_f_i_l_e] >>_h_i_d_d_e_n_s_-_l_m_-_f_i_l_e
        mmaakkee--llmm--ssuubbsseett _c_o_u_n_t_-_f_i_l_e|-- [_l_m_-_f_i_l_e|--]
        mmaakkee--ssuubb--llmm [mmaaxxoorrddeerr==_N] [_l_m_-_f_i_l_e] >>_n_e_w_-_l_m_-_f_i_l_e
@@ -48,6 +51,12 @@ DDEESSCCRRIIPPTTIIOONN
        removes words from the LM vocabulary, without adding  any.
        Any  remaining  _n_g_r_a_m_-_o_p_t_i_o_n_s  are passes to nnggrraamm(1), and
        can be used to set debugging level, N-gram order, etc.
+
+       eemmppttyy--sseenntteennccee--llmm modifies an LM so  that  it  allows  the
+       empty sentence with probability _p.  This is useful to mod-
+       ify existing LMs that are trained on  non-empty  sentences
+       only.   _n_g_r_a_m_-_o_p_t_i_o_n_s  are  passes to nnggrraamm(1), and can be
+       used to set debugging level, N-gram order, etc.
 
        mmaakkee--hhiiddddeennss--llmm constructs an N-gram  model  that  can  be
        used  with  the nnggrraamm --hhiiddddeennss option.  The new model con-
@@ -104,4 +113,4 @@ AAUUTTHHOORR
 
 
 
-SRILM Tools        $Date: 2003/02/20 16:45:10 $     lm-scripts(1)
+SRILM Tools        $Date: 2003/04/12 21:21:28 $     lm-scripts(1)

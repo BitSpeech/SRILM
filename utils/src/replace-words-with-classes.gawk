@@ -12,7 +12,7 @@
 #	normalize=<0|1>	normalize counts to probabilities (default = 1)
 #	addone=<count>	value to add to counts for probability smoothing (1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/replace-words-with-classes.gawk,v 1.6 2003/01/01 22:52:52 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/replace-words-with-classes.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
 #
 
 function read_classes(file) {
@@ -50,7 +50,7 @@ function read_classes(file) {
 	num_class_defs ++;
     }
 
-    print "read " num_class_defs " class expansions" > "/dev/stderr";
+    print "read " num_class_defs " class expansions" >> "/dev/stderr";
 
     # assign default expansion probs
 
@@ -104,7 +104,7 @@ NR == 1 {
 	read_classes(classes);
 	close(classes);
     } else {
-	print "no classes file specified" > "/dev/stderr";
+	print "no classes file specified" >> "/dev/stderr";
     }
 
     for (class in num_class_expansions) {

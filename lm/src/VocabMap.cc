@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.cc,v 1.8 2000/08/05 17:17:57 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,1998,2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -27,14 +28,14 @@ VocabMap::VocabMap(Vocab &v1, Vocab &v2, Boolean logmap)
     /*
      * Establish default mappings between special vocab items
      */
-    if (v1.ssIndex != Vocab_None && v2.ssIndex != Vocab_None) {
-	*map.insert(v1.ssIndex, v2.ssIndex) = logmap ? LogP_One : 1.0;
+    if (v1.ssIndex() != Vocab_None && v2.ssIndex() != Vocab_None) {
+	*map.insert(v1.ssIndex(), v2.ssIndex()) = logmap ? LogP_One : 1.0;
     }
-    if (v1.seIndex != Vocab_None && v2.seIndex != Vocab_None) {
-	*map.insert(v1.seIndex, v2.seIndex) = logmap ? LogP_One : 1.0;
+    if (v1.seIndex() != Vocab_None && v2.seIndex() != Vocab_None) {
+	*map.insert(v1.seIndex(), v2.seIndex()) = logmap ? LogP_One : 1.0;
     }
-    if (v1.unkIndex != Vocab_None && v2.unkIndex != Vocab_None) {
-	*map.insert(v1.unkIndex, v2.unkIndex) = logmap ? LogP_One : 1.0;
+    if (v1.unkIndex() != Vocab_None && v2.unkIndex() != Vocab_None) {
+	*map.insert(v1.unkIndex(), v2.unkIndex()) = logmap ? LogP_One : 1.0;
     }
 }
 
@@ -61,6 +62,12 @@ VocabMap::remove(VocabIndex w1, VocabIndex w2)
     (void)map.remove(w1, w2);
 }
 
+void
+VocabMap::remove(VocabIndex w1)
+{
+    (void)map.remove(w1);
+}
+
 Boolean
 VocabMap::read(File &file)
 {
@@ -84,6 +91,7 @@ VocabMap::read(File &file)
 	if (map.numEntries(w1) > 0) {
 	    file.position() << "warning: map redefining entry "
 			    << words[0] << endl;
+	    map.remove(w1);
 	}
 
 	/*
@@ -106,6 +114,55 @@ VocabMap::read(File &file)
 	}
     }
 
+    return true;
+}
+
+/* 
+ * Read classes(5) format file, interpreted as VocabMap
+ * (mostly borrowed from ClassNgram::readClasses())
+ */
+Boolean
+VocabMap::readClasses(File &file)
+{
+    char *line;
+
+    while (line = file.getline()) {
+	VocabString words[maxWordsPerLine];
+
+	unsigned howmany = Vocab::parseWords(line, words, maxWordsPerLine);
+
+	if (howmany == maxWordsPerLine) {
+	    file.position() << "class definition has too many fields\n";
+	    return false;
+	}
+
+	/*
+	 * First word contains class name
+	 */
+	VocabIndex clasz = vocab2.addWord(words[0]);
+
+	double prob = logmap ? LogP_One : 1.0;
+	unsigned numExpansionWords;
+
+	/*
+	 * If second word is numeral, assume it's the class expansion prob
+	 */
+	if (howmany > 1 && sscanf(words[1], "%lf", &prob)) {
+	    numExpansionWords = howmany - 2;
+	} else {
+	    numExpansionWords = howmany - 1;
+	}
+
+	if (numExpansionWords != 1) {
+	    file.position() << "class definition must have exactly one word\n";
+	    return false;
+	}
+
+	VocabIndex expansionWord = vocab1.addWord(words[howmany - 1]);
+
+	*(map.insert(expansionWord, clasz)) = prob;
+    }
+	
     return true;
 }
 
@@ -142,6 +199,37 @@ VocabMap::write(File &file)
 	    }
 	}
 	fprintf(file, "\n");
+    }
+    return true;
+}
+
+/*
+ * Write VocabMap in bigram count file format
+ */
+Boolean
+VocabMap::writeBigrams(File &file)
+{
+    Map2Iter<VocabIndex,VocabIndex,Prob> iter1(map);
+
+    VocabIndex w1;
+
+    while (iter1.next(w1)) {
+	VocabString word1 = vocab1.getWord(w1);
+	assert(word1 != 0);
+
+	Map2Iter2<VocabIndex,VocabIndex,Prob> iter2(map, w1);
+
+	VocabIndex w2;
+	Prob *prob;
+
+	unsigned i = 0;
+	while (prob = iter2.next(w2)) {
+	    VocabString word2 = vocab2.getWord(w2);
+	    assert(word1 != 0);
+
+	    // prob = P(word1|word2), hence the bigram word order
+	    fprintf(file, "%s %s\t%lg\n", word2, word1, *prob);
+	}
     }
     return true;
 }

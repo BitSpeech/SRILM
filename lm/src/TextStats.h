@@ -5,16 +5,17 @@
  * TextStats objects are used to pass and accumulate various 
  * statistics of text sources (training or test).
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.h,v 1.1 1999/10/07 08:22:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.h,v 1.3 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _TextStats_h_
 #define _TextStats_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "Prob.h"
 
@@ -26,7 +27,7 @@ public:
 
     void reset() { prob = 0.0, zeroProbs = 0,
 	numSentences = numWords = numOOVs = 0; };
-    TextStats &increment(TextStats &stats);
+    TextStats &increment(const TextStats &stats);
 
     LogP prob;
     unsigned zeroProbs;
@@ -35,7 +36,7 @@ public:
     unsigned numOOVs;
 };
 
-ostream &operator<<(ostream &, TextStats &stats);
+ostream &operator<<(ostream &, const TextStats &stats);
 
 #endif /* _TextStats_h_ */
 

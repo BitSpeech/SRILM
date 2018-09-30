@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.cc,v 1.69 2003/02/15 09:16:23 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.82 2006/01/09 17:53:16 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -13,9 +13,13 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.c
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
+#include <math.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
+#include "zio.h"
+
 #include "Prob.h"
 #include "Vocab.h"
 #include "NBest.h"
@@ -25,7 +29,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/nbest-lattice.c
 #include "WordAlign.h"
 #include "VocabMultiMap.h"
 #include "RefList.h"
-#include "zio.h"
+#include "Array.cc"
 
 #define DEBUG_ERRORS		1
 #define DEBUG_POSTERIORS	2
@@ -38,8 +42,9 @@ const Prob primePosterior = 100.0;
 /*
  * default value for posterior* weights to indicate they haven't been set
  */
-const double undefinedWeight =	(1.0/0.0);
+const double undefinedWeight = HUGE_VAL;
 
+static int version = 0;
 static unsigned debug = 0;
 static int werRescore = 0;
 static unsigned maxRescore = 0;
@@ -77,6 +82,7 @@ static int primeWithRefs = 0;
 static int noViterbi = 0;
 static int useMesh = 0;
 static char *dictFile = 0;
+static char *hiddenVocabFile = 0;
 static double deletionBias = 1.0;
 static int dumpPosteriors = 0;
 static char *refString = 0;
@@ -84,9 +90,11 @@ static char *refFile = 0;
 static int dumpErrors = 0;
 static int recordHypIDs = 0;
 static int nbestBacktrace = 0;
+static int outputCTM = 0;
 static int noRescore = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
@@ -118,6 +126,7 @@ static Option options[] = {
     { OPT_FLOAT, "posterior-wtw", &posteriorWTW, "posterior word transition weight" },
     { OPT_TRUE, "keep-noise", &keepNoise, "do not eliminate pause and noise tokens" },
     { OPT_TRUE, "nbest-backtrace", &nbestBacktrace, "read backtrace info from N-best lists" },
+    { OPT_TRUE, "output-ctm", &outputCTM, "output decoded words in CTM format" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_TRUE, "no-merge", &noMerge, "don't merge hyps for lattice building" },
@@ -128,6 +137,7 @@ static Option options[] = {
     { OPT_TRUE, "no-viterbi", &noViterbi, "minimize lattice WE without Viterbi search" },
     { OPT_TRUE, "use-mesh", &useMesh, "align using word mesh (not lattice)" },
     { OPT_STRING, "dictionary", &dictFile, "dictionary to use in mesh alignment" },
+    { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "subvocabulary to be kept separate in mesh alignment" },
     { OPT_FLOAT, "deletion-bias", &deletionBias, "bias factor in favor of deletions" },
     { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" },
     { OPT_TRUE, "dump-errors", &dumpErrors, "output word error labels" },
@@ -136,6 +146,24 @@ static Option options[] = {
     { OPT_STRING, "reference", &refString, "reference words" },
     { OPT_STRING, "refs", &refFile, "reference transcript file" }
 };
+
+/*
+ * Output hypotheses in CTM format
+ */
+static void
+printCTM(Vocab &vocab, const NBestWordInfo *winfo, const char *name)
+{
+    for (unsigned i = 0; winfo[i].word != Vocab_None; i ++) {
+	cout << name << " 1 ";
+	if (winfo[i].valid()) {
+	    cout << winfo[i].start << " " << winfo[i].duration;
+	} else {
+	    cout << "? ?";
+	}
+	cout << " " << vocab.getWord(winfo[i].word)
+	     << " " << winfo[i].wordPosterior << endl;
+    }
+}
 
 void
 latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
@@ -180,7 +208,7 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	     */
 	    VocabIndex *bestHyp;
 	    LogP bestScore;
-	    for (unsigned i = 0; i < numHyps; i ++) {
+	    for (unsigned i = 0; i < howmany; i ++) {
 		NBestHyp &hyp = nbestList.getHyp(i);
 
 		if (i == 0 || hyp.totalScore > bestScore) {
@@ -203,8 +231,9 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	     * prime with WE-minimized hyp -- slow!
 	     */
 	    double subs, inss, dels;
-	    (void)nbestList.minimizeWordError(primeWords, maxWordsPerLine,
+	    (void)nbestList.minimizeWordError(primeWords, maxWordsPerLine + 1,
 				    subs, inss, dels, maxRescore, postPrune);
+	    primeWords[maxWordsPerLine] = Vocab_None;
 	}
 
 	if (primeWords) {
@@ -215,7 +244,7 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
     /*
      * Incorporate hyps into lattice
      */
-    for (unsigned i = 0; i < numHyps; i ++) {
+    for (unsigned i = 0; i < howmany; i ++) {
 	NBestHyp &hyp = nbestList.getHyp(i);
 	HypID hypID = hyp.rank;
 	HypID *hypIDPtr = recordHypIDs ? &hypID : 0;
@@ -277,7 +306,7 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 
 	    unsigned hypLength = Vocab::length(hyp.words);
 
-	    Prob posteriors[hypLength];
+	    makeArray(Prob, posteriors, hypLength);
 
 	    lat.alignWords(hyp.words, 0.0, posteriors);
 
@@ -292,40 +321,59 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	/*
 	 * Recover best hyp from lattice
 	 */
-	VocabIndex bestWords[maxWordsPerLine + 1];
-
-	double subs, inss, dels;
-
-	unsigned flags;
+	unsigned flags = 0;
 	if (noViterbi) {
 	    flags |= WORDLATTICE_NOVITERBI;
 	}
 	 
-	double errors =
-		lat.minimizeWordError(bestWords, maxWordsPerLine,
+	if (outputCTM) {
+	    NBestWordInfo *bestWords = new NBestWordInfo[maxWordsPerLine + 1];
+	    assert(bestWords != 0);
+	    double subs, inss, dels, errors;
+
+	    errors = lat.minimizeWordError(bestWords, maxWordsPerLine + 1,
 				      subs, inss, dels, flags, deletionBias);
+	    bestWords[maxWordsPerLine].word = Vocab_None;
 
-	if (sentid) cout << sentid << " ";
-	cout << (lat.vocab.use(), bestWords) << endl;
+	    printCTM(lat.vocab, bestWords, sentid ? sentid : "???");
 
-	if (debug >= DEBUG_ERRORS) {
-	    if (sentid) cerr << sentid << " ";
-	    cerr << "err " << errors << " sub " << subs
-		 << " ins " << inss << " del " << dels << endl;
-	}
+	    delete [] bestWords;
 
-	if (debug >= DEBUG_POSTERIORS) {
-	    unsigned numWords = Vocab::length(bestWords);
-	    Prob posteriors[numWords];
-
-	    lat.alignWords(bestWords, 0.0, posteriors);
-
-	    if (sentid) cerr << sentid << " ";
-	    cerr << "post";
-	    for (unsigned j = 0; j < numWords; j ++) {
-		cerr << " " << posteriors[j];
+	    if (debug >= DEBUG_ERRORS) {
+		if (sentid) cerr << sentid << " ";
+		cerr << "err " << errors << " sub " << subs
+		     << " ins " << inss << " del " << dels << endl;
 	    }
-	    cerr << endl;
+	} else {
+	    VocabIndex bestWords[maxWordsPerLine + 1];
+	    double subs, inss, dels, errors;
+
+	    errors = lat.minimizeWordError(bestWords, maxWordsPerLine + 1,
+				      subs, inss, dels, flags, deletionBias);
+	    bestWords[maxWordsPerLine] = Vocab_None;
+
+	    if (sentid) cout << sentid << " ";
+	    cout << (lat.vocab.use(), bestWords) << endl;
+
+	    if (debug >= DEBUG_ERRORS) {
+		if (sentid) cerr << sentid << " ";
+		cerr << "err " << errors << " sub " << subs
+		     << " ins " << inss << " del " << dels << endl;
+	    }
+
+	    if (debug >= DEBUG_POSTERIORS) {
+		unsigned numWords = Vocab::length(bestWords);
+		makeArray(Prob, posteriors, numWords);
+
+		lat.alignWords(bestWords, 0.0, posteriors);
+
+		if (sentid) cerr << sentid << " ";
+		cerr << "post";
+		for (unsigned j = 0; j < numWords; j ++) {
+		    cerr << " " << posteriors[j];
+		}
+		cerr << endl;
+	    }
 	}
     }
 }
@@ -361,8 +409,10 @@ wordErrorRescore(const char *sentid, NBestList &nbestList)
 	VocabIndex bestWords[maxWordsPerLine + 1];
 
 	double subs, inss, dels;
-	double errors = nbestList.minimizeWordError(bestWords, maxWordsPerLine,
+	double errors = nbestList.minimizeWordError(bestWords,
+				    maxWordsPerLine + 1,
 				    subs, inss, dels, maxRescore, postPrune);
+	bestWords[maxWordsPerLine] = Vocab_None;
 
 	if (sentid) cout << sentid << " ";
 	cout << (nbestList.vocab.use(), bestWords) << endl;
@@ -389,8 +439,9 @@ computeWordErrors(const char *sentid, NBestList &nbestList,
 
     for (unsigned i = 0; i < howmany; i ++) {
 	unsigned sub, ins, del;
-	WordAlignType alignment[Vocab::length(nbestList.getHyp(i).words) +
-				Vocab::length(reference) + 1];
+	makeArray(WordAlignType, alignment,
+		  Vocab::length(nbestList.getHyp(i).words) +
+		  Vocab::length(reference) + 1);
 
 	unsigned numErrors = wordError(reference, nbestList.getHyp(i).words,
 						    sub, ins, del, alignment);
@@ -451,22 +502,33 @@ alignLattices(MultiAlign &lat, File &file)
  */
 void
 processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
-			VocabMultiMap &dictionary,
+			VocabMultiMap &dictionary, SubVocab &hiddenVocab,
 			const VocabIndex *reference,
 			const char *outLattice, const char *outNbest)
 {
     Vocab &vocab = nullLM.vocab;
     MultiAlign *lat;
-    DictionaryAbsDistance wordDistance(vocab, dictionary);
+    DictionaryAbsDistance dictDistance(vocab, dictionary);
+    SubVocabDistance subvocabDistance(vocab, hiddenVocab);
+
+    const char *latticeName = 0;
+
+    if (sentid != 0) {
+	latticeName = sentid;
+    } else if (nbestFile != 0) {
+	latticeName = idFromFilename(nbestFile);
+    }
     
     if (useMesh) {
 	if (dictFile) {
-	    lat = new WordMesh(vocab, &wordDistance);
+	    lat = new WordMesh(vocab, latticeName, &dictDistance);
+	} else if (hiddenVocabFile) {
+	    lat = new WordMesh(vocab, latticeName, &subvocabDistance);
 	} else {
-	    lat = new WordMesh(vocab);
+	    lat = new WordMesh(vocab, latticeName);
 	}
     } else {
-	lat = new WordLattice(vocab);
+	lat = new WordLattice(vocab, latticeName);
     }
     assert(lat != 0);
 
@@ -495,7 +557,8 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
      * Process nbest list
      */
     if (nbestFile) {
-	NBestList nbestList(vocab, maxNbest, multiwords, nbestBacktrace);
+	NBestList nbestList(vocab, maxNbest, multiwords,
+						nbestBacktrace || outputCTM);
 	nbestList.debugme(debug);
 
 	{
@@ -518,7 +581,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 	/*
 	 * Compute nbest error relative to reference
 	 */
-	if (computeNbestError) {
+	if (reference && computeNbestError) {
 	    unsigned sub, ins, del;
 
 	    unsigned err = nbestList.wordError(reference, sub, ins, del);
@@ -540,7 +603,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 	    latticeRescore(sentid, *lat, nbestList, reference);
 	}
 
-	if (dumpErrors) {
+	if (reference && dumpErrors) {
 	    computeWordErrors(sentid, nbestList, reference);
 	}
 
@@ -554,7 +617,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
     /*
      * Compute word error of lattice relative to reference hyps
      */
-    if (computeLatticeError) {
+    if (reference && computeLatticeError) {
 	unsigned sub, ins, del;
 	unsigned err = lat->wordError(reference, sub, ins, del);
 
@@ -590,6 +653,11 @@ main (int argc, char *argv[])
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     if (primeWith1best || primeWithRefs) {
 	primeLattice = 1;
     }
@@ -602,7 +670,7 @@ main (int argc, char *argv[])
 	vocab.read(file);
     }
 
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     /*
      * Skip noise tags in scoring
@@ -649,6 +717,17 @@ main (int argc, char *argv[])
     }
 
     /*
+     * Optionally read a subvocabulary that is to be kept separate from
+     * regular words during alignment
+     */
+    SubVocab hiddenVocab(vocab);
+    if (hiddenVocabFile) {
+	File file(hiddenVocabFile, "r");
+
+	hiddenVocab.read(file);
+    }
+
+    /*
      * Read reference words
      */
     VocabIndex *reference = 0;
@@ -666,7 +745,7 @@ main (int argc, char *argv[])
 	}
 
 	vocab.addWords(refWords, reference, maxWordsPerLine + 1);
-    } else if (rescoreFile) {
+    } else if (rescoreFile || !nbestFiles) {
 	if (dumpErrors || computeNbestError || computeLatticeError) {
 	    cerr << "cannot compute errors without reference\n";
 	    exit(1);
@@ -677,14 +756,14 @@ main (int argc, char *argv[])
      * Process single nbest file
      */
     if (rescoreFile) {
-	processNbest(nullLM, 0, rescoreFile, dictionary, reference,
+	processNbest(nullLM, 0, rescoreFile, dictionary, hiddenVocab, reference,
 						writeFile, writeNbestFile);
     } else if (!nbestFiles) {
 	/*
 	 * If neither -nbest nor -nbest-files was specified
 	 * do lattice processing only.
 	 */
-	processNbest(nullLM, 0, 0, dictionary, reference,
+	processNbest(nullLM, 0, 0, dictionary, hiddenVocab, reference,
 						writeFile, writeNbestFile);
     }
 
@@ -726,23 +805,26 @@ main (int argc, char *argv[])
 		}
 	    }
 
-	    char writeLatticeName[(writeDir ? strlen(writeDir) : 0) + 1
-				  + strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
+	    makeArray(char, writeLatticeName ,
+		      (writeDir ? strlen(writeDir) : 0) + 1
+				  + strlen(sentid) + strlen(GZIP_SUFFIX) + 1);
 	    if (writeDir) {
 		sprintf(writeLatticeName, "%s/%s%s", writeDir, sentid,
 								GZIP_SUFFIX);
 	    }
 
-	    char writeNbestName[(writeNbestDir ? strlen(writeNbestDir) : 0) + 1
-				+ strlen(sentid) + strlen(GZIP_SUFFIX) + 1];
+	    makeArray(char, writeNbestName,
+		      (writeNbestDir ? strlen(writeNbestDir) : 0) + 1
+				+ strlen(sentid) + strlen(GZIP_SUFFIX) + 1);
 	    if (writeNbestDir) {
 		sprintf(writeNbestName, "%s/%s%s", writeNbestDir, sentid,
 								GZIP_SUFFIX);
 	    }
 
-	    processNbest(nullLM, sentid, fname, dictionary, reference,
-					writeDir ? writeLatticeName : 0,
-					writeNbestDir ? writeNbestName : 0);
+	    processNbest(nullLM, sentid, fname, dictionary, hiddenVocab,
+				    reference,
+				    writeDir ? (char *)writeLatticeName : 0,
+				    writeNbestDir ? (char *)writeNbestName : 0);
 	}
     }
 

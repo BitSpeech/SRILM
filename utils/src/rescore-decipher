@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.26 2003/02/16 16:45:02 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.32 2004/08/01 01:56:31 stolcke Exp $
 #
 
 bytelog=0
@@ -16,7 +16,11 @@ lm_only=0
 pretty_file=
 filter_command=
 limit_vocab=0
+fast_rescore=
+ngram_tool=ngram
 ngram_options=
+count_oovs=0
+rescore_option=-rescore
 
 while [ $# -gt 0 ]
 do
@@ -37,14 +41,24 @@ do
     -lm-only)
 	    lm_only=1
 	    ;;
+    -count-oovs)
+	    count_oovs=1
+	    rescore_option="-debug 1 -ppl"
+	    ;;
     -pretty)
 	    pretty_file="$2"; shift
+	    ;;
+    -ngram-tool)
+	    ngram_tool="$2"; shift
 	    ;;
     -filter)
 	    filter_command="$2"; shift
 	    ;;
     -limit-vocab)
 	    limit_vocab=1
+	    ;;
+    -fast)
+    	    fast_rescore=1
 	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
@@ -57,15 +71,18 @@ done
 
 if [ $# -lt 3  ]; then
     {
-	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-pretty map] [-filter command] nbest-file-list score-dir lm-options ..." >&2
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-count-oovs] [-pretty map] [-ngram-tool pgm] [-filter command] [-fast] nbest-file-list score-dir lm-options ..." >&2
 	echo "where"
 	echo "	-bytelog	produces bytelog scaled scores"
 	echo "	-nodecipherlm	avoids Decipher LM score computation"
 	echo "	-multiwords	expand multiwords into constituent words"
 	echo "	-norescore	don't rescore LM, just extract scores"
 	echo "	-lm-only	output no N-best lists, only LM scores"
+	echo "	-count-oovs	output number of OOV and zeroprob words"
 	echo "	-pretty map	word mapping file"
+	echo "	-ngram-tool pgm use pgm for LM evaluation"
 	echo "	-filter command	text filter to apply to N-best hyps"
+	echo "	-fast		fast rescoring mode, no text filtering allowed"
     } >&2
     exit 1
 fi
@@ -97,7 +114,7 @@ if [ $norescore -gt 0 ]; then
     done
 fi
 
-if [ $limit_vocab -gt 0 ]; then
+if [ $norescore -eq 0 -a $limit_vocab -gt 0 ]; then
     #
     # limit LM vocabulary to words found in the nbest lists
     #
@@ -113,11 +130,48 @@ if [ $limit_vocab -gt 0 ]; then
     ngram_options="-limit-vocab -vocab $nbestvocab"
 fi
 
+if [ -n "$fast_rescore" ]; then
+
 #
-# STRATEGY:
+# Fast rescoring mode:
+#	Hand N-best lists directly to ngram. No text filtering is supported
+#
+
+	if [ -n "$pretty_file" -o -n "$filter_command" -o $lm_only -gt 0 -o $count_oovs -gt 0 ]
+        then
+		echo "Text filtering, -lm-only, and -count-oovs not supported with -fast" >&2
+		exit 2
+    	fi
+
+	if [ $nodecipherlm -eq 0 ]; then
+		echo "Must use -nodecipherlm with -fast" >&2
+		exit 2
+    	fi
+
+	if [ $norescore -gt 0 ]; then
+		nbest-lattice -no-rescore -no-reorder $mw_option \
+			-nbest-files "$filelist" \
+			-write-nbest-dir "$scoredir"
+	else 
+		if [ "$multiwords" -gt 0 ]; then
+			mw_option=-split-multiwords
+		fi
+		$ngram_tool \
+			-no-reorder $mw_option \
+			-nbest-files "$filelist" \
+			-write-nbest-dir "$scoredir" \
+			-rescore-lmw 1 -rescore-wtw 1 \
+			$ngram_options "$@"
+	fi
+
+else # fast_rescore 
+
+#
+# General rescoring mode:
 #	Concatenate hyps for all nbest list, record number of hyps for
 #		each file in the output stream
 #	Feed to ngram -rescore (using lm-options)
+#		or using -ppl for counting OOVs
 #	Parse ngram output into lm scores and deposit into target files
 #
 
@@ -171,8 +225,8 @@ NR == 1 {
 	print escape, sentid;
 }
 
-function pretty_up() {
-	for (i = 2; i <= NF; i ++) {
+function pretty_up(start) {
+	for (i = start; i <= NF; i ++) {
 	    if ($i in pretty_map) {
 		$i = pretty_map[$i];
 	    }
@@ -194,12 +248,22 @@ function pretty_up() {
 {
 	numhyps ++;
 	if (nbestformat == 0) {
-	    pretty_up();
-	    print;
+	    pretty_up(4);
+	    if (count_oovs) {
+		# output only the words, add <s> to handle empty hyps
+		$1 = $2 = $3 = "";
+		print "<s>", $0;
+	    } else {
+		print;
+	    }
 	} else if (nbestformat == 1) {
-	    pretty_up();
+	    pretty_up(2);
 
-	    if (norescore) {
+	    if (count_oovs) {
+		# output only the words, add <s> to handle empty hyps
+		$1 = "";
+		print "<s>", $0;
+	    } else if (norescore) {
 		# convert to SRILM format
 		score = substr($1,2,length($1)-2);
 		$1 = "";
@@ -224,7 +288,9 @@ function pretty_up() {
 
 		# skip tokens that are subsumed by the previous word
 		# (this eliminates phone and state symbols)
-		if (start_time > prev_end_time) {
+		# XXX: due to a bug in Decipher some state tags have incorrect
+		# timemarks.  We filter them based on their token string.
+		if (start_time > prev_end_time && !($i ~ /-[0-9]$/)) {
 		    words = words " " $i;
 
 		    num_words ++;
@@ -238,7 +304,7 @@ function pretty_up() {
 
 	    $0 = $1 " " words;
 
-	    pretty_up();
+	    pretty_up(2);
 
 	    # Compute AC score from total and lm scores. This takes into
 	    # account that the recognizer might sum scores of equivalent hyps
@@ -247,7 +313,11 @@ function pretty_up() {
 	    # scores.
 	    ac_score = score - lm_score;
 
-	    if (norescore) {
+	    if (count_oovs) {
+		# output only the words, add <s> to handle empty hyps
+		$1 = "";
+		print "<s>", $0;
+	    } else if (norescore) {
 		# convert to SRILM nbest format
 		# NOTES:
 		# - subtract Decipher WTW (including for pauses!)
@@ -273,9 +343,9 @@ END {
 			> "/dev/stderr" ;
 	}
 }
-' filename=$filename escape="$escape" \
+' filename=$filename escape="$escape" count_oovs=$count_oovs \
   nodecipherlm=$nodecipherlm multiwords=$multiwords pretty_file="$pretty_file" \
-  norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw
+  norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw 
 done
 ) | \
 if [ $norescore -gt 0 -a -z "$filter_command" ]; then
@@ -286,12 +356,12 @@ elif [ $norescore -gt 0 ]; then
     eval "$filter_command"
 elif [ -z "$filter_command" ]; then
     # standard rescoring without filtering
-    ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
+    $ngram_tool -debug 1 $rescore_option - -rescore-lmw 1 -rescore-wtw 1 \
 		-escape "$escape " $ngram_options "$@" 
 else
     # rescoring with filtering
     eval "$filter_command" | \
-    ngram -debug 1 -rescore - -rescore-lmw 1 -rescore-wtw 1 \
+    $ngram_tool -debug 1 $rescore_option - -rescore-lmw 1 -rescore-wtw 1 \
 		-escape "$escape " $ngram_options "$@" 
 fi | \
 gawk -v bytelog=$bytelog '
@@ -307,7 +377,7 @@ $1 == escape {
 		close(scorefile);
 	}
 	currentfile = $2;
-	if (!lm_only) {
+	if (!lm_only && !count_oovs) {
 	    # backward compatibility
 	    currentfile = $2 ".score";
 	}
@@ -317,7 +387,18 @@ $1 == escape {
 	hypno = 0;
 	next;
 }
-{
+# parse ngram -ppl output to get OOV (including zeroprobs) count
+count_oovs && $6 == "OOVs" {
+	num_oovs = $5;
+	next;
+}
+count_oovs && $2 == "zeroprobs," {
+	num_oovs += $1;
+	print num_oovs | scorefile;
+	next;
+}
+# process ngram -rescore output
+!count_oovs {
 	if ($2 ~ /NaN/) {
 	    print "WARNING: LM score in nbest list " currentfile " is NaN" \
 							    > "/dev/stderr" ;
@@ -339,5 +420,6 @@ END {
 		close(scorefile);
 	}
 }
-' scoredir=$scoredir escape="$escape" bytelog=$bytelog lm_only=$lm_only
+' scoredir=$scoredir escape="$escape" bytelog=$bytelog lm_only=$lm_only count_oovs=$count_oovs
 
+fi # fast_rescore

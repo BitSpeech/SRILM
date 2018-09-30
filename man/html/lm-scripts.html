@@ -1,11 +1,11 @@
-<! $Id: lm-scripts.1,v 1.5 2003/02/20 16:45:10 stolcke Exp $>
+<! $Id: lm-scripts.1,v 1.6 2003/04/12 21:21:28 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>lm-scripts</TITLE>
 <BODY>
 <H1>lm-scripts</H1>
 <H2> NAME </H2>
-lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm - manipulate N-gram language models
+lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm - manipulate N-gram language models
 <H2> SYNOPSIS </H2>
 <B> add-dummy-bows </B>
 [<I>lm-file</I>]
@@ -20,6 +20,15 @@ lm-scripts, add-dummy-bows, change-lm-vocab, make-hiddens-lm, make-lm-subset, ma
 <I> new-lm-file </I>
 [<B>-tolower</B>]
 [<B>-subset</B>]
+[<I>ngram-options</I>...]
+<BR>
+<B> empty-sentence-lm </B>
+<B> -prob </B>
+<I> p </I>
+<B> -lm </B>
+<I> lm-file </I>
+<B> -write-lm </B>
+<I> new-lm-file </I>
 [<I>ngram-options</I>...]
 <BR>
 <B> make-hiddens-lm </B>
@@ -88,6 +97,17 @@ option causes case distinctions to be ignored.
 <B> -subset </B>
 only removes words from the LM vocabulary, without adding any.
 Any remaining
+<I> ngram-options </I>
+are passes to
+<A HREF="ngram.html">ngram(1)</A>,
+and can be used to set debugging level, N-gram order, etc.
+<P>
+<B> empty-sentence-lm </B>
+modifies an LM so that it allows the empty sentence with 
+probability
+<I>p</I>.<I></I>
+This is useful to modify existing LMs that are trained on non-empty
+sentences only.
 <I> ngram-options </I>
 are passes to
 <A HREF="ngram.html">ngram(1)</A>,

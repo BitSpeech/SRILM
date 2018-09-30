@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.25 2002/09/08 19:20:28 stolcke Exp $
-.TH ngram-count 1 "$Date: 2002/09/08 19:20:28 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.28 2005/01/05 23:15:47 stolcke Exp $
+.TH ngram-count 1 "$Date: 2005/01/05 23:15:47 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -19,14 +19,17 @@ or used for building an N-gram language model in ARPA
 .BR ngram-format (5).
 Each of these actions is triggered by corresponding options, as
 described below.
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-order " n"
 Set the maximal order (length) of N-grams to count.
@@ -187,6 +190,10 @@ Set the minimal count of N-grams of order
 .I n
 that will be included in the LM.
 All N-grams with frequency lower than that will effectively be discounted to 0.
+If 
+.I n 
+is omitted the parameter for N-grams of order > 9 is set.
+.br
 NOTE: This option affects not only the default Good-Turing discounting
 but the alternative discounting methods described below as well.
 .TP
@@ -200,6 +207,18 @@ that are discounted under Good-Turing.
 All N-grams more frequent than that will receive
 maximum likelihood estimates.
 Discounting can be effectively disabled by setting this to 0.
+If 
+.I n 
+is omitted the parameter for N-grams of order > 9 is set.
+.PP
+In the following discounting parameter options, the order
+.I n
+may be omitted, in which case a default for all N-gram orders is
+set.
+The corresponding discounting method then becomes the default method
+for all orders, unless specifically overridden by an option with
+.IR n .
+If no discounting method is specified, Good-Turing is used.
 .TP
 .BI \-gt\fIn\fP " gtfile"
 where
@@ -262,6 +281,10 @@ When using the
 .B \-write
 and related options the output will reflect the modified counts.
 .TP
+.B \-kn-modify-counts-at-end
+Modify Kneser-Ney counts after estimating discounting constants, rather than
+before as is the default.
+.TP
 .BI \-kn\fIn\fP " knfile"
 where
 .I n
@@ -279,6 +302,14 @@ option is specified the KN parameters are read from
 .IR knfile ,
 otherwise they are computed from the current counts and saved in
 .IR knfile .
+.TP
+.B \-ukndiscount\fIn\fP
+where
+.I n
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+Use the original (unmodified) Kneser-Ney discounting method for N-grams of
+order
+.IR n .
 .PP
 In the above discounting options, if the parameter 
 .I n
@@ -291,9 +322,6 @@ where
 is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Causes the discounted N-gram probability estimates at the specified order 
 .I n
-(or all orders, if 
-.I n
-is left empty)
 to be interpolated with lower-order estimates.
 (The result of the interpolation is encoded as a standard backoff
 model and can be evaluated as such -- the interpolation happens at
@@ -352,6 +380,9 @@ Probabilities of Novel Events in Adaptive Text Compression,''
 E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
 Comp. Sci. Dept., Princeton Univ., 1995.
 .br
+R. Kneser and H. Ney, ``Improved backing-off for M-gram language modeling,''
+\fIProc. ICASSP\fP, 181-184, 1995.
+.br
 S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques for
 Language Modeling,'' TR-10-98, Computer Science Group, Harvard Univ., 1998.
 .SH BUGS
@@ -382,4 +413,4 @@ and then read from files.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-2002 SRI International
+Copyright 1995\-2004 SRI International

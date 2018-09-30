@@ -8,15 +8,16 @@
 #define _Trie_cc_
 
 #ifndef lint
-static char Trie_Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.cc,v 1.14 1998/01/18 05:33:31 stolcke Exp $";
+static char Trie_Copyright[] = "Copyright (c) 1995-1998,2004 SRI International.  All Rights Reserved.";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <new>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <iostream.h>
-#include <new.h>
 
 #include "Trie.h"
 
@@ -150,9 +151,17 @@ Trie<KeyT,DataT>::insertTrie(const KeyT *keys, Boolean &foundP)
 	foundP = true;
 	return this;
     } else {
-	Trie<KeyT,DataT> *subtrie = sub.insert(keys[0]);
+	Trie<KeyT,DataT> *subtrie = sub.insert(keys[0], foundP);
 
-	return subtrie->insertTrie(keys + 1, foundP);
+	/*
+	 * Set foundP = false if a new entry was created at any level
+	 */
+	if (foundP) {
+	    return subtrie->insertTrie(keys + 1, foundP);
+	} else {
+	    Boolean subFoundP;	// ignored
+	    return subtrie->insertTrie(keys + 1, subFoundP);
+	}
     }
 }
 

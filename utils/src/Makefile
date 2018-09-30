@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.47 2003/02/20 15:17:37 stolcke Exp $
+#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.55 2005/07/03 22:20:19 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -33,6 +33,7 @@ SCRIPTS = \
 
 EXPORTED_SCRIPTS = \
 	change-lm-vocab \
+	empty-sentence-lm \
 	rescore-decipher \
 	rescore-acoustic \
 	rescore-reweight \
@@ -48,8 +49,8 @@ EXPORTED_SCRIPTS = \
 	compute-sclite \
 	compare-sclite
 
-# gawk scripts that need to be edited before installation
-GAWK_SCRIPTS = \
+# scripts that need to be edited before installation
+EDIT_SCRIPTS = \
 	add-classes-to-pfsg \
 	add-dummy-bows \
 	add-pauses-to-pfsg \
@@ -57,6 +58,7 @@ GAWK_SCRIPTS = \
 	bytelog-to-log10 \
 	classes-to-fsm \
 	combine-acoustic-scores \
+	combine-rover-controls \
 	compare-ppls \
 	compute-best-mix \
 	compute-best-rover-mix \
@@ -65,6 +67,7 @@ GAWK_SCRIPTS = \
 	continuous-ngram-count \
 	extract-skip-probs \
 	find-reference-posteriors \
+	fix-ctm \
 	fsm-to-pfsg \
 	get-gt-counts \
 	hits-from-log \
@@ -88,6 +91,7 @@ GAWK_SCRIPTS = \
 	pfsg-to-dot \
 	pfsg-to-fsm \
 	pfsg-vocab \
+	htklat-vocab \
 	ppl-from-log \
 	remove-lowprob-ngrams \
 	replace-words-with-classes \
@@ -102,9 +106,10 @@ GAWK_SCRIPTS = \
 	wlat-to-pfsg \
 	wlat-stats \
 	wordlat-to-lisp \
-	prettify
+	prettify \
+	select-vocab
 
-EXPORTED_PROGRAMS  = $(GAWK_SCRIPTS:%=$(BINDIR)/%)
+EXPORTED_PROGRAMS  = $(EDIT_SCRIPTS:%=$(BINDIR)/%)
 
 all:	
 
@@ -116,7 +121,14 @@ include $(SRILM)/common/Makefile.common.targets
 #
 # Rule to create edited gawk script 
 #
-$(BINDIR)/%: $(SRCDIR)/%.gawk $(BINDIR_STAMP)
+$(BINDIR)/%: $(SRCDIR)/%.gawk $(BINDIR_STAMP) $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
 	sed -e '1s,/usr/local/bin/gawk,$(GAWK),' $< >$@.new
+	mv $@.new $@
+
+#
+# Rule to create edited perl script 
+#
+$(BINDIR)/%: $(SRCDIR)/%.pl $(BINDIR_STAMP) $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
+	sed -e '1s,/usr/local/bin/perl,$(PERL),' $< >$@.new
 	mv $@.new $@
 

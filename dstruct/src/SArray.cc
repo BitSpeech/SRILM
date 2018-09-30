@@ -8,23 +8,23 @@
 #define _SArray_cc_
 
 #ifndef lint
-static char SArray_Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.cc,v 1.34 1999/10/03 18:50:00 stolcke Exp $";
+static char SArray_Copyright[] = "Copyright (c) 1995-2005 SRI International.  All Rights Reserved.";
+static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.cc,v 1.39 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <new.h>
 
 #include "SArray.h"
 
 #undef INSTANTIATE_SARRAY
 #define INSTANTIATE_SARRAY(KeyT, DataT) \
-	DataT *SArray<KeyT, DataT>::removedData = 0; \
-	template class SArray<KeyT, DataT>; \
-	template class SArrayIter<KeyT, DataT>
+	template <> DataT *SArray< KeyT, DataT >::removedData = 0; \
+	template class SArray< KeyT, DataT >; \
+	template class SArrayIter< KeyT, DataT >
 
 #ifndef __GNUG__
 template <class KeyT, class DataT>
@@ -58,6 +58,7 @@ SArray<KeyT,DataT>::dump() const
 #endif /* DUMP_VALUES */
 		     ;
 	}
+	cerr << endl;
     }
 }
 
@@ -171,18 +172,61 @@ SArray<KeyT,DataT>::numEntries() const
 
 template <class KeyT, class DataT>
 SArray<KeyT,DataT>::SArray(const SArray<KeyT,DataT> &source)
+    : body(0)
 {
-     cerr << "WARNING: SArray copy contructor called\n";
-     body = source.body;
+#ifdef DEBUG
+    cerr << "warning: SArray copy constructor called\n";
+#endif
+    *this = source;
 }
 
 template <class KeyT, class DataT>
 SArray<KeyT,DataT> &
-SArray<KeyT,DataT>::operator= (const SArray<KeyT,DataT> &source)
+SArray<KeyT,DataT>::operator= (const SArray<KeyT,DataT> &other)
 {
-     cerr << "WARNING: SArray assignment operator called\n";
-     body = source.body;
-     return *this;
+#ifdef DEBUG
+    cerr << "warning: SArray::operator= called\n";
+#endif
+
+    if (&other == this) {
+	return *this;
+    }
+
+    /*
+     * copy array entries from old to new 
+     */
+    if (other.body) {
+	unsigned maxEntries = BODY(other.body)->maxEntries;
+	clear(maxEntries);
+
+	for (unsigned i = 0; i < maxEntries; i++) {
+	    KeyT thisKey = BODY(other.body)->data[i].key;
+
+	    if (Map_noKeyP(thisKey)) {
+		break;
+	    }
+
+	    /*
+	     * Copy key
+	     */
+	    BODY(body)->data[i].key = Map_copyKey(thisKey);
+
+	    /*
+	     * Initialize data, required for = operator
+	     */
+	    new (&(BODY(body)->data[i].value)) DataT;
+
+	    /*
+	     * Copy data
+	     */
+	    BODY(body)->data[i].value = BODY(other.body)->data[i].value;
+
+	}
+    } else {
+	clear(0);
+    }
+
+    return *this;
 }
 
 /*

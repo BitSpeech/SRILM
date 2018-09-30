@@ -8,7 +8,7 @@
 #	without ngram-count having to read all counts into memory.
 #	The output is compatible with the ngram-count -gt<n> options.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-gt-discounts.gawk,v 1.2 2001/05/24 03:14:57 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-gt-discounts.gawk,v 1.3 2004/11/02 02:00:35 stolcke Exp $
 #
 # usage: make-gt-discounts min=<mincount> max=<maxcount> countfile
 #
@@ -30,18 +30,18 @@ END {
     maxCount = max;
 
     if (!countOfCounts[1]) {
-	printf "warning: no singleton counts\n" > "/dev/stderr";
+	printf "warning: no singleton counts\n" >> "/dev/stderr";
 	maxCount = 0;
     }
 
     while (maxCount > 0 && countOfCounts[maxCount + 1] == 0) {
 	printf "warning: count of count %d is zero -- lowering maxcount\n", \
-	       maxCount + 1 > "/dev/stderr";
+	       maxCount + 1 >> "/dev/stderr";
 	maxCount --;
     }
 
     if (maxCount <= 0) {
-	printf "GT discounting disabled\n" > "/dev/stderr";
+	printf "GT discounting disabled\n" >> "/dev/stderr";
     } else {
 	commonTerm = (maxCount + 1) * \
 				countOfCounts[maxCount + 1] / \
@@ -51,7 +51,7 @@ END {
 
 	    if (countOfCounts[i] == 0) {
 		printf "warning: count of count %d is zero\n", \
-			i > "/dev/stderr";
+			i >> "/dev/stderr";
 		coeff = 1.0;
 	    } else {
 		coeff0 = (i + 1) * countOfCounts[i+1] / \
@@ -59,7 +59,7 @@ END {
 		coeff = (coeff0 - commonTerm) / (1.0 - commonTerm);
 		if (coeff <= 0 || coeff0 > 1.0) {
 		    printf "warning: discount coeff %d is out of range: %g\n", \
-			 i, coeff > "/dev/stderr";
+			 i, coeff >> "/dev/stderr";
 		    coeff = 1.0;
 		}
 	    }

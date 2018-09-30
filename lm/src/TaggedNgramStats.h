@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.h,v 1.2 2002/08/09 08:46:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgramStats.h,v 1.3 2003/07/01 07:41:48 stolcke Exp $
  *
  */
 
@@ -19,6 +19,8 @@ class TaggedNgramStats: public NgramStats
 public:
     TaggedNgramStats(TaggedVocab &vocab, unsigned int maxOrder);
 
+    virtual unsigned countSentence(const VocabIndex *words)
+	    { return countSentence(words, (NgramCount)1); };
     virtual unsigned countSentence(const VocabIndex *words, NgramCount factor);
 
     TaggedVocab &vocab;			/* vocabulary */

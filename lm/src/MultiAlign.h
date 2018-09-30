@@ -2,20 +2,25 @@
  * MultiAlign.h --
  *	Multiple Word alignments
  *
- * Copyright (c) 1998,2001 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.9 2002/04/24 14:28:44 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.14 2006/01/05 08:44:25 stolcke Exp $
  *
  */
 
 #ifndef _MultiAlign_h_
 #define _MultiAlign_h_
 
+#include <string.h>
+#include <assert.h>
+
+#include "NBest.h"
 #include "Boolean.h"
 #include "File.h"
 #include "Vocab.h"
 #include "Prob.h"
-#include "NBest.h"
+
+#include "Array.cc"
 
 typedef unsigned short HypID;	/* index identifying a sentence in the
 				 * alignment (short to save space) */
@@ -27,10 +32,13 @@ const HypID refID = (HypID)-2; 	/* pseudo-hyp ID used to identify the reference
 class MultiAlign
 {
 public:
-    MultiAlign(Vocab &vocab) : vocab(vocab) {};
+    MultiAlign(Vocab &vocab, const char *myname = 0)
+	: vocab(vocab), name(0)
+	{ if (myname!= 0) { name = strdup(myname); assert(name != 0); } };
     virtual ~MultiAlign() {};
 
     Vocab &vocab;		// vocabulary used for words
+    char *name;
 
     virtual Boolean read(File &file) = 0;
     virtual Boolean write(File &file) = 0;
@@ -59,7 +67,7 @@ public:
 			    Prob *wordScores = 0, const HypID *hypID = 0)
 	{ unsigned numWords = 0;
 	  for (unsigned i = 0; winfo[i].word != Vocab_None; i ++) numWords ++;
-	  VocabIndex words[numWords + 1];
+	  makeArray(VocabIndex, words, numWords + 1);
 	  for (unsigned i = 0; i <= numWords; i ++) words[i] = winfo[i].word;
 	  alignWords(words, score, wordScores, hypID);
 	};
@@ -73,7 +81,9 @@ public:
 
     virtual void alignAlignment(MultiAlign &alignment, Prob score,
 						    Prob *alignScores = 0)
-	{ cerr << "alignAlignment not implemnted (yet)\n"; };
+	{ cerr << "MultiAlign::alignAlignment not implemented (yet)\n";
+	  assert(0);
+	};
 
     /*
      * compute minimal word errr
@@ -87,6 +97,24 @@ public:
     virtual double minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
 				unsigned flags = 0, double delBias = 1.0) = 0;
+
+    /*
+     * default for retrieving NBestWordInfo array is to get just the words
+     */
+    virtual double minimizeWordError(NBestWordInfo *winfo, unsigned length,
+				double &sub, double &ins, double &del,
+				unsigned flags = 0, double delBias = 1.0)
+	{
+	    makeArray(VocabIndex, words, length);
+	    double result = 
+		minimizeWordError(words, length, sub, ins, del, flags, delBias);
+	    for (unsigned i = 0; i < length; i ++) {
+		winfo[i].invalidate();
+		winfo[i].word = words[i];
+		if (words[i] == Vocab_None) break;
+	    }
+	    return result;
+	};
 
     virtual Boolean isEmpty() = 0;
 };

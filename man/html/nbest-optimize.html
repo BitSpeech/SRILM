@@ -1,4 +1,4 @@
-<! $Id: nbest-optimize.1,v 1.11 2002/02/23 23:12:29 stolcke Exp $>
+<! $Id: nbest-optimize.1,v 1.18 2005/07/04 17:04:14 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-optimize</TITLE>
@@ -64,15 +64,18 @@ The weights obtained are meant to be used for N-best list rescoring with
 <B> rescore-reweight </B>
 (see 
 <A HREF="nbest-scripts.html">nbest-scripts(1)</A>).
+<H2> OPTIONS </H2>
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-<H2> OPTIONS </H2>
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-debug</B><I> level</I><B></B>
 <DD>
 Controls the amount of output (the higher the
@@ -102,6 +105,14 @@ path, minus any suffixes) followed by zero or more reference words.
 <DT><B> -1best </B>
 <DD>
 Select optimization for standard sentence-level hypothesis selection.
+<DT><B> -1best-first </B>
+<DD>
+Optimized first using 
+<B> -1best </B>
+mode, then switch to full optimization.
+This is an effective way to quickly bring the score weights near an
+optimal point, and then fine-tune them jointly with the posterior scale
+parameter.
 <DT><B>-errors</B><I> dir</I><B></B>
 <DD>
 In 1-best mode, optimize for error counts that are stored in separate files
@@ -112,10 +123,9 @@ basename in
 <I>dir</I>.<I></I>
 Each file contains 7 columns of numbers in the format
 <BR>
-	wcr wer nerr nsub ndel nins nw
+	wcr wer nsub ndel nins nerr nw
 <BR>
-Only the 3rd column (number of errors) and the last column (number of
-reference  words) is used by the program.
+Only the last two columns (number of errors and words, respectively) are used.
 <BR>
 If this option is omitted, errors will be computed from the N-best hypotheses
 and the reference transcripts.
@@ -144,6 +154,14 @@ The default value is whatever was chosen for
 <B>-rescore-lmw</B>,<B></B>
 so that language model scores are scaled to have weight 1,
 and acoustic scores have weight 1/<I>lmw</I>.
+<DT><B> -combine-linear </B>
+<DD>
+Compute aggregate scores by linear combination, rather than log-linear
+combination.
+(This is appropriate if the input scores represent log-posterior probabilities.)
+<DT><B> -non-negative </B>
+<DD>
+Constrain search to non-negative weight values.
 <DT><B>-vocab</B><I> file</I><B></B>
 <DD>
 Read the N-best list vocabulary from 
@@ -179,6 +197,14 @@ Read several noise tags from
 <I>file</I>,<I></I>
 instead of, or in addition to, the single noise tag specified by
 <B>-noise</B>.<B></B>
+<DT><B>-hidden-vocab</B> file<B></B>
+<DD>
+Read a subvocabulary from
+<I> file </I>
+and constrain word alignments to only group those words that are either all
+in or outside the subvocabulary.
+This may be used to keep ``hidden event'' tags from aligning with
+regular words.
 <DT><B>-init-lambdas</B><I> 'w1 w2 ...'</I><B></B>
 <DD>
 Initialize the score weights to the values specified
@@ -238,6 +264,11 @@ The default is to search until
 searches give the same results, where
 <I> D </I>
 is the dimensionality of the problem.
+<DT><B>-max-time</B><I> T</I><B></B>
+<DD>
+Abort search if new lower-error point isn't found in 
+<I> T </I>
+seconds.
 <DT><B>-epsilon-stepdown</B><I> s</I><B></B>
 <DD>
 <DT><B>-min-epsilon</B><I> m</I><B></B>
@@ -317,7 +348,12 @@ W. H. Press, B. P. Flannery, S. A. Teukolsky, &amp; W. T. Vetterling,
 Cambridge University Press, 1988.
 <BR>
 <H2> BUGS </H2>
-Gradient-based optimization is not supported (yet) in 1-best mode;
+Gradient-based optimization is not supported (yet) in 1-best mode
+or in conjunction with the 
+<B> -combine-linear </B>
+or 
+<B> -non-negative </B>
+options;
 use simplex-search optimization instead.
 <BR>
 The N-best directory in the control file output by
@@ -332,6 +368,6 @@ Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
 <BR>
 Dimitra Vergyri &lt;dverg@speech.sri.com&gt;
 <BR>
-Copyright 2000-2002 SRI International
+Copyright 2000-2005 SRI International
 </BODY>
 </HTML>

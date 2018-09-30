@@ -1,31 +1,34 @@
-<! $Id: pfsg-scripts.1,v 1.15 2003/02/20 19:37:01 stolcke Exp $>
+<! $Id: pfsg-scripts.1,v 1.21 2005/02/10 23:36:57 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>pfsg-scripts</TITLE>
 <BODY>
 <H1>pfsg-scripts</H1>
 <H2> NAME </H2>
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, htklat-vocab, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg - create and manipulate finite-state networks
 <H2> SYNOPSIS </H2>
 <B> make-ngram-pfsg </B>
 [<B>maxorder=</B><I>N</I><B></B>]
 [<B>check_bows=</B>0|1<B></B>]
+[<B>version=1</B>]
+[<B>top_level_name=</B><I>name</I>]<I></I>
+[<B>null=</B><I>string</I>]<I></I>
 [<I>lm-file</I>]
 <B>&gt;</B><I>pfsg-file</I><B></B>
 <BR>
 <B> add-pauses-to-pfsg </B>
-[<B>vocab=</B><I>file</I>
+[<B>vocab=</B><I>file</I>]<I></I>
 [<B>pauselast=1</B>]
 [<B>wordwrap=0</B>]
-[<B>pause=</B>
-<I>pauseword</I>]<I></I>
-[<B>top_level_name=</B>
-<I>name</I>]<I></I>
+[<B>pause=</B><I>pauseword</I>]<I></I>
 [<B>version=1</B>]
+[<B>top_level_name=</B><I>name</I>]<I></I>
+[<B>null=</B><I>string</I>]<I></I>
 [<I>pfsg-file</I>]
 <BR>
 <B> add-classes-to-pfsg </B>
 <B>classes=</B><I>classes</I><B></B>
+[<B>null=</B><I>string</I>]<I></I>
 [<I>pfsg-file</I>]
 <BR>
 <B> pfsg-from-ngram </B>
@@ -43,6 +46,10 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 <BR>
 <B> pfsg-vocab </B>
 [<I>pfsg-file</I>...]
+<BR>
+<B> htklat-vocab </B>
+[<B>quotes=1</B>]
+[<I>htk-lattice-file</I>...]
 <BR>
 <B> pfsg-to-dot </B>
 [<B>show_probs=</B>0|1<B></B>
@@ -74,7 +81,8 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 [<I>wlat-file</I>]
 <BR>
 <B> wlat-to-dot </B>
-[<B>show_probs=</B>0|1<B></B>]
+[<B>show_probs=</B>0|1<B></B>
+<B>show_nums=</B>0|1<B></B>]
 [<I>wlat-file</I>]
 <BR>
 <B> wlat-stats </B>
@@ -197,6 +205,11 @@ and the word transition weight to
 <P>
 <B> pfsg-vocab </B>
 extracts the vocabulary used in one or more PFSGs.
+<B> htklat-vocab </B>
+does the same for lattices in HTK standard lattice format.
+The
+<B> quotes=1 </B>
+option enables processing of HTK quotes.
 <P>
 <B> pfsg-to-dot </B>
 renders a PFSG in
@@ -319,11 +332,15 @@ word lattice in
 format for subsequent layout, printing, etc.
 <B> show_probs=1 </B>
 includes node posterior probabilities in the output.
+<B> show_nums=1 </B>
+includes node indices in the output.
 <P>
 <B> wlat-stats </B>
 computes statistics of word posterior lattices, including the number of 
-word hypotheses and the entropy (log base 10) of the sentence hypothesis
-set represented.
+word hypotheses, the entropy (log base 10) of the sentence hypothesis
+set represented, and the posterior expected number of words.
+For word meshes that have been aligned with references, the 1-best and 
+oracle lattice error rates are also computed.
 <H2> NUANCE COMPATIBILITY </H2>
 <P>
 The Nuance recognizer (as of version 6.2) understands a variant of the 
@@ -353,21 +370,31 @@ The resulting PFSG can then be referenced in a Nuance grammar file, e.g.,
 <BR>
 <P>
 In newer Nuance versions the name for a non-emitting node was changed to
-<B>NULNOD</B>.<B></B>
-The scripts
-<B>make-ngram-pfsg</B>,<B></B>
-<B>add-pauses-to-pfsg</B>,<B></B>
-and
-<B> add-classes-to-pfsg </B>
-must be invoked with the option
+<B>NULNOD</B>,<B></B>
+and inter-word optional pauses are automatically added to the grammar.
+This means that the PFSG should be create using
+<BR>
+	ngram -debug 1 -order <I>N</I> -lm <I>LM.bo</I> -prune-lowprobs -write-lm - | \
+<BR>
+	make-ngram-pfsg version=1 top_level_name=.TOP_LEVEL null=NULNOD &gt;<I>LM.pfsg</I>
+<BR>
+The 
 <B> null=NULNOD" </B>
-to rename null nodes accordingly.
+option should also be passed to
+<B>add-classes-to-pfsg</B>.<B></B>
+<P>
+Starting with version 8, Nuance supports N-gram LMs.
+However, you can still use SRILM to create LMs, as described above.
+The syntax for inclusion of a PFSG has changed to
+<BR>
+	NGRAM_PFSG:slm <I>LM.pfsg</I>
+<BR>
 <P>
 Caveat: Compatibility with Nuance is purely due to historical circumstance and
 not supported.
 <H2> SEE ALSO </H2>
-<A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="wlat-format.html">wlat-format(5)</A>, <A HREF="nbest-format.html">nbest-format(5)</A>,
-<A HREF="classes-format.html">classes-format(5)</A>, <A HREF="fsm.html">fsm(5)</A>, <A HREF="dot.html">dot(1)</A>.
+<A HREF="lattice-tool.html">lattice-tool(1)</A>, <A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="pfsg-format.html">pfsg-format(5)</A>, <A HREF="wlat-format.html">wlat-format(5)</A>,
+<A HREF="nbest-format.html">nbest-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>, <A HREF="fsm.html">fsm(5)</A>, <A HREF="dot.html">dot(1)</A>.
 <H2> BUGS </H2>
 <B> make-ngram-pfsg </B>
 should be reimplemented in C++ for speed and some size optimizations that
@@ -375,6 +402,6 @@ require more global operations on the PFSG.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1995-2003 SRI International
+Copyright 1995-2005 SRI International
 </BODY>
 </HTML>

@@ -4,14 +4,15 @@
  *
  * Copyright (c) 1995-2001, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.25 2002/05/14 04:29:38 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.27 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _NBest_h_
 #define _NBest_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "Boolean.h"
 #include "Prob.h"
@@ -54,6 +55,13 @@ public:
     LogP languageScore;
     char *phones;
     char *phoneDurs;
+    /*
+     * The following two are used optionally when used as input to 
+     * WordMesh::wordAlign() to encode case where the word/transition
+     * posteriors differ from the overall hyp posteriors.
+     */
+    Prob wordPosterior;				// word posterior probability
+    Prob transPosterior;			// transition to next word p.p.
 };
 
 extern const char *phoneSeparator;	 // used for phones & phoneDurs strings

@@ -5,13 +5,15 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2001,2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.cc,v 1.3 2002/08/25 17:27:45 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2001-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.cc,v 1.5 2006/01/05 08:44:25 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
 
 #include "MultiwordLM.h"
+
+#include "Array.cc"
 
 LogP
 MultiwordLM::wordProb(VocabIndex word, const VocabIndex *context)
@@ -53,21 +55,61 @@ MultiwordLM::contextID(VocabIndex word, const VocabIndex *context,
 							unsigned &length)
 {
     VocabIndex expandedContext[maxWordsPerLine + 1];
+    VocabIndex expandedWord[maxWordsPerLine + 1];
+
+    unsigned clen = Vocab::length(context);
+    makeArray(unsigned, expansionLengths, clen);
 
     unsigned expandedContextLength =
-	vocab.expandMultiwords(context, expandedContext, maxWordsPerLine, true);
+	vocab.expandMultiwords(context, expandedContext, maxWordsPerLine, true,
+							    expansionLengths);
 
-    /*
-     * Overestimate the used context length by using the context length used 
-     * in the underlying LM.  But make sure we don't claim more than the 
-     * actual length of the context.
-     */
-    void *cid = lm.contextID(expandedContext, length);
-    if (length > expandedContextLength) {
-	length = expandedContextLength;
+    if (word == Vocab_None) {
+	expandedWord[0] = Vocab_None;
+    } else {
+	VocabIndex multiWord[2];
+	multiWord[0] = word;
+	multiWord[1] = Vocab_None;
+
+	unsigned expandedWordLength =
+	    vocab.expandMultiwords(multiWord, expandedWord, maxWordsPerLine);
     }
 
+    unsigned usedLength;
+    void *cid = lm.contextID(expandedWord[0], expandedContext, usedLength);
+
+    /*
+     * translate the context-used length for the non-mw LM back to multiwords
+     */
+    unsigned usedMWLength = 0;
+    unsigned sumOfExpandedLengths = 0;
+    while (sumOfExpandedLengths < usedLength && usedMWLength < clen) {
+	sumOfExpandedLengths += expansionLengths[usedMWLength++];
+    }
+
+    length = usedMWLength;
     return cid;
+}
+
+LogP
+MultiwordLM::contextBOW(const VocabIndex *context, unsigned length)
+{
+    VocabIndex expandedContext[maxWordsPerLine + 1];
+
+    unsigned clen = Vocab::length(context);
+    makeArray(unsigned, expansionLengths, clen);
+
+    vocab.expandMultiwords(context, expandedContext, maxWordsPerLine, true,
+							    expansionLengths);
+    /* 
+     * Compute the length value in terms of expanded words
+     */
+    unsigned usedLength = 0;
+    for (unsigned i = 0; i < length && i < clen; i ++) {
+	usedLength += expansionLengths[i];
+    }
+
+    return lm.contextBOW(expandedContext, usedLength);
 }
 
 Boolean

@@ -1,5 +1,5 @@
-.\" $Id: hidden-ngram.1,v 1.20 2003/01/28 17:36:50 stolcke Exp $
-.TH hidden-ngram 1 "$Date: 2003/01/28 17:36:50 $" "SRILM Tools"
+.\" $Id: hidden-ngram.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $
+.TH hidden-ngram 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 hidden-ngram \- tag hidden events between words
 .SH SYNOPSIS
@@ -21,9 +21,16 @@ words and hidden tags.
 is a generalization of 
 .BR segment (1).
 .SH OPTIONS
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-text " file"
 Specifies the file containing the word sequences to be tagged
@@ -98,6 +105,15 @@ The second and any additional interpolated models can also be class N-grams
 (using the same
 .B \-classes 
 definitions).
+.TP
+.B \-factored
+Interpret the files specified by 
+.BR \-lm ,
+.BR \-mix-lm ,
+etc. as factored N-gram model specifications.
+See 
+.BR ngram (1)
+for more details.
 .TP
 .BI \-lambda " weight"
 Set the weight of the main model when interpolating with
@@ -279,7 +295,8 @@ quickly becomes infeasibly large unless
 .BR \-simple-classes
 is also specified.
 .SH "SEE ALSO"
-ngram-count(1), disambig(1), segment(1), ngram-format(5), classes-format(5).
+ngram(1), ngram-count(1), disambig(1), segment(1),
+ngram-format(5), classes-format(5).
 .br
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
 Disfluencies based on Recognized Words,''
@@ -289,4 +306,4 @@ Andreas Stolcke <stolcke@speech.sri.com>,
 .br
 Anand Venkataraman <anand@speech.sri.com>.
 .br
-Copyright 1998\-2002 SRI International
+Copyright 1998\-2004 SRI International

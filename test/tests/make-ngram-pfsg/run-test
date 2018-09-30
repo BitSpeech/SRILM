@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# unset LC_COLLATE to make character ranges in add-pauses-to-pfsg work
-LC_COLLATE=
+# set LC_COLLATE to make character ranges in add-pauses-to-pfsg work
+LC_COLLATE=C
 export LC_COLLATE
 
 ngram-count -debug 1 -text gb.test.txt -lm - \

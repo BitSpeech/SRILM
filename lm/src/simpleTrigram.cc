@@ -5,10 +5,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/speech/stolcke/project/srilm/devel/lm/src/RCS/simpleTrigram.cc,v 1.4 1996/05/31 05:25:44 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/simpleTrigram.cc,v 1.5 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "File.h"
 #include "Vocab.h"

@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1996,1999 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.cc,v 1.5 1999/10/12 23:06:44 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1996,1999,2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -20,22 +21,20 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.cc,v 1
 #include "Array.h"
 
 SubVocab::SubVocab(Vocab &baseVocab)
-    : _baseVocab(baseVocab)
+    :  _baseVocab(baseVocab)
 {
     /*
      * These defaults are inherited from the base vocab.
      */
     outputVocab = &baseVocab;
-    unkIsWord = baseVocab.unkIsWord;
-    toLower = baseVocab.toLower;
 
     /*
      * sub-vocabularies don't have any special tokens by default
      */
-    remove(unkIndex);
-    remove(ssIndex);
-    remove(seIndex);
-    remove(pauseIndex);
+    remove(_unkIndex);
+    remove(_ssIndex);
+    remove(_seIndex);
+    remove(_pauseIndex);
 }
 
 // Add word to vocabulary

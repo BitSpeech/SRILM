@@ -44,7 +44,7 @@ Version History
 	* zio now handles incomplete reading of compressed file without error
 	* Fixed interaction between deletion and iterations
 	* Fixed handling of OOVs in cache model
-	* Fixed decipher nbest rescoring: we now duplicate even the 
+	* Fixed decipher N-best rescoring: we now duplicate even the 
 	  roundoff errors incurred by bytelogs.  Also added -decipher flag
 	  to ngram to allow replication of recognizer LM scores.
 	  Also, takes into account that Decipher (incorrectly) applies WTW
@@ -91,12 +91,12 @@ Version History
 	  new exact lattices (ngram -decipher-nobackoff).
 	* N-best list vocabulary is now always expanded dynamically
 	  (no more OOVs in N-best lists).
-	* Added wrapper script for nbest-lattice to compute nbest error rate
+	* Added wrapper script for nbest-lattice to compute N-best error rate
 	  (nbest-error).
 	* Skip ngrams exceeding model order when reading.
 	* Fixed memory bug in generateSentence().
 	* Changed libmisc to work with Tcl version > 7.
-	* Compute word error correctly for empty nbest list.
+	* Compute word error correctly for empty N-best list.
 	* Added ngram pruning based on model perplexity change
 	  (ngram-count -prune and ngram -prune).
 	* Old ngram -prune option renamed -varprune.
@@ -122,7 +122,7 @@ Version History
 	* Fixed backward computation in disambig (again).
 	* Generalized compute-best-mix to N > 2 models
 	* Added AdaptiveMix LM class
-	* Added nbest-mix utility (interpolation of nbest posteriors)
+	* Added nbest-mix utility (interpolation of N-best posteriors)
 	* Added ngram -unk flag to handle open-class LMs
 	* Added disambig and hidden-ngram -text-map option
 	* Script enhancements:
@@ -409,8 +409,8 @@ Version History
 	* New regression tests for nbest-rover (i.e., nbest-lattice) and
 	nbest-optimize.
 	* nbest-posteriors, combine-acoustic-scores now all handle and
-	preserve Decipher nbest formats.  This allows nbest-rover to
-	generate sausages with backtrace information if input nbest lists
+	preserve Decipher N-best formats.  This allows nbest-rover to
+	generate sausages with backtrace information if input N-best lists
 	contain it (using -nbest-backtrace option).
 	* New tool nbest-pron-score for computing pronunciation and pause LM
 	scores from N-best hypotheses.
@@ -423,7 +423,7 @@ Version History
 	to improve sausage alignment.
 	* compute-best-sentence-mix: new script to optimize sentence-level
 	interpolation of LMs.
-	* nbest-latttice -lattice-files option to align multiple word lattices;
+	* nbest-lattice -lattice-files option to align multiple word lattices;
 	currently only works with -use-mesh (sausages).
 	* hidden-ngram now supports mixture and class N-gram LMs.
 	* New class SimpleClassNgram, a more efficient implementation of 
@@ -448,14 +448,14 @@ Version History
 	* Avoid numerical problems in N-best posterior computation by using
 	AddLogP() to compute normalizer.
 	* anti-ngram no longer requires -refs argument with -all-ngrams.
-	* Fixed bug removing noise from nbest lists with backtrace.
+	* Fixed bug removing noise from N-best lists with backtrace.
 	* Code fixes for clean compiles with gcc 3.x.
 	* nbest-rover more efficient by using a single invocation of
-	nbest-lattice for all input nbest lists.
+	nbest-lattice for all input N-best lists.
 	* ClassNgram: fixed handling of words that appear as members of a class
 	with zero probability, or have zero membership probability.
 	* nbest-lattice -record-hyps now outputs hyp ids according to the 
-	original nbest order, rather than the sorted one.
+	original N-best order, rather than the sorted one.
 	* make-hiddens-lm now gives proper unigram probability to hidden-S tag.
 	* Compute acoustic scores in Decipher N-best-2 format by subtracting
 	token LM scores from total score.  This deals correctly with cases where
@@ -613,7 +613,7 @@ Version History
 	* Added more strippable filename suffixes in idFromFilename() function.
 	* NBest: correctly read in phone backtraces that are time-reversed.
 	* compute-oov-rate ignores -pau- tokens.
-	* Various nbest scripts now process input directories containing links
+	* Various N-best scripts now process input directories containing links
 	(rather than plain files) correctly.
 	* Lattice class takes care to limit range of intlog transition
 	probabilities in PFSG output, so as to avoid overflow when converting
@@ -631,5 +631,439 @@ Version History
 	* Compiles under MacOS X (MACHINE_TYPE=macosx), thanks to help from
 	wooters@icsi.berkeley.edu and jean-philippe.demoulin@enst.fr.
 
-$Date: 2003/03/02 17:45:07 $
+1.4	14 February 2004
+
+	New functionality:
+
+	* Added support for factored language models, developed by Katrin
+	Kirchhoff and Jeff Bilmes, and implemented by Jeff Bilmes.
+	A new library, libflm.a, and two new tools, fngram-count and fngram
+	are built in the flm/ directory.  A conference paper and a technical
+	report are included as documentation in flm/doc/.  Questions and bug
+	reports should be directed to bilmes@ee.washington.edu.
+	FLM support has also been integrated into some of the standard 
+	tools (ngram and hidden-ngram) and is enabled by the -factored option.
+
+	* Added support in lattice-tool to read/write and rescore HTK lattices.
+	See lattice-tool man page for details.
+	* The lattice expansion algorithm for general LMs now preserves
+	pause and null nodes.  Consequently, lattice-tool no longer eliminates
+	pause and null nodes prior to applying this algorithm, unless 
+	-no-pause or -compact-pause was specified. 
+	* Implemented a new algorithm to build word meshes (confusion networks,
+	sausages) from lattices, that is faster than the original Mangu et al.
+	method.  lattice-tool -posterior-decode uses this to extract 1-best
+	word hypotheses, and lattice-tool -write-mesh allows writing of
+	sausages to file.
+	* The "compact" lattice expansion algorithm that uses backoff nodes
+	(described in Weng et al. 1998) has been generalized to handle
+	LMs of arbitrary order.  As before, this algorithm is triggered by	
+	lattice-tool -compact-expansion.  (To get the old version, which
+	handles only trigrams and produces non-identical results, use
+	lattice-tool -compact-expansion -old-expansion.)
+	* lattice-tool -density allows pruning of lattices to a specified 
+	density (in addition to the posterior threshold).
+	* lattice-tool -multi-char option allows designating characters other
+	than underscore as multiword delimiters.
+	* Added a "LatticeLM" class that emulates a language model using the
+	transition probabilities in a lattice.  This is useful for debugging
+	and comparing the probabilities assigned by lattices to corresponding
+	LM probabiltiies.  A new option lattice-tool -ppl makes use of this
+	class (analogous to ngram -ppl).
+	* lattice-tool lattice algebra operations (or, concatenate) can now
+	be applied to multiple input lattices, always using the same lattice
+	as second operand.
+
+	* ngram has enhanced N-best rescoring functionality, allowing 
+	multiple input lists to be rescored (-nbest-files, -write-nbest-dir,
+	-decipher-nbest, -no-reorder, -split-multiwords).
+	* rescore-decipher -fast enables a faster rescoring mode that uses 
+	only the built-in functions of ngram, thus running much faster.
+	* New option ngram -rescore-ngram to recompute the probabilities in
+	an N-gram model using an arbitrary other LM.
+
+	* Added original (unmodified) Kneser-Ney discounting (ngram-count
+	-ukndiscountN options). Contributed by Jeff Bilmes.
+	* New disambig -classes option to read vocabulary maps in
+	classes-format(5).
+	* New disambig -write-counts option to output word/class substitution
+	bigram counts (useful to reestimate class membership probabilities).
+	* nbest-pron-score -pause-score-weight creates weighted combination
+	of pronunciation and pause LM scores.
+	* compute-sclite -noperiods option to delete periods from hyps
+	for scoring purposes.
+	* New script empty-sentence-lm to modify existing LM to allow
+	the empty sentence with a given probability.
+	* compute-sclite handles CTM files in RT-03 format.
+	* ngram-class -debug 2 prints the initial word-to-class assignments,
+	so that the entire class tree can be reconstructed from the output.
+	* RefList class has option to read and look up reference words without
+	associated ID strings (indexed by integers).
+	* Enhanced WordMesh and WordLattice classes to have an optional
+	"name" field, used to record utterance ids. 
+	* New select-vocab command to implement likelihood-optimizing
+	vocabulary selection from multiple corpura.  Contributed by 
+	Anand Venkataraman and Wen Wang. See man page for details.
+	
+	Bug fixes:
+
+	* ngram avoids reading classes file multiple times if -limit-vocab
+	is not being used (otherwise it is unavoidable, and will lead to
+	errors if the reading is from stdin).
+	* Fixed some bugs in compare-sclite and compute-sclite.
+	* Modified ngram and compute-best-mix so that the latter works
+	with ngram -counts output.  ngram -counts now outputs the count
+	values != 1 for each N-gram so that compute-best-mix can take them
+	into account in the optimization.
+	* rescore-reweight and nbest-rover were not handling Decipher N-best
+	lists correctly when additional score directories are given.
+	* nbest-rover -wer disables use of nbest-lattice -use-mesh option,
+	so nbest-rover can be used for old-style word error minimization
+	(or even 1-best rescoring, by also specifying -max-rescore 1).
+	* lattice-tool -ref-file and -ref-list were being ignored when
+	processing only a single input lattice.  Fixed so that lattice error
+	can now be computed with either -input-lattice or -input-lattice-list.
+	* Enhanced MultiwordLM class with new contextID() and contextBOW()
+	versions that better reflect the backoff behavior of the wrapped LM
+	class.  Makes it much more efficient to use the lattice-tool -multiword
+	option, i.e., expand a multiword lattice with a non-multiword LM.
+	* rescore-decipher -pretty had a bug that caused mapping to be applied
+	to the score fields as well, potentially corrupting the format.
+	* Fixed bugs in mixture lambda computation (ngram, hidden-ngram,
+	lattice-tool), triggered by more than one lambda being zero, or using
+	more than 5 mixtures.
+	* lattice-tool algebra operations used to crash if operand lattices
+	contained NULL nodes.
+	* Non-compressed files ending in .gz can now be read successfully.
+	* Catch a possible 0/0 problem in the Good-Turing discount estimator.
+	* Fixed memory management for strings returned by TaggedVocab::getWord()
+	thereby avoiding garbled results.
+	* lattice-tool -pre-reduce-iterate and post-reduce-iterate arguments
+	where not being used to control number of lattice reduction iterations.
+	* Fixed an unitialized memory bug that could produce random results
+	in posterior probability computation (and hence in lattice pruning).
+	* Fixed a bug in lattice pruning triggered by unnormalized posteriors
+	greater than 1.
+
+	Portability:
+
+	* Fixed some problems compiling with gcc-3.2.2; eliminated compile-
+	time warnings about division by zero in constant definitions.
+	* Rewrote some code to work around limitations and warnings in the
+	Intel C++ compiler.  (In return, got compiled code that runs 10-20%
+	faster!)  For processor-specific optimizations, use
+		make MACHINE_TYPE=i686-p4	.
+	* Fixed some script problems that surfaced in latest gawk version.
+	* Fixed some problems compiling with Tcl/Tk-8.4.1.
+	* FreeBSD support (contributed by Zhang Le <ejoy@peoplemail.com.cn>).
+	* Updated Nuance-related features in PFSG scripts and man page.
+	* Note: Integration of FLM support required some changes to the 
+	Vocab and Ngram class interface.  In particular, several member
+	variables (e.g., Boolean Vocab::unkIndex) have been replaced by virtual
+	member functions that return references to the variables (e.g.,
+	Boolean &Vocab::unkIndex()).  This requires, albeit trivial, changes
+	to any client code that accesses these variables.
+
+1.4.1	9 May 2004
+
+	Functionality:
+
+	* New option lattice-tool -htk-quotes to enable the HTK quoting 
+	mechanism that allows whitespace and non-printable characters to be
+	used in word labels.  (This is disabled by default since other SRILM
+	tools don't allow such word strings.)
+	* New option lattice-tool -add-refs to add a path corresponding to
+	the reference word string to each lattice.
+	* New option ngram -counts-entropy to compute entropy (log probabilties
+	weighted by joint N-gram probability) from counts.
+
+	Bugs fixed:
+
+	* nbest-lattice could core dump if references where not supplied.
+	* FLM/ProductVocab: fixed problems with mapping of <s> and </s> to
+	factored form.
+	* Lattice algebra operations (or, concatenate) now preserve HTK link
+	information and lattice names.
+	* Fixed LM::contextProb() handling of <s> and other non-event tokens.
+	This also allowed Ngram:computeContextProb() to be eliminated.
+	* LatticeFollowIter iterator no longer takes lookahead parameter --
+	lookahead is unlimited and cycles are avoided by keeping a table of
+	visited nodes.  This also greatly speeds up lattice expansion in
+	some cases.
+	* Detect negative discounts in modified Kneser-Ney method, arising 
+	from non-monotonic counts-of-counts.
+	* Fixed various debugging output messages in the Lattice class.
+
+	Portability:
+
+	* Matthias Thomae <thomae@ei.tum.de> found that make-ngram-pfsg
+	(and probably other gawk scripts) may not work correctly with recent
+	versions of gawk unless the environment is set to LC_NUMERIC=C.
+
+1.4.2	19 October 2004
+
+	Functionality:
+
+	* lattice-tool -factored option to handle factored LMs (analogous
+	to ngram and hidden-ngram).
+	* lattice-tool -nbest-decode generates N-best lists from lattices
+	(contributed by Dustin Hillard, University of Washington).
+	* lattice-tool -output-ctm option to generate CTM-formatted 1-best
+	output, either with -viterbi-decode or with -posterior-decode.
+	Of course this requires HTK input lattices containing timemarks.
+	* Added version of WordMesh::minimizeWordError() that returns acoustic
+	information in a NBestWordInfo array, to support the above.
+	* lattice-tool -insert-pause option to insert optional pause nodes in
+	lattices.
+	* lattice-tool -unk will map unknown words to <unk> instead of 
+	automatically augmenting the vocabulary (the -map-unk option allows
+	the mapping of unknown words to be customized).
+	* lattice-tool -acoustic-mesh records word times, scores, and phone
+	alignments when confusion networks are built.
+	* lattice-tool -ignore-vocab option to define the set of words that
+	are ignored in LM processing (like pause nodes).
+	* lattice-tool -write-ngrams option to compute expected N-gram counts
+	from lattices.
+	* HTK lattices now supports up to three "extra" score fields (x1..x3),
+	which can be used to rescore hypotheses with arbitrary non-standard
+	knowledge sources.
+	* Added support for the "s" key in HTK lattices (used to encode
+	state alignment info).
+	* anti-ngram -min-count option to prune N-grams with expected frequency
+	below specified threshold.
+	* ngram -adapt-marginals and related options to trigger use of
+	unigram marginals adaptation, following Kneser et al. (Eurospeech 97).
+	* New LM class AdaptMarginals to support the above.
+	* nbest-lattice and lattice-tool -hidden-vocab option allows specifying
+	a subvocabulary that should not be aligned with regular words when
+	building confusion networks.
+	* New VocabDistance subclass SubvocabDistance, to support the above.
+	* nbest-optimize -combine-linear and -non-negative options, useful to
+	optimize linear combinations of posterior probability scores.
+
+	Bugs fixed:
+
+	* lattice-tool: Avoid disconnecting lattice in density pruning.
+	* Utility script installation was not working for Cygwin hosts.
+	* ProductNgram::contextID() now returns hash code of context used,
+	instead of zero, and limits context-used length to order-1.
+	* HTK lattice output was omitting wdpenalty value.
+	* Improved collision-prone hash function for VocabIndex arrays.
+	* Documented order of operations in lattice-tool(1).
+	* Fixed excessive /tmp space usage in nbest-rover script, so as to
+	avoid frequent incomplete output with large N-best data as a result
+	of running out of disk space.
+	* Fixed bug in compute-sclite that would garble STM references without
+	the optional 6th field.
+	* Fixed bug in Trie::insert(), which would always set foundP = true,
+	even if a new entry was created.
+	* Preserve Lattice:limitIntlogs flags in lattice algebra operations.
+	* Use sorted node map iteration in lattice-tool expansion algorithms,
+	so that results are not subject to pseudo-random hash table ordering.
+	* HTK lattice output no longer has more nodes/links than input
+	(provided -no-htk-nulls, -htk-scores-on-nodes, or -htk-words-on-nodes
+	are NOT used).
+	* Take default lattice name from input filename, rather than output
+	filename (which may not be defined), however:
+	* The embedded names of output lattices from binary lattice operations
+	are derived from the output file name.
+	* Fixed bug in reading of word meshes (confusion networks) introduced
+	in release 1.4.
+	* Fixed a bug in alignments of multiple confusion networks, affecting
+	cases where the inputs have posterior masses != 1.
+
+1.4.3	3 December 2004
+
+	Functionality:
+
+	* Increased the number of extra scores supported in HTK lattices
+	(x1, x2, ... x9).
+	* lattice-tool -nbest-viterbi option to use Viterbi N-best algorithm,
+	which uses less memory (contributed by Jing Zheng).  
+	* Added nbest-lattice -output-ctm analoguous to lattice-tool.
+	* Make -output-ctm output word posteriors in the confidence field.
+	* Extend the meaning of the nbest-lattice -max-rescore option so that,
+	in lattice mode, it limits the number of hypotheses that are aligned.
+	(The meaning of -max-rescore was previously only defined in N-best
+	rescoring mode).
+	* Added -version option to all top-level programs.
+
+	Bug fixes:
+
+	* Improved efficiency and duplicate elimination in A-star N-best
+	generation (contributed by Jing Zheng).
+	* Worked around a problem with gawk scripts in Linux handling of
+	/dev/stderr device which can cause a file to be truncated if stderr is
+	redirected to it.
+	* MultiAlign::addWords() was not preserving NBestWordInfo.
+
+	Other:
+
+	* Various small code changes for compilation with gcc 3.4.3.
+	* Maintenance scripts moved to $SRILM/sbin/.
+	* Support for commercial releases excluding third-party code
+	contributions.
+
+1.4.4	6 May 2005
+
+	Functionality:
+
+	* ngram-count now allows use of -wbdiscount, -kndiscount, etc.,
+	without a specified N-gram order, to set the default discounting
+	method for all N-gram orders.  As before, this can be overridden by
+	-wbdiscount[1-9], -kndiscount[1-9], etc., for specific N-gram
+	lengths (suggested by Anand).
+	* lattice-tool -keep-pause has additional side-effects if used with
+	-nonevents and -ignore-vocab (making pauses behave like regular words).
+	* lattice-tool -dictionary-align option triggers use of dictionary
+	pronunciations for word mesh alignment (contributed by Dustin Hillard).
+	* New option lattice-tool -nbest-duplicates allows control over the
+	number of duplicate word hypotheses to output (from Dustin Hillard).
+	* Update to the FLM tools from Kevin Duh, to make fngram-count use the
+	-vocab option to limit the vocabulary of the estimated model.
+	* Added nbest-optimize -hidden-vocab option to constrain the alignment
+	of a subvocabulary (analogous to nbest-lattice -hidden-vocab).
+	* wlat-stats computes the posterior expected number of words in the
+	input lattice.
+
+	Bug fixes:
+
+	* ngram -unk maps unknown words in N-best hyps to <unk> instead of
+	adding them to the vocabulary.
+	* lattice-tool: Don't punt when encountering a NULL word node with
+	pronunciation, output a warning instead.
+	* lattice-tool -nbest-decode now uses a double-ended heap data
+	structure, and -nbest-max-stack drops hypotheses from the bottom
+	of the heap instead of the top (contributed by Dustin Hillard).
+	* lattice-tool -nbest-decode now does more thorough duplicate removal
+	(not just adjacent duplicates are removed).
+	* lattice-tool no longer gives an error if input lattice has posteriors
+	specified on nodes (even though they are effectively ignored).
+	* select-vocab: miscellaneous bug fixes from Anand.
+	* nbest-lattice: fixed various bugs with -nbest-backtrace option.
+	* compute-sclite: work around bug in csrfilt.sh -dh affecting waveform
+	names containing hyphens.
+	* Minor tweaks for MacOSX build.
+
+1.4.5	28 August 2005
+
+	Functionality:
+
+	* ngram -debug 0 -ppl now outputs statistics for each input section
+	delimited by escape lines, in addition to overall results (based on
+	a modification by Dustin Hillard).  ngram -debug 1 and higher behave as
+	before.
+	* ngram -loglinear-mix implements log-linear mixture LMs.
+	* LoglinearMix: new class to support the above.
+	* VocabMap: added remove(.) method to remove all entries for given
+	source word.
+	* WordMesh: added wordColumn() function to return confusion set at
+	given position (contributed by Dustin).
+	* Lattice: added readMesh() function to read in confusion networks
+	(from Dustin).
+	* lattice-tool -read-mesh allows handling in confusion network format
+	(from Dustin).
+	* nbest-optimize -1best-first implements a heuristic strategy whereby
+	the relative score weights are first optimized in -1best mode, followed
+	by full optimization together with posterior scale.
+	* nbest-optimize -max-time forces search to time out if new best
+	weights aren't found within a certain number of seconds.
+	* New script combine-rover-controls to merge multiple nbest-rover
+	control files for system combination.
+
+	Bug fixes:
+
+	* disambig clears old map entries when encountering a duplicate
+	definition for a source word.
+	* nbest-optimize: posterior scaling of fixed weights was broken.
+	* WordMesh, nbest-lattice: do better error checking on reading
+	confusion network files, handle numalign and posterior specs out of
+	order.
+	* lattice-tool had a bug in the handling of HTK format lattices that
+	do not contain an explicit specification of initial/final nodes.
+	* Added proper copy constructors and assignment operators for
+	Array, SArray, and LHash classes.  This in turn makes the copy
+	constructor for NgramLM and other classes work properly.
+	(Assignment still doesn't work for some higher-level classes because
+	of reference (&) variable members.)
+	* Fixed minor bug in the ngram -skipoovs implementation, found by
+	Alexandre Patry.
+
+	Portability:
+
+	* Port to win32-mingw platform (by Jing Zheng).  Doesn't support
+	compressed file i/o, or the -max-time options in nbest-optimize and
+	lattice-tool.
+	* Minor tweaks for compilation with gcc-4.0.1.
+	* Renamed HTKLink class to HTKWordInfo, which is more appropriate and
+	avoids a naming conflict with SRI's Decipher software.
+
+1.4.6	20 January 2006
+
+	Functionality:
+
+	* Added support for reading/writing files compressed with bzip2
+	(file suffix .bz2).  Requires that the bzip2/bunzip2 binaries be
+	installed.
+
+	Bug fixes:
+
+	* Lattice class now creates completely empty lattices (no nodes).
+	This avoids having to first remove a node when reading an actual
+	lattice.  Empty lattices can be output, but not read (because at
+	least an initial/final node has to be defined).
+	* lattice-tool -ignore-vocab was not being used in conjunction with
+	-viterbi-decode, -posterior-decode, -collapse-same-words, and lattice
+	error computation.  Words to be ignored are now treated same as 
+	-noice-vocab in those operations.
+	* Fixed a bug in lattice expansion whereby backoff weights were 
+	dropped at NULL nodes (problem noticed by Teemu Hirsimaki).
+	* Fixed bug in reading of node-specific posterior probabilities
+	in word meshes.
+	* Fixed a bug in lattice-tool -read-mesh, which was not creating
+	sentence initial/final tags on initial/final lattice nodes.
+	* Fixed a bug in the LatticeFollowIter class that could cause incorrect
+	results in LatticeLM (lattice-tool -ppl).
+	* When outputting PFSG lattices in HTK format, map PFSG weights to
+	HTK acoustic scores.  (But, as before, LM rescoring discards input
+	PFSG weights and causes the probabilities to be output as LM scores.)
+	* Scale wdpenalty values specified in lattice according to log-base.
+	Also, scale -htk-wdpenalty specified on command line according to
+	-htk-logbase (or default 10).
+	* Correctly handle HTK score output with -htk-logbase 0.
+
+	Portability:
+
+	* Added workaround for compilers that don't support arrays of
+	non-constant size (such as SunStudio and Visual C++). On these 
+	systems, Array will be used instead.
+
+	* Added a new compilation option "_s" that triggers use of 2-byte 
+	integers for vocabulary indices and counts.  With compilers that
+	implement __attribute__((packed)) correctly, this causes N-gram counts
+	to use 1/3 less memory than in the default option, at some limitations
+	in functionality.  First, only vocabularies of up to 64k words may
+	be used.  Second, only up to 32k counts exceeding 32k may be stored.
+	The latter is typically not a problem because in most natural data
+	the number of very frequent words is small.
+	Unfortunately, gcc does not currently handle __attribute__((packed))
+	correctly, but Intel's icc does.
+
+	* Tested on Linux for PowerPC-64bit.
+
+	* Tested on Linux for x86_64, using gcc.
+
+	* Minor tweaks for Intel icc 8.0.
+
+	* Tested on Solaris-x86 using Sun Studio 11 compiler.
+	Compilation still generates lots of warnings, but the resulting
+	binaries work correctly.
+
+	* Ported to Microsoft Visual C 7.0 (by Jing Zheng);
+	See doc/README.windows-mscv.
+
+	* gcc versions older than 3.4.3 are no longer supported, though
+	they might still work.
+
+$Date: 2006/01/21 05:50:59 $
 

@@ -5,18 +5,20 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,v 1.6 2001/12/28 23:37:16 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: multi-ngram.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <iostream.h>
 #include <locale.h>
 #include <assert.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "Ngram.h"
@@ -25,17 +27,19 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/multi-ngram.cc,
 #include "Array.cc"
 #include "LHash.cc"
 
+static int version = 0;
 static unsigned order = defaultNgramOrder;
 static unsigned multiOrder = defaultNgramOrder;
 static unsigned debug = 0;
 static char *vocabFile = 0;
 static char *lmFile  = 0;
 static char *multiLMfile  = 0;
-static char *writeLM  = "-";
-static char *multiChar = "_";
+static char *writeLM  = (char *)"-";
+static const char *multiChar = MultiwordSeparator;
 static int pruneUnseenNgrams = false;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "order", &order, "max ngram order" },
     { OPT_UINT, "multi-order", &multiOrder, "max multiword ngram order" },
     { OPT_UINT, "debug", &debug, "debugging level for lm" },
@@ -59,7 +63,7 @@ assignMultiProbs(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 
     for (unsigned i = 0; i < order; i++) {
 	BOnode *node;
-        VocabIndex context[order + 1];
+        makeArray(VocabIndex, context, order + 1);
 	NgramBOsIter iter(multiLM, context, i);
 	
 	while (node = iter.next()) {
@@ -133,8 +137,8 @@ Boolean
 haveNgramsFor(VocabIndex word, VocabIndex *context, Ngram &ngramLM,
 						    MultiwordVocab &vocab)
 {
-    VocabIndex multiwordNgram[Vocab::length(context) + 2];
-    VocabIndex expandedNgram[2 * maxWordsPerLine + 1];
+    makeArray(VocabIndex, multiwordNgram, Vocab::length(context) + 2);
+    makeArray(VocabIndex, expandedNgram, 2 * maxWordsPerLine + 1);
 
     /*
      * Assemble complete reversed N-gram of multiword and context
@@ -226,7 +230,7 @@ populateMultiNgrams(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
      */
     for (unsigned i = 0; i < order; i++) {
 	BOnode *node;
-	VocabIndex context[order + 1];
+	makeArray(VocabIndex, context, order + 1);
 	NgramBOsIter iter(ngramLM, context, i);
 	
 	while (node = iter.next()) {
@@ -353,6 +357,11 @@ main(int argc, char **argv)
     setlocale(LC_COLLATE, "");
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
 
     if (!lmFile) {
 	cerr << "-lm must be specified\n";

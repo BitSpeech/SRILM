@@ -3,7 +3,7 @@
 # go.run-test --
 #	run a regression test
 #
-# $Header: /home/srilm/devel/test/RCS/go.run-test,v 1.10 2003/02/27 23:42:35 stolcke Exp $
+# $Header: /home/srilm/devel/test/RCS/go.run-test,v 1.11 2003/03/04 04:51:27 stolcke Exp $
 #
 
 dir=$1
@@ -30,6 +30,16 @@ time sh -c "(cd $dir; rm -f core; ./run-test) \
 for out in stdout stderr
 do
 	pass=
+
+	if [ -f reference/$name.$out ]; then
+		if eval $diff reference/$name.$out \
+		       output/$name.$MACHINE_TYPE.$out
+		then
+			echo "$name: $out output IDENTICAL."
+			continue
+		fi
+	fi
+
 	for version in $MACHINE_TYPE IEEE INTEL 
 	do
 		if [ -f reference/$name.$version.$out ] && \
@@ -50,13 +60,7 @@ do
 
 	if [ -z "$pass" ]; then
 		if [ -f reference/$name.$out ]; then
-			if eval $diff reference/$name.$out \
-			       output/$name.$MACHINE_TYPE.$out
-			then
-				echo "$name: $out output IDENTICAL."
-			else
-				echo "$name: $out output DIFFERS."
-			fi
+			echo "$name: $out output DIFFERS."
 		else 
 			echo "$name: no reference $out output found." >&2
 		fi

@@ -5,7 +5,7 @@
 #
 # usage: find-reference-posteriors posteriors_files=NBEST_POSTERIORS SAUSAGE
 #
-# $Header: /home/srilm/devel/utils/src/RCS/find-reference-posteriors.gawk,v 1.1 2002/04/21 21:38:05 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/find-reference-posteriors.gawk,v 1.3 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -36,7 +36,7 @@ NR == 1 {
     if (posteriors_file) {
 	hypno = 0;
 	num_sources = 0;
-	while (("gunzip -f -c " posteriors_file | getline pline) > 0) {
+	while ((("gunzip -f -c " posteriors_file) | getline pline) > 0) {
 		if (split(pline, a) == 3) {
 			hyp_source[hypno] = a[1];
 			if (a[1] > num_sources) {
@@ -47,7 +47,7 @@ NR == 1 {
 		}
 	}
 	print "read " hypno " posteriors from " num_sources " sources" \
-							> "/dev/stderr";
+							>> "/dev/stderr";
     }
 }
 

@@ -1,4 +1,4 @@
-<! $Id: anti-ngram.1,v 1.4 2001/06/06 04:21:33 stolcke Exp $>
+<! $Id: anti-ngram.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>anti-ngram</TITLE>
@@ -23,15 +23,18 @@ that are acoustically confusable with correct hypotheses.
 The counts output should be processed with
 <B> ngram-count -float-counts </B>
 to estimate a language model.
+<H2> OPTIONS </H2>
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-<H2> OPTIONS </H2>
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-refs</B><I> file</I><B></B>
 <DD>
 Read the reference transcripts from 
@@ -94,6 +97,10 @@ and acoustic scores have weight 1/<I>lmw</I>.
 Causes even N-grams that occur in the reference string to be counted.
 By default N-best N-grams that also occur in the corresponding reference 
 are excluded.
+<DT><B>-min-count</B><I> C</I><B></B>
+<DD>
+Prune all N-grams from the output that have counts less than
+<I>C</I>.<I></I>
 <DT><B>-read-counts</B><I> countsfile</I><B></B>
 <DD>
 Read N-gram counts from a file.
@@ -131,6 +138,6 @@ option to limit the vocabulary.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 2000 SRI International
+Copyright 2000-2004 SRI International
 </BODY>
 </HTML>

@@ -8,12 +8,36 @@
 */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.14 1999/10/13 09:07:13 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.22 2006/01/09 17:39:03 stolcke Exp $";
 #endif
 
 /*
  * $Log: zio.c,v $
+ * Revision 1.22  2006/01/09 17:39:03  stolcke
+ * MSVC port
+ *
+ * Revision 1.21  2006/01/05 19:32:42  stolcke
+ * ms visual c portability
+ *
+ * Revision 1.20  2005/12/16 23:30:09  stolcke
+ * added support for bzip2-compressed files
+ *
+ * Revision 1.19  2005/07/28 21:08:15  stolcke
+ * include signal.h for portability
+ *
+ * Revision 1.18  2005/07/28 18:37:47  stolcke
+ * portability for systems w/o pipes
+ *
+ * Revision 1.17  2004/01/31 01:17:51  stolcke
+ * don't declare errno, get it from errno.h
+ *
+ * Revision 1.16  2003/11/09 21:09:11  stolcke
+ * use gunzip -f to allow uncompressed files ending in .gz
+ *
+ * Revision 1.15  2003/11/01 06:18:30  stolcke
+ * issue stdin/stdout warning only once
+ *
  * Revision 1.14  1999/10/13 09:07:13  stolcke
  * make filename checking functions public
  *
@@ -59,18 +83,25 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.14 
    nondisclosure agreement with SRI International.
  ********************************************************************/
 
-
 #include <stdio.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
 #include <sys/param.h>
+#endif
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <errno.h>
 
-extern int errno;
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 1024
+#endif
+
+#ifndef SIGPIPE
+#define NO_ZIO
+#endif
 
 #include "zio.h"
 
@@ -87,7 +118,10 @@ extern int errno;
 #define UNCOMPRESS_CMD	  "exec uncompress -c"
 
 #define GZIP_CMD	  "exec gzip -c"
-#define GUNZIP_CMD	  "exec gunzip -c"
+#define GUNZIP_CMD	  "exec gunzip -cf"
+
+#define BZIP2_CMD	  "exec bzip2"
+#define BUNZIP2_CMD	  "exec bunzip2 -c"
 
 /*
  * Does the filename refer to stdin/stdout ?
@@ -127,6 +161,20 @@ gzipped_filename_p (const char *name)
 	(len > sizeof(OLD_GZIP_SUFFIX)-1) &&
 		(strcmp(name + len - (sizeof(OLD_GZIP_SUFFIX)-1),
 			OLD_GZIP_SUFFIX) == 0);
+}
+
+/*
+ * Does the filename refer to a bzipped file ?
+ */
+int
+bzipped_filename_p (const char *name)
+{
+    unsigned len = strlen(name);
+
+    return 
+	(len > sizeof(BZIP2_SUFFIX)-1) &&
+		(strcmp(name + len - (sizeof(BZIP2_SUFFIX)-1),
+			BZIP2_SUFFIX) == 0);
 }
 
 /*
@@ -174,26 +222,34 @@ FILE *zopen(const char *name, const char *mode)
 	 */
 	if (*mode == 'r') {
 		static int stdin_used = 0;
+		static int stdin_warning = 0;
 		int fd;
 
 		if (stdin_used) {
+		    if (!stdin_warning) {
 			fprintf(stderr,
 				"warning: '-' used multiple times for input\n");
+			stdin_warning = 1;
+		    }
 		} else {
-			stdin_used = 1;
+		    stdin_used = 1;
 		}
 
 		fd = dup(0);
 		return fd < 0 ? NULL : fdopen(fd, mode);
 	} else if (*mode == 'w' || *mode == 'a') {
 		static int stdout_used = 0;
+		static int stdout_warning = 0;
 		int fd;
 
 		if (stdout_used) {
+		    if (!stdout_warning) {
 			fprintf(stderr,
 				"warning: '-' used multiple times for output\n");
+			stdout_warning = 1;
+		    }
 		} else {
-			stdout_used = 1;
+		    stdout_used = 1;
 		}
 
 		fd = dup(1);
@@ -201,42 +257,47 @@ FILE *zopen(const char *name, const char *mode)
 	} else {
 		return NULL;
 	}
-    } else if (compressed_filename_p(name)) {
-	/*
-	 * Return stream to compress pipe
-	 */
-	if (*mode == 'r') {
-		if (!readable_p(name))
-		    return NULL;
-		sprintf(command, "%s;%s %s", STD_PATH, UNCOMPRESS_CMD, name);
-		return popen(command, mode);
-	} else if (*mode == 'w') {
-		if (!writable_p(name))
-		    return NULL;
-		sprintf(command, "%s;%s >%s", STD_PATH, COMPRESS_CMD, name);
-		return popen(command, mode);
-	} else {
-		return NULL;
-	}
-    } else if (gzipped_filename_p(name)) {
-	/*
-	 * Return stream to gzip pipe
-	 */
-	if (*mode == 'r') {
-		if (!readable_p(name))
-		    return NULL;
-		sprintf(command, "%s;%s %s", STD_PATH, GUNZIP_CMD, name);
-		return popen(command, mode);
-	} else if (*mode == 'w') {
-		if (!writable_p(name))
-		    return NULL;
-		sprintf(command, "%s;%s >%s", STD_PATH, GZIP_CMD, name);
-		return popen(command, mode);
-	} else {
-		return NULL;
-	}
     } else {
-	return fopen(name, mode);
+	char *compress_cmd = NULL;
+	char *uncompress_cmd = NULL;
+	
+	if (compressed_filename_p(name)) {
+	    compress_cmd = COMPRESS_CMD;
+	    uncompress_cmd = UNCOMPRESS_CMD;
+	} else if (gzipped_filename_p(name)) {
+	    compress_cmd = GZIP_CMD;
+	    uncompress_cmd = GUNZIP_CMD;
+	} else if (bzipped_filename_p(name)) {
+	    compress_cmd = BZIP2_CMD;
+	    uncompress_cmd = BUNZIP2_CMD;
+	}
+
+	if (compress_cmd != NULL) {
+#ifdef NO_ZIO
+	    fprintf(stderr, "Sorry, compressed I/O not available on this machine\n");
+	    errno = EINVAL;
+	    return NULL;
+#else /* !NO_ZIO */
+	    /*
+	     * Return stream to compress pipe
+	     */
+	    if (*mode == 'r') {
+		if (!readable_p(name))
+		    return NULL;
+		sprintf(command, "%s;%s %s", STD_PATH, uncompress_cmd, name);
+		return popen(command, mode);
+	    } else if (*mode == 'w') {
+		if (!writable_p(name))
+		    return NULL;
+		sprintf(command, "%s;%s >%s", STD_PATH, compress_cmd, name);
+		return popen(command, mode);
+	    } else {
+		return NULL;
+	    }
+#endif /* !NO_ZIO */
+	} else {
+	    return fopen(name, mode);
+	}
     }
 }
 
@@ -246,6 +307,10 @@ FILE *zopen(const char *name, const char *mode)
 int
 zclose(FILE *stream)
 {
+#ifdef NO_ZIO
+     return fclose(stream);
+#else /* !NO_ZIO */
+
     int status;
     struct stat statb;
 
@@ -292,6 +357,7 @@ zclose(FILE *stream)
 	    return status;
 	}
     }
+#endif /* NO_ZIO */
 }
 
 #ifdef STAND

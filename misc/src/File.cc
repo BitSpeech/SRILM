@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.4 1998/07/28 08:22:01 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.5 2005/12/29 20:40:09 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -19,6 +19,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.4
 
 #define ZIO_HACK
 #include "zio.h"
+
+const char *wordSeparators = " \t\r\n";
 
 #define START_BUF_LEN 128
 

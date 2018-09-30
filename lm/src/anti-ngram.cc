@@ -4,25 +4,29 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/anti-ngram.cc,v 1.10 2002/07/18 21:07:03 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: anti-ngram.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
-#include "Vocab.h"
 
+#include "Vocab.h"
 #include "RefList.h"
 #include "NBestSet.h"
 #include "NgramStats.h"
 #include "Ngram.h"
 #include "ClassNgram.h"
+#include "Array.cc"
 
+static int version = 0;
 static int order = 3;
 static char *vocabFile = 0;
 static char *lmFile = 0;
@@ -40,11 +44,13 @@ static unsigned maxNbest = 0;
 
 static char *readCounts = 0;
 static char *writeCounts = 0;
-static int sort = 0;
+static double minCount = 0.0;
+static int sortNgrams = 0;
 static int allNgrams = 0;
 static unsigned debug = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "refs", &refFile, "reference transcripts" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of training Nbest files" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
@@ -60,7 +66,8 @@ static Option options[] = {
     { OPT_TRUE, "all-ngrams", &allNgrams, "include reference ngrams" },
     { OPT_STRING, "read-counts", &readCounts, "read N-gram stats from file" },
     { OPT_STRING, "write-counts", &writeCounts, "write N-gram stats to file" },
-    { OPT_TRUE, "sort", &sort, "sort ngrams output" },
+    { OPT_FLOAT, "min-count", &minCount, "prune counts below this value" },
+    { OPT_TRUE, "sort", &sortNgrams, "sort ngrams output" },
     { OPT_UINT, "debug", &debug, "debugging level" },
 };
 
@@ -73,8 +80,7 @@ void
 addStats(NgramCounts<DiscNgramCount> &stats,
          NgramCounts<DiscNgramCount> &add, NgramStats &exclude)
 {
-    VocabIndex *ngram = new VocabIndex[order + 1];
-    assert(ngram);
+    makeArray(VocabIndex, ngram, order + 1);
 
     for (unsigned i = 1; i <= order; i++) {
 	DiscNgramCount *count;
@@ -89,8 +95,6 @@ addStats(NgramCounts<DiscNgramCount> &stats,
 	    }
 	}
     }
-
-    delete [] ngram;
 }
 
 /*
@@ -103,8 +107,8 @@ makeSentence(VocabIndex *words, Vocab &vocab)
     static VocabIndex buffer[maxWordsPerLine + 3];
     unsigned j = 0;
 
-    if (words[0] != vocab.ssIndex) {
-	buffer[j++] = vocab.ssIndex;
+    if (words[0] != vocab.ssIndex()) {
+	buffer[j++] = vocab.ssIndex();
     }
 
     unsigned i;
@@ -113,8 +117,8 @@ makeSentence(VocabIndex *words, Vocab &vocab)
 
 	buffer[j++] = words[i];
     }
-    if (buffer[j-1] != vocab.seIndex) {
-	buffer[j++] = vocab.seIndex;
+    if (buffer[j-1] != vocab.seIndex()) {
+	buffer[j++] = vocab.seIndex();
     }
     buffer[j] = Vocab_None;
 
@@ -181,6 +185,11 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     if (!nbestFiles) {
 	cerr << "cannot proceed without nbest files\n";
 	exit(2);
@@ -196,7 +205,7 @@ main(int argc, char **argv)
 
     Vocab vocab;
 
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     RefList refs(vocab);
 
@@ -279,12 +288,19 @@ main(int argc, char **argv)
 	}
     }
 
+    /*
+     * prune counts if specified
+     */
+    if (minCount > 0.0) {
+	trainStats.pruneCounts(minCount);
+    }
+
     if (writeCounts) {
 	File file(writeCounts, "w");
-	trainStats.write(file, 0, sort);
+	trainStats.write(file, 0, sortNgrams);
     } else {
 	File file(stdout);
-	trainStats.write(file, 0, sort);
+	trainStats.write(file, 0, sortNgrams);
     }
 
     exit(0);

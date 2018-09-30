@@ -1,0 +1,4 @@
+
+. Do a better jobs distributing time and acoustic information when 
+   splitting multiwords.
+. Write lattice score optimizer

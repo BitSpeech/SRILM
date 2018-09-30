@@ -1,5 +1,5 @@
-.\" $Id: disambig.1,v 1.22 2003/01/28 17:36:50 stolcke Exp $
-.TH disambig 1 "$Date: 2003/01/28 17:36:50 $" "SRILM Tools"
+.\" $Id: disambig.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $
+.TH disambig 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 disambig \- disambiguate text tokens using an N-gram model
 .SH SYNOPSIS
@@ -18,9 +18,16 @@ the highest posterior probability given the V1 sequence.
 This probability is computed from pairwise conditional probabilities P(V1|V2),
 as well as a language model for sequences over V2.
 .SH OPTIONS
+.PP
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-text " file"
 Specifies the file containing the V1 sentences.
@@ -70,6 +77,12 @@ lines of the form
 .br
 	<s>	<s>
 .br
+.TP
+.BR \-classes " file"
+Specifies the V1-to-V2 mapping information in 
+.BR classes-format (5).
+Class labels are interpreted as V2 words, and expansions as V1 words.
+Multi-word expansions are not allowed.
 .TP
 .B \-scale
 Interpret the numbers in the mapping as P(\fIw21\fP|\fIw1\fP).
@@ -179,6 +192,14 @@ is the rank of the hypothesis in the N-best list and
 its score, the negative log of the combined probability of transitions
 and observations of the corresponding HMM path.
 .TP
+.BI \-write-counts " file"
+Outputs the V2-V1 bigram counts corresponding to the tagging performed on
+the input data.
+If 
+.B \-fb
+was specified these are expected counts, and otherwise they reflect the 1-best
+tagging decisions.
+.TP
 .BI \-write-vocab1 " file"
 Writes the input vocabulary from the map (V1) to
 .IR file .
@@ -206,10 +227,11 @@ options effectively disable
 .BR \-keep-unk ,
 i.e., unknown input words are always mapped to <unk>.
 .SH "SEE ALSO"
-ngram-count(1), hidden-ngram(1), training-scripts(1), ngram-format(5).
+ngram-count(1), hidden-ngram(1), training-scripts(1),
+ngram-format(5), classes-format(5).
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>,
 .br
 Anand Venkataraman <anand@speech.sri.com>.
 .br
-Copyright 1995\-2002 SRI International
+Copyright 1995\-2004 SRI International

@@ -6,7 +6,7 @@
 #
 # usage: uniform-clases CLASSFILE > UNIFORM-CLASSFILE
 #
-# $Header: /home/srilm/devel/utils/src/RCS/uniform-classes,v 1.1 1999/09/27 01:17:14 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/uniform-classes.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -43,7 +43,7 @@ BEGIN {
 }
 
 END {
-    print "read " num_class_defs " class expansions" > "/dev/stderr";
+    print "read " num_class_defs " class expansions" >> "/dev/stderr";
 
     # assign default expansion probs
 

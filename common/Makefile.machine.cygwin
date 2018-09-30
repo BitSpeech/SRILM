@@ -9,13 +9,16 @@
 #
 #    Copyright (c) 1999-2002 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.cygwin,v 1.4 2003/02/27 18:25:11 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.cygwin,v 1.10 2006/01/05 20:25:44 stolcke Exp $
 #
 
    # Use the GNU C compiler.
    GCC_FLAGS = -Wreturn-type -Wimplicit
-   CC = gcc $(GCC_FLAGS)
-   CXX = g++ -Wno-deprecated $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   CC = gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+
+   # suffix used for executable files
+   EXE_SUFFIX = .exe
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O2
@@ -55,6 +58,9 @@
    # No ranlib
    RANLIB = :
 
+   # Not needed
+   DEMANGLE_FILTER =
+
    # Generate dependencies from source files.
    GEN_DEP = $(CC) $(CFLAGS) -MM
 
@@ -67,3 +73,5 @@
    # Location of gawk binary
    GAWK = /usr/bin/gawk
 
+   # Location of perl binary
+   PERL = /usr/bin/perl

@@ -6,17 +6,19 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.cc,v 1.2 2001/05/21 17:13:51 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.cc,v 1.4 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 
 #include "VocabMultiMap.h"
 
+#include "Array.cc"
 #include "Map2.cc"
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_MAP2(VocabIndex,const VocabIndex *,Prob);
@@ -82,7 +84,7 @@ VocabMultiMap::read(File &file)
 	    startWords = 1;
 	}
 
-	VocabIndex mappedWords[howmany];
+	makeArray(VocabIndex, mappedWords, howmany);
 	vocab2.addWords(&words[startWords], mappedWords, howmany);
 
 	*(map.insert(w1, mappedWords)) = prob;
@@ -116,7 +118,7 @@ VocabMultiMap::write(File &file)
 	    }
 
 	    unsigned numWords = Vocab::length(w2);
-	    VocabString mappedWords[numWords + 1];
+	    makeArray(VocabString, mappedWords, numWords + 1);
 	    vocab2.getWords(w2, mappedWords, numWords + 1);
 
 	    Vocab::write(file, mappedWords);

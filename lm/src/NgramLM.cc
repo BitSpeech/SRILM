@@ -5,17 +5,19 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramLM.cc,v 1.82 2003/02/15 08:10:44 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramLM.cc,v 1.92 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <new>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
-#include <new.h>
 
 #include "Ngram.h"
 #include "File.h"
+#include "Array.cc"
 
 #ifdef USE_SARRAY
 
@@ -73,7 +75,7 @@ Ngram::memStats(MemStats &stats)
      * The probs tables are not included in the above call,
      * so we have to count those separately.
      */
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     for (int i = 1; i <= order; i++) {
 	NgramBOsIter iter(*this, context, i - 1);
@@ -87,7 +89,7 @@ Ngram::memStats(MemStats &stats)
 }
 
 Ngram::Ngram(Vocab &vocab, unsigned neworder)
-    : LM(vocab), order(neworder), skipOOVs(false), trustTotals(false)
+    : LM(vocab), order(neworder), _skipOOVs(false), _trustTotals(false)
 {
     if (order < 1) {
 	order = 1;
@@ -203,7 +205,7 @@ Ngram::removeProb(VocabIndex word, const VocabIndex *context)
 void
 Ngram::clear()
 {
-    VocabIndex context[order];
+    makeArray(VocabIndex, context, order);
 
     BOnode *node;
 
@@ -349,15 +351,15 @@ Ngram::wordProb(VocabIndex word, const VocabIndex *context)
 {
     unsigned int clen = Vocab::length(context);
 
-    if (skipOOVs) {
+    if (skipOOVs()) {
 	/*
 	 * Backward compatibility with the old broken perplexity code:
 	 * return prob 0 if any of the context-words have an unknown
 	 * word.
 	 */
-	if (word == vocab.unkIndex ||
-	    order > 1 && context[0] == vocab.unkIndex ||
-	    order > 2 && context[2] == vocab.unkIndex)
+	if (word == vocab.unkIndex() ||
+	    order > 1 && context[0] == vocab.unkIndex() ||
+	    order > 2 && context[1] == vocab.unkIndex())
 	{
 	    return LogP_Zero;
 	}
@@ -641,12 +643,12 @@ Ngram::read(File &file, Boolean limitVocab)
 				    << &words[1] << "\"\n";
 		} else {
 		    if (!warnedAboutUnk &&
-			wids[0] == vocab.unkIndex &&
+			wids[0] == vocab.unkIndex() &&
 			prob != LogP_Zero &&
-		    	!vocab.unkIsWord)
+		    	!vocab.unkIsWord())
 		    {
 			file.position() << "warning: non-zero probability for "
-			                << vocab.getWord(vocab.unkIndex)
+			                << vocab.getWord(vocab.unkIndex())
 			                << " in closed-vocabulary LM\n";
 			warnedAboutUnk = true;
 		    }
@@ -746,7 +748,7 @@ Ngram::numNgrams(unsigned int order)
     } else {
 	unsigned int howmany = 0;
 
-	VocabIndex context[order + 1];
+	makeArray(VocabIndex, context, order + 1);
 
 	NgramBOsIter iter(*this, context, order - 1);
 	BOnode *node;
@@ -771,7 +773,8 @@ Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
      * thing. Good Turing discounting with the specified min and max counts
      * for all orders.
      */
-    Discount *discounts[order];
+    Discount **discounts = new Discount *[order];
+    assert(discounts != 0);
     unsigned i;
     Boolean error = false;
 
@@ -803,6 +806,8 @@ Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
     for (i = 1; i <= order; i++) {
 	delete discounts[i-1];
     }
+    delete [] discounts;
+
     return !error;
 }
 
@@ -839,7 +844,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
      * For all ngrams, compute probabilities and apply the discount
      * coefficients.
      */
-    VocabIndex context[order];
+    makeArray(VocabIndex, context, order);
     unsigned vocabSize = Ngram::vocabSize();
 
     /*
@@ -851,9 +856,9 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
      * Ensure <s> unigram exists (being a non-event, it is not inserted
      * in distributeProb(), yet is assumed by much other software).
      */
-    if (vocab.ssIndex != Vocab_None) {
+    if (vocab.ssIndex() != Vocab_None) {
 	context[0] = Vocab_None;
-	*insertProb(vocab.ssIndex, context) = LogP_Zero;
+	*insertProb(vocab.ssIndex(), context) = LogP_Zero;
     }
 
     for (unsigned i = 1; i <= order; i++) {
@@ -895,9 +900,9 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	     * If <unk> is not real word, also skip context that contain
 	     * it.
 	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex ||
-	        vocab.isNonEvent(vocab.unkIndex) &&
-				 vocab.contains(context, vocab.unkIndex))
+	    if (i > 1 && context[i-2] == vocab.seIndex() ||
+	        vocab.isNonEvent(vocab.unkIndex()) &&
+				 vocab.contains(context, vocab.unkIndex()))
 	    {
 		noneventContexts ++;
 		continue;
@@ -963,7 +968,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 		}
 	    }
 
-	    if (i > 1 && trustTotals) {
+	    if (i > 1 && trustTotals()) {
 		totalCount = *contextCount;
 	    }
 
@@ -1010,7 +1015,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 		     * detection when the model is read back in.
 		     */
 		    if (i > 1 ||
-			word[0] == vocab.unkIndex ||
+			word[0] == vocab.unkIndex() ||
 			vocab.isMetaTag(word[0]))
 		    {
 			noneventNgrams ++;
@@ -1053,7 +1058,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 			if (i > 1) {
 			    lowerOrderProb = wordProbBO(word[0], context, i-2);
 			} else {
-			    lowerOrderProb = - log10(vocabSize);
+			    lowerOrderProb = - log10((double)vocabSize);
 			}
 
 			prob += lowerOrderWeight * LogPtoProb(lowerOrderProb);
@@ -1103,7 +1108,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	    if (!noDiscount && totalCount > 0 &&
 		totalProb > 1.0 - Prob_Epsilon)
 	    {
-		totalCount ++;
+		totalCount += 1;
 
 		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
 		    cerr << "warning: " << (1.0 - totalProb)
@@ -1174,7 +1179,7 @@ Ngram::estimate(NgramCounts<FloatCount> &stats, Discount **discounts)
 void
 Ngram::mixProbs(Ngram &lm2, double lambda)
 {
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     /*
      * In destructive merging we need to process the longer ngrams first
@@ -1228,7 +1233,7 @@ Ngram::mixProbs(Ngram &lm2, double lambda)
 void
 Ngram::mixProbs(Ngram &lm1, Ngram &lm2, double lambda)
 {
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     for (unsigned i = 0; i < order; i++) {
 	BOnode *node;
@@ -1316,7 +1321,7 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 	denominator = 0.0;
     }
 
-    if (denominator == 0.0 && numerator > 0) {
+    if (denominator == 0.0 && numerator > Prob_Epsilon) {
 	/* 
 	 * Backoff distribution has no probability left.  To avoid wasting
 	 * probability mass scale the N-gram probabilities to sum to 1.
@@ -1371,7 +1376,7 @@ Ngram::computeBOWs(unsigned order)
      * this is precisely as it should be.
      */
     BOnode *node;
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     NgramBOsIter iter1(*this, context, order);
     
@@ -1432,36 +1437,6 @@ Ngram::recomputeBOWs()
 }
 
 /*
- * Compute the marginal probability of an N-gram context
- *	(This is very similar to sentenceProb(), but doesn't assume sentence
- *	start/end and treat the <s> context specially.)
- */
-LogP
-Ngram::computeContextProb(const VocabIndex *context)
-{
-    unsigned clen = Vocab::length(context);
-
-    LogP prob = LogP_One;
-
-    for (unsigned i = clen; i > 0; i --) {
-	VocabIndex word = context[i - 1];
-
-	/*
-	 * If we're computing the marginal probability of the unigram
-	 * <s> context we have to lookup </s> instead since the former
-	 * has prob = 0 in an N-gram model.
-	 */
-	if (i == clen && word == vocab.ssIndex) {
-	    word = vocab.seIndex;
-	}
-
-	prob += wordProbBO(word, &context[i], clen - i);
-    }
-
-    return prob;
-}
-
-/*
  * Prune probabilities from model so that the change in training set perplexity
  * is below a threshold.
  * The minorder parameter limits pruning to ngrams of that length and above.
@@ -1473,7 +1448,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
      * Hack alert: allocate the context buffer for NgramBOsIter, but leave
      * room for a word id to be prepended.
      */
-    VocabIndex wordPlusContext[order + 2];
+    makeArray(VocabIndex, wordPlusContext, order + 2);
     VocabIndex *context = &wordPlusContext[1];
 
     for (unsigned i = order - 1; i > 0 && i >= minorder - 1; i--) {
@@ -1498,7 +1473,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 	    /*
 	     * Compute the marginal probability of the context, P(h)
 	     */
-	    LogP contextProb = computeContextProb(context);
+	    LogP cProb = contextProb(context, i);
 
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
@@ -1530,7 +1505,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 		 * numerator in BOW(h).
 		 */
 		LogP deltaProb = backoffProb + newBOW - *ngramProb;
-		Prob deltaEntropy = - LogPtoProb(contextProb) *
+		Prob deltaEntropy = - LogPtoProb(cProb) *
 					(LogPtoProb(*ngramProb) * deltaProb +
 					 numerator * (newBOW - bow));
 
@@ -1563,7 +1538,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 		if (debug(DEBUG_ESTIMATES)) {
 		    dout() << "CONTEXT " << (vocab.use(), context)
 			   << " WORD " << vocab.getWord(word)
-			   << " CONTEXTPROB " << contextProb
+			   << " CONTEXTPROB " << cProb
 			   << " OLDPROB " << *ngramProb
 			   << " NEWPROB " << (backoffProb + newBOW)
 			   << " DELTA-H " << deltaEntropy
@@ -1613,7 +1588,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 void
 Ngram::pruneLowProbs(unsigned minorder)
 {
-    VocabIndex context[order];
+    makeArray(VocabIndex, context, order);
 
     Boolean havePruned;
     
@@ -1674,6 +1649,36 @@ Ngram::pruneLowProbs(unsigned minorder)
     fixupProbs();
 }
 
+/* 
+ * Reassign ngram probabilities using a different LM
+ */
+void
+Ngram::rescoreProbs(LM &lm)
+{
+    makeArray(VocabIndex, context, order + 1);
+
+    for (int i = order - 1; i >= 0 ; i--) {
+	BOnode *node;
+	NgramBOsIter iter(*this, context, i);
+	
+	/*
+	 * Enumerate all explicit ngram probs in *this, and recompute their
+	 * probs using the supplied LM.
+	 */
+	while (node = iter.next()) {
+	    NgramProbsIter piter(*node);
+	    VocabIndex word;
+	    LogP *prob;
+
+	    while (prob = piter.next(word)) {
+		*prob = lm.wordProb(word, context);
+	    }
+	}
+    }
+
+    recomputeBOWs();
+}
+
 /*
  * Insert probabilities for all context ngrams
  *
@@ -1685,7 +1690,7 @@ Ngram::pruneLowProbs(unsigned minorder)
 void
 Ngram::fixupProbs()
 {
-    VocabIndex context[order + 1];
+    makeArray(VocabIndex, context, order + 1);
 
     /*
      * we cannot insert entries into the context trie while we're

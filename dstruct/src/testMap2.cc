@@ -1,7 +1,7 @@
 //
 // Interactive testing for Map2 datastructure
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/testMap2.cc,v 1.2 1999/10/12 07:00:58 stolcke Exp $
+// $Header: /home/srilm/devel/dstruct/src/RCS/testMap2.cc,v 1.3 2003/03/05 00:54:09 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -172,12 +172,12 @@ Quit(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 extern "C" int
 Tcl_AppInit(Tcl_Interp *interp)
 {
-   Tcl_CreateCommand(interp, "find", Find, 0, NULL);
-   Tcl_CreateCommand(interp, "insert", Insert, 0, NULL);
-   Tcl_CreateCommand(interp, "delete", Delete, 0, NULL);
-   Tcl_CreateCommand(interp, "delrow", DeleteRow, 0, NULL);
-   Tcl_CreateCommand(interp, "list", List, 0, NULL);
-   Tcl_CreateCommand(interp, "quit", Quit, 0, NULL);
+   Tcl_CreateCommand(interp, "find", (Tcl_CmdProc *)Find, 0, NULL);
+   Tcl_CreateCommand(interp, "insert", (Tcl_CmdProc *)Insert, 0, NULL);
+   Tcl_CreateCommand(interp, "delete", (Tcl_CmdProc *)Delete, 0, NULL);
+   Tcl_CreateCommand(interp, "delrow", (Tcl_CmdProc *)DeleteRow, 0, NULL);
+   Tcl_CreateCommand(interp, "list", (Tcl_CmdProc *)List, 0, NULL);
+   Tcl_CreateCommand(interp, "quit", (Tcl_CmdProc *)Quit, 0, NULL);
 
    return 0;
 }

@@ -5,11 +5,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998, 2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.5 2002/11/01 21:04:59 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2003 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.9 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -21,12 +22,17 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.
 INSTANTIATE_LHASH(RefString, VocabIndex *);
 #endif
 
+#include "Array.cc"
+#ifdef INSTANTIATE_TEMPLATES
+INSTANTIATE_ARRAY(VocabIndex *);
+#endif
+
 /*
  * List of known filename suffixes that can be stripped to infer 
  * utterance ids.
  */
 static char *suffixes[] = {
-	".Z", ".gz", ".score", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", 0
+    ".Z", ".gz", ".score", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", 0
 };
 
 /*
@@ -66,19 +72,15 @@ idFromFilename(const char *filename)
     return result;
 }
 
-RefList::RefList(Vocab &vocab)
-    : vocab(vocab)
+RefList::RefList(Vocab &vocab, Boolean haveIDs)
+    : vocab(vocab), haveIDs(haveIDs)
 {
 }
 
 RefList::~RefList()
 {
-    LHashIter<RefString, VocabIndex *> iter(reflist);
-
-    RefString id;
-    VocabIndex **words;
-    while (words = iter.next(id)) {
-	delete [] *words;
+    for (unsigned i = 0; i < refarray.size(); i++) {
+	delete [] refarray[i];
     }
 }
 
@@ -96,19 +98,24 @@ RefList::read(File &file, Boolean addWords)
 	    continue;
 	}
 
-	VocabIndex *wids = new VocabIndex[nWords + 1];
+	VocabIndex *wids = new VocabIndex[nWords + 2];
 	assert(wids != 0);
 
 	if (addWords) {
-	    vocab.addWords(words + 1, wids, nWords + 1);
+	    vocab.addWords(haveIDs ? words + 1 : words, wids, nWords + 2);
 	} else {
-	    vocab.getIndices(words + 1, wids, nWords + 1, vocab.unkIndex);
+	    vocab.getIndices(haveIDs ? words + 1: words, wids, nWords + 2,
+							    vocab.unkIndex());
 	}
 
-	VocabIndex **oldWids = reflist.insert((RefString)words[0]);
-	delete [] *oldWids;
+	refarray[refarray.size()] = wids;
 
-	*oldWids = wids;
+	if (haveIDs) {
+	    VocabIndex **oldWids = reflist.insert((RefString)words[0]);
+	    delete [] *oldWids;
+
+	    *oldWids = wids;
+	}
     }
 
     return true;
@@ -117,18 +124,34 @@ RefList::read(File &file, Boolean addWords)
 Boolean
 RefList::write(File &file)
 {
-    LHashIter<RefString, VocabIndex *> iter(reflist, strcmp);
+    if (haveIDs) {
+	/* 
+	 * Output sorted by ID
+	 */
+	LHashIter<RefString, VocabIndex *> iter(reflist, strcmp);
 
-    RefString id;
-    VocabIndex **wids;
+	RefString id;
+	VocabIndex **wids;
 
-    while (wids = iter.next(id)) {
-	VocabString words[maxWordsPerLine + 1];
-	vocab.getWords(*wids, words, maxWordsPerLine + 1);
+	while (wids = iter.next(id)) {
+	    VocabString words[maxWordsPerLine + 1];
+	    vocab.getWords(*wids, words, maxWordsPerLine + 1);
 
-	fprintf(file, "%s ", id);
-	Vocab::write(file, words);
-	fprintf(file, "\n");
+	    fprintf(file, "%s ", id);
+	    Vocab::write(file, words);
+	    fprintf(file, "\n");
+	}
+    } else {
+	/*
+	 * Output in read order
+	 */
+	for (unsigned i = 0; i < refarray.size(); i++) {
+	    VocabString words[maxWordsPerLine + 1];
+	    vocab.getWords(refarray[i], words, maxWordsPerLine + 1);
+
+	    Vocab::write(file, words);
+	    fprintf(file, "\n");
+	}
     }
 
     return true;
@@ -141,6 +164,16 @@ RefList::findRef(RefString id)
 
     if (wids) {
 	return *wids;
+    } else {
+	return 0;
+    }
+}
+
+VocabIndex *
+RefList::findRefByNumber(unsigned id)
+{
+    if (id < refarray.size()) {
+	return refarray[id];
     } else {
 	return 0;
     }

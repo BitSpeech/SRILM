@@ -6,10 +6,11 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/CacheLM.cc,v 1.5 1997/02/26 16:02:12 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/CacheLM.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
 
@@ -70,7 +71,7 @@ CacheLM::wordProb(VocabIndex word, const VocabIndex *context)
     /*
      * We don't cache unknown words unless <unk> is treated as a regular word.
      */
-    if (word == vocab.unkIndex && !vocab.unkIsWord) {
+    if (word == vocab.unkIndex() && !vocab.unkIsWord()) {
 	return LogP_Zero;
     }
 

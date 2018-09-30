@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.17 2002/07/20 18:34:15 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.19 2003/08/03 23:15:54 stolcke Exp $
  *
  */
 
@@ -106,7 +106,7 @@ public:
     Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
 	{ return false; };
 
-private:
+protected:
     Count minCount;		    /* counts below this are set to 0 */
     Count maxCount;		    /* counts above this are unchanged */
 
@@ -145,7 +145,7 @@ public:
     Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
       { return true; }	    /* allow fractional count discounting */
 
-private:
+protected:
     double _discount;		    /* the discounting constant */
     double _mincount;		    /* minimum count to retain */
 };
@@ -168,7 +168,7 @@ public:
     Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order) 
        { return false; };
 
-private:
+protected:
     unsigned vocabSize;		    /* vocabulary size */
     double _mincount;		    /* minimum count to retain */
 };
@@ -204,20 +204,61 @@ public:
     Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
       { return true; } ;
 	
-private:
+protected:
     double _mincount;		    /* minimum count to retain */
 };
+
+/*
+ * KneserNey --
+ *	Regular Kneser-Ney discounting
+ */
+class KneserNey: public Discount
+{
+public:
+    KneserNey(unsigned mincount = 0, 
+	      Boolean countsAreModified = false,
+	      Boolean prepareCountsAtEnd = false)
+      : minCount(mincount), countsAreModified(countsAreModified),
+	discount1(0.0),
+	prepareCountsAtEnd(prepareCountsAtEnd) {};
+
+    virtual double discount(Count count, Count totalCount, Count observedVocab);
+    virtual double lowerOrderWeight(Count totalCount, Count observedVocab,
+					    Count min2Vocab, Count min3Vocab);
+    virtual Boolean nodiscount() { return false; };
+
+    virtual void write(File &file);
+    virtual Boolean read(File &file);
+
+    virtual Boolean estimate(NgramStats &counts, unsigned order);
+    virtual Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
+	{ return false; };
+
+    virtual void prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
+							    unsigned maxOrder);
+
+protected:
+    Count minCount;		/* counts below this are set to 0 */
+
+    double discount1;		/* discounting constant */
+
+    Boolean countsAreModified;	/* low-order counts are already modified */
+    Boolean prepareCountsAtEnd;	/* should we modify counts after computing D */
+};
+
 
 /*
  * ModKneserNey --
  *	Modified Kneser-Ney discounting (Chen & Goodman 1998)
  */
-class ModKneserNey: public Discount
+class ModKneserNey: public KneserNey
 {
 public:
-    ModKneserNey(unsigned mincount = 0, Boolean countsAreModified = false)
-      : minCount(mincount), countsAreModified(countsAreModified),
-	discount1(0.0), discount2(0.0), discount3plus(0.0) {};
+    ModKneserNey(unsigned mincount = 0, 
+		 Boolean countsAreModified = false,
+		 Boolean prepareCountsAtEnd = false)
+      : KneserNey(mincount, countsAreModified, prepareCountsAtEnd),
+	discount2(0.0), discount3plus(0.0) {};
 
     double discount(Count count, Count totalCount, Count observedVocab);
     double lowerOrderWeight(Count totalCount, Count observedVocab,
@@ -231,17 +272,9 @@ public:
     Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
 	{ return false; };
 
-    void prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
-							unsigned maxOrder);
-
-private:
-    Count minCount;		    /* counts below this are set to 0 */
-
-    double discount1;		    /* discounting constants */
-    double discount2;
+protected:
+    double discount2;		    /* additional discounting constants */
     double discount3plus;
-
-    Boolean countsAreModified;	    /* low-order counts are already modified */
 };
 
 #endif /* _Discount_h_ */

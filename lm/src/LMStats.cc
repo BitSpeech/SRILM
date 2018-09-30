@@ -6,11 +6,12 @@
 
 #ifndef lint
 static char LMStats_Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LMStats.cc,v 1.10 1999/08/01 09:13:41 stolcke Exp $";
+static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LMStats.cc,v 1.11 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <string.h>
-#include <iostream.h>
 
 #include "File.h"
 #include "LMStats.h"

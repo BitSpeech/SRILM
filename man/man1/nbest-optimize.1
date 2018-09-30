@@ -1,5 +1,5 @@
-.\" $Id: nbest-optimize.1,v 1.11 2002/02/23 23:12:29 stolcke Exp $
-.TH nbest-optimize 1 "$Date: 2002/02/23 23:12:29 $" "SRILM Tools"
+.\" $Id: nbest-optimize.1,v 1.18 2005/07/04 17:04:14 stolcke Exp $
+.TH nbest-optimize 1 "$Date: 2005/07/04 17:04:14 $" "SRILM Tools"
 .SH NAME
 nbest-optimize \- optimize score combination for N-best word error minimization
 .SH SYNOPSIS
@@ -61,14 +61,17 @@ The weights obtained are meant to be used for N-best list rescoring with
 .B rescore-reweight
 (see 
 .BR nbest-scripts (1)).
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-debug " level"
 Controls the amount of output (the higher the
@@ -99,6 +102,14 @@ path, minus any suffixes) followed by zero or more reference words.
 .B \-1best
 Select optimization for standard sentence-level hypothesis selection.
 .TP
+.B \-1best-first
+Optimized first using 
+.B \-1best
+mode, then switch to full optimization.
+This is an effective way to quickly bring the score weights near an
+optimal point, and then fine-tune them jointly with the posterior scale
+parameter.
+.TP
 .BI \-errors " dir"
 In 1-best mode, optimize for error counts that are stored in separate files
 in directory
@@ -108,10 +119,9 @@ basename in
 .IR dir .
 Each file contains 7 columns of numbers in the format
 .br
-	wcr wer nerr nsub ndel nins nw
+	wcr wer nsub ndel nins nerr nw
 .br
-Only the 3rd column (number of errors) and the last column (number of
-reference  words) is used by the program.
+Only the last two columns (number of errors and words, respectively) are used.
 .br
 If this option is omitted, errors will be computed from the N-best hypotheses
 and the reference transcripts.
@@ -140,6 +150,14 @@ The default value is whatever was chosen for
 .BR \-rescore-lmw , 
 so that language model scores are scaled to have weight 1,
 and acoustic scores have weight 1/\fIlmw\fP.
+.TP
+.B \-combine-linear
+Compute aggregate scores by linear combination, rather than log-linear
+combination.
+(This is appropriate if the input scores represent log-posterior probabilities.)
+.TP
+.B \-non-negative
+Constrain search to non-negative weight values.
 .TP
 .BI \-vocab " file"
 Read the N-best list vocabulary from 
@@ -175,6 +193,14 @@ Read several noise tags from
 .IR file ,
 instead of, or in addition to, the single noise tag specified by
 .BR \-noise .
+.TP
+.BR \-hidden-vocab " file"
+Read a subvocabulary from
+.I file
+and constrain word alignments to only group those words that are either all
+in or outside the subvocabulary.
+This may be used to keep ``hidden event'' tags from aligning with
+regular words.
 .TP
 .BI \-init-lambdas " 'w1 w2 ...'"
 Initialize the score weights to the values specified
@@ -234,6 +260,11 @@ The default is to search until
 searches give the same results, where
 .I D 
 is the dimensionality of the problem.
+.TP
+.BI \-max-time " T"
+Abort search if new lower-error point isn't found in 
+.I T
+seconds.
 .TP
 .BI \-epsilon-stepdown " s"
 .TP
@@ -311,7 +342,12 @@ W. H. Press, B. P. Flannery, S. A. Teukolsky, & W. T. Vetterling,
 Cambridge University Press, 1988.
 .br
 .SH BUGS
-Gradient-based optimization is not supported (yet) in 1-best mode;
+Gradient-based optimization is not supported (yet) in 1-best mode
+or in conjunction with the 
+.B \-combine-linear
+or 
+.B \-non-negative
+options;
 use simplex-search optimization instead.
 .br
 The N-best directory in the control file output by
@@ -326,4 +362,4 @@ Andreas Stolcke <stolcke@speech.sri.com>
 .br
 Dimitra Vergyri <dverg@speech.sri.com>
 .br
-Copyright 2000-2002 SRI International
+Copyright 2000\-2005 SRI International

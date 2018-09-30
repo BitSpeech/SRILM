@@ -4,11 +4,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SimpleClassNgram.cc,v 1.4 2002/08/25 17:27:45 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2002,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SimpleClassNgram.cc,v 1.6 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 
 #include "SimpleClassNgram.h"
@@ -93,7 +94,7 @@ SimpleClassNgram::contextID(VocabIndex word, const VocabIndex *context,
 	    replaceWithClass(word, wordClass);
 	}
 
-	VocabIndex classes[vocab.length(context) + 1];
+	makeArray(VocabIndex, classes, vocab.length(context) + 1);
 	replaceWithClass(context, classes, order - 1);
 
 	return Ngram::contextID(wordClass, classes, length);
@@ -106,7 +107,7 @@ SimpleClassNgram::contextBOW(const VocabIndex *context, unsigned length)
     if (simpleNgram) {
 	return Ngram::contextBOW(context, length);
     } else {
-	VocabIndex classes[vocab.length(context) + 1];
+	makeArray(VocabIndex, classes, vocab.length(context) + 1);
 	replaceWithClass(context, classes, order - 1);
 
 	return Ngram::contextBOW(classes, length);
@@ -168,7 +169,7 @@ SimpleClassNgram::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	Boolean wasSimpleNgram = simpleNgram;
 
 	unsigned len = vocab.length(sentence);
-	VocabIndex classes[len + 1];
+	makeArray(VocabIndex, classes, len + 1);
 	LogP xprob = replaceWithClass(sentence, classes, len);
 
 	simpleNgram = true;

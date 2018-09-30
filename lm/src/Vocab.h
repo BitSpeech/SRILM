@@ -76,16 +76,17 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.28 2002/08/24 20:45:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.34 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _Vocab_h_
 #define _Vocab_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "Boolean.h"
 #include "File.h"
@@ -94,8 +95,11 @@
 #include "Array.h"
 #include "MemStats.h"
 
+#ifdef USE_SHORT_VOCAB
+typedef unsigned short	VocabIndex;
+#else
 typedef unsigned int	VocabIndex;
-/* typedef unsigned short	VocabIndex; */
+#endif
 typedef const char	*VocabString;
 
 const unsigned int	maxWordLength = 256;
@@ -115,11 +119,11 @@ class Vocab
     friend class VocabIter;
 
 public:
-    Vocab(VocabIndex start = 0, VocabIndex end = 0x7fffffff);
+    Vocab(VocabIndex start = 0, VocabIndex end = (Vocab_None-1));
     virtual ~Vocab() {};
 
     virtual VocabIndex addWord(VocabString name);
-    virtual VocabString getWord(VocabIndex index) const;
+    virtual VocabString getWord(VocabIndex index);
     virtual VocabIndex getIndex(VocabString name,
 				    VocabIndex unkIndex = Vocab_None);
     virtual void remove(VocabString name);
@@ -130,14 +134,16 @@ public:
     /*
      * Special (pseudo-) vocabulary tokens
      */
-    VocabIndex unkIndex;		/* <unk> index */
-    VocabIndex ssIndex;			/* <s> index */
-    VocabIndex seIndex;			/* </s> index */
-    VocabIndex pauseIndex;		/* -pau- index */
+    virtual VocabIndex &unkIndex() { return _unkIndex; };  /* <unk> index */
+    virtual VocabIndex &ssIndex() { return _ssIndex; };	   /* <s> index */
+    virtual VocabIndex &seIndex() { return _seIndex; };	   /* </s> index */
+    virtual VocabIndex &pauseIndex() { return _pauseIndex; }; /* -pau- index */
 
-    Boolean unkIsWord;			/* consider <unk> a regular word */
+    virtual Boolean &unkIsWord() { return _unkIsWord; };
+					/* consider <unk> a regular word */
 
-    Boolean toLower;			/* map word strings to lowercase */
+    virtual Boolean &toLower() { return _toLower; };
+					/* map word strings to lowercase */
 
     /*
      * Some Vocab tokens/indices are "pseudo words", i.e., they don't
@@ -146,13 +152,14 @@ public:
     virtual Boolean isNonEvent(VocabString word)	/* pseudo-word? */
 	{ return isNonEvent(getIndex(word)); };
     virtual Boolean isNonEvent(VocabIndex word) const	/* non-event? */
-	{ return !unkIsWord && (word == unkIndex) ||
+	{ return !_unkIsWord && (word == _unkIndex) ||
 		 nonEventMap.find(word) != 0; };
 
     virtual VocabIndex addNonEvent(VocabIndex word);
     virtual VocabIndex addNonEvent(VocabString name)
 	{ return addNonEvent(addWord(name)); };
     virtual Boolean addNonEvents(Vocab &nonevents);
+    virtual Boolean removeNonEvent(VocabIndex word);
 
     /*
      * Handling of meta-count tags: these are tags that represent a token
@@ -165,7 +172,7 @@ public:
      *	...			...
      *	__META__N		count of word types occurring N times
      */
-    VocabString metaTag;		/* meta-count tag */
+    virtual VocabString &metaTag() { return _metaTag; }; /* meta-count tag */
     Boolean isMetaTag(VocabIndex word)
 	{ return metaTagMap.find(word) != 0; };
     unsigned typeOfMetaTag(VocabIndex word)
@@ -177,7 +184,7 @@ public:
      * Utilities for handling Vocab sequences
      */
     virtual unsigned int getWords(const VocabIndex *wids,
-			  VocabString *words, unsigned int max) const;
+			  VocabString *words, unsigned int max);
     virtual unsigned int addWords(const VocabString *words,
 			  VocabIndex *wids, unsigned int max);
     virtual unsigned int getIndices(const VocabString *words,
@@ -233,6 +240,15 @@ protected:
 						   1	single counts
 						   ...
 						   N	count of count N */
+
+    // hidden data members (accessed through virtual functions
+    VocabIndex _unkIndex;		/* <unk> index */
+    VocabIndex _ssIndex;		/* <s> index */
+    VocabIndex _seIndex;		/* </s> index */
+    VocabIndex _pauseIndex;		/* -pau- index */
+    Boolean _unkIsWord;			/* consider <unk> a regular word */
+    Boolean _toLower;			/* map word strings to lowercase */
+    VocabString _metaTag;		/* meta-count tag */
 };
 
 ostream &operator<< (ostream &, const VocabString *words);
@@ -258,8 +274,14 @@ LHash_hashKey(const VocabIndex *key, unsigned maxBits)
 {
     unsigned i = 0;
 
+    /*
+     * The rationale here is similar to LHash_hashKey(unsigned),
+     * except that we shift more to preserve more of the typical number of
+     * bits in a VocabIndex.  The value was optimized to encoding 3 words
+     * at a time (trigrams).
+     */
     for (; *key != Vocab_None; key ++) {
-	i += *key;
+	i += (i << 12) + *key;
     }
     return LHash_hashKey(i, maxBits);
 }

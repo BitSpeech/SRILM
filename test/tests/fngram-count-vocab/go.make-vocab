@@ -1,0 +1,7 @@
+#!/bin/sh
+
+zcat ../fngram-count/ch_lm_train100.noamp.decomposed.txt.gz | \
+sed 's,:, ,g' | \
+ngram-count -text - -write1 train.1grams -sort
+
+gawk '$2 > 1 { print $1 }' train.1grams > train-gt1.vocab

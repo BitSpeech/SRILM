@@ -9,14 +9,15 @@
 
 #ifndef lint
 static char Map2_Copyright[] = "Copyright (c) 1999,2002 SRI International.  All Rights Reserved.";
-static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.8 2002/07/18 20:59:22 stolcke Exp $";
+static char Map2_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map2.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <new>
+#include <iostream>
+using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <iostream.h>
-#include <new.h>
 
 #include "Map2.h"
 
@@ -75,7 +76,7 @@ Map2<Key1T,Key2T,DataT>::~Map2()
 	/* workaround for buggy gcc 2.8.1 */
 	node->clear(0);
 #else
-	node->~MAP2_INDEX_T();
+	node->~MAP2_INDEX_T<Key2T,DataT>();
 #endif
     }
 }
@@ -168,7 +169,7 @@ Map2<Key1T,Key2T,DataT>::remove(Key1T key1, Boolean &foundP)
 	/* workaround for buggy gcc 2.8.1 */
 	row->clear(0);
 #else
-	row->~MAP2_INDEX_T();
+	row->~MAP2_INDEX_T<Key2T,DataT>();
 #endif
 	sub.remove(key1);
     }
@@ -192,7 +193,7 @@ Map2<Key1T,Key2T,DataT>::clear()
 	/* workaround for buggy gcc 2.8.1 */
 	row->clear(0);
 #else
-	row->~MAP2_INDEX_T();
+	row->~MAP2_INDEX_T<Key2T,DataT>();
 #endif
 	sub.remove(key1);
     }

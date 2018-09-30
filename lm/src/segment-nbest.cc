@@ -6,17 +6,20 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2001 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.cc,v 1.21 2002/10/13 15:40:52 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: segment-nbest.cc,v 1.25 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
+
 #include "Vocab.h"
 #include "NBest.h"
 #include "VocabMap.h"
@@ -29,6 +32,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment-nbest.c
 #define DEBUG_PROGRESS		1
 #define DEBUG_TRANSITIONS	2
 
+static int version = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
@@ -62,6 +66,7 @@ const LogP LogP_PseudoZero = -100;
 static int contextLength = 0;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_UINT, "debug", &debug, "debugging level for lm" },
@@ -138,7 +143,7 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
     Vocab &vocab = lm.vocab;
 
     VocabIndex sContext[2];
-    sContext[0] = vocab.ssIndex;
+    sContext[0] = vocab.ssIndex();
     sContext[1] = Vocab_None;
     VocabIndex *noContext = &sContext[1];
 
@@ -155,7 +160,7 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
 	Boolean isZero = (lm.wordProb(hyp.words[0], leftContext) == LogP_Zero);
 
 	if (bias > 0.0) {
-	    LogP probS = lm.wordProb(vocab.seIndex, leftContext) +
+	    LogP probS = lm.wordProb(vocab.seIndex(), leftContext) +
 			 Z(lm.wordProb(hyp.words[0], sContext));
 	    trellis.setProb(S, probS + logBias);
 	}
@@ -179,7 +184,7 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
 	/*
 	 * Set up the contet for next word prob
 	 */
-	VocabIndex context[contextLength + 1];
+	makeArray(VocabIndex, context, contextLength + 1);
 	unsigned i;
 
 	for (i = 0; i < contextLength && i < pos; i ++) {
@@ -197,15 +202,15 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
 	trellis.update(NOS, NOS, Z(lm.wordProb(hyp.words[pos], context)));
 
 	if (bias > 0.0) {
-	    trellis.update(NOS, S, lm.wordProb(vocab.seIndex, context) +
+	    trellis.update(NOS, S, lm.wordProb(vocab.seIndex(), context) +
 				   Z(lm.wordProb(hyp.words[pos], sContext)));
 
-	    context[1] = vocab.ssIndex;
+	    context[1] = vocab.ssIndex();
 	    context[2] = Vocab_None;
 
 	    trellis.update(S, NOS,
 			Z(lm.wordProb(hyp.words[pos], context)) + logBias);
-	    trellis.update(S, S, lm.wordProb(vocab.seIndex, context) +
+	    trellis.update(S, S, lm.wordProb(vocab.seIndex(), context) +
 			Z(lm.wordProb(hyp.words[pos], sContext)) + logBias);
 	}
 
@@ -225,7 +230,7 @@ segmentHyp(NBestHyp &hyp, const VocabIndex *leftContext, LM &lm,
      * the hyp with their segmentation.
      */
     if (lastState != NOSTATE) {
-	SegmentState segs[len];
+	makeArray(SegmentState, segs, len);
 
 	if (trellis.viterbi(segs, len, lastState) != len) {
 	    cerr << "trellis.viterbi failed\n";
@@ -296,7 +301,7 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
      */
     {
 	VocabIndex context[3];	/* word context from preceding nbest hyp */
-	context[0] = vocab.ssIndex;
+	context[0] = vocab.ssIndex();
 	context[1] = Vocab_None;
 
 	for (unsigned j = 0;
@@ -326,7 +331,7 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     }
 
     for (unsigned i = 1; i < numLists; i ++) {
-	VocabIndex context[contextLength + 1];
+	makeArray(VocabIndex, context, contextLength + 1);
 				/* word context from preceding nbest hyp */
 
 	if (debug >= DEBUG_PROGRESS) {
@@ -381,7 +386,7 @@ forwardNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 			context[0] = Vocab_None;
 		    } else {
 			context[0] = prevHyp.words[prevLen - 1];
-			context[1] = vocab.ssIndex;
+			context[1] = vocab.ssIndex();
 			context[2] = Vocab_None;
 		    }
 		    segmentHyp(hyp, context, lm, NOSscore, Sscore, NOSTATE);
@@ -429,7 +434,7 @@ forwardBackNbest(Array<NBestList *> &nbestLists, Array<char *> &nbestNames,
      */
     {
 	VocabIndex context[3];	/* word context from preceding nbest hyp */
-	context[0] = vocab.ssIndex;
+	context[0] = vocab.ssIndex();
 	context[1] = Vocab_None;
 
 	for (unsigned j = 0;
@@ -452,7 +457,7 @@ forwardBackNbest(Array<NBestList *> &nbestLists, Array<char *> &nbestNames,
     }
 
     for (int i = numLists - 2; i >= 0; i --) {
-	VocabIndex context[contextLength + 1];
+	makeArray(VocabIndex, context, contextLength + 1);
 				/* word context from preceding nbest hyp */
 
 	if (debug >= DEBUG_PROGRESS) {
@@ -514,7 +519,7 @@ forwardBackNbest(Array<NBestList *> &nbestLists, Array<char *> &nbestNames,
 			context[0] = Vocab_None;
 		    } else {
 			context[0] = hyp.words[hypLen - 1];
-			context[1] = vocab.ssIndex;
+			context[1] = vocab.ssIndex();
 			context[2] = Vocab_None;
 		    }
 		    segmentHyp(nextHyp, context, lm, NOSscore, Sscore, NOSTATE);
@@ -581,7 +586,7 @@ forwardBackNbest(Array<NBestList *> &nbestLists, Array<char *> &nbestNames,
      */
     for (h = 0; h < numLists; h ++) {
 	if (writeNbestDir) {
-	    char outputName[strlen(writeNbestDir) + 2 + 256];
+	    makeArray(char, outputName, strlen(writeNbestDir) + 2 + 256);
 
 	    char *rootname = strrchr(nbestNames[h], '/');
 	    if (rootname) {
@@ -618,7 +623,7 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
     Trellis<unsigned> *nbestTrellis =
 			forwardNbest(nbestLists, numLists, lm, lmw, wtw);
 
-    unsigned bestStates[numLists];
+    makeArray(unsigned, bestStates, numLists);
 
     if (nbestTrellis->viterbi(bestStates, numLists) != numLists) {
 	cerr << "nbestTrellis->viterbi failed\n";
@@ -643,11 +648,11 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
      * Do a viterbi traceback on the best hyps
      */
     {
-	VocabIndex context[contextLength + 1];
+	makeArray(VocabIndex, context, contextLength + 1);
 				/* word context from preceding nbest hyp */
 	LogP NOSscore, Sscore;	/* dummies required by segmentHyp() */
 
-	context[0] = vocab.ssIndex;
+	context[0] = vocab.ssIndex();
 	context[1] = Vocab_None;
 
 	NBestHyp &hyp = nbestLists[0]->getHyp(NBEST_HYP(bestStates[0]));
@@ -677,7 +682,7 @@ segmentNbest(Array<NBestList *> &nbestLists, unsigned numLists,
 	    } else {
 		if (prevSeg == S) {
 		    context[0] = prevHyp.words[prevLen - 1];
-		    context[1] = vocab.ssIndex;
+		    context[1] = vocab.ssIndex();
 		    context[2] = Vocab_None;
 		} else {
 		    unsigned k;
@@ -838,6 +843,11 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     /*
      * Set length of N-gram context;
      * use at least 2 to hold previous word and <s> tags
@@ -858,7 +868,7 @@ main(int argc, char **argv)
 	exit(1);
     }
 
-    vocab.toLower = toLower ? true : false;
+    vocab.toLower() = toLower ? true : false;
 
     VocabIndex startTagIndex, endTagIndex;
     if (startTag) {
@@ -919,7 +929,7 @@ main(int argc, char **argv)
     }
 
     if (!sTag) {
-	sTag = vocab.getWord(vocab.ssIndex);
+	sTag = vocab.getWord(vocab.ssIndex());
 	if (!sTag) {
 		cerr << "couldn't find a segment tag in LM\n";
 		exit(1);

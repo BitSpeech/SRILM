@@ -1,4 +1,4 @@
-<! $Id: hidden-ngram.1,v 1.20 2003/01/28 17:36:50 stolcke Exp $>
+<! $Id: hidden-ngram.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>hidden-ngram</TITLE>
@@ -24,10 +24,17 @@ words and hidden tags.
 is a generalization of 
 <A HREF="segment.html">segment(1)</A>.
 <H2> OPTIONS </H2>
+<P>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-text</B><I> file</I><B></B>
 <DD>
 Specifies the file containing the word sequences to be tagged
@@ -102,6 +109,15 @@ The second and any additional interpolated models can also be class N-grams
 (using the same
 <B> -classes </B>
 definitions).
+<DT><B> -factored </B>
+<DD>
+Interpret the files specified by 
+<B>-lm</B>,<B></B>
+<B>-mix-lm</B>,<B></B>
+etc. as factored N-gram model specifications.
+See 
+<A HREF="ngram.html">ngram(1)</A>
+for more details.
 <DT><B>-lambda</B><I> weight</I><B></B>
 <DD>
 Set the weight of the main model when interpolating with
@@ -285,7 +301,8 @@ quickly becomes infeasibly large unless
 <B>-simple-classes</B><B></B>
 is also specified.
 <H2> SEE ALSO </H2>
-<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="disambig.html">disambig(1)</A>, <A HREF="segment.html">segment(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>.
+<A HREF="ngram.html">ngram(1)</A>, <A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="disambig.html">disambig(1)</A>, <A HREF="segment.html">segment(1)</A>,
+<A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>.
 <BR>
 A. Stolcke et al., ``Automatic Detection of Sentence Boundaries and
 Disfluencies based on Recognized Words,''
@@ -295,6 +312,6 @@ Andreas Stolcke &lt;stolcke@speech.sri.com&gt;,
 <BR>
 Anand Venkataraman &lt;anand@speech.sri.com&gt;.
 <BR>
-Copyright 1998-2002 SRI International
+Copyright 1998-2004 SRI International
 </BODY>
 </HTML>

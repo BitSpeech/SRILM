@@ -5,7 +5,7 @@
 #
 # usage: add-classes-to-pfsg classes=<expansions> pfsg > expanded-pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-classes-to-pfsg.gawk,v 1.4 2001/01/22 20:21:57 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/add-classes-to-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
 #
 
 function read_classes(file) {
@@ -43,7 +43,7 @@ function read_classes(file) {
 	num_class_defs ++;
     }
 
-    print "read " num_class_defs " class expansions" > "/dev/stderr";
+    print "read " num_class_defs " class expansions" >> "/dev/stderr";
 
     # assign default expansion probs
 
@@ -144,7 +144,7 @@ $1 == "nodes" {
 
 		if ($i != upper_class && upper_class in num_class_expansions) {
 		    print "cannot map class " $i \
-			" to uppercase due to name conflict" > "/dev/stderr";
+			" to uppercase due to name conflict" >> "/dev/stderr";
 		    exit 1;
 		}
 

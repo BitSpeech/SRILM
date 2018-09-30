@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.2 2002/08/09 08:45:16 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.5 2005/09/23 19:27:45 stolcke Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #define _TaggedVocab_h_
 
 #include "Vocab.h"
+#include "LHash.h"
 
 /*
  * TaggedVocab extends the standard Vocab functionality by supporting
@@ -25,7 +26,11 @@
  * index for the word and the shifted tag index.
  */
 
+#ifdef USE_SHORT_VOCAB
+const unsigned TagShift = 10;		/* leaves 6 bits for tag */
+#else
 const unsigned TagShift = 18;		/* leaves 14 bits for tag */
+#endif
 const unsigned maxTaggedIndex = (1<<TagShift)-2;
 const unsigned maxTagIndex = (1<<(sizeof(VocabIndex)*8 - TagShift))-1;
 
@@ -36,12 +41,13 @@ class TaggedVocab: public Vocab
 {
 public:
     TaggedVocab(VocabIndex start = 0, VocabIndex end = maxTaggedIndex);
+    ~TaggedVocab();
 
     /*
      * Modified Vocab methods
      */
     virtual VocabIndex addWord(VocabString name);
-    virtual VocabString getWord(VocabIndex index) const;
+    virtual VocabString getWord(VocabIndex index);
     virtual VocabIndex getIndex(VocabString name,
 				    VocabIndex unkIndex = Vocab_None);
     virtual void remove(VocabString name);
@@ -69,14 +75,17 @@ public:
 	return isTag(word) || Vocab::isNonEvent(word);
     }
 
-    virtual void memStats(MemStats &stats);
+    virtual void memStats(MemStats &stats) const;
 
     /*
      * Access to the tag set
      */
     inline Vocab &tags() { return _tags; };
+
 private:
     Vocab _tags;				/* the tag vocabulary */
+
+    LHash<VocabIndex, VocabString> taggedWords;	/* cache of word/tag strings */
 };
 
 #endif /* _TaggedVocab_h_ */

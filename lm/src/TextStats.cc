@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.cc,v 1.2 2002/01/16 02:23:33 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2005 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.cc,v 1.3 2005/09/30 17:45:29 stolcke Exp $";
 #endif
 
 #include "TextStats.h"
@@ -15,7 +15,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.cc,v 
  * Increments from other source
  */
 TextStats &
-TextStats::increment(TextStats &stats)
+TextStats::increment(const TextStats &stats)
 {
     numSentences += stats.numSentences;
     numWords += stats.numWords;
@@ -30,7 +30,7 @@ TextStats::increment(TextStats &stats)
  * Format stats for stream output
  */
 ostream &
-operator<< (ostream &stream, TextStats &stats)
+operator<< (ostream &stream, const TextStats &stats)
 {
 
     stream << stats.numSentences << " sentences, " 

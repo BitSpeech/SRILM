@@ -9,13 +9,13 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf,v 1.16 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.mips-elf,v 1.18 2004/10/24 00:11:25 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # all our machines are R4000 (or higher) based, so there is no use
    # sticking to the mips1 instruction set
-   GCC_FLAGS = mips2 -V2.8.1 -Wreturn-type -Wimplicit
+   GCC_FLAGS = -mips2 -V2.95.3 -Wreturn-type -Wimplicit -Wimplicit-int
    CC = gcc $(GCC_FLAGS)
    CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 else

@@ -4,14 +4,15 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.4 2000/01/13 04:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.5 2006/01/05 08:44:25 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 
 #include "Vocab.h"
 #include "WordLattice.h"
+#include "Array.cc"
 
 int
 main (int argc, char *argv[])
@@ -51,7 +52,7 @@ main (int argc, char *argv[])
     }
 
     {
-	unsigned sorted[lat.numNodes];
+	makeArray(unsigned, sorted, lat.numNodes);
 	unsigned reachable = lat.sortNodes(sorted);
 	cerr << "sorted nodes: ";
 	for (unsigned i = 0; i < reachable; i ++) {

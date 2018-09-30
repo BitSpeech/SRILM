@@ -2,9 +2,9 @@
  * Lattice.h --
  *	Word lattices
  *
- * Copyright (c) 1997-2002, SRI International.  All Rights Reserved.
+ * Copyright (c) 1997-2006, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.h,v 1.38 2003/02/19 07:38:25 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.h,v 1.85 2006/01/06 11:58:17 stolcke Exp $
  *
  */
 
@@ -18,6 +18,7 @@
 
 #include "Prob.h"
 #include "Boolean.h"
+#include "Array.h"
 #include "LHash.h"
 #include "SArray.h"
 #include "Map2.h"
@@ -27,6 +28,11 @@
 #include "Debug.h"
 #include "LM.h"
 #include "Ngram.h"
+#include "VocabMultiMap.h"
+#include "MultiwordVocab.h"
+#include "WordMesh.h"
+
+#include "HTKLattice.h"
 
 class Lattice;               /* forward declaration */
 
@@ -34,12 +40,12 @@ typedef const VocabIndex *VocabContext;
 
 typedef unsigned NodeIndex;
 
+const NodeIndex NoNode = (NodeIndex)(-1);
+
 /* ******************************************************************
    flags for node
    ****************************************************************** */
 const unsigned markedFlag = 8;     //to indicate that this node is processed
-const unsigned nullNodeFlag = 64;  //to indicate whether a null node has been
-                                   //  processed.
 
 /* ******************************************************************
    flags for transition
@@ -60,8 +66,10 @@ const int minIntlog = -250000;	   // minumum intlog values used when
 				   // that PFSG probs can be safely converted
 				   // to bytelogs in the recognizer.
 
-#define LATTICE_OR	"or"
-#define LATTICE_CONCATE	"concatenate"
+extern const char *LATTICE_OR;		   // lattice disjunction
+extern const char *LATTICE_CONCATE;	   // lattice concatenation
+
+extern const char *LATTICE_NONAME;	   // default internal lattice name
 
 /* ******************************************************************
    structure
@@ -144,6 +152,13 @@ class LatticeTransition
     unsigned flags;		// miscellaneous flags;
 }; 
 
+/*
+ * Compare two transition lists for equality
+ */
+Boolean
+compareTransitions(const TRANS_T<NodeIndex,LatticeTransition> &transList1,
+		   const TRANS_T<NodeIndex,LatticeTransition> &transList2);
+
 /* *************************
  * A node in a lattice
  ************************* */
@@ -157,9 +172,10 @@ public:
     unsigned flags; 
     VocabIndex word;		// word associated with this node
     LogP2 posterior;		// node posterior (unnormalized)
+    HTKWordInfo *htkinfo;	// HTK lattice info
 
     TRANS_T<NodeIndex,LatticeTransition> outTransitions;// outgoing transitions
-    TRANS_T<NodeIndex,LatticeTransition> inTransitions; // incoming transitions;
+    TRANS_T<NodeIndex,LatticeTransition> inTransitions; // incoming transitions
 
     void
       markNode(unsigned flag) { flags |= flag; }; 
@@ -173,45 +189,112 @@ public:
       getFlag(unsigned flag) { return (flags & flag); };
 };
 
+/* *************************
+ * Output file arguments for Lattice::computeNBest()
+ ************************* */
+class NBestOptions
+{
+ public:
+  NBestOptions(char *nbestOutDir,        char *nbestOutDirNgram,
+	       char *nbestOutDirPron,    char *nbestOutDirDur,
+	       char *nbestOutDirXscore1, char *nbestOutDirXscore2,
+	       char *nbestOutDirXscore3, char *nbestOutDirXscore4,
+	       char *nbestOutDirXscore5, char *nbestOutDirXscore6,
+	       char *nbestOutDirXscore7, char *nbestOutDirXscore8,
+	       char *nbestOutDirXscore9, char *nbestOutDirRttm);
+  ~NBestOptions();
+
+  char *nbestOutDir;
+  char *nbestOutDirNgram;
+  char *nbestOutDirPron;
+  char *nbestOutDirDur;
+  char *nbestOutDirXscore1;
+  char *nbestOutDirXscore2;
+  char *nbestOutDirXscore3;
+  char *nbestOutDirXscore4;
+  char *nbestOutDirXscore5;
+  char *nbestOutDirXscore6;
+  char *nbestOutDirXscore7;
+  char *nbestOutDirXscore8;
+  char *nbestOutDirXscore9;
+  char *nbestOutDirRttm;
+
+  Boolean writingFiles;
+
+  File *nbest;
+  File *nbestNgram;
+  File *nbestPron;
+  File *nbestDur;
+  File *nbestXscore1;
+  File *nbestXscore2;
+  File *nbestXscore3;
+  File *nbestXscore4;
+  File *nbestXscore5;
+  File *nbestXscore6;
+  File *nbestXscore7;
+  File *nbestXscore8;
+  File *nbestXscore9;
+  File *nbestRttm;
+
+  Boolean makeDirs(Boolean overwrite);
+  Boolean openFiles(const char *name);
+  Boolean closeFiles();
+};
+
+class PackedNodeList; 
 
 /* *************************
  * A lattice 
  ************************* */
+
 class Lattice: public Debug
 {
-  friend class NodeQueue;
-  friend class PackedNodeList; 
-  friend class LatticeTransition;
-  friend class LatticeNode;
+    friend class NodeQueue;
+    friend class PackedNodeList; 
+    friend class LatticeTransition;
+    friend class LatticeNode;
 
 public:
 
     /* *************************************************
        within single lattice operations
        ************************************************* */
-    Lattice(Vocab &vocab, const char *name = "NONAME");
+    Lattice(Vocab &vocab, const char *name = LATTICE_NONAME);
+    Lattice(Vocab &vocab, const char *name, SubVocab &ignoreVocab);
     ~Lattice();
 
     Boolean computeNodeEntropy(); 
     LogP detectSelfLoop(NodeIndex nodeIndex);
-    Boolean recoverPauses(Boolean loop = true); 
-    Boolean recoverCompactPauses(Boolean loop = true); 
+    Boolean recoverPauses(Boolean loop = true, Boolean all = false); 
+    Boolean recoverCompactPauses(Boolean loop = true, Boolean all = false); 
     Boolean removeAllXNodes(VocabIndex xWord);
     Boolean replaceWeights(LM &lm); 
     Boolean simplePackBigramLattice(unsigned iters = 0, Boolean maxAdd = false);
     Boolean approxRedBigramLattice(unsigned iters, int base, double ratio);
     Boolean expandToTrigram(LM &lm, unsigned maxNodes = 0);
     Boolean expandToCompactTrigram(Ngram &ngram, unsigned maxNodes = 0);
-    Boolean expandToLM(LM &lm, unsigned maxNodes = 0);
+    Boolean expandToLM(LM &lm, unsigned maxNodes = 0, Boolean compact = false);
+    Boolean noBackoffWeights;	// hack to suppress backoff weights in expansion
     Boolean collapseSameWordNodes(SubVocab &exceptions);
+    void splitMultiwordNodes(MultiwordVocab &vocab, LM &lm);
+    Boolean scorePronunciations(VocabMultiMap &dictionary,
+						Boolean intlogs = false);
+    void alignLattice(WordMesh &sausage, double posteriorScale = 1.0)
+	{ alignLattice(sausage, ignoreVocab, posteriorScale); }
+    void alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
+					  double posteriorScale = 1.0,
+					  Boolean acousticInfo = false);
+    void addWords(const VocabIndex *words, Prob prob, Boolean pauses = false);
 
     /* *************************************************
         operations with two lattices
        ************************************************* */
-    Boolean implantLattice(NodeIndex nodeIndex, Lattice *lat);
-    Boolean implantLatticeXCopies(Lattice *lat);
-    Boolean latticeCat(Lattice *lat1, Lattice *lat2);
-    Boolean latticeOr(Lattice *lat1, Lattice *lat2);
+    Boolean implantLattice(NodeIndex nodeIndex, Lattice &lat,
+							float addTime = 0.0);
+    Boolean implantLatticeXCopies(Lattice &lat);
+    Boolean latticeCat(Lattice &lat1, Lattice &lat2,
+						float interSegmentTime = 0.0);
+    Boolean latticeOr(Lattice &lat1, Lattice &lat2);
 
     /* ********************************************************* 
        lattice input and output 
@@ -221,10 +304,20 @@ public:
     Boolean readPFSGs(File &file);
     Boolean readPFSGFile(File &file);
     Boolean readRecPFSGs(File &file);
+    Boolean readHTK(File &file, HTKHeader *header = 0,
+				Boolean useNullNodes = false);
+    Boolean readMesh(File &file);
 
     Boolean writePFSG(File &file);
     Boolean writeCompactPFSG(File &file);
     Boolean writePFSGFile(File &file);
+    Boolean writeHTK(File &file, HTKScoreMapping scoreMapping = mapHTKnone,
+					    Boolean writePosteriors = false);
+
+    void setHTKHeader(HTKHeader &header);
+
+    Boolean useUnk;		// map unknown words to <unk>
+    Boolean limitIntlogs;	// whether output probs should fit in bytelogs
 
     /* ********************************************************* 
        nodes and transitions
@@ -232,21 +325,24 @@ public:
     Boolean insertNode(const char *word, NodeIndex nodeIndex); 
     Boolean insertNode(const char *word) {
 	return insertNode(word, maxIndex++); };
-    NodeIndex dupNode(VocabIndex windex, unsigned markedFlag = 0);     
     // duplicate a node with the same word name; 
+    NodeIndex dupNode(VocabIndex windex, unsigned markedFlag = 0,
+						    HTKWordInfo *htkinfo = 0);
     Boolean removeNode(NodeIndex nodeIndex);  
     // all the edges connected with this node will be removed;  
     LatticeNode *findNode(NodeIndex nodeIndex) {
         return nodes.find(nodeIndex); };
+    void removeAll();		// remove all nodes
+    unsigned removeUselessNodes();		
 
     Boolean insertTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex, 
 			const LatticeTransition &trans, Boolean maxAdd = false);
-    Boolean findTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex);
+    LatticeTransition *findTrans(NodeIndex fromNodeIndex,
+						    NodeIndex toNodeIndex);
     Boolean setWeightTrans(NodeIndex fromNodeIndex, 
 			   NodeIndex toNodeIndex, LogP weight); 
     void markTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex, 
 		   unsigned flag);
-    // Boolean dupTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex); 
     Boolean removeTrans(NodeIndex fromNodeIndex, NodeIndex toNodeIndex);
 
     void dumpFlags();
@@ -256,14 +352,18 @@ public:
     // topological sorting
     unsigned sortNodes(NodeIndex *sortedNodes, Boolean reversed = false); 
     
+    // detect words ignored by lattice LM
+    inline Boolean ignoreWord(VocabIndex word)
+	{ return word == Vocab_None || ignoreVocab.getWord(word) != 0; };
+
     /* ********************************************************* 
-       get pretected class values
+       get protected class values
        ********************************************************* */
     NodeIndex getInitial() { return initial; }
     NodeIndex getFinal() { return final; }
     const char *getName() { return name; }
     NodeIndex getMaxIndex() { return maxIndex; }
-    const char *getWord(VocabIndex word) { return vocab.getWord(word); }
+    VocabString getWord(VocabIndex word);
     unsigned getNumNodes() { return nodes.numEntries(); }
     unsigned getNumTransitions();
 
@@ -278,23 +378,39 @@ public:
 			 unsigned direction = 0); 
     unsigned latticeWER(const VocabIndex *words,
 			unsigned &sub, unsigned &ins, unsigned &del)
-        { SubVocab ignoreWords(vocab);
-	  return latticeWER(words, sub, ins, del, ignoreWords);
-	};
+        { return latticeWER(words, sub, ins, del, ignoreVocab); };
     unsigned latticeWER(const VocabIndex *words,
 			unsigned &sub, unsigned &ins, unsigned &del,
 			SubVocab &ignoreWords); 
 
-    LogP2 computePosteriors(double posteriorScale = 1.0);
+    LogP2 computePosteriors(double posteriorScale = 1.0,
+						Boolean normalize = false);
     Boolean writePosteriors(File &file, double posteriorScale = 1.0);
-    Boolean prunePosteriors(Prob threshold, double posteriorScale = 1.0);
+    Boolean prunePosteriors(Prob threshold, double posteriorScale = 1.0,
+				double maxDensity = 0.0, unsigned maxNodes = 0,
+				Boolean fast = false);
 
-    /* ********************************************************* 
-       operations on nullNodes
-       ********************************************************* */
-    void clearMarkOnNulls(); 
-    Boolean markNodeNulls(NodeIndex nodeIndex, unsigned flag); 
-    Boolean getFlagOfNull(NodeIndex nodeIndex, unsigned flag);
+    LogP bestWords(VocabIndex *words, unsigned maxLength)
+	{ return bestWords(words, maxLength, ignoreVocab); }
+    LogP bestWords(VocabIndex *words, unsigned maxLength,
+						    SubVocab &ignoreWords);
+    LogP bestWords(NBestWordInfo *words, unsigned maxLength,
+						    SubVocab &ignoreWords);
+    Boolean computeNBest(unsigned N, NBestOptions &nbestOut,
+					SubVocab &ignoreWords,
+					const char *multiwordSeparator = 0,
+					unsigned maxHyps = 0,
+					unsigned nbestDuplicates = 0);
+    Boolean computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
+					SubVocab &ignoreWords,
+					const char *multiwordSeparator = 0);
+    FloatCount countNgrams(unsigned order, NgramCounts<FloatCount> &counts,
+						double posteriorScale = 1.0);
+
+    double getDuration();
+    double computeDensity(double duration = 0.0)
+	{ unsigned numNodes; return computeDensity(numNodes, duration); }
+    double computeDensity(unsigned &numNodes, double duration = 0.0);
 
     /* ********************************************************* 
        self-loop processing
@@ -317,13 +433,19 @@ public:
     Vocab &vocab;		// vocabulary used for words
     LHash<NodeIndex,LatticeNode> nodes;	// node list; 
 
+    SubVocab ignoreVocab;	// words to ignore in lattice operations
+
 protected: 
+    HTKHeader htkheader;	// HTK header information
+    Array<HTKWordInfo *> htkinfos;
+				// HTK link information (to avoid duplication
+				// inside node structures)
+    LHash<VocabIndex, Lattice *> subPFSGs;  // for processing subPFSGs
 
-    LHash<NodeIndex,LatticeNode> nullNodes; //
-    LHash<VocabIndex, Lattice *> subPFSGs;  // for process subPFSGs
-
-    NodeIndex maxIndex;		// the current largest node index
+    NodeIndex maxIndex;		// the current largest node index plus one
+				// (i.e., the next index we can allocate)
     const char *name;		// name string for lattice
+    double duration;		// waveform duration
 
     NodeIndex initial;		// start node index
     NodeIndex final;		// final node index;
@@ -333,15 +455,25 @@ protected:
 				// to <s> and </s>.
 
     Lattice *getNonRecPFSG(VocabIndex nodeVocab);
-    Boolean recoverPause(NodeIndex nodeIndex, Boolean loop = true);
-    Boolean recoverCompactPause(NodeIndex nodeIndex, Boolean loop = true); 
+    Boolean recoverPause(NodeIndex nodeIndex, Boolean loop = true,
+							Boolean all = false);
+    Boolean recoverCompactPause(NodeIndex nodeIndex, Boolean loop = true,
+							Boolean all = false); 
 
     void sortNodesRecursive(NodeIndex nodeIndex, unsigned &numVisited,
 			    NodeIndex *sortedNodes, Boolean *visitedNodes);
 
     LogP2 computeForwardBackward(LogP2 forwardProbs[], LogP2 backwardProbs[],
 							double posteriorScale);
+    LogP computeForwardBackwardViterbi(LogP forwardProbs[],
+							LogP backwardProbs[]);
 
+    LogP computeViterbi(NodeIndex forwardPreds[], NodeIndex *backwardPreds = 0);
+
+    FloatCount countNgramsAtNode(VocabIndex oldIndex, unsigned order,
+		 NgramCounts<FloatCount> &counts,
+		 LogP2 backwardProbs[], double posteriorScale,
+		 Map2<NodeIndex, VocabContext, LogP2> &forwardProbMap);
     Boolean
       expandNodeToTrigram(NodeIndex nodeIndex, LM &lm, unsigned maxNodes = 0);
 
@@ -350,7 +482,18 @@ protected:
 							unsigned maxNodes = 0);
 
     Boolean
+      expandAddTransition(VocabIndex *usedContext, unsigned usedLength,
+		  VocabIndex word, LogP wordProb, LM &lm,
+		  NodeIndex oldIndex2, VocabIndex newIndex,
+		  LatticeTransition *oldtrans, unsigned maxNodes,
+		  Map2<NodeIndex, VocabContext, NodeIndex> &expandMap);
+
+    Boolean
       expandNodeToLM(VocabIndex node, LM &ngram, unsigned maxNodes, 
+			Map2<NodeIndex, VocabContext, NodeIndex> &expandMap);
+
+    Boolean
+      expandNodeToCompactLM(VocabIndex node, LM &ngram, unsigned maxNodes,
 			Map2<NodeIndex, VocabContext, NodeIndex> &expandMap);
 
     void
@@ -379,6 +522,35 @@ protected:
     Boolean 
       approxRedNodeB(NodeIndex nodeIndex, NodeQueue &nodeQueue, 
 		     int base, double ratio);
+
+    // helpers to alignLattice()
+    NodeIndex findMaxPosteriorNode(LHash<NodeIndex,LogP2> &nodeSet, LogP2 &max);
+    unsigned findFirstAligned(NodeIndex from, NodeIndex predecessors[],
+				LHash<NodeIndex, unsigned> &nodeSet,
+				NodeIndex pathNodes[]);
+};
+
+/*
+ * Iterators to enumerate non-null successor nodes
+ */
+class LatticeFollowIter
+{
+public:
+    LatticeFollowIter(Lattice &lat, LatticeNode &node,
+		      LHash<NodeIndex, LogP> *useVisitedNodes = 0,
+		      LogP totalWeight = LogP_One);
+    ~LatticeFollowIter();
+
+    void init();
+    LatticeNode *next(NodeIndex &followIndex, LogP &weight);
+
+private:
+    Lattice &lat;
+    TRANSITER_T<NodeIndex,LatticeTransition> transIter;
+    LatticeFollowIter *subFollowIter;
+    LogP startWeight;		// accumulated weight from start node
+    LHash<NodeIndex, LogP> *visitedNodes;
+    Boolean freeVisitedNodes;
 };
 
 class QueueItem: public Debug

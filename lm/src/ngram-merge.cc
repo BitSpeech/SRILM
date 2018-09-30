@@ -5,33 +5,39 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ngram-merge.cc,v 1.10 2000/01/13 04:06:34 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-merge.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <new>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 #include <assert.h>
-#include <new.h>
 
 #include "option.h"
+#include "version.h"
 
 #include "File.h"
 #include "Vocab.h"
-#include "NgramStats.h"
+#include "NgramStats.cc"
+#include "Array.cc"
 
 typedef double FloatCount;	// fractional count type
+typedef unsigned IntCount;	// integral count type
 typedef union {
-	NgramCount i;
+	IntCount i;
 	FloatCount f;
 } MergeCount;			// integer or fractional count
 
-static char *outName = "-";
+static int version = 0;
+static char *outName = (char *)"-";
 static int floatCounts = 0;
 static int optRest;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_TRUE, "float-counts", &floatCounts, "use fractional counts" },
     { OPT_STRING, "write", &outName, "counts file to write" },
     { OPT_REST, "-", &optRest, "indicate end of option list" },
@@ -61,7 +67,7 @@ getInput(unsigned int nfiles, PerFile *perfile, File *files)
 		    NgramCounts<FloatCount>::readNgram(files[i],
 			    perfile[i].ngram, maxNgramOrder + 1, 
 			    perfile[i].count.f) : 
-		    NgramCounts<NgramCount>::readNgram(files[i],
+		    NgramCounts<IntCount>::readNgram(files[i],
 			    perfile[i].ngram, maxNgramOrder + 1, 
 			    perfile[i].count.i);
 	}
@@ -137,7 +143,7 @@ static
 void
 merge_counts(unsigned int nfiles, File *files, File &out)
 {
-    PerFile perfile[nfiles];
+    makeArray(PerFile, perfile, nfiles);
 
     /*
      * Get input from all files
@@ -153,7 +159,7 @@ merge_counts(unsigned int nfiles, File *files, File &out)
 	if (floatCounts) {
 	    NgramCounts<FloatCount>::writeNgram(out, nextNgram, count.f);
 	} else {
-	    NgramCounts<NgramCount>::writeNgram(out, nextNgram, count.i);
+	    NgramCounts<IntCount>::writeNgram(out, nextNgram, count.i);
 	}
     }
 }
@@ -166,6 +172,11 @@ main(int argc, char **argv)
 
     argc = Opt_Parse(argc, argv, options, Opt_Number(options),
 							OPT_OPTIONS_FIRST);
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     int i;
 
     if (argc < 3) {
@@ -174,7 +185,8 @@ main(int argc, char **argv)
     }
 
     int nfiles = argc - 1;
-    File files[nfiles];
+    File *files = new File[nfiles];
+    assert(files != 0);
 
     for (i = 0; i < nfiles; i++) {
 	new (&files[i]) File(argv[i + 1], "r");
@@ -182,6 +194,8 @@ main(int argc, char **argv)
 
     File outfile(outName, "w");
     merge_counts(nfiles, files, outfile);
+
+    delete [] files;
 
     exit(0);
 }

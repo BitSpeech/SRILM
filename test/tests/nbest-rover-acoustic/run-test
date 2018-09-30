@@ -1,7 +1,5 @@
 #!/bin/sh
 
-mkdir -p sausages
-
 sentid=sw_40008_A_0015814_0016128
 
 echo $sentid > test.sentids

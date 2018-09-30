@@ -4,7 +4,7 @@
 #	Remove ngrams from a backoff LM that have lower prob than their
 #	backoff paths.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/remove-lowprob-ngrams,v 1.3 1998/02/04 20:24:39 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/remove-lowprob-ngrams.gawk,v 1.4 2004/11/02 02:00:35 stolcke Exp $
 #
 
 NF == 0 {
@@ -15,7 +15,7 @@ NF == 0 {
 /^ngram *[0-9][0-9]*=/ {
 	order = substr($2,1,index($2,"=")-1);
 	if (order > 3) {
-	    print "warning: can only handle bigrams and trigrams" > "/dev/stderr";
+	    print "warning: can only handle bigrams and trigrams" >> "/dev/stderr";
 	}
 	if (order > maxorder && $2 !~ /=0$/) {
 	    maxorder = order;
@@ -97,10 +97,10 @@ currorder == 3 {
 END {
 	if (total_bigrams > 0) {
 	    printf "%d out of %d bigrams removed\n", \
-			removed_bigrams, total_bigrams > "/dev/stderr";
+			removed_bigrams, total_bigrams >> "/dev/stderr";
 	}
 	if (total_trigrams > 0) {
 	    printf "%d out of %d trigrams removed\n", \
-			removed_trigrams, total_trigrams > "/dev/stderr";
+			removed_trigrams, total_trigrams >> "/dev/stderr";
 	}
 }

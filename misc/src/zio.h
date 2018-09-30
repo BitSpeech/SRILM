@@ -5,13 +5,16 @@
    
     Description:
 
-    Copyright (c) 1994, SRI International.  All Rights Reserved.
+    Copyright (c) 1994-2005, SRI International.  All Rights Reserved.
 
-    RCS ID: $Id: zio.h,v 1.7 2003/02/21 20:18:53 stolcke Exp $
+    RCS ID: $Id: zio.h,v 1.8 2005/12/16 23:30:09 stolcke Exp $
 */
 
 /*
  *  $Log: zio.h,v $
+ *  Revision 1.8  2005/12/16 23:30:09  stolcke
+ *  added support for bzip2-compressed files
+ *
  *  Revision 1.7  2003/02/21 20:18:53  stolcke
  *  avoid conflict if zopen is already defined in library
  *
@@ -55,12 +58,14 @@ extern "C" {
 #define COMPRESS_SUFFIX   ".Z"
 #define GZIP_SUFFIX	  ".gz"
 #define OLD_GZIP_SUFFIX	  ".z"
+#define BZIP2_SUFFIX	  ".bz2"
 
 /* Define function prototypes. */
 
 int	stdio_filename_p (const char *name);
 int	compressed_filename_p (const char *name);
 int 	gzipped_filename_p (const char *name);
+int 	bzipped_filename_p (const char *name);
 
 FILE *	zopen (const char *name, const char *mode);
 int	zclose (FILE *stream);

@@ -19,12 +19,15 @@ DDEESSCCRRIIPPTTIIOONN
        with nnggrraamm--ccoouunntt  --ffllooaatt--ccoouunnttss  to  estimate  a  language
        model.
 
+OOPPTTIIOONNSS
        Each  filename  argument  can  be an ASCII file, or a com-
        pressed file (name ending in .Z or .gz), or ``-'' to indi-
        cate stdin/stdout.
 
-OOPPTTIIOONNSS
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --rreeffss _f_i_l_e
               Read  the  reference  transcripts  from _f_i_l_e.  Each
@@ -87,31 +90,35 @@ OOPPTTIIOONNSS
               that also occur in the corresponding reference  are
               excluded.
 
+       --mmiinn--ccoouunntt _C
+              Prune  all N-grams from the output that have counts
+              less than _C.
+
        --rreeaadd--ccoouunnttss _c_o_u_n_t_s_f_i_l_e
               Read N-gram counts from a file.  Each line contains
               an N-gram of words, followed by an integer or frac-
-              tional   count,   all   separated   by  whitespace.
-              Repeated counts for the same N-gram are added.   N-
-              grams  from  N-best  lists  are added to those read
+              tional  count,   all   separated   by   whitespace.
+              Repeated  counts for the same N-gram are added.  N-
+              grams from N-best lists are  added  to  those  read
               with this option.
 
        --wwrriittee--ccoouunnttss _c_o_u_n_t_s_f_i_l_e
-              Writes total  N-gram  counts  to  _c_o_u_n_t_s_f_i_l_e.   The
+              Writes  total  N-gram  counts  to  _c_o_u_n_t_s_f_i_l_e.  The
               default is to write to stdout.
 
-       --ssoorrtt  Output  counts  in lexicographic order, as required
+       --ssoorrtt  Output counts in lexicographic order,  as  required
               for nnggrraamm--mmeerrggee(1).
 
        --ddeebbuugg _l_e_v_e_l
-              Set debugging  output  level.   Level  0  means  no
-              debugging.    Debugging  messages  are  written  to
+              Set  debugging  output  level.   Level  0  means no
+              debugging.   Debugging  messages  are  written   to
               stderr.
 
 SSEEEE AALLSSOO
-       ngram(1),    ngram-merge(1),    ngram-count(1),     nbest-
+       ngram(1),     ngram-merge(1),    ngram-count(1),    nbest-
        scripts(1), classes-format(5),
-       A.  Stolcke  et  al.,  "The SRI March 2000 Hub-5 Conversa-
-       tional Speech Transcription  System",  _P_r_o_c_.  _N_I_S_T  _S_p_e_e_c_h
+       A. Stolcke et al., "The SRI  March  2000  Hub-5  Conversa-
+       tional  Speech  Transcription  System",  _P_r_o_c_. _N_I_S_T _S_p_e_e_c_h
        _T_r_a_n_s_c_r_i_p_t_i_o_n _W_o_r_k_s_h_o_p, College Park, MD, 2000.
 
 BBUUGGSS
@@ -119,8 +126,8 @@ BBUUGGSS
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 2000 SRI International
+       Copyright 2000-2004 SRI International
 
 
 
-SRILM Tools        $Date: 2001/06/06 04:21:33 $     anti-ngram(1)
+SRILM Tools        $Date: 2004/12/03 17:59:01 $     anti-ngram(1)

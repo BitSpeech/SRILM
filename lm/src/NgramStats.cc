@@ -8,18 +8,21 @@
 #define _NgramStats_cc_
 
 #ifndef lint
-static char NgramStats_Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.cc,v 1.24 2003/01/30 18:51:29 stolcke Exp $";
+static char NgramStats_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.cc,v 1.32 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <string.h>
-#include <iostream.h>
 
 const unsigned maxLineLength = 10000;
 
 #include "NgramStats.h"
 
 #include "Trie.cc"
+#include "LHash.cc"
+#include "Array.cc"
 
 #define INSTANTIATE_NGRAMCOUNTS(CountT) \
 	INSTANTIATE_TRIE(VocabIndex,CountT); \
@@ -59,7 +62,7 @@ NgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 	howmany = vocab.addWords(words, wids + 1, maxWordsPerLine + 1);
     } else {
 	howmany = vocab.getIndices(words, wids + 1, maxWordsPerLine + 1,
-					    vocab.unkIndex);
+					    vocab.unkIndex());
     }
 
     /*
@@ -74,7 +77,7 @@ NgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
      */
     if (!openVocab) {
 	for (unsigned i = 1; i <= howmany; i++) {
-	    if (wids[i] == vocab.unkIndex) {
+	    if (wids[i] == vocab.unkIndex()) {
 		stats.numOOVs ++;
 	    }
 	}
@@ -85,14 +88,14 @@ NgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
      */
     VocabIndex *start;
     
-    if (wids[1] == vocab.ssIndex) {
+    if (wids[1] == vocab.ssIndex()) {
 	start = wids + 1;
     } else {
-	wids[0] = vocab.ssIndex;
+	wids[0] = vocab.ssIndex();
 	start = wids;
     }
-    if (wids[howmany] != vocab.seIndex) {
-	wids[howmany + 1] = vocab.seIndex;
+    if (wids[howmany] != vocab.seIndex()) {
+	wids[howmany + 1] = vocab.seIndex();
 	wids[howmany + 2] = Vocab_None;
     }
 
@@ -140,10 +143,10 @@ NgramCounts<CountT>::countSentence(const VocabIndex *words, CountT factor)
      * keep track of word and sentence counts
      */
     stats.numWords += start;
-    if (words[0] == vocab.ssIndex) {
+    if (words[0] == vocab.ssIndex()) {
 	stats.numWords --;
     }
-    if (start > 0 && words[start-1] == vocab.seIndex) {
+    if (start > 0 && words[start-1] == vocab.seIndex()) {
 	stats.numWords --;
     }
 
@@ -155,7 +158,10 @@ NgramCounts<CountT>::countSentence(const VocabIndex *words, CountT factor)
 /*
  * Type-dependent count <--> string conversions
  */
-static char ctsBuffer[100];
+#ifdef INSTANTIATE_TEMPLATES
+static
+#endif
+char ctsBuffer[100];
 
 template <class CountT>
 static inline const char *
@@ -192,12 +198,33 @@ stringToCount(const char *str, CountT &count)
     }
 }
 static inline Boolean
-stringToCount(const char *str, unsigned &count)
+stringToCount(const char *str, unsigned int &count)
 {
     /*
      * scanf("%u") doesn't check for a positive sign, so we have to ourselves.
      */
     return (*str != '-' && sscanf(str, "%u", &count) == 1);
+}
+
+static inline Boolean
+stringToCount(const char *str, unsigned short &count)
+{
+    /*
+     * scanf("%u") doesn't check for a positive sign, so we have to ourselves.
+     */
+    return (*str != '-' && sscanf(str, "%hu", &count) == 1);
+}
+
+static inline Boolean
+stringToCount(const char *str, XCount &count)
+{
+    unsigned x;
+    if (stringToCount(str, x)) {
+    	count = x;
+	return true;
+    } else {
+    	return false;
+    }
 }
 
 static inline Boolean
@@ -282,7 +309,7 @@ NgramCounts<CountT>::read(File &file, unsigned int order)
 	if (openVocab) {
 	    vocab.addWords(words, wids, maxNgramOrder);
 	} else {
-	    vocab.getIndices(words, wids, maxNgramOrder, vocab.unkIndex);
+	    vocab.getIndices(words, wids, maxNgramOrder, vocab.unkIndex());
 	}
 
 	/*
@@ -332,9 +359,13 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
     /*
      * Data for tracking deletable prefixes
      */
-    LHash<VocabIndex, CountT> metaCounts[order];
-    Boolean haveCounts[order];
-    VocabIndex *lastPrefix[order];
+    LHash<VocabIndex, CountT> *metaCounts;
+    
+    metaCounts = new LHash<VocabIndex, CountT>[order];
+    assert(metaCounts != 0);
+
+    makeArray(Boolean, haveCounts, order);
+    makeArray(VocabIndex *, lastPrefix, order);
     for (unsigned i = 0; i < order; i ++) {
 	lastPrefix[i] = new VocabIndex[order + 1];
 	assert(lastPrefix[i] != 0);
@@ -383,7 +414,7 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 	if (openVocab) {
 	    vocab.addWords(words, prefix, maxNgramOrder);
 	} else {
-	    vocab.getIndices(words, prefix, maxNgramOrder, vocab.unkIndex);
+	    vocab.getIndices(words, prefix, maxNgramOrder, vocab.unkIndex());
 	}
 
 	/* 
@@ -429,6 +460,8 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 	}
 	delete [] lastPrefix[i-1];
     }
+
+    delete [] metaCounts;
 
     /*
      * XXX: always return true for now, should return false if there was
@@ -561,6 +594,33 @@ CountT
 NgramCounts<CountT>::sumCounts(unsigned int order)
 {
     return sumNode(&counts, 1, order);
+}
+
+/*
+ * Prune ngram counts
+ */
+template <class CountT>
+unsigned
+NgramCounts<CountT>::pruneCounts(CountT minCount)
+{
+    unsigned npruned = 0;
+    makeArray(VocabIndex, ngram, order + 1);
+
+    for (unsigned i = 1; i <= order; i++) {
+	CountT *count;
+	NgramCountsIter<CountT> countIter(*this, ngram, i);
+
+	/*
+	 * This enumerates all ngrams
+	 */
+	while (count = countIter.next()) {
+	    if (*count < minCount) {
+		removeCount(ngram);
+		npruned ++;
+	    }
+	}
+    }
+    return npruned;
 }
 
 #endif /* _NgramStats_cc_ */

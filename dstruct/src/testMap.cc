@@ -1,9 +1,10 @@
 
-#include <iostream.h>
+#include <new>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include <new.h>
 
 #define srandom	srand48
 #define random	lrand48
@@ -27,14 +28,14 @@ extern long random(void);
 #define CLASS	LHash
 #define MAP_T	CLASS<KEY_T,DATA_T>
 #define ITER_T	LHashIter<KEY_T,DATA_T>
-#ifdef __GNUG__
+#ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(KEY_T, DATA_T);
 #endif
 #else
 #define CLASS	SArray
 #define MAP_T	CLASS<KEY_T,DATA_T>
 #define ITER_T	SArrayIter<KEY_T,DATA_T>
-#ifdef __GNUG__
+#ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_SARRAY(KEY_T, DATA_T);
 #endif
 #endif
@@ -85,18 +86,6 @@ main(int argc, char **argv)
     Boolean found;
     char mapspace[sizeof(MAP_T)];
     MemStats stats;
-
-    /*
-     * Test copy/assignment
-     */
-    {
-	MAP_T *another_map;
-	another_map = new ((void *)mapspace) MAP_T(11);
-
-	MAP_T yet_another_map(myarray);
-
-	yet_another_map = *another_map;
-    }
 
     if (argc > 1) {
 	size = atoi(argv[1]);
@@ -194,6 +183,24 @@ main(int argc, char **argv)
     printmap(myarray);
 
     /*
+     * Test copy/assignment
+     */
+    {
+	MAP_T *another_map;
+	another_map = new ((void *)mapspace) MAP_T(11);
+
+        cerr << "*** testing copy constructor ***\n";
+	MAP_T yet_another_map(myarray);
+        yet_another_map.remove(1);
+	printmap(yet_another_map);
+
+        cerr << "*** testing assignment operator ***\n";
+	yet_another_map = myarray;
+        yet_another_map.remove(1);
+	printmap(yet_another_map);
+    }
+
+    /*
      * Delete all using iterator
      */
     ITER_T myiter(myarray);
@@ -208,7 +215,6 @@ main(int argc, char **argv)
     cerr << "numEntries = " << myarray.numEntries() << endl;
 
     printmap(myarray);
-
 
     exit(0);
 }

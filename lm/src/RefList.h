@@ -2,21 +2,23 @@
  * RefList.h --
  *	Lists of words strings identified by string ids
  *
- * Copyright (c) 1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.3 2002/08/08 19:11:19 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.5 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _RefList_h_
 #define _RefList_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "Boolean.h"
 #include "File.h"
 #include "Vocab.h"
 #include "LHash.h"
+#include "Array.h"
 
 typedef const char *RefString;
 
@@ -25,17 +27,20 @@ RefString idFromFilename(const char *filename);
 class RefList 
 {
 public:
-    RefList(Vocab &vocab);
+    RefList(Vocab &vocab, Boolean haveIDs = true);
     ~RefList();
 
     Boolean read(File &file, Boolean addWords = false);
     Boolean write(File &file);
 
     VocabIndex *findRef(RefString id);
+    VocabIndex *findRefByNumber(unsigned id);
 
 private:
     Vocab &vocab;
-    LHash<RefString, VocabIndex *> reflist;
+    Boolean haveIDs;				// whether refs have string IDs
+    Array<VocabIndex *> refarray;		// by number
+    LHash<RefString, VocabIndex *> reflist;	// by ID
 };
 
 #endif /* _RefList_h_ */

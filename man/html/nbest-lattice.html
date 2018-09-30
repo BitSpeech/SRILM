@@ -1,4 +1,4 @@
-<! $Id: nbest-lattice.1,v 1.33 2003/02/15 09:20:36 stolcke Exp $>
+<! $Id: nbest-lattice.1,v 1.38 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-lattice</TITLE>
@@ -32,15 +32,18 @@ A variant of this mode uses a word ``mesh'' instead of a word lattice,
 in which all hypotheses are aligned into a grid of word positions,
 and one is allowed to chose a word from each grid position, thus allowing an
 even greater number of potential hypotheses.
+<H2> OPTIONS </H2>
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-<H2> OPTIONS </H2>
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-debug</B><I> level</I><B></B>
 <DD>
 Controls the amount of output (the higher the
@@ -113,7 +116,7 @@ Limits the number of hypotheses read from each N-best list to the first
 <I>n</I>.<I></I>
 <DT><B>-max-rescore</B><I> m</I><B></B>
 <DD>
-Only choose among the top
+In N-best mode, only choose among the top
 <I> m </I>
 hypotheses when optimizing word error.
 This is convenient to limit computation for long N-best lists.
@@ -132,6 +135,10 @@ is the length of the N-best list (or the value given to
 However, in practice the average time per sentence is independent of 
 <I>m</I>,<I></I>
 so this option is usually not necessary.
+<BR>
+In lattice mode, only align the top 
+<I> m </I>
+scoring hypotheses (after reweighting and sorting) into the lattice.
 <DT><B>-posterior-prune</B><I> threshold</I><B></B>
 <DD>
 Don't process N-best hypotheses whose cumulative posterior probability
@@ -149,6 +156,15 @@ N-best lists containing such information (see
 <A HREF="nbest-format.html">nbest-format(5)</A>).
 The default is to ignore backtrace information and record only sentence-level
 scores and the word identities.
+<DT><B> -output-ctm </B>
+<DD>
+Output word hypotheses in NIST CTM (conversation time mark) format.
+Note that word start times will be relative to the segment start times,
+the first column will contain the N-best filename, and the channel field
+is always 1.
+The word confidence field contains posterior probabilities.
+This option also implies
+<B>-nbest-backtrace</B>.<B></B>
 <DT><B>-rescore-lmw</B><I> lmw</I><B></B>
 <DD>
 Sets the language model weight used in combining the language model log
@@ -359,6 +375,14 @@ The dictionary
 <I> file </I>
 should contain one pronunciation per line, each naming a word in the first
 field, followed by a string of phone symbols.
+<DT><B>-hidden-vocab</B> file<B></B>
+<DD>
+Read a subvocabulary from
+<I> file </I>
+and constrain word meshes to only align those words that are either all
+in or outside the subvocabulary.
+This may be used to keep ``hidden event'' tags from aligning with
+regular words.
 <DT><B> -record-hyps </B>
 <DD>
 Record the ranks of the hyps contributing to each word hypothesis in the 
@@ -389,9 +413,22 @@ Several functions are not uniformly implemented for all rescoring modes
 and 
 <B> -nbest-backtrace </B>
 are currently effective only in mesh-lattice mode).
+<BR>
+It is a common mistake (not a bug) to use the default LM weight with
+N-best lists directly from Decipher.
+Decipher N-best lists have the recognizer's LM weight already
+built in, so they should be processed with
+<BR>
+	nbest-lattice -rescore-lmw 1 -posterior-scale <I>LMW</I>
+<BR>
+where
+<I> LMW </I>
+is the LM weight during recognition.
+This is not an issue if the N-best lists have been rescored with
+<B>rescore-decipher</B>.<B></B>
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1996-2002 SRI International
+Copyright 1996-2004 SRI International
 </BODY>
 </HTML>

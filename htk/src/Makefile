@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/htk/src/RCS/Makefile,v 1.8 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/htk/src/RCS/Makefile,v 1.10 2006/01/09 22:47:54 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -73,13 +73,13 @@ LIB_SOURCES =  \
 	$(SRCDIR)/SriLM.cc
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,\
-		  $(patsubst $(HTK_LATTICE_DIR)/%.c,$(OBJDIR)/%.o,\
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		  $(patsubst $(HTK_LATTICE_DIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),\
 							$(LIB_SOURCES))))
 
 # Example Library.
-LIBRARY = $(OBJDIR)/libHTKlattice.a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)HTKlattice$(LIB_SUFFIX)
 
 # Example programs.
 PROGRAM_NAMES = \
@@ -90,13 +90,13 @@ PROGRAM_NAMES = \
 	JAStar \
 	JLRebuild
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc) \
 			$(wildcard $(HTK_LATTICE_DIR)/$(prog).c))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 ADDITIONAL_INCLUDES = \
 	-I$(HTK_LATTICE_DIR) \
@@ -110,24 +110,13 @@ LIBRARIES = \
 
 # NOTE: Need to link $(LIBRARY) twice to satisfy references from HTK libs
 ADDITIONAL_LIBRARIES = \
-	$(HTK_LATTICE_DIR)/JLib.$(HTK_CPU_TYPE).a \
-	$(HTK_LIB_DIR)/HTKLib.$(HTK_CPU_TYPE).a \
-	$(HTK_LIB_DIR)/HTKLibHE.$(HTK_CPU_TYPE).a \
+	$(HTK_LATTICE_DIR)/JLib.$(HTK_CPU_TYPE)$(LIB_SUFFIX) \
+	$(HTK_LIB_DIR)/HTKLib.$(HTK_CPU_TYPE)$(LIB_SUFFIX) \
+	$(HTK_LIB_DIR)/HTKLibHE.$(HTK_CPU_TYPE)$(LIB_SUFFIX) \
 	$(LIBRARY) \
-	-loolm \
-	-ldstruct \
-	-lmisc
-
-ifeq ($(MACHINE_TYPE), sparc-elf)
-ADDITIONAL_LIBRARIES += -lsocket -lnsl -ldl
-endif
-ifeq ($(MACHINE_TYPE), i386-solaris)
-ADDITIONAL_LIBRARIES += -lsocket -lnsl -ldl
-endif
-ifeq ($(MACHINE_TYPE), mips-elf)
-ADDITIONAL_LIBRARIES += -lmalloc -laudio
-endif
-
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)oolm$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX)
 
 # All of the types of files.
 
@@ -160,7 +149,7 @@ endif
 all:	$(PROGRAMS)
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^ $(DEMANGLE_FILTER)
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^ $(DEMANGLE_FILTER)
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 
@@ -181,12 +170,12 @@ include $(SRILM)/common/Makefile.common.targets
 # Compile code in the HTK directory
 # NOTE: place this after other rules so local sources override precompiled
 # code.
-$(OBJDIR)/%.o: $(HTK_LATTICE_DIR)/%.c
+$(OBJDIR)/%$(OBJ_SUFFIX): $(HTK_LATTICE_DIR)/%.c
 	$(COMPILE.c) $(OPTION_FLAGS) $(OUTPUT_OPTION) $<
 
 # Copy precompiled objects from HTK directory
 # NOTE: place this after other rules so local sources override precompiled
 # code.
-$(OBJDIR)/%.o:	$(HTK_LATTICE_DIR)/%.$(HTK_CPU_TYPE).o
+$(OBJDIR)/%$(OBJ_SUFFIX):	$(HTK_LATTICE_DIR)/%.$(HTK_CPU_TYPE)$(OBJ_SUFFIX)
 	cp $< $@
 

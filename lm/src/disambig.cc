@@ -5,16 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/disambig.cc,v 1.35 2003/01/28 17:34:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: disambig.cc,v 1.40 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "VocabMap.h"
@@ -30,6 +32,7 @@ typedef const VocabIndex *VocabContext;
 #define DEBUG_TRANSITIONS	2
 #define DEBUG_TRELLIS	        3
 
+static int version = 0;
 static unsigned numNbest = 1;
 static unsigned order = 2;
 static unsigned debug = 0;
@@ -38,9 +41,11 @@ static char *lmFile = 0;
 static char *vocab1File = 0;
 static char *vocab2File = 0;
 static char *mapFile = 0;
+static char *classesFile = 0;
 static char *mapWriteFile = 0;
 static char *textFile = 0;
 static char *textMapFile = 0;
+static char *countsFile = 0;
 static int keepUnk = 0;
 static int tolower1 = 0;
 static int tolower2 = 0;
@@ -57,14 +62,17 @@ static int continuous = 0;
 const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
     { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "write-vocab1", &vocab1File, "output observable vocabulary" },
     { OPT_STRING, "write-vocab2", &vocab2File, "output hidden vocabulary" },
     { OPT_STRING, "map", &mapFile, "mapping from observable to hidden tokens" },
+    { OPT_STRING, "classes", &classesFile, "mapping in class expansion format" },
     { OPT_TRUE, "logmap", &logMap, "map file contains log probabilities" },
     { OPT_STRING, "write-map", &mapWriteFile, "output map file (for validation)" },
+    { OPT_STRING, "write-counts", &countsFile, "output substitution counts" },
     { OPT_TRUE, "scale", &scale, "scale map probabilities by unigram probs" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
     { OPT_TRUE, "tolower1", &tolower1, "map observable vocabulary to lowercase" },
@@ -88,7 +96,7 @@ static Option options[] = {
  */
 unsigned
 disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
-		     LogP totalProb[], VocabMap &map, LM &lm,
+		     LogP totalProb[], VocabMap &map, LM &lm, VocabMap *counts,
 		     unsigned numNbest, Boolean positionMapped = false)
 {
     static VocabIndex emptyContext[] = { Vocab_None };
@@ -134,7 +142,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 	    
 	    if (debug >= DEBUG_ZEROPROBS &&
 		unigramProb == LogP_Zero &&
-		currWid != map.vocab2.unkIndex)
+		currWid != map.vocab2.unkIndex())
 	    {
 		cerr << "warning: map token " << map.vocab2.getWord(currWid)
 		     << " has prob zero\n";
@@ -218,9 +226,13 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
      * do it and return. Otherwise do forward-backward.
      */
     if (!fb && !fwOnly && !posteriors) {
-	VocabContext hiddenContexts[numNbest][len + 1];
+	//VocabContext hiddenContexts[numNbest][len + 1];
+	makeArray(VocabContext *, hiddenContexts, numNbest);
 
 	for (unsigned n = 0; n < numNbest; n++) {
+	    hiddenContexts[n] = new VocabContext[len + 1];
+	    assert(hiddenContexts[n] != 0);
+
 	    if (trellis.nbest_viterbi(hiddenContexts[n], len,
 						n, totalProb[n]) != len)
 	    {
@@ -236,6 +248,21 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 	    }
 	    hiddenWids[n][len] = Vocab_None;
 	}
+
+	/* 
+	 * update v1-v2 counts if requested 
+	 */
+	if (counts) {
+	    for (unsigned i = 0; i < len; i++) {
+		counts->put(wids[i], hiddenWids[0][i],
+			    counts->get(wids[i], hiddenWids[0][i]) + 1);
+	    }
+	}
+
+	for (unsigned i = 0; i < numNbest; i++) {
+	    delete [] hiddenContexts[i];
+	}
+
 	return numNbest;
     } else {
 	/*
@@ -275,7 +302,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 		
 		if (debug >= DEBUG_ZEROPROBS &&
 		    unigramProb == LogP_Zero &&
-		    currWid != map.vocab2.unkIndex)
+		    currWid != map.vocab2.unkIndex())
 		{
 		    cerr << "warning: map token " << map.vocab2.getWord(currWid)
 			 << " has prob zero\n";
@@ -426,6 +453,20 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 		}
 		cout << endl;
 	    }
+
+	    /* 
+	     * update v1-v2 counts if requested 
+	     */
+	    if (counts) {
+		symbolIter.init();
+		while (symbolProb = symbolIter.next(symbol)) {
+		    LogP2 posterior = *symbolProb - totalPosterior;
+
+		    counts->put(wids[pos], symbol,
+			        counts->get(wids[pos], symbol) +
+					LogPtoProb(posteriors));
+		}
+	    }
 	}
 
         /*
@@ -442,7 +483,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
  * disambiguate it, and print out the result
  */
 void
-disambiguateFile(File &file, VocabMap &map, LM &lm)
+disambiguateFile(File &file, VocabMap &map, LM &lm, VocabMap *counts)
 {
     char *line;
     VocabString sentence[maxWordsPerLine];
@@ -456,27 +497,27 @@ disambiguateFile(File &file, VocabMap &map, LM &lm)
 	    VocabIndex wids[maxWordsPerLine + 2];
 
 	    map.vocab1.getIndices(sentence, &wids[1], maxWordsPerLine,
-						    map.vocab1.unkIndex);
-	    wids[0] = map.vocab1.ssIndex;
+						    map.vocab1.unkIndex());
+	    wids[0] = map.vocab1.ssIndex();
 
 	    if (noEOS) {
 		wids[numWords + 1] = Vocab_None;
 	    } else {
-		wids[numWords + 1] = map.vocab1.seIndex;
+		wids[numWords + 1] = map.vocab1.seIndex();
 		wids[numWords + 2] = Vocab_None;
 	    }
 
-	    VocabIndex *hiddenWids[numNbest];
-	    VocabString hiddenWords[maxWordsPerLine + 2];
+	    makeArray(VocabIndex *, hiddenWids, numNbest);
+	    makeArray(VocabString,  hiddenWords, maxWordsPerLine + 2);
 
 	    for (unsigned n = 0; n < numNbest; n++) {
 		hiddenWids[n] = new VocabIndex[maxWordsPerLine + 2];
 	    }
 
-	    LogP totalProb[numNbest];
+	    makeArray(LogP, totalProb, numNbest);
 	    unsigned numHyps =
 			disambiguateSentence(map.vocab1, wids, hiddenWids,
-						totalProb, map, lm, numNbest);
+					totalProb, map, lm, counts, numNbest);
 	    if (!numHyps) {
 		file.position() << "Disambiguation failed\n";
 	    } else if (totals) {
@@ -499,7 +540,7 @@ disambiguateFile(File &file, VocabMap &map, LM &lm)
 			     i++)
 			{
 			    if (i > 0 &&
-				hiddenWids[n][i] == map.vocab2.unkIndex)
+				hiddenWids[n][i] == map.vocab2.unkIndex())
 			    {
 				hiddenWords[i] = sentence[i - 1];
 			    }
@@ -521,7 +562,8 @@ disambiguateFile(File &file, VocabMap &map, LM &lm)
  * disambiguate it, and print out the result
  */
 void
-disambiguateFileContinuous(File &file, VocabMap &map, LM &lm)
+disambiguateFileContinuous(File &file, VocabMap &map, LM &lm,
+							VocabMap *counts)
 {
     char *line;
     Array<VocabIndex> wids;
@@ -541,7 +583,7 @@ disambiguateFileContinuous(File &file, VocabMap &map, LM &lm)
 	    wids[lineStart + numWords] = Vocab_None;
 
 	    map.vocab1.getIndices(words, &wids[lineStart], numWords,
-							map.vocab1.unkIndex);
+							map.vocab1.unkIndex());
 	    lineStart += numWords;
 	}
     }
@@ -550,17 +592,17 @@ disambiguateFileContinuous(File &file, VocabMap &map, LM &lm)
 	return;
     }
 
-    VocabIndex *hiddenWids[numNbest];
-    VocabString hiddenWords[maxWordsPerLine + 2];
+    makeArray(VocabIndex *, hiddenWids, numNbest);
+    makeArray(VocabString, hiddenWords, maxWordsPerLine + 2);
 
     for (unsigned n = 0; n < numNbest; n++) {
 	hiddenWids[n] = new VocabIndex[lineStart + 1];
 	hiddenWids[n][lineStart] = Vocab_None;
     }
 
-    LogP totalProb[numNbest];
+    makeArray(LogP, totalProb, numNbest);
     unsigned numHyps = disambiguateSentence(map.vocab1, &wids[0], hiddenWids,
-					    totalProb, map, lm, numNbest);
+					totalProb, map, lm, counts, numNbest);
 
     if (!numHyps) {
 	file.position() << "Disambiguation failed\n";
@@ -593,7 +635,7 @@ disambiguateFileContinuous(File &file, VocabMap &map, LM &lm)
  * disambiguate it, and print out the result
  */
 void
-disambiguateTextMap(File &file, Vocab &vocab, LM &lm)
+disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
 {
     char *line;
 
@@ -650,21 +692,22 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm)
 
 		map.put((VocabIndex)numWords, w2, prob);
 	    }
-	} while (wids[numWords ++] != vocab.seIndex && (line = file.getline()));
+	} while (wids[numWords ++] != vocab.seIndex() &&
+		 (line = file.getline()));
 
 	if (numWords > 0) {
 	    wids[numWords] = Vocab_None;
 
-	    VocabIndex *hiddenWids[numNbest];
+	    makeArray(VocabIndex *, hiddenWids, numNbest);
 	    for (unsigned n = 0; n < numNbest; n++) {
 		hiddenWids[n] = new VocabIndex[numWords + 1];
 		hiddenWids[n][numWords] = Vocab_None;
 	    }
 
-	    LogP totalProb[numNbest];
+	    makeArray(LogP, totalProb, numNbest);
 	    unsigned numHyps =
 		    disambiguateSentence(vocab, &wids[0], hiddenWids, totalProb,
-						    map, lm, numNbest, true);
+					    map, lm, counts, numNbest, true);
 
 	    if (!numHyps) {
 		file.position() << "Disambiguation failed\n";
@@ -698,6 +741,11 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     /*
      * Construct language model
      */
@@ -707,15 +755,24 @@ main(int argc, char **argv)
 
     VocabMap map(vocab, hiddenVocab, logMap);
 
-    vocab.toLower = tolower1? true : false;
-    hiddenVocab.toLower = tolower2 ? true : false;
-    hiddenVocab.unkIsWord = keepUnk ? true : false;
+    vocab.toLower() = tolower1? true : false;
+    hiddenVocab.toLower() = tolower2 ? true : false;
+    hiddenVocab.unkIsWord() = keepUnk ? true : false;
 
     if (mapFile) {
 	File file(mapFile, "r");
 
 	if (!map.read(file)) {
 	    cerr << "format error in map file\n";
+	    exit(1);
+	}
+    }
+
+    if (classesFile) {
+	File file(classesFile, "r");
+
+	if (!map.readClasses(file)) {
+	    cerr << "format error in classes file\n";
 	    exit(1);
 	}
     }
@@ -734,20 +791,38 @@ main(int argc, char **argv)
 	hiddenLM->debugme(debug);
     }
 
+    VocabMap *counts;
+    if (countsFile) {
+	counts = new VocabMap(vocab, hiddenVocab);
+	assert(counts != 0);
+
+	counts->remove(vocab.ssIndex(), hiddenVocab.ssIndex());
+	counts->remove(vocab.seIndex(), hiddenVocab.seIndex());
+	counts->remove(vocab.unkIndex(), hiddenVocab.unkIndex());
+    } else {
+	counts = 0;
+    }
+
     if (textFile) {
 	File file(textFile, "r");
 
 	if (continuous) {
-	    disambiguateFileContinuous(file, map, *hiddenLM);
+	    disambiguateFileContinuous(file, map, *hiddenLM, counts);
 	} else {
-	    disambiguateFile(file, map, *hiddenLM);
+	    disambiguateFile(file, map, *hiddenLM, counts);
 	}
     }
 
     if (textMapFile) {
 	File file(textMapFile, "r");
 
-	disambiguateTextMap(file, vocab, *hiddenLM);
+	disambiguateTextMap(file, vocab, *hiddenLM, counts);
+    }
+
+    if (countsFile) {
+	File file(countsFile, "w");
+
+	counts->writeBigrams(file);
     }
 
     if (mapWriteFile) {

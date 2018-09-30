@@ -4,7 +4,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/spot71/srilm/devel/lm/src/RCS/testVocab.cc,v 1.8 1997/02/18 06:20:11 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testVocab.cc,v 1.9 2003/03/05 00:53:24 stolcke Exp $";
 #endif
 
 #include <tcl.h>
@@ -179,15 +179,15 @@ VocabWrite(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 extern "C" int
 Tcl_AppInit(Tcl_Interp *interp)
 {
-   Tcl_CreateCommand(interp, "add", VocabAddWord, 0, NULL);
-   Tcl_CreateCommand(interp, "get", VocabGetWord, 0, NULL);
-   Tcl_CreateCommand(interp, "getindex", VocabGetIndex, 0, NULL);
-   Tcl_CreateCommand(interp, "delete", VocabDeleteWord, 0, NULL);
-   Tcl_CreateCommand(interp, "deleteindex", VocabDeleteIndex, 0, NULL);
-   Tcl_CreateCommand(interp, "deleteall", VocabDeleteAll, 0, NULL);
-   Tcl_CreateCommand(interp, "list", VocabList, 0, NULL);
-   Tcl_CreateCommand(interp, "read", VocabRead, 0, NULL);
-   Tcl_CreateCommand(interp, "write", VocabWrite, 0, NULL);
+   Tcl_CreateCommand(interp, "add", (Tcl_CmdProc *)VocabAddWord, 0, NULL);
+   Tcl_CreateCommand(interp, "get", (Tcl_CmdProc *)VocabGetWord, 0, NULL);
+   Tcl_CreateCommand(interp, "getindex", (Tcl_CmdProc *)VocabGetIndex, 0, NULL);
+   Tcl_CreateCommand(interp, "delete", (Tcl_CmdProc *)VocabDeleteWord, 0, NULL);
+   Tcl_CreateCommand(interp, "deleteindex", (Tcl_CmdProc *)VocabDeleteIndex, 0, NULL);
+   Tcl_CreateCommand(interp, "deleteall", (Tcl_CmdProc *)VocabDeleteAll, 0, NULL);
+   Tcl_CreateCommand(interp, "list", (Tcl_CmdProc *)VocabList, 0, NULL);
+   Tcl_CreateCommand(interp, "read", (Tcl_CmdProc *)VocabRead, 0, NULL);
+   Tcl_CreateCommand(interp, "write", (Tcl_CmdProc *)VocabWrite, 0, NULL);
    return 0;
 }
 

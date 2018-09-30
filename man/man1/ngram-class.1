@@ -1,5 +1,5 @@
-.\" $Id: ngram-class.1,v 1.4 2000/01/21 03:41:55 stolcke Exp $
-.TH ngram-class 1 "$Date: 2000/01/21 03:41:55 $" "SRILM Tools"
+.\" $Id: ngram-class.1,v 1.5 2004/12/03 17:59:01 stolcke Exp $
+.TH ngram-class 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 ngram-class \- induce word classes from N-gram statistics
 .SH SYNOPSIS
@@ -22,14 +22,17 @@ needed by
 and
 .BR ngram (1),
 respectively to train and to apply the class N-gram model.
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-debug " level"
 Set debugging output at
@@ -149,4 +152,4 @@ Classes are optimized only for bigram models at present.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1999 SRI International
+Copyright 1999\-2004 SRI International

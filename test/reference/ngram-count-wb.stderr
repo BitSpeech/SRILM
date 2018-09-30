@@ -1,3 +1,6 @@
+using WittenBell for 1-grams
+using WittenBell for 2-grams
+using WittenBell for 3-grams
 discarded 1 1-gram probs predicting pseudo-events
 warning: distributing 0.00825076 left-over probability mass over 6550 zeroton words
 discarded 2 2-gram contexts containing pseudo-events

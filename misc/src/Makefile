@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.16 2003/02/21 20:19:29 stolcke Exp $
+#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.25 2006/01/09 22:47:54 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -31,43 +31,53 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/cfuncproto.h          \
 	$(SRCDIR)/option.h		\
 	$(SRCDIR)/zio.h			\
+	$(SRCDIR)/mkdir.h		\
 	$(SRCDIR)/Boolean.h		\
 	$(SRCDIR)/Debug.h		\
-	$(SRCDIR)/File.h
+	$(SRCDIR)/File.h		\
+	$(SRCDIR)/version.h
 
 INTERNAL_LIB_HEADERS = 
 
 # Example Library source files.
 LIB_SOURCES = 				\
-	$(SRCDIR)/tclmain.cc		\
 	$(SRCDIR)/option.c		\
 	$(SRCDIR)/zio.c			\
 	$(SRCDIR)/fcheck.c		\
+	$(SRCDIR)/fake-rand48.c		\
 	$(SRCDIR)/Debug.cc		\
-	$(SRCDIR)/File.cc
+	$(SRCDIR)/File.cc		\
+	$(SRCDIR)/version.c
+
+ifeq ($(NO_TCL), )
+LIB_SOURCES +=	$(SRCDIR)/tclmain.cc
+endif
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES)))
-
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
 
 # Example Library.
-LIBRARY = $(OBJDIR)/libmisc.a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX)
 
-ADDITIONAL_INCLUDES += $(TCL_INCLUDE)
-ADDITIONAL_LIBRARIES += $(TCL_LIBRARY) -lm
+ADDITIONAL_INCLUDES += \
+	$(TCL_INCLUDE)
+
+ADDITIONAL_LIBRARIES += \
+	$(TCL_LIBRARY) \
+	$(MATH_LIBRARY)
 
 # Example programs.
 PROGRAM_NAMES = \
 	ztest \
 	testFile
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 
 # Libraries to be linked with the Example programs.
@@ -105,8 +115,12 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	libraries
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
+
+SRILMversion.h:	$(SRILM)/RELEASE $(SRILM)/Copyright
+	echo '#define SRILM_RELEASE "'`cat $(SRILM)/RELEASE`'"' > $@
+	sed -f $(SRILM)/sbin/stringify-copyright $(SRILM)/Copyright >> $@
 
 # Variables and Targets for released system
 
@@ -116,5 +130,11 @@ EXPORTED_PROGRAMS  =
 
 release:	release-headers release-libraries release-programs
 
+depend:	SRILMversion.h
+
+clean:
+	rm -f SRILMversion.h
+
 # Include common SRILM target definitions.
 include $(SRILM)/common/Makefile.common.targets
+

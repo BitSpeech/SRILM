@@ -9,21 +9,21 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf,v 1.21 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf,v 1.22 2006/01/05 20:25:44 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
    # XXX: Since most of our fast machines are UltraSPARC based, optimize
    # the code for that platform.
-   GCC_FLAGS = -V2.95.3 -mtune=ultrasparc -Wreturn-type -Wimplicit
-   CC = gcc $(GCC_FLAGS)
-   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -mtune=ultrasparc -Wreturn-type -Wimplicit
+   CC = /usr/local/lang/gcc-3.4.3/bin/gcc $(GCC_FLAGS)
+   CXX = /usr/local/lang/gcc-3.4.3/bin/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
-   OPTIMIZE_FLAGS = -g -O2
+   OPTIMIZE_FLAGS = -g -O3
    DEBUG_FLAGS = -g -DDEBUG
-   PROFILE_FLAGS = -pg -g -O2
+   PROFILE_FLAGS = -pg -g -O3
 else
    # Use the Sun C compiler
    ACCPREFIX=/opt/SUNWspro/SC4.2/bin/

@@ -6,18 +6,26 @@
 #
 # usage: wlat-to-dot [show_probs=1] file.wlat > file.dot
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-dot,v 1.2 1998/07/10 05:55:33 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-dot.gawk,v 1.6 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	name = "WLAT"; 
 	show_probs = 0;
+	show_nums = 0;
 
 	version = 1;
+}
+$1 == "name" {
+	name = $2;
+}
 
+#
+# nbest-lattice output (without -use-mesh)
+#
+$1 == "initial" {
 	print "digraph \"" name "\" {";
 	print "rankdir = LR";
-}
-$1 == "initial" {
+
 	i = $2;
 }
 $1 == "final" {
@@ -32,6 +40,7 @@ $1 == "node" && version == 1 {
 	post = $4;
 
 	print "\tnode" from " [label=\"" word \
+		(!show_nums ? "" : ("/" from)) \
 		(!show_probs ? "" : "\\n" post ) "\"]";
 
 	for (i = 5; i <= NF; i ++) {
@@ -45,7 +54,9 @@ $1 == "node" && version == 2 {
 	align = $4;
 	post = $5;
 
-	print "\tnode" from " [label=\"" word "\\n" align \
+	print "\tnode" from " [label=\"" word \
+		(!show_nums ? "" : ("/" from)) \
+		"\\n" align \
 		(!show_probs ? "" : "/" post ) "\"]";
 
 	for (i = 6; i <= NF; i += 2) {
@@ -54,6 +65,41 @@ $1 == "node" && version == 2 {
 		(!show_probs ? "" : " [label=\"" $(i + 1) "\"]") ";"
 	}
 }
+
+#
+# nbest-lattice -use-mesh output (confusion networks)
+#
+
+$1 == "numaligns" {
+	print "digraph \"" name "\" {";
+	print "rankdir = LR";
+
+	print "node0 [label=\"" (show_nums ? 0 : "") "\"]";
+}
+
+$1 == "align" {
+
+	pos = $2;
+
+	for (i = 3; i <= NF; i += 2) {
+		word = $i;
+		posterior = $(i + 1);
+
+		if (posterior == 0) {
+		    print "align " pos ", word " word \
+				": zero posterior, omitting it" >> "/dev/stderr";
+		    continue;
+		}
+
+		print "node" pos " -> node" (pos + 1) \
+			" [label=\"" word \
+			(show_probs ? ("\\n" posterior) : "") \
+			"\"]";
+	}
+	print "node" (pos + 1) " [label=\"" (show_nums ? (pos + 1) : "") "\"]";
+}
+
 END {
 	print "}"
 }
+

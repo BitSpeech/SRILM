@@ -10,7 +10,7 @@
 # models.  li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-best-sentence-mix.gawk,v 1.1 2002/04/19 14:05:58 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-best-sentence-mix.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;
@@ -84,7 +84,7 @@ END {
 	for (i = 2; i <= nfiles; i ++) {
 		if (nsamples[i] != nsamples[1]) {
 			printf "mismatch in number of samples (%d != %d)", \
-				nsamples[1], nsamples[i] > "/dev/stderr";
+				nsamples[1], nsamples[i] >> "/dev/stderr";
 			exit(1);
 		}
 	}
@@ -139,7 +139,7 @@ END {
 	    printf "iteration %d, lambda = %s, ppl = %g\n", \
 		    iter, print_vector(priors, nfiles), \
 		    exp10(-log_like/(num_words + num_sentences)) \
-							> "/dev/stderr";
+							>> "/dev/stderr";
 	    fflush();
 	
 	    have_converged = 1;

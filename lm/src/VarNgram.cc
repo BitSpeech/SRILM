@@ -5,15 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.11 2000/02/18 05:09:11 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.15 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 #include <stdlib.h>
 #include <math.h>
 
 #include "VarNgram.h"
+
+#include "Array.cc"
 
 #define DEBUG_ESTIMATE_WARNINGS	1
 #define DEBUG_PRUNE_HOEFFDING 2
@@ -35,16 +38,16 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
      * For all ngrams, compute probabilities and apply the discount
      * coefficients.
      */
-    VocabIndex context[order];
+    makeArray(VocabIndex, context, order);
 
     /*
      * Ensure <s> unigram exists (being a non-event, it is not inserted
      * in distributeProb(), yet is assumed by much other software).
      */
-    if (vocab.ssIndex != Vocab_None) {
+    if (vocab.ssIndex() != Vocab_None) {
 	context[0] = Vocab_None;
 
-	*insertProb(vocab.ssIndex, context) = LogP_Zero;
+	*insertProb(vocab.ssIndex(), context) = LogP_Zero;
     }
 
     for (unsigned i = 1; i <= order; i++) {
@@ -62,9 +65,9 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	     * If <unk> is not real word, also skip context that contain
 	     * it.
 	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex ||
-	        vocab.isNonEvent(vocab.unkIndex) &&
-				 vocab.contains(context, vocab.unkIndex))
+	    if (i > 1 && context[i-2] == vocab.seIndex() ||
+	        vocab.isNonEvent(vocab.unkIndex()) &&
+				 vocab.contains(context, vocab.unkIndex()))
 	    {
 		continue;
 	    }
@@ -89,7 +92,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 		totalCount += *ngramCount;
 		observedVocab ++;
 	    }
-	    if (i > 1 && trustTotals) {
+	    if (i > 1 && trustTotals()) {
 		totalCount = *contextCount;
 	    }
 
@@ -135,7 +138,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 		     * vocab models, its presence would prevent OOV
 		     * detection when the model is read back in.
 		     */
-		    if (i > 1 || word[0] == vocab.unkIndex) {
+		    if (i > 1 || word[0] == vocab.unkIndex()) {
 			continue;
 		    }
 
@@ -184,7 +187,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	     * we try incrementing the denominator in the estimator by 1.
 	     */
 	    if (!noDiscount && totalCount > 0 && totalProb == 1.0) {
-		totalCount ++;
+		totalCount += 1;
 
 		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
 		    cerr << "warning: no backoff probability mass left for \""
@@ -255,8 +258,8 @@ VarNgram::pruneNgram(NgramStats &stats,
         if (n1 == 0 || f2 == 0 || n2 == 0 || *n2 == 0) {
 	    prune = false;
 	} else {
-	    double delta = fabs(f1/(double)n1 - (double)(*f2)/(double)(*n2));
-	    double dev = 1.0 / (1.0/sqrt(n1) + 1.0/sqrt(*n2));
+	    double delta = fabs(f1/(double)n1 - (double)(*f2)/(double)*n2);
+	    double dev = 1.0 / (1.0/sqrt((double)n1) + 1.0/sqrt((double)*n2));
 
 	    double val = 2.0 * exp(-2.0 * (delta * delta) * (dev * dev));
     

@@ -1,7 +1,7 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.14 2002/05/27 18:11:37 stolcke Exp $
+# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.15 2003/03/12 08:41:10 stolcke Exp stolcke $
 #
 
 GROFF = groff -Tascii -mgan
@@ -26,7 +26,8 @@ MAN1PAGES = \
 	lm-scripts \
 	ppl-scripts \
 	pfsg-scripts \
-	nbest-scripts
+	nbest-scripts \
+	select-vocab
 
 MAN3PAGES = \
 	Prob \
@@ -56,9 +57,11 @@ cats:	$(CATS)
 index:	whatis windex
 
 windex: $(CATS)
+	rm -f windex
 	scripts/makewhatis .
 
 whatis:	$(CATS)
+	rm -f whatis
 	scripts/makewhatis.bsd .
 
 htmls:	$(HTMLS)

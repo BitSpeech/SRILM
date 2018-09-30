@@ -12,7 +12,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.28 2002/05/25 14:40:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.30 2005/08/19 04:31:46 stolcke Exp $
  *
  */
 
@@ -68,8 +68,6 @@ protected:
     void alloc(unsigned size);		/* allocate data array */
     Boolean locate(KeyT key, unsigned &index) const;
 					/* locate key in data */
-    static int compareEntries(const void *entry1, const void *entry2);
-					/* callback function for qsort() */
     static DataT *removedData;		/* temporary buffer for removed item */
 };
 
@@ -103,13 +101,13 @@ private:
  * Key Comparison functions
  */
 template <class KeyT>
-static inline int
+inline int
 SArray_compareKey(KeyT key1, KeyT key2)
 {
     return (key1 - key2);
 }
 
-static inline int
+inline int
 SArray_compareKey(const char *key1, const char *key2)
 {
     return strcmp(key1, key2);

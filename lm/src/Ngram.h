@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995-2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.37 2003/02/15 06:53:03 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.41 2005/07/17 22:50:07 stolcke Exp $
  *
  */
 
@@ -66,9 +66,11 @@ public:
     virtual void write(File &file) { writeWithOrder(file, order); };
     virtual void writeWithOrder(File &file, unsigned int order);
 
-    Boolean skipOOVs;		/* backward compatiability: return
+    virtual Boolean &skipOOVs() { return _skipOOVs; };	
+				/* backward compatiability: return
 				 * zero prob if <unk> is in context */
-    Boolean trustTotals;	/* use lower-order counts for ngram totals */
+    virtual Boolean &trustTotals() { return _trustTotals; }
+				/* use lower-order counts for ngram totals */
 
     /*
      * Estimation
@@ -84,6 +86,7 @@ public:
     virtual void recomputeBOWs();
     virtual void pruneProbs(double threshold, unsigned minorder = 2);
     virtual void pruneLowProbs(unsigned minorder = 2);
+    virtual void rescoreProbs(LM &lm);
 
     /*
      * Statistics
@@ -101,11 +104,14 @@ public:
     void removeBOW(const VocabIndex *context);
     void removeProb(VocabIndex word, const VocabIndex *context);
 
+    void clear();				/* remove all parameters */
+
 protected:
     BOtrie contexts;				/* n-1 gram context trie */
     unsigned int order; 			/* maximal ngram order */
 
-    void clear();				/* remove all parameters */
+    Boolean _skipOOVs;
+    Boolean _trustTotals;
 
     /*
      * Helper functions
@@ -117,7 +123,6 @@ protected:
 	Boolean estimate2(NgramCounts<CountType> &stats, Discount **discounts);
     virtual void fixupProbs();
     virtual void distributeProb(Prob mass, VocabIndex *context);
-    virtual LogP computeContextProb(const VocabIndex *context);
     virtual Boolean computeBOW(BOnode *node, const VocabIndex *context, 
 			    unsigned clen, Prob &numerator, Prob &denominator);
     virtual Boolean computeBOWs(unsigned order);

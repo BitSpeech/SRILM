@@ -24,7 +24,14 @@ DDEESSCCRRIIPPTTIIOONN
        that bigram backoff uses the left neighbor only).
 
 OOPPTTIIOONNSS
+       Each  filename  argument  can  be an ASCII file, or a com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --ddeebbuugg _l_e_v_e_l
               Controls  the  amount  of  output  (the  higher the
@@ -108,12 +115,20 @@ OOPPTTIIOONNSS
               N-best  lists,  using output filenames derived from
               the input files.
 
+       --ppaauussee--ssccoorree--wweeiigghhtt _W
+              Add pause LM scores  to  the  pronunciation  scores
+              after multiplying them by _W.  This creates a single
+              weighted combination of both models.  Pause  scores
+              can   still  be  output  separately  by  specifying
+              --ppaauussee--ssccoorree--ddiirr.
+
 SSEEEE AALLSSOO
        nbest-format(5),   nbest-scripts(1),    nbest-optimize(1),
        ngram(1).
-       A.  Stolcke  et  al.,  ``The SRI RT-02 Speech-to-Text Sys-
-       tem'', Rich  Transcription  Workshop,  Vienna,  VA,  April
-       2002.
+       D.  Vergyri,  A.  Stolcke, V. R. R. Gadde, L. Ferrer, & E.
+       Shriberg,  ``Prosodic  Knowledge  Sources  for   Automatic
+       Speech  Recognition''.   _P_r_o_c_.  _I_E_E_E _I_n_t_l_. _C_o_n_f_. _o_n _A_c_o_u_s_-
+       _t_i_c_s_, _S_p_e_e_c_h _a_n_d _S_i_g_n_a_l _P_r_o_c_e_s_s_i_n_g, Hong Kong, April 2003.
 
 BBUUGGSS
        The  binning of pause lengths into three classes should be
@@ -121,8 +136,8 @@ BBUUGGSS
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 2002 SRI International
+       Copyright 2002-2004 SRI International
 
 
 
-SRILM Tools        $Date: 2002/06/25 07:18:30 $nbest-pron-score(1)
+SRILM Tools        $Date: 2004/12/03 17:59:01 $nbest-pron-score(1)

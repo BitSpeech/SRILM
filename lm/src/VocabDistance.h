@@ -2,9 +2,9 @@
  * VocabDistance.h --
  *	Distance metrics over vocabularies
  *
- * Copyright (c) 2000 SRI International.  All Rights Reserved.
+ * Copyright (c) 2000,2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.h,v 1.2 2000/08/06 03:20:18 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.h,v 1.3 2004/08/03 23:21:31 stolcke Exp $
  *
  */
 
@@ -12,6 +12,7 @@
 #define _VocabDistance_h_
 
 #include "Vocab.h"
+#include "SubVocab.h"
 #include "VocabMultiMap.h"
 #include "Map2.h"
 
@@ -32,6 +33,31 @@ public:
     double penalty(VocabIndex w1) { return 1.0; };
     double distance(VocabIndex w1, VocabIndex w2) 
 	{ return (w1 == w2) ? 0.0 : 1.0; };
+};
+
+/*
+ * Distance constrained by sub-vocabulary membership
+ * Return distance
+ *	0 if words are identical,
+ *	1 if they both belong or don't belong to SubVocab,
+ *	and infinity otherwise.
+ */
+class SubVocabDistance: public VocabDistance
+{
+public:
+    SubVocabDistance(Vocab &vocab, SubVocab &subVocab, double infinity = 10000)
+       : subVocab(subVocab), infinity(infinity) {};
+
+    double penalty(VocabIndex w1) { return 1.0; };
+    double distance(VocabIndex w1, VocabIndex w2) {
+	if (w1 == w2) return 0.0;
+	else if ((subVocab.getWord(w1) != 0) == (subVocab.getWord(w2) != 0))
+	    return 1.0;
+	else return infinity;
+    }
+private:
+    SubVocab &subVocab;
+    double infinity;
 };
 
 /*

@@ -19,7 +19,14 @@ DDEESSCCRRIIPPTTIIOONN
        model for sequences over V2.
 
 OOPPTTIIOONNSS
+       Each filename argument can be an ASCII  file,  or  a  com-
+       pressed file (name ending in .Z or .gz), or ``-'' to indi-
+       cate stdin/stdout.
+
        --hheellpp  Print option summary.
+
+       --vveerrssiioonn
+              Print version information.
 
        --tteexxtt _f_i_l_e
               Specifies the file containing the V1 sentences.
@@ -51,19 +58,25 @@ OOPPTTIIOONNSS
                    </s> </s>
                    <s>  <s>
 
-       --ssccaallee Interpret  the numbers in the mapping as P(_w_2_1|_w_1).
-              This is done by dividing probabilities by the  uni-
-              gram  probabilities  of  _w_2_1,  obtained from the V2
+       --ccllaasssseess file
+              Specifies   the  V1-to-V2  mapping  information  in
+              ccllaasssseess--ffoorrmmaatt(5).  Class labels are interpreted as
+              V2  words,  and expansions as V1 words.  Multi-word
+              expansions are not allowed.
+
+       --ssccaallee Interpret the numbers in the mapping as  P(_w_2_1|_w_1).
+              This  is done by dividing probabilities by the uni-
+              gram probabilities of _w_2_1,  obtained  from  the  V2
               language model.
 
        --llooggmmaapp
-              Interpret numeric values in map file as log  proba-
+              Interpret  numeric values in map file as log proba-
               bilities, not probabilities.
 
        --llmm _f_i_l_e
-              Specifies  the V2 language model as a standard ARPA
-              N-gram backoff  model  file  nnggrraamm--ffoorrmmaatt(5).   The
-              default  is  not  to  use  a  language model, i.e.,
+              Specifies the V2 language model as a standard  ARPA
+              N-gram  backoff  model  file  nnggrraamm--ffoorrmmaatt(5).  The
+              default is not  to  use  a  language  model,  i.e.,
               choose V2 tokens based only on the probabilities in
               the map file.
 
@@ -75,77 +88,83 @@ OOPPTTIIOONNSS
               _W.  Default language model weight is 1.
 
        --mmaappww _W
-              Scales  the  likelihood map probability by a factor
-              _W.  Default map weight is  1.   Note:  For  Viterbi
+              Scales the likelihood map probability by  a  factor
+              _W.   Default  map  weight  is 1.  Note: For Viterbi
               decoding (the default) it is equivalent to use --llmmww
               _W or --mmaappww _1_/_W,, but not for forward-backward compu-
               tation.
 
        --ttoolloowweerr11
-              Map  input  vocabulary  (V1) to lowercase, removing
+              Map input vocabulary (V1)  to  lowercase,  removing
               case distinctions.
 
        --ttoolloowweerr22
-              Map output vocabulary (V2) to  lowercase,  removing
+              Map  output  vocabulary (V2) to lowercase, removing
               case distinctions.
 
        --kkeeeepp--uunnkk
-              Do  not map unknown input words to the <unk> token.
-              Instead, output the input word unchanged.  This  is
+              Do not map unknown input words to the <unk>  token.
+              Instead,  output the input word unchanged.  This is
               like having an implicit default mapping for unknown
-              words to themselves,  except  that  the  word  will
-              still  be  treated  as <unk> by the language model.
-              Also, with this option the  LM  is  assumed  to  be
-              open-vocabulary  (the default is close-vocabulary).
+              words  to  themselves,  except  that  the word will
+              still be treated as <unk> by  the  language  model.
+              Also,  with  this  option  the  LM is assumed to be
+              open-vocabulary (the default is  close-vocabulary).
 
        --nnoo--eeooss
-              Do no assume that each input line contains  a  com-
-              plete   sentence.   This  prevents  end-of-sentence
+              Do  no  assume that each input line contains a com-
+              plete  sentence.   This  prevents   end-of-sentence
               tokens </s> from being appended automatically.
 
        --ccoonnttiinnuuoouuss
-              Process all words in the input as one  sequence  of
-              words,  irrespective of line breaks.  Normally each
-              line is processed separately  as  a  sentence.   V2
-              tokens  are  output one-per-line.  This option also
-              prevents sentence start/end tokens (<s>  and  </s>)
+              Process  all  words in the input as one sequence of
+              words, irrespective of line breaks.  Normally  each
+              line  is  processed  separately  as a sentence.  V2
+              tokens are output one-per-line.  This  option  also
+              prevents  sentence  start/end tokens (<s> and </s>)
               from being added to the input.
 
        --ffbb    Perform forward-backward decoding of the input (V1)
-              token sequence.  Outputs the V2  tokens  that  have
-              the  highest  posterior probability, for each posi-
-              tion.  The default  is  to  use  Viterbi  decoding,
+              token  sequence.   Outputs  the V2 tokens that have
+              the highest posterior probability, for  each  posi-
+              tion.   The  default  is  to  use Viterbi decoding,
               i.e., the output is the V2 sequence with the higher
               joint posterior probability.
 
        --ffww--oonnllyy
               Similar to --ffbb, but uses only the forward probabil-
-              ities  for  computing posteriors.  This may be used
+              ities for computing posteriors.  This may  be  used
               to simulate on-line prediction of tags, without the
               benefit of future context.
 
        --ttoottaallss
-              Output  the total string probability for each input
+              Output the total string probability for each  input
               sentence.
 
        --ppoosstteerriioorrss
-              Output the table  of  posterior  probabilities  for
-              each  input  (V1)  token  and each V2 token, in the
-              same format as required for the --mmaapp file.  If  --ffbb
-              is  also specified the posterior probabilities will
-              be computed using  forward-backward  probabilities;
-              otherwise  an  approximation  will  be used that is
-              based on the probability of the  most  likely  path
+              Output  the  table  of  posterior probabilities for
+              each input (V1) token and each  V2  token,  in  the
+              same  format as required for the --mmaapp file.  If --ffbb
+              is also specified the posterior probabilities  will
+              be  computed  using forward-backward probabilities;
+              otherwise an approximation will  be  used  that  is
+              based  on  the  probability of the most likely path
               containing a given V2 token at given position.
 
        --nnbbeesstt _N
-              Output  the  _N  best hypotheses instead of just the
+              Output the _N best hypotheses instead  of  just  the
               first best when doing Viterbi search.  If _N>1, then
-              each  hypothesis  is prefixed by the tag NNBBEESSTT___n _x,,
+              each hypothesis is prefixed by the tag  NNBBEESSTT___n  _x,,
               where _n is the rank of the hypothesis in the N-best
-              list  and _x its score, the negative log of the com-
-              bined probability of transitions  and  observations
+              list and _x its score, the negative log of the  com-
+              bined  probability  of transitions and observations
               of the corresponding HMM path.
+
+       --wwrriittee--ccoouunnttss _f_i_l_e
+              Outputs the V2-V1 bigram  counts  corresponding  to
+              the  tagging  performed  on the input data.  If --ffbb
+              was specified these are expected counts, and other-
+              wise they reflect the 1-best tagging decisions.
 
        --wwrriittee--vvooccaabb11 _f_i_l_e
               Writes  the  input  vocabulary from the map (V1) to
@@ -173,13 +192,13 @@ BBUUGGSS
 
 SSEEEE AALLSSOO
        ngram-count(1),    hidden-ngram(1),   training-scripts(1),
-       ngram-format(5).
+       ngram-format(5), classes-format(5).
 
 AAUUTTHHOORR
        Andreas Stolcke <stolcke@speech.sri.com>,
        Anand Venkataraman <anand@speech.sri.com>.
-       Copyright 1995-2002 SRI International
+       Copyright 1995-2004 SRI International
 
 
 
-SRILM Tools        $Date: 2003/01/28 17:36:50 $       disambig(1)
+SRILM Tools        $Date: 2004/12/03 17:59:01 $       disambig(1)

@@ -5,16 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.13 2002/10/13 15:40:39 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2004 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: segment.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
 #endif
 
+#include <iostream>
+using namespace std;
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream.h>
 #include <locale.h>
 
 #include "option.h"
+#include "version.h"
 #include "File.h"
 #include "Vocab.h"
 #include "VocabMap.h"
@@ -24,6 +26,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/segment.cc,v 1.
 
 #define DEBUG_TRANSITIONS	2
 
+static int version = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
@@ -37,6 +40,7 @@ static int usePosteriors = 0;
 const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
+    { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "text", &textFile, "text file to disambiguate" },
@@ -87,7 +91,7 @@ segmentSentence(VocabIndex *wids, SegmentState *states, LM &lm, double bias,
     Vocab &vocab = lm.vocab;
 
     VocabIndex sContext[2];
-    sContext[0] = vocab.ssIndex;
+    sContext[0] = vocab.ssIndex();
     sContext[1] = Vocab_None;
     VocabIndex *noContext = &sContext[1];
 
@@ -108,10 +112,10 @@ segmentSentence(VocabIndex *wids, SegmentState *states, LM &lm, double bias,
 	Boolean isZero = (lm.wordProb(wids[0], noContext) == LogP_Zero);
 
 	VocabIndex context[2];
-	context[0] = vocab.ssIndex;
+	context[0] = vocab.ssIndex();
 	context[1] = Vocab_None;
 
-	LogP probS = lm.wordProb(vocab.seIndex, noContext) +
+	LogP probS = lm.wordProb(vocab.seIndex(), noContext) +
 	             Z(lm.wordProb(wids[0], sContext));
 
 	Prob probNOS = LogPtoProb(Z(lm.wordProb(wids[0], noContext))) -
@@ -153,18 +157,18 @@ segmentSentence(VocabIndex *wids, SegmentState *states, LM &lm, double bias,
 
 	trellis.update(NOS, NOS, Z(lm.wordProb(wids[pos], context)));
 
-	context[1] = vocab.ssIndex;
+	context[1] = vocab.ssIndex();
 	context[2] = Vocab_None;
 	trellis.update(S, NOS, Z(lm.wordProb(wids[pos], context)) + logBias);
 
 	context[1] = pos > 1 ? wids[pos-2] : Vocab_None;
 	context[2] = pos > 2 ? wids[pos-3] : Vocab_None;
-	trellis.update(NOS, S, lm.wordProb(vocab.seIndex, context) +
+	trellis.update(NOS, S, lm.wordProb(vocab.seIndex(), context) +
 	                       Z(lm.wordProb(wids[pos], sContext)));
 
-	context[1] = vocab.ssIndex;
+	context[1] = vocab.ssIndex();
 	context[2] = Vocab_None;
-	trellis.update(S, S, lm.wordProb(vocab.seIndex, context) +
+	trellis.update(S, S, lm.wordProb(vocab.seIndex(), context) +
 	                     Z(lm.wordProb(wids[pos], sContext)) + logBias);
 
 	if (debug >= DEBUG_TRANSITIONS) {
@@ -208,18 +212,18 @@ segmentSentence(VocabIndex *wids, SegmentState *states, LM &lm, double bias,
 
 	    trellis.updateBack(NOS, NOS, Z(lm.wordProb(wids[pos], context)));
 
-	    context[1] = vocab.ssIndex;
+	    context[1] = vocab.ssIndex();
 	    context[2] = Vocab_None;
 	    trellis.updateBack(S, NOS, Z(lm.wordProb(wids[pos], context)) + logBias);
 
 	    context[1] = pos > 1 ? wids[pos-2] : Vocab_None;
 	    context[2] = pos > 2 ? wids[pos-3] : Vocab_None;
-	    trellis.updateBack(NOS, S, lm.wordProb(vocab.seIndex, context) +
+	    trellis.updateBack(NOS, S, lm.wordProb(vocab.seIndex(), context) +
 				       Z(lm.wordProb(wids[pos], sContext)));
 
-	    context[1] = vocab.ssIndex;
+	    context[1] = vocab.ssIndex();
 	    context[2] = Vocab_None;
-	    trellis.updateBack(S, S, lm.wordProb(vocab.seIndex, context) +
+	    trellis.updateBack(S, S, lm.wordProb(vocab.seIndex(), context) +
 				 Z(lm.wordProb(wids[pos], sContext)) + logBias);
 
 	    if (debug >= DEBUG_TRANSITIONS) {
@@ -272,7 +276,7 @@ segmentFile(File &file, LM &lm, double bias)
 
 	    if (useUnknown) {
 		lm.vocab.getIndices(sentence, wids, maxWordsPerLine,
-							    lm.vocab.unkIndex);
+							lm.vocab.unkIndex());
 	    } else {
 		lm.vocab.addWords(sentence, wids, maxWordsPerLine);
 	    }
@@ -334,7 +338,7 @@ segmentFileContinuous(File &file, LM &lm, double bias)
 
 	    if (useUnknown) {
 		lm.vocab.getIndices(words, &wids[lineStart], numWords,
-							lm.vocab.unkIndex);
+							lm.vocab.unkIndex());
 	    } else {
 		lm.vocab.addWords(words, &wids[lineStart], numWords);
 	    }
@@ -388,6 +392,11 @@ main(int argc, char **argv)
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
+
     /*
      * Construct language model
      */
@@ -408,7 +417,7 @@ main(int argc, char **argv)
     }
 
     if (!sTag) {
-	sTag = vocab.getWord(vocab.ssIndex);
+	sTag = vocab.getWord(vocab.ssIndex());
 	if (!sTag) {
 		cerr << "couldn't find a segment tag in LM\n";
 		exit(1);

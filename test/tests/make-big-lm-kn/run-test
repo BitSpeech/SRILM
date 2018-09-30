@@ -1,6 +1,6 @@
 #!/bin/sh
 
-smooth="-kndiscount1 -kndiscount2 -kndiscount3 -interpolate1 -interpolate2 -interpolate3 -gt3min 2"
+smooth="-kndiscount -interpolate -gt3min 2"
 
 # create LM from counts
 make-big-lm -debug 1 \

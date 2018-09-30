@@ -9,18 +9,18 @@
 #
 #    Copyright (c) 1999-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.8 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.13 2006/01/05 20:25:44 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -mcpu=pentium3 -Wreturn-type -Wimplicit
-   CC = /usr/local/bin/gcc $(GCC_FLAGS)
-   CXX = /usr/local/bin/g++ -Wno-deprecated $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -mtune=pentium3 -Wreturn-type -Wimplicit
+   CC = /usr/local/lang/gcc-3.4.3/bin/gcc $(GCC_FLAGS)
+   CXX = /usr/local/lang/gcc-3.4.3/bin/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
-   OPTIMIZE_FLAGS = -g -O2
+   OPTIMIZE_FLAGS = -g -O3
    DEBUG_FLAGS = -g -DDEBUG
-   PROFILE_FLAGS = -g -pg -O2
+   PROFILE_FLAGS = -g -pg -O3
 
    # Optional linking flags.
    EXPORT_LDFLAGS = -s
@@ -67,3 +67,5 @@
    # Location of gawk binary
    GAWK = /usr/bin/gawk
 
+   # Location of perl binary
+   PERL = /usr/bin/perl

@@ -3,7 +3,7 @@
 # rescore-reweight
 #	reweight nbest-list scores and select top hyps
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.15 2003/01/11 01:25:44 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.17 2003/05/03 01:35:45 stolcke Exp $
 #
 
 multiwords=0
@@ -47,6 +47,9 @@ done
 
 maxnbest="${1-100000}"
 
+# prevent "broken pipe" from $cat below when maxnbest truncates list
+trap '' 13
+
 if [ -d $scoredir ]; then
     find $scoredir -follow -type f \( -name \*.score -o \
 			    -name \*.score.Z -o \
@@ -89,10 +92,11 @@ do
 		fi
 	    done
 
+	    $cat $file | \
 	    combine-acoustic-scores \
 			-v "weights=1 $extra_weights" \
 			-v max_nbest=$maxnbest \
-			$file $extra_scores
+			- $extra_scores
 	fi | \
 	gawk '
 BEGIN {

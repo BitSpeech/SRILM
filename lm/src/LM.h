@@ -5,16 +5,17 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995-2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.33 2003/02/15 06:56:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.37 2006/01/05 20:21:27 stolcke Exp $
  *
  */
 
 #ifndef _LM_h_
 #define _LM_h_
 
-#include <iostream.h>
+#include <iostream>
+using namespace std;
 
 #include "Boolean.h"
 #include "Prob.h"
@@ -74,11 +75,12 @@ public:
 		    /* joint probability of a reversed word string */
 
     virtual LogP countsProb(NgramStats &counts, TextStats &stats,
-							unsigned order);
+				    unsigned order, Boolean entropy = false);
 						/* probability from counts */
 
     virtual unsigned pplCountsFile(File &file, unsigned order, TextStats &stats,
-				const char *escapeString = 0);
+					const char *escapeString = 0,
+					Boolean entropy = false);
     virtual unsigned pplFile(File &file, TextStats &stats,
 				const char *escapeString = 0);
     virtual unsigned rescoreFile(File &file, double lmScale, double wtScale,

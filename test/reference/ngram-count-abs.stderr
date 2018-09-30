@@ -1,3 +1,6 @@
+using ConstDiscount for 1-grams
+using ConstDiscount for 2-grams
+using ConstDiscount for 3-grams
 discarded 1 1-gram probs predicting pseudo-events
 warning: distributing 0.00445754 left-over probability mass over 6550 zeroton words
 discarded 2 2-gram contexts containing pseudo-events

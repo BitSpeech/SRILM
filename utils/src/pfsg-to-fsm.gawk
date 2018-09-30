@@ -12,7 +12,7 @@
 #			(default -1)
 # 
 #
-# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm.gawk,v 1.12 2001/11/20 02:03:12 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/pfsg-to-fsm.gawk,v 1.14 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	empty_output = "NULL";
@@ -25,6 +25,9 @@ BEGIN {
 	    getline pid < "/dev/pid";
 	}
 	tmpfile = "/tmp/pfsg.tmp" pid;
+
+	# hack to remove tmpfile when killed
+	print "" | "trap '/bin/rm -f " tmpfile "' 0 1 2 15 30; cat >/dev/null";
 
 	symbolfile = "";
 	symbolic = 0;
@@ -50,7 +53,7 @@ $1 == "initial" {
 	initial_node = $2;
 
 	if (node_output[initial_node] != empty_output) {
-		print "initial node must be NULL" > "/dev/stderr";
+		print "initial node must be NULL" >> "/dev/stderr";
 		exit 1;
 	}
 	next;
@@ -94,8 +97,8 @@ $1 == "transitions" {
 	# final states.
 	# FSM requires the first transition to be out of the initial state,
 	# so we scan the transitions twice.
-	# The first time, to final the initial transitions, then
-	# to add all the others . Yuck!
+	# The first time, to find the initial transitions, then
+	# to add all the others. Yuck!
 	for (k = 1; k <= num_transitions; k ++) {
 		getline;
 
@@ -133,6 +136,4 @@ END {
 			print s, output_symbols[s] > symbolfile;
 		}
 	}
-
-	system("/bin/rm -f " tmpfile);
 }

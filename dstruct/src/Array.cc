@@ -8,8 +8,8 @@
 #define _Array_cc_
 
 #ifndef lint
-static char Array_Copyright[] = "Copyright (c) 1995,1997 SRI International.  All Rights Reserved.";
-static char Array_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.cc,v 1.10 1997/12/31 23:00:58 stolcke Exp $";
+static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International.  All Rights Reserved.";
+static char Array_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.cc,v 1.11 2005/07/17 22:19:12 stolcke Exp $";
 #endif
 
 #include <assert.h>
@@ -63,7 +63,9 @@ template <class DataT>
 Array<DataT> &
 Array<DataT>::operator= (const Array<DataT> &other)
 {
-    // cerr << "warning: Array::operator= called\n";
+#ifdef DEBUG
+    cerr << "warning: Array::operator= called\n";
+#endif
 
     if (&other == this) {
 	return *this;

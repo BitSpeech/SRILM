@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.23 2003/02/21 20:20:10 stolcke Exp $
+#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.29 2006/01/09 22:47:54 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -30,6 +30,7 @@ COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 TEMPLATE_SOURCES =	\
 	$(SRCDIR)/Array.cc \
+	$(SRCDIR)/IntervalHeap.cc \
 	$(SRCDIR)/Map.cc \
 	$(SRCDIR)/SArray.cc \
 	$(SRCDIR)/LHash.cc \
@@ -40,6 +41,7 @@ TEMPLATE_SOURCES =	\
 
 EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Array.h		\
+	$(SRCDIR)/IntervalHeap.h	\
 	$(SRCDIR)/MemStats.h		\
 	$(SRCDIR)/Map.h			\
 	$(SRCDIR)/SArray.h		\
@@ -59,34 +61,40 @@ LIB_SOURCES = 				\
 	$(TEMPLATE_SOURCES)
 
 # Example Library object files.
-LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%.o,\
-		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES)))
+LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
+		$(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%$(OBJ_SUFFIX),$(LIB_SOURCES)))
 
 
 # Example Library.
-LIBRARY = $(OBJDIR)/libdstruct.a
+LIBRARY = $(OBJDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX)
 
 ADDITIONAL_INCLUDES += \
 	$(TCL_INCLUDE)
+
 ADDITIONAL_LIBRARIES += \
-	-lmisc \
+	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
 	$(TCL_LIBRARY) \
-	-lm 
+	$(MATH_LIBRARY)
 
 # Example programs.
 PROGRAM_NAMES = \
 		testArray \
 		testMap \
-		testMap2 \
-		testTrie \
-		benchHash
+		benchHash \
+		testSizes
 
-PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%)
+ifeq ($(NO_TCL), )
+PROGRAM_NAMES += \
+		testMap2 \
+		testTrie
+endif
+
+PROGRAMS = $(PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 PROGRAM_SOURCES = $(foreach prog,$(PROGRAM_NAMES),\
 			$(wildcard $(SRCDIR)/$(prog).c) \
 			$(wildcard $(SRCDIR)/$(prog).cc))
-PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%.o)
+PROGRAM_OBJECTS = $(PROGRAM_NAMES:%=$(OBJDIR)/%$(OBJ_SUFFIX))
 
 
 # Libraries to be linked with the Example programs.
@@ -124,10 +132,10 @@ ALL_PROGRAM_NAMES = $(PROGRAM_NAMES)
 all:	$(PROGRAMS)
 
 $(LIBRARY):	$(LIB_OBJECTS)
-	$(ARCHIVE) $@ $^
+	$(ARCHIVE) $(AR_OUTPUT_OPTION) $^
 	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
-$(PROGRAMS): libraries
+$(PROGRAMS):	$(LIBRARY) $(OTHER_LIBRARIES)
 
 # Variables and Targets for released system
 

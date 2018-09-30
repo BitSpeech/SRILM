@@ -1,4 +1,4 @@
-<! $Id: segment.1,v 1.5 1999/10/17 01:01:55 stolcke Exp $>
+<! $Id: segment.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>segment</TITLE>
@@ -21,15 +21,18 @@ modeling segmentation using the boundary tags &lt;s&gt; and &lt;/s&gt;.
 The program reads in a word sequence, finds the most likely locations 
 of segment boundaries according to the language model, and 
 outputs the word sequence with segment boundaries marked by &lt;s&gt; tags.
+<H2> OPTIONS </H2>
 <P>
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-<H2> OPTIONS </H2>
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-order</B><I> n</I><B></B>
 <DD>
 Set the maximal N-gram order to be used, by default 3.
@@ -98,6 +101,6 @@ For higher-order models use the more general
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
 <BR>
-Copyright 1997 SRI International
+Copyright 1997-2004 SRI International
 </BODY>
 </HTML>

@@ -10,7 +10,7 @@
 # models.  li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/compute-best-mix.gawk,v 1.7 2001/05/21 21:58:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/compute-best-mix.gawk,v 1.9 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;
@@ -53,20 +53,33 @@ FNR == 1 {
 	nfiles ++;
 }
 $1 == "p(" {
+
+        # Canonicalize input to have at most one representative context word; 
+        sub("[|] [^)]*)", "| X )");
+        $0 = $0;
+
 	if ($0 ~ /\[ -[Ii]nf/) {
 	    prob = logINF;
 	} else {
 	    prob = $10;
 	}
 
+        # If a count is given.
+	if ($11 ~ /^[*]/) {
+	    count = substr($11,2);
+	} else {
+	    count = 1;
+	}
+
 	sample_no = ++ nsamples[nfiles];
 	samples[nfiles " " sample_no] = prob;
+	counts[sample_no] = count;
 }
 END {
 	for (i = 2; i <= nfiles; i ++) {
 		if (nsamples[i] != nsamples[1]) {
 			printf "mismatch in number of samples (%d != %d)", \
-				nsamples[1], nsamples[i] > "/dev/stderr";
+				nsamples[1], nsamples[i] >> "/dev/stderr";
 			exit(1);
 		}
 	}
@@ -90,7 +103,7 @@ END {
 	while (!have_converged) {
 	    iter ++;
 
-	    num_words = 0;
+	    num_oovs = num_words = 0;
 	    delete post_totals;
 	    log_like = 0;
 
@@ -110,19 +123,21 @@ END {
 
 		# skip OOV words
 		if (all_inf) {
+   		        num_oovs += counts[j];
 			continue;
 		}
 
-		num_words ++;
-		log_like += logsum;
+		num_words += counts[j];
+		log_like += logsum * counts[j];
 
 		for (i = 1; i <= nfiles; i ++) {
-			post_totals[i] += exp10(logpost[i] - logsum);
+			post_totals[i] += exp10(logpost[i] - logsum) * counts[j];
 		}
 	    }
+
 	    printf "iteration %d, lambda = %s, ppl = %g\n", \
 		    iter, print_vector(priors, nfiles), \
-		    exp10(-log_like/num_words) > "/dev/stderr";
+		    exp10(-log_like/num_words) >> "/dev/stderr";
 	    fflush();
 
 	

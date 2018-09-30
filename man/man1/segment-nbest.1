@@ -1,5 +1,5 @@
-.\" $Id: segment-nbest.1,v 1.7 2002/05/29 01:46:24 stolcke Exp $
-.TH segment-nbest 1 "$Date: 2002/05/29 01:46:24 $" "SRILM Tools"
+.\" $Id: segment-nbest.1,v 1.8 2004/12/03 17:59:01 stolcke Exp $
+.TH segment-nbest 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
 .SH NAME
 segment-nbest \- rescore and segment N-best lists using hidden segment N-gram model
 .SH SYNOPSIS
@@ -22,14 +22,17 @@ The program reads in all N-best lists and outputs the
 hypotheses that have the highest aggregate (combined acoustic 
 and language model) score.
 Hypothesized sentence boundaries are marked by <s> tags.
+.SH OPTIONS
 .PP
 Each filename argument can be an ASCII file, or a 
 compressed file (name ending in .Z or .gz), or ``-'' to indicate
 stdin/stdout.
-.SH OPTIONS
 .TP
 .B \-help
 Print option summary.
+.TP
+.B \-version
+Print version information.
 .TP
 .BI \-order " n"
 Set the maximal N-gram order to be used, by default 3.
@@ -200,4 +203,4 @@ N-best list.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1997-2001 SRI International
+Copyright 1997\-2004 SRI International

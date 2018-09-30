@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-1998 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.30 2001/08/03 04:05:29 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.32 2006/01/05 08:44:25 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -83,8 +83,8 @@ void reverseArray(T *array, unsigned length)
     }
 }
 
-WordLattice::WordLattice(Vocab &vocab)
-    : MultiAlign(vocab), numNodes(0), numAligns(0)
+WordLattice::WordLattice(Vocab &vocab, const char *myname)
+    : MultiAlign(vocab, myname), numNodes(0), numAligns(0)
 {
     initial = numNodes ++;
     final = numNodes ++;
@@ -98,6 +98,13 @@ WordLattice::WordLattice(Vocab &vocab)
      */
     nodes[initial].align = numAligns ++;
     nodes[final].align = numAligns ++;
+}
+
+WordLattice::~WordLattice()
+{
+    if (name != 0) {
+	free(name);
+    }
 }
 
 WordLatticeNode::WordLatticeNode()
@@ -179,6 +186,9 @@ Boolean
 WordLattice::write(File &file)
 {
     fprintf(file, "version 2\n");
+    if (name != 0) {
+	fprintf(file, "name %s\n", name);
+    }
     fprintf(file, "initial %u\n", initial);
     fprintf(file, "final %u\n", final);
 
@@ -273,6 +283,12 @@ WordLattice::read(File &file)
 		file.position() << "unknown version\n";
 		return false;
 	    }
+	} else if (sscanf(line, "name %100s", arg2) == 1) {
+	    if (name != 0) {
+		free(name);
+	    }
+	    name = strdup(arg2);
+	    assert(name != 0);
 	} else if (sscanf(line, "initial %u", &initial) == 1) {
 	    continue;
 	} else if (sscanf(line, "final %u", &final) == 1) {
@@ -280,7 +296,6 @@ WordLattice::read(File &file)
 	} else if (sscanf(line, "node %u %100s %u %lg%n",
 				&arg1, arg2, &arg4, &arg3, &parsed) == 4)
 	{
-	    
 	    WordLatticeNode &node = nodes[arg1];
 	    if (arg1 >= numNodes) {
 		numNodes = arg1 + 1;
@@ -321,7 +336,7 @@ WordLattice::read(File &file)
 unsigned
 WordLattice::sortNodes(unsigned *sortedNodes)
 {
-    Boolean visitedNodes[numNodes];
+    makeArray(Boolean, visitedNodes, numNodes);
 
     for (unsigned i = 0; i < numNodes; i ++) {
 	visitedNodes[i] = false;
@@ -508,7 +523,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
      */
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
-    unsigned sortedNodes[numNodes];
+    makeArray(unsigned, sortedNodes, numNodes);
 
     unsigned numReachable = sortAlignedNodes(sortedNodes);
     if (numReachable != numNodes) {
@@ -545,7 +560,8 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
 	ErrorType errType;	// error type
     } ChartEntry;
 
-    ChartEntry *chart[numWords + 2];
+    ChartEntry **chart = new ChartEntry *[numWords + 2];
+    assert(chart != 0);
 
     unsigned i;
     for (i = 0; i <= numWords + 1; i ++) {
@@ -778,6 +794,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
     for (i = 0; i <= numWords + 1; i ++) {
 	delete [] chart[i];
     }
+    delete [] chart;
 }
 
 /*
@@ -1058,7 +1075,7 @@ WordLattice::wordError(const VocabIndex *words,
      */
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
 
-    unsigned sortedNodes[numNodes];
+    makeArray(unsigned, sortedNodes, numNodes);
 
     unsigned numReachable = sortNodes(sortedNodes);
     if (numReachable != numNodes) {
@@ -1078,7 +1095,8 @@ WordLattice::wordError(const VocabIndex *words,
 	ErrorType errType;	// error type
     } ChartEntry;
 
-    ChartEntry *chart[numWords + 2];
+    ChartEntry **chart = new ChartEntry *[numWords + 2];
+    assert(chart != 0);
 
     unsigned i;
     for (i = 0; i <= numWords + 1; i ++) {
@@ -1220,6 +1238,7 @@ WordLattice::wordError(const VocabIndex *words,
     for (i = 0; i <= numWords + 1; i ++) {
 	delete [] chart[i];
     }
+    delete [] chart;
 
     return sub + ins + del;
 }

@@ -16,7 +16,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.30 2002/05/25 14:40:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.31 2005/08/19 04:31:46 stolcke Exp $
  *
  */
 
@@ -127,13 +127,13 @@ private:
 					 * code modulo maxEntries */
 
 template <class KeyT>
-static inline Boolean
+inline Boolean
 LHash_equalKey(KeyT key1, KeyT key2)
 {
     return (key1 == key2);
 }
 
-static inline Boolean
+inline Boolean
 LHash_equalKey(const char *key1, const char *key2)
 {
     return (strcmp(key1, key2) == 0);
@@ -144,13 +144,13 @@ LHash_equalKey(const char *key1, const char *key2)
  * (We provide versions for integral types and char strings;
  * user has to add more specialized definitions.)
  */
-static inline unsigned
+inline unsigned
 LHash_hashKey(unsigned key, unsigned maxBits)
 {
     return (((key * 1103515245 + 12345) >> (30-maxBits)) & hashMask(maxBits));
 }
 
-static inline unsigned
+inline unsigned
 LHash_hashKey(const char *key, unsigned maxBits)
 {
     /*

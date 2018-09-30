@@ -1,5 +1,8 @@
 + get-gt-counts out=biglm max=20 maxorder=3 
 + ngram-count -read - -read-with-mincounts -order 3 -gt1 biglm.gt1 -gt2 biglm.gt2 -gt3 biglm.gt3 -debug 1 -vocab ../ngram-count-gt/eval2001.vocab -lm swbd.3bo.gz -meta-tag __meta__ 
+using GoodTuring for 1-grams
+using GoodTuring for 2-grams
+using GoodTuring for 3-grams
 discarded 1 1-gram probs predicting pseudo-events
 warning: distributing 0.00276249 left-over probability mass over 6550 zeroton words
 warning: 0 backoff probability mass left for "lucked" -- incrementing denominator

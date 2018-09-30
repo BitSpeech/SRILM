@@ -5,7 +5,7 @@
 #
 # usage: reverse-lm lm-file > rev-lm-file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/reverse-lm.gawk,v 1.1 2002/03/09 17:14:29 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/reverse-lm.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
 #
 
 BEGIN {
@@ -22,7 +22,7 @@ NF==0 {
 	order = substr($2,1,index($2,"=")-1);
 
 	if (order > 2) {
-		print "can handle bigram LMs only" > "/dev/stderr";
+		print "can handle bigram LMs only" >> "/dev/stderr";
 		exit(2);
 	}
 	print | renorm_command;
@@ -77,7 +77,7 @@ currorder == 2 {
 	new_prob = uniprob[w1] + prob - uniprob[w2];
 
 	if (new_prob > 0) {
-		print "warning: p(" w1 "|" w2 ") > 0" > "/dev/stderr";
+		print "warning: p(" w1 "|" w2 ") > 0" >> "/dev/stderr";
 	}
 
 	print new_prob "\t" w2 " " w1 | renorm_command;

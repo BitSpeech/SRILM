@@ -14,7 +14,7 @@
 # 4 - ngrams ending in </s> get probability 1.
 #     this avoids an end-of-sentence penalty in rescoring.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-hiddens-lm.gawk,v 1.6 2003/01/28 08:37:11 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-hiddens-lm.gawk,v 1.7 2004/11/02 02:00:35 stolcke Exp $
 #
 BEGIN {
 	sent_start = "<s>";
@@ -72,7 +72,7 @@ $0 ~ sent_start || $0 ~ sent_end {
 	    # use unigram prob from </s>
 	    if (sos_uniprob == "") {
 		print "warning: could not find " sent_end " unigram" \
-							    > "/dev/stderr";
+							    >> "/dev/stderr";
 	    } else {
 		oldline = sos_uniprob "\t" $2 "\t" $3;
 	    }

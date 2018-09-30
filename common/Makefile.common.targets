@@ -12,18 +12,18 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.22 2001/08/03 02:03:38 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.26 2006/01/11 06:27:53 stolcke Exp $
 #
 
 
 # Create the initial directory structure (assumes "src" exists).
 init:
-	-cd ..; $(SRILM)/bin/make-standard-directories
+	-cd ..; $(SRILM)/sbin/make-standard-directories
 	$(MAKE) $(OBJDIR_STAMP) $(BINDIR_STAMP)
 
 # Delete all of the files which can be automatically regenerated.
 pristine:
-	-cd ..; $(SRILM)/bin/remove-standard-directories
+	-cd ..; $(SRILM)/sbin/remove-standard-directories
 
 # Make all, using optimize options.
 optimize:
@@ -63,7 +63,7 @@ programs:	$(ALL_PROGRAMS)
 #  directory.  (Note:  This avoids problems with source files which
 #  have the same root name as make targets.)
 %:	%.c
-%.o:	%.c
+%$(OBJ_SUFFIX):	%.c
 
 
 #
@@ -81,25 +81,25 @@ $(OBJDIR_STAMP) $(BINDIR_STAMP):
 	touch $@
 
 # Default C compiling pattern-matching rule:
-$(OBJDIR)/%.o:	$(SRCDIR)/%.c
+$(OBJDIR)/%$(OBJ_SUFFIX):	$(SRCDIR)/%.c
 	$(COMPILE.c) $(OPTION_FLAGS) $(OUTPUT_OPTION) $<
 
 # Support for C++ compulation
 %:	%.cc
-%.o:	%.cc
+%$(OBJ_SUFFIX):	%.cc
 
 # Default C compiling pattern-matching rule:
-$(OBJDIR)/%.o:	$(SRCDIR)/%.cc
+$(OBJDIR)/%$(OBJ_SUFFIX):	$(SRCDIR)/%.cc
 	$(COMPILE.cc) $(OPTION_FLAGS) $(OUTPUT_OPTION) $<
 
 # Program linking
 # The heuristic here is that if any C++ source is present at all
 # we use the C++ driver to link the whole thing, otherwise the C driver
-$(BINDIR)/%: $(OBJDIR)/%.o $(LIBRARY)
+$(BINDIR)/%$(EXE_SUFFIX): $(OBJDIR)/%$(OBJ_SUFFIX) $(LIBRARY)
 ifeq ($(filter %.cc,$(ALL_SOURCES)), )
-	$(LINK.c) $(OPTION_FLAGS) -o $@ $< -L$(SRILM_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.c) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
 else
-	$(LINK.cc) $(OPTION_FLAGS) -o $@ $< -L$(SRILM_LIBDIR) $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.cc) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
 endif
 
 # revised release targets and dependencies:
@@ -113,7 +113,7 @@ release-headers:	$(RELEASED_HEADERS)
 $(SRILM_INCDIR)/%: $(SRCDIR)/%
 	-$(INSTALL) 0444 $^ $(SRILM_INCDIR)
 
-RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(SRILM_LIBDIR)/%.a)
+RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%$(LIB_SUFFIX)=$(SRILM_LIBDIR)/%$(LIB_SUFFIX))
 
 # We want to re-install only only those binaries that have changed, and
 # use make to figure out the things that need updating.  However,
@@ -125,7 +125,7 @@ RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%.a=$(SRILM_LIBDIR)/%.a)
 
 release-libraries:	$(RELEASED_LIBRARIES)
 
-$(SRILM_LIBDIR)/%.a:	$(OBJDIR)/%.a
+$(SRILM_LIBDIR)/%$(LIB_SUFFIX):	$(OBJDIR)/%$(LIB_SUFFIX)
 	-$(INSTALL) 0644 $^ $(SRILM_LIBDIR)
 
 RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(SRILM_BINDIR)/%)
@@ -147,12 +147,12 @@ $(SRILM_BIN)/%:	%
 depend:
 	$(RM) $(DEPENDENCIES)
 ifneq ($(filter %.c,$(ALL_SOURCES)), )
-	$(GEN_DEP) $(filter %.c,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" >> $(DEPENDENCIES)
+	$(GEN_DEP) $(filter %.c,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 endif
 ifneq ($(filter %.cc,$(ALL_SOURCES)), )
-	$(GEN_DEP.cc) $(filter %.cc,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" >> $(DEPENDENCIES)
+	$(GEN_DEP.cc) $(filter %.cc,$(ALL_SOURCES)) | sed -e "s&^\([^ ]\)&$(BASE_OBJDIR)"'$$(OBJ_OPTION)'"/\1&g" -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 endif
-	$(SRILM)/bin/generate-program-dependencies $(BASE_BINDIR) $(BASE_OBJDIR) $(ALL_PROGRAM_NAMES) >> $(DEPENDENCIES)
+	$(SRILM)/sbin/generate-program-dependencies $(BASE_BINDIR) $(BASE_OBJDIR) "$(EXE_SUFFIX)" $(ALL_PROGRAM_NAMES) | sed -e "s&\.o&$(OBJ_SUFFIX)&g" >> $(DEPENDENCIES)
 
 # Targets for cleaning up
 clean:		remove-objects
@@ -160,19 +160,22 @@ cleaner:	clean remove-dependencies remove-libraries
 cleanest:	cleaner remove-programs
 
 remove-objects:
-	-$(RM) $(OBJDIR)/*.o
-	-$(RM) $(OBJDIR)/*.rpo
-	-$(RM) -r $(OBJDIR)/Templates.DB ./ii_files
+	-$(RM) $(OBJDIR)/*$(OBJ_SUFFIX) $(EXTRA_REMOVE_OBJECTS)
 
 remove-dependencies:
-	-$(RM) Dependencies.$(MACHINE_TYPE)
+	-$(RM) Dependencies.$(MACHINE_TYPE) $(EXTRA_REMOVE_DEPENDENCIES)
 
 remove-libraries:
-	-$(RM) $(ALL_LIBRARIES)
+	-$(RM) $(ALL_LIBRARIES) $(EXTRA_REMOVE_LIBRARIES)
 
 remove-programs:
-	-$(RM) $(ALL_PROGRAMS)
+	-$(RM) $(ALL_PROGRAMS) $(EXTRA_REMOVE_PROGRAMS)
 
+sanitize:
+	$(SRILM)/sbin/sanitize-3rdparty /dev/null $(ALL_HEADERS) $(ALL_SOURCES)
+
+desanitize:
+	$(SRILM)/sbin/desanitize-3rdparty /dev/null $(ALL_HEADERS) $(ALL_SOURCES)
 
 # Default Lint pattern-matching rule:
 $(SRCDIR)/%.lint:	$(SRCDIR)/%.c

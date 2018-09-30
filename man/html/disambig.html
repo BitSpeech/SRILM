@@ -1,4 +1,4 @@
-<! $Id: disambig.1,v 1.22 2003/01/28 17:36:50 stolcke Exp $>
+<! $Id: disambig.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>disambig</TITLE>
@@ -21,10 +21,17 @@ the highest posterior probability given the V1 sequence.
 This probability is computed from pairwise conditional probabilities P(V1|V2),
 as well as a language model for sequences over V2.
 <H2> OPTIONS </H2>
+<P>
+Each filename argument can be an ASCII file, or a 
+compressed file (name ending in .Z or .gz), or ``-'' to indicate
+stdin/stdout.
 <DL>
 <DT><B> -help </B>
 <DD>
 Print option summary.
+<DT><B> -version </B>
+<DD>
+Print version information.
 <DT><B>-text</B><I> file</I><B></B>
 <DD>
 Specifies the file containing the V1 sentences.
@@ -74,6 +81,12 @@ lines of the form
 <BR>
 	&lt;s&gt;	&lt;s&gt;
 <BR>
+<DT><B>-classes</B> file<B></B>
+<DD>
+Specifies the V1-to-V2 mapping information in 
+<A HREF="classes-format.html">classes-format(5)</A>.
+Class labels are interpreted as V2 words, and expansions as V1 words.
+Multi-word expansions are not allowed.
 <DT><B> -scale </B>
 <DD>
 Interpret the numbers in the mapping as P(<I>w21</I>|<I>w1</I>).
@@ -182,6 +195,14 @@ is the rank of the hypothesis in the N-best list and
 <I> x </I>
 its score, the negative log of the combined probability of transitions
 and observations of the corresponding HMM path.
+<DT><B>-write-counts</B><I> file</I><B></B>
+<DD>
+Outputs the V2-V1 bigram counts corresponding to the tagging performed on
+the input data.
+If 
+<B> -fb </B>
+was specified these are expected counts, and otherwise they reflect the 1-best
+tagging decisions.
 <DT><B>-write-vocab1</B><I> file</I><B></B>
 <DD>
 Writes the input vocabulary from the map (V1) to
@@ -212,12 +233,13 @@ options effectively disable
 <B>-keep-unk</B>,<B></B>
 i.e., unknown input words are always mapped to &lt;unk&gt;.
 <H2> SEE ALSO </H2>
-<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="hidden-ngram.html">hidden-ngram(1)</A>, <A HREF="training-scripts.html">training-scripts(1)</A>, <A HREF="ngram-format.html">ngram-format(5)</A>.
+<A HREF="ngram-count.html">ngram-count(1)</A>, <A HREF="hidden-ngram.html">hidden-ngram(1)</A>, <A HREF="training-scripts.html">training-scripts(1)</A>,
+<A HREF="ngram-format.html">ngram-format(5)</A>, <A HREF="classes-format.html">classes-format(5)</A>.
 <H2> AUTHOR </H2>
 Andreas Stolcke &lt;stolcke@speech.sri.com&gt;,
 <BR>
 Anand Venkataraman &lt;anand@speech.sri.com&gt;.
 <BR>
-Copyright 1995-2002 SRI International
+Copyright 1995-2004 SRI International
 </BODY>
 </HTML>

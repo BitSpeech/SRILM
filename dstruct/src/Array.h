@@ -2,9 +2,9 @@
  * Array.h --
  *	Extensible array class
  *
- * Copyright (c) 1995,1997 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.h,v 1.9 1997/12/31 23:00:58 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Array.h,v 1.15 2006/01/09 18:11:12 stolcke Exp $
  *
  */
 
@@ -22,7 +22,11 @@ public:
     Array(int base = 0, unsigned int size = 0)
 	: _base(base), _size(size), _data(0), alloc_size(0)
 	{ if (size > 0) { alloc(size-1); } };
-    ~Array() { delete [] _data; } ;
+    Array(Array<DataT> &source)
+	: _base(source._base), _size(0), _data(0), alloc_size(0)
+    	{ *this = source; };
+
+    ~Array() { delete [] _data; };
 
     DataT &operator[](int index)
     	{ int offset = index - _base; assert(offset >= 0);
@@ -32,8 +36,14 @@ public:
 	  }
 	  return _data[offset];
 	};
+    /* these are redundant, but work around problems in MS Visual C++ */
+    DataT &operator[] (unsigned index) { return (*this)[(int) index]; };
+    DataT &operator[] (unsigned short index) {	return (*this)[(int) index]; };
+    DataT &operator[] (short index) { return (*this)[(int) index]; };
 
-    Array<DataT> & Array<DataT>::operator= (const Array<DataT> &other);
+    Array<DataT> & operator= (const Array<DataT> &other);
+
+    operator DataT* () { return data(); };
 
     DataT *data() const { return _data - _base; };
     int base() const { return _base; }
@@ -41,12 +51,43 @@ public:
 
     void memStats(MemStats &stats) const;
 
-private:
+protected:
     unsigned int _size;		/* used size */
     int _base;
     DataT *_data;
     unsigned int alloc_size;	/* allocated size */
     void alloc(unsigned int size);
 };
+
+/*
+ * An optimized version of Array for when the size never changes
+ */
+template <class DataT>
+class StaticArray: public Array<DataT>
+{
+public:
+    StaticArray(unsigned size)
+	: Array<DataT>(0, size) { };
+    StaticArray(int base, unsigned size)
+	: Array<DataT>(base, size) { };
+
+    DataT &operator[](int index)	// dispense with index range check
+    	{ return Array<DataT>::_data[index - Array<DataT>::_base]; };
+    /* these are redundant, but work around problems in MS Visual C++ */
+    DataT &operator[](unsigned index) { return (*this)[(int)index]; };
+    DataT &operator[](unsigned short index) { return (*this)[(int)index]; };
+    DataT &operator[](short index) { return (*this) [(int)index]; };
+};
+
+/*
+ * Macro defining a linear array sized at run-time:
+ * gcc and icc allow this as part of the language, but many other C++ compilers
+ * don't (Sun Studio, MS Visual C).
+ */
+#if !defined(DEBUG) && (defined(__GNUC__) || defined(__INTEL_COMPILER))
+# define makeArray(T, A, n)		T A[n]
+#else
+# define makeArray(T, A, n)		StaticArray<T> A(n)
+#endif
 
 #endif /* _Array_h_ */
