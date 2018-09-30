@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ -f ../fngram-count/ch_lm_train100.noamp.decomposed.txt.gz ]; then
+	gz=.gz
+else
+	gz=
+fi
+
+./go.make-vocab
+
+fngram-count \
+	-debug 2 -factor-file ../fngram-count/test.flm \
+	-vocab train-gt1.vocab \
+	-text ../fngram-count/ch_lm_train100.noamp.decomposed.txt$gz \
+	-write-counts -lm -unk -nonull
+
+fngram \
+	-debug 0 -factor-file ../fngram-count/test.flm \
+	-ppl ../fngram-count/ch_lm_dev.noamp.decomposed.txt$gz -unk -nonull
+
+rm -f dev.count$gz dev.lm$gz train-gt1.vocab
+

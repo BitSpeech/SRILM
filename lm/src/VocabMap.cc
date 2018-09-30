@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1998,2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.cc,v 1.15 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -73,7 +77,7 @@ VocabMap::read(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine];
 
 	unsigned howmany = Vocab::parseWords(line, words, maxWordsPerLine);
@@ -126,7 +130,7 @@ VocabMap::readClasses(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine];
 
 	unsigned howmany = Vocab::parseWords(line, words, maxWordsPerLine);
@@ -186,7 +190,7 @@ VocabMap::write(File &file)
 	Prob *prob;
 
 	unsigned i = 0;
-	while (prob = iter2.next(w2)) {
+	while ((prob = iter2.next(w2))) {
 	    VocabString word2 = vocab2.getWord(w2);
 	    assert(word1 != 0);
 
@@ -223,7 +227,7 @@ VocabMap::writeBigrams(File &file)
 	Prob *prob;
 
 	unsigned i = 0;
-	while (prob = iter2.next(w2)) {
+	while ((prob = iter2.next(w2))) {
 	    VocabString word2 = vocab2.getWord(w2);
 	    assert(word1 != 0);
 

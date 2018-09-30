@@ -3,17 +3,19 @@
  *
  * Jeff Bilmes  <bilmes@ee.washington.edu>
  * 
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/wmatrix.h,v 1.5 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/wmatrix.h,v 1.7 2006/08/12 06:26:03 stolcke Exp $
  *
  */
 
 #ifndef _WMatrix_h_
 #define _WMatrix_h_
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 
 #include "Trie.h"
@@ -43,7 +45,5 @@ public:
   VocabString* operator[](int i) { return word_factors[i]; }
   void print(FILE* f);
 };
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif

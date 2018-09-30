@@ -2,26 +2,33 @@
  * NBest.h --
  *	N-best lists
  *
- * Copyright (c) 1995-2001, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.27 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBest.h,v 1.40 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 
 #ifndef _NBest_h_
 #define _NBest_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include "Boolean.h"
 #include "Prob.h"
+#include "Counts.h"
 #include "File.h"
+#include "Map.h"
 #include "Vocab.h"
 #include "Array.h"
 #include "LM.h"
 #include "MemStats.h"
 #include "Debug.h"
+#include "Bleu.h"
 
 #undef valid		/* avoids conflict with class member on some systems */
 
@@ -32,6 +39,13 @@ const char nbest1Magic[] = "NBestList1.0";
 const char nbest2Magic[] = "NBestList2.0";
 
 typedef float NBestTimestamp;
+
+/*
+ * For Bleu computation
+ */
+struct BleuCount {
+    unsigned short correct[MAX_BLEU_NGRAM];
+};
 
 /*
  * Optional detailed information associated with words in N-best lists
@@ -62,9 +76,28 @@ public:
      */
     Prob wordPosterior;				// word posterior probability
     Prob transPosterior;			// transition to next word p.p.
+
+    /*
+     * Utility functions
+     */
+    static unsigned length(const NBestWordInfo *words);
+    static NBestWordInfo *copy(NBestWordInfo *to, const NBestWordInfo *from);
+    static VocabIndex *copy(VocabIndex *to, const NBestWordInfo *from);
 };
 
-extern const char *phoneSeparator;	 // used for phones & phoneDurs strings
+extern const char *phoneSeparator;	// used for phones & phoneDurs strings
+extern const NBestTimestamp frameLength; // quantization unit of word timemarks
+
+/*
+ * Support for maps with (const NBestWordInfo *) as keys
+ */
+
+unsigned LHash_hashKey(const NBestWordInfo *key, unsigned maxBits);
+const NBestWordInfo *Map_copyKey(const NBestWordInfo *key);
+void Map_freeKey(const NBestWordInfo *key);
+Boolean LHash_equalKey(const NBestWordInfo *key1, const NBestWordInfo *key2);
+int SArray_compareKey(const NBestWordInfo *key1, const NBestWordInfo *key2);
+
 
 /*
  * A hypothesis in an N-best list with associated info
@@ -81,19 +114,23 @@ public:
 
     Boolean parse(char *line, Vocab &vocab, unsigned decipherFormat = 0,
 			LogP acousticOffset = 0.0,
-			Boolean multiwords = false, Boolean backtrace = false);
+			const char *multiChar = 0, Boolean backtrace = false);
     void write(File &file, Vocab &vocab, Boolean decipherFormat = true,
 						    LogP acousticOffset = 0.0);
+
+    Count getNumWords() { return numWords; }
 
     VocabIndex *words;
     NBestWordInfo *wordInfo;
     LogP acousticScore;
     LogP languageScore;
-    unsigned numWords;
+    Count numWords;
     LogP totalScore;
     Prob posterior;
-    unsigned numErrors;
+    FloatCount numErrors;
     unsigned rank;
+    BleuCount *bleuCount;
+    unsigned closestRefLeng;
 };
 
 class NBestList: public Debug
@@ -101,13 +138,22 @@ class NBestList: public Debug
 public:
     NBestList(Vocab &vocab, unsigned maxSize = 0,
 			Boolean multiwords = false, Boolean backtrace = false);
-    ~NBestList() {};
+    NBestList(Vocab &vocab, unsigned maxSize,
+			const char *multiChar, Boolean backtrace = false);
+    virtual ~NBestList() {};
 
     static unsigned initialSize;
 
     unsigned numHyps() { return _numHyps; };
     NBestHyp &getHyp(unsigned number) { return hypList[number]; };
+    unsigned addHyp(NBestHyp &hyp) {
+    	memcpy(&hypList[_numHyps++], &hyp, sizeof(hyp));
+	memset(&hyp, 0, sizeof(hyp));
+	return _numHyps; }
+      
     void sortHyps();
+    void sortHypsBySentenceBleu(unsigned order);
+    float sortHypsByErrorRate();
 
     void rescoreHyps(LM &lm, double lmScale, double wtScale);
     void decipherFix(LM &lm, double lmScale, double wtScale);
@@ -117,7 +163,8 @@ public:
     void removeNoise(LM &lm);
 
     unsigned wordError(const VocabIndex *words,
-				unsigned &sub, unsigned &ins, unsigned &del);
+				unsigned &sub, unsigned &ins, unsigned &del,
+				float weight = 0.0);
 
     double minimizeWordError(VocabIndex *words, unsigned length,
 				double &subs, double &inss, double &dels,
@@ -138,7 +185,7 @@ private:
     Array<NBestHyp> hypList;
     unsigned _numHyps;
     unsigned maxSize;
-    Boolean multiwords;		// split multiwords
+    const char *multiChar;	// multiword delimiter char (0 = no splitting)
     Boolean backtrace;		// keep backtrace information (if available)
 };
 

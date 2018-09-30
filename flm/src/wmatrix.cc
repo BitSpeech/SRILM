@@ -5,14 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/wmatrix.cc,v 1.6 2006/01/09 18:33:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/wmatrix.cc,v 1.9 2010/06/02 05:51:57 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 
@@ -28,28 +30,28 @@ using namespace std;
 
 WidMatrix::WidMatrix()
 {
-  for (int i=0;i<maxNumFactors;i++) {
+  for (unsigned i = 0; i < maxNumFactors; i++) {
     wid_factors[i] = new VocabIndex[maxNumParentsPerChild+1];
   }
 }
 
 WidMatrix::~WidMatrix()
 {
-  for (int i=0;i<maxNumFactors;i++) {
+  for (unsigned i = 0; i < maxNumFactors; i++) {
     delete [] wid_factors[i];
   }
 }
 
 WordMatrix::WordMatrix()
 {
-  for (int i=0;i<maxNumFactors;i++) {
+  for (unsigned i = 0; i < maxNumFactors; i++) {
     word_factors[i] = new VocabString[maxNumParentsPerChild+1];
   }
 }
 
 WordMatrix::~WordMatrix()
 {
-  for (int i=0;i<maxNumFactors;i++) {
+  for (unsigned i = 0; i < maxNumFactors; i++) {
     delete [] word_factors[i];
   }
 }
@@ -57,14 +59,12 @@ WordMatrix::~WordMatrix()
 void
 WordMatrix::print(FILE* f)
 {
-  for (int i=0;word_factors[i][FNGRAM_WORD_TAG_POS] != 0;i++) {
+  for (unsigned i = 0; word_factors[i][FNGRAM_WORD_TAG_POS] != 0; i++) {
     fprintf(f,"%d ",i);
-    for (int j=0;word_factors[i][j] != 0;j++) {
+    for (unsigned j = 0; word_factors[i][j] != 0; j++) {
       fprintf(f,"%s ",word_factors[i][j]);
     }
     fprintf(f,"\n");
   }
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

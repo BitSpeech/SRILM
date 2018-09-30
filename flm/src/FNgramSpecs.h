@@ -5,17 +5,21 @@
  *
  *  Jeff Bilmes  <bilmes@ee.washington.edu>
  * 
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramSpecs.h,v 1.9 2006/01/09 18:30:49 stolcke Exp $
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramSpecs.h,v 1.13 2010/06/02 05:51:57 stolcke Exp $
  *
  */
 
 #ifndef _FNgramSpecs_h_
 #define _FNgramSpecs_h_
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 
 #include "LHash.cc"
@@ -23,7 +27,6 @@ using namespace std;
 #include "Array.cc"
 
 #include "LMStats.h"
-#include "FactoredVocab.h"
 
 
 /*
@@ -37,15 +40,17 @@ using namespace std;
 #define DEBUG_BG_PRINT 1
 #define DEBUG_MISSING_FIRST_LAST_WORD   1
 
-
-
 const unsigned int maxNumParentsPerChild = 32;
 const unsigned int maxExtraWordsPerLine = 3;
 
 // output files with these names are never written
 const VocabString FNGRAM_DEV_NULL_FILE = "_";
 
+#include "FactoredVocab.h"
+
+#ifndef FNgramNode
 #define FNgramNode	Trie<VocabIndex,CountT>
+#endif
 
 template <class CountT> class FNgramCounts;	// forward declaration
 class FDiscount;
@@ -93,6 +98,7 @@ const VocabString FNGRAM_WORD_TAG_NULL_SPEC_STR = Vocab_NULL;
 const char FNGRAM_FACTOR_SEPARATOR = ':';
 const VocabString FNGRAM_FACTOR_SEPARATOR_STR = ":";
 
+class FactoredVocab;
 
 template <class CountT>
 class FNgramSpecs : public Debug {
@@ -271,7 +277,7 @@ public:
 	     VocabIndex *keys,
 	     unsigned order = ~0x0,
 	     int (*sort)(VocabIndex,VocabIndex) = 0) {
-	if (order == ~0x0) order = pss.order;
+	if (order == ~0x0U) order = pss.order;
 	if (pss.counts == NULL) {
 	  myIter = NULL;
 	} else {
@@ -285,7 +291,7 @@ public:
 	     VocabIndex *keys, 
 	     unsigned order = ~0x0,
 	     int (*sort)(VocabIndex, VocabIndex) = 0) {
-	if (order == ~0x0) order = pss.order;
+	if (order == ~0x0U) order = pss.order;
 	if (pss.counts == NULL) {
 	  myIter = NULL;
 	} else {
@@ -354,11 +360,11 @@ public:
     // trigram. The bit vector shown in the node of the graph gives
     // the set of parents that are used in that node.
     // 
-    // Level 2     11
-    //            /  \ 
-    // Level 1   10   01
-    //            \  /
-    // Level 0     00
+    // Level 2     11		.
+    //            /  \		.
+    // Level 1   10   01	.
+    //            \  /		.
+    // Level 0     00		.
     // 
     // Note that, by convention, level numbers *increase* we *add*
     // bits going down from 00 to 11. The iters and code below use
@@ -366,11 +372,11 @@ public:
     // 
     // Here is a BG for a standard trigram p(w_t|w_{t-1},w_{t-2})
     //
-    // Level 2     11
-    //               \ 
-    // Level 1        01
-    //               /
-    // Level 0     00
+    // Level 2     11		.
+    //               \ 		.
+    // Level 1        01	.
+    //               /		.
+    // Level 0     00		.
     //
     // This means that the first parent (w_{t-1}) correspond to the
     // low-order bit 0x01, and the second parent (w_{t_2}) corresponds
@@ -381,11 +387,11 @@ public:
     //
     // Here is a BG for a "reverse-context" trigram p(w_t|w_{t-1},w_{t-2})
     //
-    // Level 2     11
-    //            /
-    // Level 1   10
-    //            \ 
-    // Level 0     00
+    // Level 2     11		.
+    //            /		.
+    // Level 1   10		.
+    //            \ 		.
+    // Level 0     00		.
     //
     // This means that p(W_t=w_t|W_{t-1}=w_{t-1},W_{t-2}=w_{t-2})
     // first backs off to p(W_t=w_t|W_{t-2}=w_{t-2}) and then to
@@ -462,7 +468,7 @@ public:
     public:
       BGGrandParentIter(const unsigned int _numParents,const unsigned int _homeNode,
 			const unsigned int _great=0);
-      void init() { state = (homeNode+((1<<(great+1))-1)); }
+      void init() { state = (homeNode+((1U<<(great+1))-1)); }
       Boolean next(unsigned int&node);
     };
     
@@ -594,8 +600,6 @@ public:
   static VocabString getTag(VocabString a);
   static VocabString wordTag();
 };
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FNgramSpecs_h_ */
 

@@ -5,18 +5,23 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998,2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.cc,v 1.11 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 
 #include "NBestSet.h"
 #include "NullLM.h"
+#include "MultiwordVocab.h"
 
 #include "LHash.cc"
 #ifdef INSTANTIATE_TEMPLATES
@@ -30,8 +35,16 @@ INSTANTIATE_LHASH(RefString, NBestSetElement);
 
 NBestSet::NBestSet(Vocab &vocab, RefList &refs,
 		    unsigned maxNbest, Boolean incremental, Boolean multiwords)
-    : vocab(vocab), refs(refs), maxNbest(maxNbest), incremental(incremental),
-      multiwords(multiwords), warn(true)
+    : vocab(vocab), warn(true), maxNbest(maxNbest), incremental(incremental),
+      multiChar(multiwords ? MultiwordSeparator : 0), refs(refs)
+{
+}
+
+NBestSet::NBestSet(Vocab &vocab, RefList &refs,
+		    unsigned maxNbest, Boolean incremental,
+		    const char *multiChar)
+    : vocab(vocab), warn(true), maxNbest(maxNbest), incremental(incremental),
+      multiChar(multiChar), refs(refs)
 {
 }
 
@@ -41,7 +54,7 @@ NBestSet::~NBestSet()
 
     RefString id;
     NBestSetElement *elt;
-    while (elt = iter.next(id)) {
+    while ((elt = iter.next(id))) {
 	delete [] elt->filename;
 	delete elt->nbest;
     }
@@ -52,7 +65,7 @@ NBestSet::read(File &file)
 {
     char *line;
     
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString filename[2];
 
 	/*
@@ -89,7 +102,7 @@ NBestSet::read(File &file)
 Boolean
 NBestSet::readList(RefString id, NBestSetElement &elt)
 {
-    elt.nbest = new NBestList(vocab, maxNbest, multiwords);
+    elt.nbest = new NBestList(vocab, maxNbest, multiChar);
     assert(elt.nbest != 0);
 
     /*

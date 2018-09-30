@@ -15,9 +15,9 @@
 #       to describe your new module.  Do not forget to use the proper
 #       RCS keywords!
 #
-#    Copyright (c) 1993, SRI International.  All Rights Reserved.
+#    Copyright (c) 1993-2011, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.78 2006/01/09 22:47:54 stolcke Exp $
+#    $Header: /home/srilm/devel/lm/src/RCS/Makefile,v 1.89 2011/01/14 01:01:56 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -31,7 +31,10 @@ include $(SRILM)/common/Makefile.common.variables
 COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Flags for generating "short" data structures
-SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
+
+# Flags for generating "long long" data structures
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
 
 # Define variables.
 
@@ -43,6 +46,7 @@ TEMPLATE_SOURCES = \
 
 EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Prob.h \
+	$(SRCDIR)/Counts.h \
 	$(SRCDIR)/XCount.h \
 	$(SRCDIR)/Vocab.h \
 	$(SRCDIR)/VocabMap.h \
@@ -52,12 +56,16 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/MultiwordVocab.h \
 	$(SRCDIR)/TextStats.h \
 	$(SRCDIR)/LM.h \
+	$(SRCDIR)/LMClient.h \
+	$(SRCDIR)/RemoteLM.h \
 	$(SRCDIR)/LMStats.h \
 	$(SRCDIR)/RefList.h \
+	$(SRCDIR)/Bleu.h \
 	$(SRCDIR)/NBest.h \
 	$(SRCDIR)/NBestSet.h \
 	$(SRCDIR)/Ngram.h \
 	$(SRCDIR)/NgramStats.h \
+	$(SRCDIR)/NgramCountLM.h \
 	$(SRCDIR)/Discount.h \
 	$(SRCDIR)/ClassNgram.h \
 	$(SRCDIR)/SimpleClassNgram.h \
@@ -74,6 +82,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/StopNgramStats.h \
 	$(SRCDIR)/NullLM.h \
 	$(SRCDIR)/MultiwordLM.h \
+	$(SRCDIR)/NonzeroLM.h \
 	$(SRCDIR)/BayesMix.h \
 	$(SRCDIR)/LoglinearMix.h \
 	$(SRCDIR)/AdaptiveMix.h \
@@ -96,6 +105,7 @@ INTERNAL_LIB_HEADERS =
 LIB_SOURCES = 				\
 	$(SRCDIR)/matherr.c \
 	$(SRCDIR)/Prob.cc \
+	$(SRCDIR)/Counts.cc \
 	$(SRCDIR)/XCount.cc \
 	$(SRCDIR)/Vocab.cc \
 	$(SRCDIR)/VocabMap.cc \
@@ -105,16 +115,21 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/MultiwordVocab.cc \
 	$(SRCDIR)/TextStats.cc \
 	$(SRCDIR)/LM.cc \
+	$(SRCDIR)/LMClient.cc \
 	$(SRCDIR)/LMStats.cc \
 	$(SRCDIR)/RefList.cc \
+	$(SRCDIR)/Bleu.cc \
 	$(SRCDIR)/NBest.cc \
 	$(SRCDIR)/NBestSet.cc \
 	$(SRCDIR)/NgramLM.cc \
 	$(SRCDIR)/NgramStatsInt.cc \
 	$(SRCDIR)/NgramStatsShort.cc \
+	$(SRCDIR)/NgramStatsLong.cc \
+	$(SRCDIR)/NgramStatsLongLong.cc \
 	$(SRCDIR)/NgramStatsFloat.cc \
 	$(SRCDIR)/NgramStatsDouble.cc \
 	$(SRCDIR)/NgramStatsXCount.cc \
+	$(SRCDIR)/NgramCountLM.cc \
 	$(SRCDIR)/Discount.cc \
 	$(SRCDIR)/ClassNgram.cc \
 	$(SRCDIR)/SimpleClassNgram.cc \
@@ -130,6 +145,7 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/StopNgram.cc \
 	$(SRCDIR)/StopNgramStats.cc \
 	$(SRCDIR)/MultiwordLM.cc \
+	$(SRCDIR)/NonzeroLM.cc \
 	$(SRCDIR)/BayesMix.cc \
 	$(SRCDIR)/LoglinearMix.cc \
 	$(SRCDIR)/AdaptiveMix.cc \
@@ -166,12 +182,15 @@ ADDITIONAL_LIBRARIES += \
 # Example programs.
 
 TEST_PROGRAM_NAMES = \
+	testBinaryCounts \
 	testHash \
 	testProb \
 	testXCount \
 	testParseFloat \
 	testVocabDistance \
 	testNgram \
+	testNgramAlloc \
+	testMultiReadLM \
 	hoeffding \
 	tolower \
 	testLattice \

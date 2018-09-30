@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.55 2005/07/03 22:20:19 stolcke Exp $
+#    $Header: /home/srilm/devel/utils/src/RCS/Makefile,v 1.62 2010/12/08 19:05:00 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -64,16 +64,20 @@ EDIT_SCRIPTS = \
 	compute-best-rover-mix \
 	compute-best-sentence-mix \
 	compute-oov-rate \
+	context-ngrams \
 	continuous-ngram-count \
 	extract-skip-probs \
+	filter-event-counts \
 	find-reference-posteriors \
 	fix-ctm \
 	fsm-to-pfsg \
 	get-gt-counts \
+	get-unigram-probs \
 	hits-from-log \
 	log10-to-bytelog \
 	make-abs-discount \
 	make-diacritic-map \
+	make-google-ngrams \
 	make-gt-discounts \
 	make-kn-discounts \
 	make-kn-counts \
@@ -99,15 +103,20 @@ EDIT_SCRIPTS = \
 	reverse-ngram-counts \
 	sentid-to-sclite \
 	sentid-to-ctm \
+	split-tagged-ngrams \
+	subset-context-ngrams \
 	subtract-ppls \
+	tolower-ngram-counts \
 	uniform-classes \
+	uniq-ngram-counts \
 	vp2text \
 	wlat-to-dot \
 	wlat-to-pfsg \
 	wlat-stats \
 	wordlat-to-lisp \
 	prettify \
-	select-vocab
+	select-vocab \
+	cumbin
 
 EXPORTED_PROGRAMS  = $(EDIT_SCRIPTS:%=$(BINDIR)/%)
 

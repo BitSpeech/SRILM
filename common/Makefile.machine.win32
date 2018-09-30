@@ -9,13 +9,16 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.win32,v 1.4 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.win32,v 1.7 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -Wreturn-type -Wimplicit -mno-cygwin -DNEED_RAND48
+   GCC_FLAGS = -mno-cygwin -DNEED_RAND48 -Wall -Wno-unused-variable -Wno-uninitialized
    CC = gcc $(GCC_FLAGS) -Wimplicit-int
    CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+
+   # avoid gcc warning that all code is PIC
+   PIC_FLAG =
 
    # suffix used for executable files
    EXE_SUFFIX = .exe

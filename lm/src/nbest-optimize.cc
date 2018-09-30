@@ -4,24 +4,44 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-optimize.cc,v 1.45 2006/01/09 18:08:21 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-optimize.cc,v 1.63 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+# include <sstream.h>
+#else
+# include <iostream>
+# include <sstream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
 #ifndef _MSC_VER
 #include <unistd.h>
+#define GETPID getpid
+#else
+#include <process.h>
+#define GETPID _getpid
 #endif
 #include <math.h>
 #if defined(sun) || defined(sgi)
 #include <ieeefp.h>
 #endif
 #include <signal.h>
+#include <errno.h>
+#include <time.h>
+#include <assert.h>
+
+#ifdef NEED_RAND48
+extern "C" {
+    void srand48(long);
+    double drand48();
+}
+#endif
 
 #ifndef SIGALRM
 #define NO_TIMEOUT
@@ -32,12 +52,16 @@ using namespace std;
 #include "File.h"
 #include "Vocab.h"
 #include "zio.h"
+#include "mkdir.h"
 
 #include "NullLM.h"
 #include "RefList.h"
 #include "NBestSet.h"
 #include "WordAlign.h"
 #include "WordMesh.h"
+#include "Bleu.h"
+#include "MultiwordVocab.h"	// for MultiwordSeparator
+
 #include "Array.cc"
 #include "LHash.cc"
 
@@ -53,7 +77,6 @@ unsigned numFixedWeights;			/* number of fixed weights */
 LHash<RefString,NBestScore **> nbestScores;	/* matrices of nbest scores,
 						 * one matrix per nbest list */
 LHash<RefString,WordMesh *> nbestAlignments;	/* nbest alignments */
-LHash<RefString,unsigned *> nbestErrors;	/* nbest error counts */
 
 Array<double> lambdas;				/* score weights */
 Array<double> lambdaDerivs;			/* error derivatives wrt same */
@@ -77,18 +100,25 @@ static unsigned debug = 0;
 static char *vocabFile = 0;
 static int toLower = 0;
 static int multiwords = 0;
+static const char *multiChar = MultiwordSeparator;
 static char *noiseTag = 0;
 static char *noiseVocabFile = 0;
 static char *hiddenVocabFile = 0;
 static char *refFile = 0;
+static char *antiRefFile = 0;
+static double antiRefWeight = 0.0;
 static char *errorsDir = 0;
 static char *nbestFiles = 0;
 static unsigned maxNbest = 0;
 static char *printHyps = 0;
+static unsigned printTopN = 0;
+static unsigned printUniqueHyps = 0;
+static unsigned printOldRanks = 0;
 static char *nbestDirectory = 0;
 static char **scoreDirectories = 0;
 static char *writeRoverControl = 0;
 static int quickprop = 0;
+static int skipopt = 0;
 
 static double rescoreLMW = 8.0;
 static double rescoreWTW = 0.0;
@@ -99,6 +129,7 @@ static int nonNegative = 0;
 
 static char *initLambdas = 0;
 static char *initSimplex = 0;
+static char *initPowell = 0;
 static double alpha = 1.0;
 static double epsilon = 0.1;
 static double epsilonStepdown = 0.0;
@@ -111,23 +142,104 @@ static unsigned maxBadIters = 10;
 static unsigned maxAmoebaRestarts = 100000;
 static unsigned maxTime = 0;
 
+static double insertionWeight = 1.0;
+static char *wordWeightFile = 0;
+static LHash<VocabIndex, double> wordWeights;
+
+// for BLEU optimization
+static unsigned numReferences = 0;
+static int useAvgRefLeng = 0;
+static int useMinRefLeng = 0;
+static int useClosestRefLeng = 0;
+static unsigned optimizeBleu = 0;
+static unsigned bleuRefLength = 0;
+static unsigned bleuNgram = 0;
+static char *bleuCountsDir = 0;
+const double bleuScale = 1000000;
+
+// oracle Bleu
+static unsigned oracleBleuIters = 1;
+static char *printOracleHyps = 0;
+static int computeOracle = 0;
+
+// for powell quick search
+Array<double> lambdaMins;
+Array<double> lambdaMaxs;
+Array<double> lambdaInitials;
+unsigned numPowellRuns = 20;
+unsigned useDynamicRandomSeries = 0;
+
+
+struct DeltaBleu {
+    short correct[MAX_BLEU_NGRAM];
+    short total[MAX_BLEU_NGRAM];
+    int length, closestRefLeng;
+
+    const DeltaBleu &operator += (const DeltaBleu &o) {
+	for (unsigned k = 0; k < bleuNgram; k ++) {
+	    correct[k] += o.correct[k];
+	    total[k]   += o.total[k];
+	}
+	length += o.length;
+        closestRefLeng += o.closestRefLeng;
+	return *this;
+    }
+};
+
+struct DeltaWerr {
+    double numErr;
+    int numWrd;
+
+    const DeltaWerr &operator += (const DeltaWerr &o) {
+	numErr += o.numErr;
+	numWrd += o.numWrd;
+	return *this;
+    }
+};
+
+union DeltaCounts {
+    DeltaBleu bleu;
+    DeltaWerr werr;
+
+    const DeltaCounts &operator += (const DeltaCounts &o) {
+	if (!optimizeBleu) {
+	    werr += o.werr;
+	} else {
+	    bleu += o.bleu;
+	}
+	return *this;
+    }
+
+    void clear() { memset(this, 0, sizeof(DeltaCounts)); }
+};
+
 static int optRest;
 
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "refs", &refFile, "reference transcripts" },
+
     { OPT_STRING, "nbest-files", &nbestFiles, "list of training N-best files" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_TRUE, "1best", &oneBest, "optimize 1-best error" },
     { OPT_TRUE, "1best-first", &oneBestFirst, "optimize 1-best error before full optimization" },
     { OPT_TRUE, "no-reorder", &noReorder, "don't reorder N-best hyps before aligning and align refs first" },
     { OPT_STRING, "errors", &errorsDir, "directory containing error counts" },
+    { OPT_STRING, "bleu-counts", &bleuCountsDir, "directory containing bleu counts" },
+    { OPT_TRUE, "averge-bleu-reference", &useAvgRefLeng, "use averge reference length for bleu brevity penalty computation (default)" },
+    { OPT_TRUE, "minimum-bleu-reference", &useMinRefLeng, "use minimum reference length for bleu brevity penalty computation" },
+    { OPT_TRUE, "closest-bleu-reference", &useClosestRefLeng, "use closest reference length for bleu brevity penalty computation" },
     { OPT_STRING, "vocab", &vocabFile, "set vocabulary" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_STRING, "noise", &noiseTag, "noise tag to skip" },
     { OPT_STRING, "noise-vocab", &noiseVocabFile, "noise vocabulary to skip" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "subvocabulary to be kept separate in mesh alignment" },
+    { OPT_FLOAT, "insertion-weight", &insertionWeight, "relative weight of insertion errors" },
+    { OPT_STRING, "word-weights", &wordWeightFile, "word weights for error computation" },
+    { OPT_STRING, "anti-refs", &antiRefFile, "anti-reference transcripts (for decorrelation)" },
+    { OPT_FLOAT, "anti-ref-weight", &antiRefWeight, "anti-reference error weight" },
     { OPT_STRING, "write-rover-control", &writeRoverControl, "nbest-rover control output file" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
@@ -136,6 +248,12 @@ static Option options[] = {
     { OPT_TRUE, "non-negative", &nonNegative, "limit search to non-negative weights" },
     { OPT_STRING, "init-lambdas", &initLambdas, "initial lambda values" },
     { OPT_STRING, "init-amoeba-simplex", &initSimplex, "initial amoeba simplex points" },
+    { OPT_STRING, "init-powell-range", &initPowell, "initial powell weight range" },
+    { OPT_UINT, "num-powell-runs", &numPowellRuns, "number of random runs for quick powell grid search (default: 20)" },
+    { OPT_TRUE, "-dynamic-random-series", &useDynamicRandomSeries, "use dynamic random series for powell search (result not repeatable)" },
+    { OPT_TRUE, "compute-oracle", &computeOracle, "find best possible hyps in n-best list"},
+    { OPT_UINT, "oracle-bleu-iters", &oracleBleuIters, "number of iterations to compute oracle Bleu value (default: 1)" },
+    { OPT_STRING, "print-oracle-hyps", &printOracleHyps, "output file for oracle hyps"},
     { OPT_FLOAT, "alpha", &alpha, "sigmoid slope parameter" },
     { OPT_FLOAT, "epsilon", &epsilon, "learning rate parameter" },
     { OPT_FLOAT, "epsilon-stepdown", &epsilonStepdown, "epsilon step-down factor" },
@@ -149,7 +267,11 @@ static Option options[] = {
     { OPT_UINT, "max-time", &maxTime, "abort search after this many seconds" },
 #endif
     { OPT_FLOAT, "converge", &converge, "minimum relative change in objective function" },
-    { OPT_STRING, "print-hyps", &printHyps, "output file for final top hyps" },
+    { OPT_STRING, "print-hyps", &printHyps, "output file or directory (when print-top-n specified) for final top hyps" },
+    { OPT_TRUE, "skipopt",  &skipopt, "skip optimization (useful if you only want to print top hyps)" },
+    { OPT_UINT, "print-top-n", &printTopN, "output top N rescored hypotheses" },
+    { OPT_TRUE, "print-unique-hyps", &printUniqueHyps, "output unique hyptheses" },
+    { OPT_TRUE, "print-old-ranks", &printOldRanks, "output old ranks of hypotheses before rescoring, instead of probabilities" },
     { OPT_TRUE, "quickprop", &quickprop, "use QuickProp gradient descent" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_REST, "-", &optRest, "indicate end of option list" },
@@ -184,7 +306,7 @@ dumpScores(ostream &str, NBestSet &nbestSet)
     NBestList *nbest;
     RefString id;
 
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	str << "id = " << id << endl;
 
 	NBestScore ***scores = nbestScores.find(id);
@@ -213,7 +335,7 @@ dumpAlignment(ostream &str, WordMesh &alignment)
 	str << "position " << pos << endl;
 
 	WordMeshIter iter(alignment, pos);
-	while (hypMap = iter.next(word)) {
+	while ((hypMap = iter.next(word))) {
 	    str << "  word = " << alignment.vocab.getWord(word) << endl;
 
 	    for (unsigned k = 0; k < hypMap->size(); k ++) {
@@ -294,7 +416,8 @@ wordScore(Array<HypID> &hyps, NBestScore **scores, Boolean &isCorrect,
     for (unsigned k = 0; k < hyps.size(); k ++) {
 	if (hyps[k] == refID) {
 	    /*
-	     * This hyp represents the correct word string, but doesn't 		     * contribute to the posterior probability for the word.
+	     * This hyp represents the correct word string, but doesn't 		     
+             * contribute to the posterior probability for the word.
 	     */
 	    isCorrect = true;
 	} else {
@@ -339,7 +462,7 @@ computeDerivs(RefString id, NBestScore **scores, WordMesh &alignment)
 
 	Array<HypID> *hypMap;
 	VocabIndex word;
-	while (hypMap = iter.next(word)) {
+	while ((hypMap = iter.next(word))) {
 	    /*
 	     * compute total score for word and check if it's the correct one
 	     */
@@ -440,13 +563,66 @@ computeDerivs(NBestSet &nbestSet)
     NBestList *nbest;
     RefString id;
 
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	NBestScore ***scores = nbestScores.find(id);
 	assert(scores != 0);
 	WordMesh **alignment = nbestAlignments.find(id);
 	assert(alignment != 0);
 
 	computeDerivs(id, *scores, **alignment);
+    }
+}
+
+/*
+ * accumulate bleu counts
+ */
+void
+accumulateBleuCounts(RefString id, NBestScore **scores, NBestList &nbest, 
+                     unsigned *correct, unsigned *total, unsigned &length, 
+		     unsigned &closestRefLeng)
+{
+    unsigned numHyps = nbest.numHyps();
+    unsigned bestHyp;
+    LogP bestScore;
+
+    if (numHyps == 0) {
+	return;
+    }
+
+    if (id == 0 && scores == 0) {
+
+        bestHyp = 0;
+
+    } else {
+
+        /*
+	 * Find hyp with highest score
+	 */
+        unsigned i;
+	for (i = 0; i < numHyps; i ++) {
+	    LogP score = hypScore(i, scores);
+
+	    if (i == 0 || score > bestScore) {
+	        bestScore = score;
+		bestHyp = i;
+	    }
+	}
+    }
+
+    NBestHyp &h = nbest.getHyp(bestHyp);
+    length += h.numWords;
+    closestRefLeng += h.closestRefLeng;
+
+    for (unsigned i = 0; i < bleuNgram; i++) {
+        correct[i] += h.bleuCount->correct[i];
+        unsigned n = h.numWords;
+        if (n > i) {
+	    n -= i;
+        } else {
+	    n = 0;
+	}
+
+        total[i] += n;      
     }
 }
 
@@ -481,13 +657,57 @@ compute1bestErrors(RefString id, NBestScore **scores, NBestList &nbest)
 }
 
 /*
+ * Compute error contribution of a single word confusion (or insertion/deletion)
+ */
+double
+computeWordConfusionError(WordMesh &alignment, VocabIndex ref, VocabIndex hyp)
+{
+    if (ref == hyp) {
+    	return 0.0;
+    } else if (wordWeightFile) {
+    	// weighted insertion/deletion errors:
+	// a substitution counts as the sum of deletion and an insertion
+	// default weight for unknown words is 1
+
+	double error = 0.0;
+
+	if (ref != alignment.deleteIndex) {
+	    double *refWeight = wordWeights.find(ref);
+
+	    error += (refWeight ? *refWeight : 1.0);
+	}
+
+	if (hyp != alignment.deleteIndex) {
+	    double *hypWeight = wordWeights.find(hyp);
+
+	    error += insertionWeight * (hypWeight ? *hypWeight : 1.0);
+	}
+
+	return error;
+
+    } else {
+    	// traditional word error
+	if (ref == alignment.deleteIndex) {
+	    // insertion error;
+	    return insertionWeight;
+	} else if (hyp == alignment.deleteIndex) {
+	    // deletion error;
+	    return 1.0;
+	} else {
+	    // substitution error
+	    return 1.0;
+	}
+    }
+}
+
+/*
  * compute sausage word error for a single nbest list
  * Note: uses global lambdas variable (yuck!)
  */
 double
 computeSausageErrors(RefString id, NBestScore **scores, WordMesh &alignment)
 {
-    int result = 0;
+    double result = 0.0;
 
     /* 
      * process all positions in alignment
@@ -509,7 +729,7 @@ computeSausageErrors(RefString id, NBestScore **scores, WordMesh &alignment)
 	
 	Array<HypID> *hypMap;
 	VocabIndex word;
-	while (hypMap = iter.next(word)) {
+	while ((hypMap = iter.next(word))) {
 	    /*
 	     * compute total score for word and check if it's the correct one
 	     */
@@ -532,7 +752,8 @@ computeSausageErrors(RefString id, NBestScore **scores, WordMesh &alignment)
 		bicWord != Vocab_None &&
 		bicScore > corScore)
 	    {
-		result ++;
+		result +=
+			computeWordConfusionError(alignment, corWord, bicWord);
 		break;
 	    }
 	}
@@ -542,12 +763,12 @@ computeSausageErrors(RefString id, NBestScore **scores, WordMesh &alignment)
 }
 
 /*
- * Compute word error for vector of weights
+ * Compute word error/1-bleu for vector of weights
  */
 double
 computeErrors(NBestSet &nbestSet, double *weights)
 {
-    int result = 0;
+    double result = 0.0;
 
     Array<double> savedLambdas;
 
@@ -561,18 +782,43 @@ computeErrors(NBestSet &nbestSet, double *weights)
     NBestList *nbest;
     RefString id;
 
-    while (nbest = iter.next(id)) {
-	NBestScore ***scores = nbestScores.find(id);
-	assert(scores != 0);
+    if (!optimizeBleu) {
+	while ((nbest = iter.next(id))) {
+	    NBestScore ***scores = nbestScores.find(id);
+	    assert(scores != 0);
 
-	if (oneBest) {
-	    result += (int) compute1bestErrors(id, *scores, *nbest);
-	} else {
-	    WordMesh **alignment = nbestAlignments.find(id);
-	    assert(alignment != 0);
+	    if (oneBest) {
+		result += (int) compute1bestErrors(id, *scores, *nbest);
+	    } else {
+		WordMesh **alignment = nbestAlignments.find(id);
+		assert(alignment != 0);
 
-	    result += (int) computeSausageErrors(id, *scores, **alignment);
+		result += computeSausageErrors(id, *scores, **alignment);
+	    }
 	}
+    } else {
+        unsigned correct[MAX_BLEU_NGRAM], total[MAX_BLEU_NGRAM], length = 0;
+	unsigned closestRefLeng = 0;
+
+	for (i = 0; i < bleuNgram; i++) {
+	    correct[i] = 0;
+	    total[i] = 0;
+	}
+
+	while ((nbest = iter.next(id))) {
+	    NBestScore ***scores = nbestScores.find(id);
+	    assert(scores != 0);
+
+	    accumulateBleuCounts(id, *scores, *nbest, correct, total, length, closestRefLeng);
+	} 
+
+	if (useClosestRefLeng) 
+	  bleuRefLength = closestRefLeng;
+
+	double bleu =
+		computeBleu(bleuNgram, correct, total, length, bleuRefLength);
+
+	result = ((1.0 - bleu) * bleuScale);
     }
 
     for (i = 0; i < numScores; i ++) {
@@ -590,15 +836,19 @@ printLambdas(ostream &str, Array<double> &lambdas, const char *controlFile = 0)
     unsigned i;
     double normalizer = 0.0;
 
-    str << "   weights =";
-    for (i = 0; i < numScores; i ++) {
-	if (normalizer == 0.0 && lambdas[i] != 0.0) {
-	    normalizer = lambdas[i];
-	}
+    if (!optimizeBleu) {
+	str << "   weights =";
+	for (i = 0; i < numScores; i ++) {
+	    if (normalizer == 0.0 && lambdas[i] != 0.0) {
+		normalizer = lambdas[i];
+	    }
 
-	str << " " << lambdas[i];
+	    str << " " << lambdas[i];
+	}
+        str << endl;
+    } else {
+	normalizer = 1.0;
     }
-    str << endl;
 
     str << "   normed =";
     for (i = 0; i < numScores; i ++) {
@@ -624,12 +874,21 @@ printLambdas(ostream &str, Array<double> &lambdas, const char *controlFile = 0)
 	/*
 	 * write main score dir and weights
 	 */
-	fprintf(file, "%s\t%lg %lg 1.0 %d %lg\n",
+        if (!optimizeBleu) {
+	    fprintf(file, "%s\t%lg %lg 1.0 %d %lg\n",
 			nbestDirectory,
 			lambdas[1]/normalizer,
 			lambdas[2]/normalizer,
 			maxNbest,
 			1/normalizer);
+        } else {
+	    fprintf(file, "%s\t%lg %lg 1.0 %d %lg\n",
+			nbestDirectory,
+			lambdas[1]/normalizer,
+			lambdas[2]/normalizer,
+			maxNbest,
+			lambdas[0]/normalizer);          
+        }
     }
 }
 
@@ -698,7 +957,7 @@ train(NBestSet &nbestSet)
 		 << endl;
 	}
 
-	if (iter == 1 || finite(totalLoss) && totalError < bestError) {
+	if (iter == 1 || (finite(totalLoss) && totalError < bestError)) {
 	    cerr << "NEW BEST ERROR: " << totalError 
 		 << " (" << ((double)totalError/numRefWords) << "/word)\n";
 	    printLambdas(cerr, lambdas, writeRoverControl);
@@ -769,10 +1028,13 @@ amoebaComputeErrors(NBestSet &nbestSet, double *p)
 	 * to numerical problems.  Since the scaling of posteriors is 
 	 * a redundant dimension this doesn't constrain the result.
 	 */
+      if (!optimizeBleu)
 	return numRefWords;
+      else
+        return bleuScale;
     }
 
-    for (i = 0, j = 1; i < numScores; i++) {
+    for (unsigned i = 0, j = 1; i < numScores; i++) {
 	if (fixLambdas[i]) {
 	    weights[i] = lambdas[i] / p[0];
 	} else {
@@ -923,7 +1185,8 @@ amoeba(NBestSet &nbest, double **p, double *y, unsigned ndim, double ftol,
 		    {
 			if (!fixLambdas[k])
 			    cerr << "lambda_" << j - 1
-				 << " " << p[ilo][j++] << endl;
+				 << " " << p[ilo][j] << endl;
+			    j ++;
 		    }
 		}
 	    }
@@ -1073,7 +1336,8 @@ trainAmoeba(NBestSet &nbestSet)
     // There is one search dimension per score dimension, excluding fixed
     // weights, but adding one for the posterior score (which is stored in
     // the vector even if it is kept fixed).
-    int numFreeWeights = numScores - numFixedWeights + 1;
+    unsigned numFreeWeights = numScores - numFixedWeights + 1;
+    assert((int)numFreeWeights > 0);
 
     makeArray(double *, points, numFreeWeights + 1);
     for (unsigned i = 0; i <= numFreeWeights; i++) {
@@ -1151,7 +1415,7 @@ trainAmoeba(NBestSet &nbestSet)
 	    }
 	}
 
-	unsigned prevErrors = (int) errs[0];
+	long prevErrors = (int) errs[0];
 
 	/*
 	 * The objective function fractional tolerance is
@@ -1240,8 +1504,8 @@ trainAmoeba(NBestSet &nbestSet)
     }
 
     for (unsigned i = 0; i <= numFreeWeights; i++) {
-	delete points[i];
-	delete dir[i];
+	delete [] points[i];
+	delete [] dir[i];
     }
 
     // Scale the lambdas back
@@ -1285,6 +1549,432 @@ printTop1bestHyp(File &file, RefString id, NBestScore **scores,
     fprintf(file, "\n");
 }
 
+struct ISPair {
+    int index;
+    LogP score;
+};
+
+static int 
+myISPsorter(const void *p1, const void *p2)
+{
+    const ISPair * i1 = (const ISPair *) p1;
+    const ISPair * i2 = (const ISPair *) p2;
+
+    if (i1->score < i2->score) {
+	return 1;
+    } else if (i1->score == i2->score) {
+	return 0;
+    } else {
+	return -1;
+    }
+}
+
+/*
+ * output rescored n-best hyps
+ */
+void
+printTopNbestHyps(RefString id, NBestList &nbest, unsigned num, char * dirname)
+{
+  
+    unsigned numHyps = nbest.numHyps();
+
+    LHash<const char *, int> uniqueHyps;
+
+    NBestScore ***scores = nbestScores.find(id);
+    assert(scores != 0);
+
+    char filename[1024];
+    sprintf(filename, "%s/%s", dirname, id);
+    File file(filename, "w");
+
+    makeArray(ISPair, pa, numHyps);
+
+    /*
+     * Find n-hyp with highest score
+     */
+    for (unsigned i = 0; i < numHyps; i ++) {
+	LogP score = hypScore(i, *scores);
+	pa[i].index = i;
+	pa[i].score = score;
+
+    }
+
+    if (numHyps > 0) {
+      
+        qsort(pa, numHyps, sizeof(ISPair), myISPsorter);
+
+	unsigned numPrinted = 0;
+
+	for (unsigned k = 0; k < numHyps; k++) {      
+	  
+	    ostringstream oss;
+	    VocabIndex *hyp = nbest.getHyp(pa[k].index).words;
+	    for (unsigned j = 0; hyp[j] != Vocab_None; j ++) {
+		oss << " " << nbest.vocab.getWord(hyp[j]);
+	    }
+	    oss << endl;
+	    const char *str = oss.str().c_str();
+
+	    Boolean dontPrint = false;
+	    if (printUniqueHyps) {
+		uniqueHyps.insert(str, dontPrint);
+	    }
+	    
+	    if (!dontPrint) {
+		if (printOldRanks)  {
+		    fprintf(file, "or=%d%s", pa[k].index + 1, str);
+		} else {
+		    fprintf(file, "pr=%g%s",pa[k].score, str);
+		}
+		numPrinted++;
+
+		if (numPrinted >= num) break;
+	    }
+	}
+    }
+}
+
+
+unsigned
+findThresholdPoints(NBestSet &nbestSet, unsigned feat,
+		    LHash<const char *, DeltaCounts> *thresholds, 
+                    DeltaCounts &firstCounts) 
+{
+    assert(feat < numScores);
+    firstCounts.clear();
+    thresholds->clear();
+    NBestSetIter iter(nbestSet);
+    NBestList *nbest;
+    RefString id;
+    unsigned i, j;
+    char dbuf[128];
+
+    int num = 0;
+
+    Array<double> fixedScores;  
+
+    while ((nbest = iter.next(id))) {
+	NBestScore ***scores = nbestScores.find(id);     
+	if (!scores) continue;
+	
+	double minFeatScore = 1.0e100;
+	double bestScore = -1.0e100;
+	unsigned best;
+	for (j = 0; j < nbest->numHyps(); j ++) {
+	    double score = 0.0;
+	    for (i = 0; i < numScores; i ++) {
+		if (i != feat) {
+		    score += (*scores)[i][j] * lambdas[i];
+		}
+	    }
+
+	    double fscore = (*scores)[feat][j];
+	    if (fscore < minFeatScore ||
+		(fscore == minFeatScore && score > bestScore))
+	    {
+		minFeatScore    = fscore;
+		bestScore       = score;
+		best            = j;
+	    }
+
+	    fixedScores[j] = score;
+	}
+	    
+	double bestFixedScore = fixedScores[best];
+	double lastThresh = -1e100;
+	NBestHyp *bestHyp = &(nbest->getHyp(best));
+	if (!optimizeBleu) {
+	    firstCounts.werr.numErr += bestHyp->numErrors;
+	    firstCounts.werr.numWrd += bestHyp->numWords;
+	} else {
+	    unsigned k;
+	    for (k = 0; k < bleuNgram; k ++) {
+		firstCounts.bleu.correct[k] +=
+			bestHyp->bleuCount->correct[k];
+		firstCounts.bleu.total[k] +=
+			(bestHyp->numWords > k ? bestHyp->numWords - k : 0);
+	    }
+	    firstCounts.bleu.length += bestHyp->numWords;
+	    firstCounts.bleu.closestRefLeng += bestHyp->closestRefLeng;
+	}
+
+	double bestFeatScore = minFeatScore;
+	while (1) {
+	    unsigned h;
+	    double thresh = 1e100;
+	    double featScore;
+	    for (j = 0; j < nbest->numHyps(); j ++) {        
+		double fscore = (*scores)[feat][j];
+		double fxscore = fixedScores[j];
+		if (fscore > bestFeatScore) {
+		    double t = - (bestFixedScore - fxscore) /
+		    			(bestFeatScore - fscore);
+		  
+		    if (t > lastThresh) {
+			if (t < thresh || (t == thresh && fscore > featScore)) {
+			    h = j;
+			    thresh = t;
+			    featScore = fscore;
+			}
+		    }
+		}
+	    }
+	    
+	    if (thresh == 1e100) break;
+
+	    // put thresh into hash
+	    Boolean foundP;
+	    sprintf(dbuf, "%.10f", thresh);
+	    DeltaCounts *pi = thresholds->insert(dbuf, foundP);
+	    if (!foundP) {
+		pi->clear();
+	    }
+
+	    NBestHyp *o = bestHyp;
+	    NBestHyp *n = &(nbest->getHyp(h));
+	    if (!optimizeBleu) {
+		double deltaErr = (int) n->numErrors - (int) o->numErrors;
+		int deltaCnt = (int) n->numWords - (int) o->numWords;
+		pi->werr.numErr += deltaErr;
+		pi->werr.numWrd += deltaCnt;
+	    } else {
+		unsigned k;
+		int nt = n->numWords;
+		int ot = o->numWords;
+		int nl = n->closestRefLeng;
+		int ol = o->closestRefLeng;
+
+		pi->bleu.length += nt - ot;
+		pi->bleu.closestRefLeng +=  nl - ol;
+
+		for (k = 0; k < bleuNgram; k++) {
+		    pi->bleu.correct[k] += ((int) n->bleuCount->correct[k] 
+					    - (int) o->bleuCount->correct[k]);
+		    pi->bleu.total[k] += (nt - ot);
+		    
+		    if (nt > 0) nt --;
+		    if (ot > 0) ot --;
+		}
+	    }
+
+	    best      = h;
+	    bestHyp   = n;
+	    bestFixedScore = fixedScores[h];
+	    bestFeatScore  = (*scores)[feat][h];
+	    lastThresh = thresh;
+	}
+    }
+    
+    return thresholds->numEntries();
+}
+
+static int
+dblCompare(const char *sp1, const char *sp2) 
+{
+    double p1 = atof(sp1);
+    double p2 = atof(sp2);
+    if (p1 < p2) {
+	return -1;
+    } else if (p1 == p2) {
+	return 0;
+    } else {
+	return 1;  
+    }
+}
+
+double
+computeError(DeltaCounts &counts) 
+{
+    double error;
+
+    if (!optimizeBleu) {
+	error = counts.werr.numErr;
+    } else {
+	unsigned correct[MAX_BLEU_NGRAM], total[MAX_BLEU_NGRAM];
+	unsigned length = counts.bleu.length;
+
+	for(unsigned i = 0; i < bleuNgram; i ++) {
+	    correct[i] = counts.bleu.correct[i];
+	    total[i]   = counts.bleu.total[i];
+	    if (counts.bleu.correct[i] < 0) {
+		fprintf(stderr, "warning: correct count less than 0!\n");
+		correct[i] = 0;
+	    }
+	}
+
+	if (useClosestRefLeng) 
+	  bleuRefLength = counts.bleu.closestRefLeng;
+
+	double bleu =
+		computeBleu(bleuNgram, correct, total, length, bleuRefLength);
+
+	error = bleuScale * (1 - bleu);
+    }
+    return error;
+}
+
+double
+findMinError(LHash<const char *, DeltaCounts> *thresholds,
+             DeltaCounts &firstCounts, double &lambda)
+{
+    LHashIter<const char *, DeltaCounts> iter(*thresholds, dblCompare);
+    int first = 1;
+    double lastThresh;
+
+    NBestList *nbest;
+    RefString id;
+
+    DeltaCounts *delta, counts = firstCounts;
+    double minError = 1.0e100, error;
+    const char *pkey;
+    double thresh;
+
+    while ((delta = iter.next(pkey))) {
+	thresh = atof(pkey);
+	if (first) {
+	    first = 0;
+	    lastThresh = thresh - 0.2;
+	}
+	
+	error = computeError(counts);
+
+	if (error < minError) {
+	    lambda = (thresh + lastThresh) / 2;
+	    minError = error;
+	}
+
+	// increment counts
+	counts += *delta;
+
+	lastThresh = thresh;
+    }
+
+    error = computeError(counts);
+
+    if (error < minError) {    
+	lambda = lastThresh + 0.1;
+	minError = error;
+    }
+
+    return minError;
+}
+
+void
+initializePowell(unsigned run)
+{
+    unsigned i = 0;
+
+    if (debug >= DEBUG_TRAIN) {
+	cerr << "Initial lambdas for run " << run << ": " << endl;    
+    }
+
+    if (run == 0) {
+	// use initial value for lambdas
+        srand48(useDynamicRandomSeries ? time(0) + (GETPID() << 8) : 0);
+	return;
+    }
+
+    for (i = 0; i < numScores; i ++) {
+	if (fixLambdas[i]) continue;
+	lambdas[i] = (lambdaMins[i] +
+			drand48() * (lambdaMaxs[i] - lambdaMins[i])) /
+								posteriorScale;
+	if (debug >= DEBUG_TRAIN) {
+	    cerr << "lambdas[" << i << "] = " << lambdas[i] << endl;
+	}
+    }
+}
+
+/*
+ * quick powell grid search
+ */
+void
+trainPowellQuick(NBestSet &nbestSet)
+{
+    double minError, globalMinError;
+    LHash<const char *, DeltaCounts> thresholds;
+
+    // get start error and copy the initial lambdas
+    globalMinError = computeErrors(nbestSet, lambdas.data());
+    bestLambdas = lambdas;
+      
+    unsigned i, j;
+
+    for (i = 0; i < numPowellRuns; i ++) {
+	initializePowell(i);
+	int loop = 0;
+	minError = computeErrors(nbestSet, lambdas.data()); 
+
+	while (1) {
+	    int bestDimen = -1;
+	    double bestWeight = 0.0;
+	    DeltaCounts firstCounts;
+	    
+	    for (j = 2; j < numScores; j ++) {
+		if (fixLambdas[j]) continue;
+		
+		findThresholdPoints(nbestSet, j, &thresholds, firstCounts);
+		
+		double lambda;
+		double merr = findMinError(&thresholds, firstCounts, lambda);
+		
+		if (merr < minError - 0.000001) {
+		    minError = merr;
+		    bestWeight = lambda;
+		    bestDimen = j;
+		}
+	    }
+
+	    if (debug >= DEBUG_TRAIN) {
+		cerr << "run(" << i << "), loop(" << loop << ") : dim : "
+		     << bestDimen;
+		cerr << "; lambda : " << bestWeight << "; error : " << minError;
+		cerr << "; global : " << globalMinError << endl;
+	    }
+
+	    loop ++;
+
+	    if (bestDimen < 0) break;
+	    lambdas[bestDimen] = bestWeight;
+
+	    // normalize weights
+	    if (oneBest && numFixedWeights == 0) {
+		double norm = 0;
+		unsigned k;
+		for (k = 0; k < numScores; k ++) {
+		    norm += lambdas[k] * lambdas[k];
+		}
+		norm = sqrt(norm);
+		for (k = 0; k < numScores; k ++) {
+		    lambdas[k] = lambdas[k] / norm;
+		}
+	    }
+	}
+	
+	if (debug >= DEBUG_TRAIN) {
+	    unsigned k;
+	    cerr << "Run (" << i << ") Error : " << minError << endl;
+	    for (k = 0; k < numScores; k ++) {
+		cerr << "lambdas[" << k << "] = " << lambdas[k] << endl;
+	    }     
+	}
+	
+	if (minError < globalMinError) {
+	    globalMinError = minError;
+	    bestLambdas = lambdas;
+	}
+    }
+      
+    if (debug >= DEBUG_TRAIN) {
+	unsigned k;
+	cerr << "Final Error : " << globalMinError << endl;
+	for (k = 0; k < numScores; k ++) {
+	    cerr << "lambdas[" << k << "] = " << bestLambdas[k] << endl;
+	}
+    }
+    bestError = (unsigned)globalMinError;
+}
+
 /*
  * output best sausage hypotheses
  */
@@ -1305,7 +1995,7 @@ printTopSausageHyp(File &file, RefString id, NBestScore **scores,
 
 	Array<HypID> *hypMap;
 	VocabIndex word;
-	while (hypMap = iter.next(word)) {
+	while ((hypMap = iter.next(word))) {
 	    /*
 	     * compute total score for word and check if it's the correct one
 	     */
@@ -1334,7 +2024,7 @@ printTopHyps(File &file, NBestSet &nbestSet)
     NBestList *nbest;
     RefString id;
 
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	NBestScore ***scores = nbestScores.find(id);
 	assert(scores != 0);
 
@@ -1376,7 +2066,7 @@ alignNbest(NBestSet &nbestSet, RefList &refs,
     NBestList *nbest;
     RefString id;
 
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	unsigned numWords;
 	VocabIndex *ref = refs.findRef(id);
 
@@ -1594,10 +2284,10 @@ readErrorsFile(const char *errorsDir, RefString id, NBestList &nbest,
 	/*
 	 * parse errors line
 	 */
-	float corrRate, errRate;
-	unsigned numSub, numDel, numIns, numErrs, numWds;
+	float corrRate, errRate, numErrs;
+	unsigned numSub, numDel, numIns, numWds;
 
-	if (sscanf(line, "%f %f %u %u %u %u %u", &corrRate, &errRate,
+	if (sscanf(line, "%f %f %u %u %u %g %u", &corrRate, &errRate,
 			 &numSub, &numDel, &numIns, &numErrs, &numWds) != 7)
 	{
 	    file.position() << "bad errors: " << line << endl;
@@ -1621,6 +2311,500 @@ readErrorsFile(const char *errorsDir, RefString id, NBestList &nbest,
     return !file.error();
 }
 
+/*
+ * Read word weights file
+ */
+Boolean
+readWordWeights(File &file, Vocab &vocab, LHash<VocabIndex, double> &weights)
+{
+    char *line;
+
+    while ((line = file.getline())) {
+        char buffer[1001];
+	double weight;
+
+	if (sscanf(line, "%1000s %lf", buffer, &weight) != 2) {
+	    return false;
+	}
+
+	*weights.insert(vocab.addWord(buffer)) = weight;
+    }
+
+    return true;
+}
+
+#define MAX_NUM_REFS 256
+
+/*
+ * Read error counts file
+ */
+Boolean
+readBleuCountsFile(const char *countsDir, RefString id, NBestList &nbest,
+		   unsigned &numWords)
+{
+    unsigned numHyps = nbest.numHyps();
+
+    makeArray(char, fileName,
+     	      strlen(bleuCountsDir) + 1 + strlen(id) + strlen(GZIP_SUFFIX) + 1);
+					
+    sprintf(fileName, "%s/%s", bleuCountsDir, id);
+
+    /* 
+     * If plain file doesn't exist try gzipped version
+     */
+    FILE *fp;
+    if ((fp = fopen(fileName, "r")) == NULL) {
+	strcat(fileName, GZIP_SUFFIX);
+    } else {
+	fclose(fp);
+    }
+
+    numWords = 0;
+    File file(fileName, "r", 0);
+
+    char *line, *p;
+    unsigned hypNo = 0;
+    unsigned reflen[MAX_NUM_REFS];
+
+    // read the first line
+    if (!file.error() && (line = file.getline())) {
+	unsigned pos, nl, nr, i, rl;
+
+	if (sscanf(line, "%u%u%n", &nl, &nr, &pos) != 2) {
+	    file.position() << "format error: " << line << endl;
+	}
+
+	if (nr > MAX_NUM_REFS) {
+	    cerr << "too many references (" << nr << "), can handle only up to "
+	    
+	         << MAX_NUM_REFS << "!\n";
+	}
+	
+	// check consistency
+	if (numHyps != nl) {
+	    cerr << "number of count lines does not match nbest list: " << nl
+	         << " versus " << numHyps << endl;
+	    return 0;
+	}
+
+	if (numReferences == 0) {
+	    if (nr == 0) {
+		cerr << "0 reference !" << endl;
+		return 0;
+	    }
+	    numReferences = nr;
+
+	} else if (nr != numReferences) {
+	    cerr << "number of reference mismatch: " << nr
+	         << " versus " << numReferences << endl;
+	    return 0;
+	}
+
+	unsigned minLen = 1000000;
+	for (p = line + pos, i = 0; i < nr; i ++, p += pos) {
+	    if (sscanf(p, "%u%n", &rl, &pos) != 1) {
+		file.position() << "format error: " << line << endl;
+		return 0;
+	    } else {	        
+		
+		if (minLen > rl)
+		  minLen = rl;
+
+		numWords += rl;
+
+		reflen[i] = rl;	
+	    }
+	}
+
+	if (useMinRefLeng) 
+	  numWords = minLen;
+	else
+	  numWords /= nr;
+	
+    }
+
+    while (!file.error() && (line = file.getline())) {
+	if (hypNo >= numHyps) {
+	    break;
+	}
+
+	/*
+	 * parse count line
+	 */
+        unsigned corr[MAX_BLEU_NGRAM], numWds;
+        unsigned n = 0, pos = 0;
+        if (sscanf(line, "%u%n", &numWds, &pos) != 1) {
+	    file.position() << "format error: " << line << endl;
+	    return 0;
+        }
+        NBestHyp & h = nbest.getHyp(hypNo ++);
+        if (numWds != h.numWords) {
+	    cerr << "inconsistent number of words for hyp " << hypNo 
+		 << " : " << numWds << " versus " << h.numWords << endl;
+	    return 0;
+        }
+
+        char *p = line + pos;
+        while (sscanf(p, "%u%n", &(corr[n]), &pos) == 1) {
+	    p += pos;
+	    n ++;
+	    if (n >= MAX_BLEU_NGRAM) break;
+        }
+
+        if (bleuNgram == 0) {
+	    bleuNgram = n;
+        } else if (n != bleuNgram) {
+	    file.position() << "inconsistent bleu ngram length : " << line 
+			    << " : " << n << " versus " << bleuNgram << endl;
+	    return 0;
+        }
+
+        if (n) {
+	    h.bleuCount = new BleuCount;
+	    for (unsigned i = 0; i < bleuNgram; i++) {
+		h.bleuCount->correct[i] = corr[i];
+	    }
+        } else {
+	    file.position() << "failed to read bleu counts: " << line << endl;
+	    return 0;
+        }
+
+	unsigned l = reflen[0];
+	unsigned diff = abs((int) (numWds - l));
+
+	for (unsigned i = 1; i < numReferences; i++) {
+	  unsigned d = abs((int) (numWds - reflen[i]));
+	    if (d < diff) {
+	        diff = d;
+		l = reflen[i];
+	    } else if (d == diff && reflen[i] < l) {
+	      // for the same difference, use the smaller one
+	      l = reflen[i];
+	    }
+	}
+	
+	h.closestRefLeng = l;	
+    }
+
+    if (hypNo < numHyps) {
+	file.position() << "too few count lines" << endl;
+	return 0;
+    }
+
+    return !file.error();
+}
+
+struct MYSTRUCT {
+  int index;
+  int best;
+  double value;
+};
+
+static int 
+mysorter (const MYSTRUCT * d1, const MYSTRUCT * d2)
+{
+  double diff = d1->value - d2->value;
+  
+  if (diff < 0) 
+    return -1;
+  else if (diff > 0)
+    return 1;
+  else 
+    return 0;    
+}
+
+typedef int (*MYSORTER) (const void *, const void *);
+
+void
+getInitialBleuStatistics(unsigned numSentences, NBestList **lists,
+				unsigned correct[], unsigned total[],
+				unsigned &length, unsigned &refLen)
+{
+    length = 0;
+    refLen = 0;
+    unsigned closestRefLeng = 0;
+    
+    memset(correct, 0, sizeof(unsigned) * bleuNgram);
+    memset(total, 0, sizeof(unsigned) * bleuNgram);
+    
+    for (unsigned i = 0; i < numSentences; i++) {
+	NBestList & nbest = *(lists[i]);
+	accumulateBleuCounts(0, 0, nbest, correct, total, length,
+							      closestRefLeng);
+    }
+
+    if (useClosestRefLeng) {
+	refLen = closestRefLeng;
+    } else {
+	refLen = bleuRefLength;
+    }
+}
+
+void
+sortHypsBySentenceBleu(NBestSet & nbestSet)
+{
+    RefString id;
+    NBestList * nbest;
+    NBestSetIter iter(nbestSet);
+    while ((nbest = iter.next(id))) {
+        nbest->sortHypsBySentenceBleu(bleuNgram);
+    }
+}
+
+double
+findOracleBleu(NBestSet &nbestSet, int numIters, unsigned *hypIdxs = 0,
+				RefString *sids = 0, NBestList **lists = 0)
+{
+    sortHypsBySentenceBleu(nbestSet);
+    
+    // initialize random series
+    srand48(useDynamicRandomSeries ? time(0) + (GETPID() << 8) : 0);
+
+    unsigned numSentences = nbestSet.numElements();
+  
+    MYSTRUCT *data = new MYSTRUCT [ numSentences ];
+
+    if (hypIdxs) memset(hypIdxs, 0, sizeof(int) * numSentences);
+
+    int allocLists = 0;
+    if (lists == 0) {
+	lists = new NBestList * [ numSentences ];
+	allocLists = 1;
+    }
+
+    unsigned i;
+
+    RefString id;
+    NBestSetIter iter(nbestSet);
+
+    i = 0;
+    NBestList *nbest;
+    while ((nbest = iter.next(id))) {
+        if (sids) sids[i] = id;
+        lists[i++] = nbest;	
+    }
+
+    // get initial total counts 
+    unsigned correct[MAX_BLEU_NGRAM], total[MAX_BLEU_NGRAM];
+    unsigned refLen, length;
+
+    unsigned newCorr[MAX_BLEU_NGRAM], newTotl[MAX_BLEU_NGRAM];
+    unsigned newRL, newLength;
+     
+    getInitialBleuStatistics(numSentences, lists, correct, total, length, refLen);
+    unsigned bestRL = refLen;
+    unsigned bestL = length;
+
+    double initBleu = computeBleu(bleuNgram, correct, total, length, refLen);
+    
+    double bestBleu = initBleu; 
+  
+    assert(i == numSentences);
+  
+    for (int it = 0; it < numIters ; it++) {
+        memcpy(newCorr, correct, sizeof(unsigned) * bleuNgram);
+	memcpy(newTotl, total, sizeof(unsigned) * bleuNgram);
+	newLength = length;
+	newRL = refLen;
+
+	double newBleu = initBleu;
+        unsigned iterRL = refLen;
+        unsigned iterL = length;
+    
+	for (i = 0; i < numSentences; i++) {
+            data[i].index = i;
+	    data[i].best = 0;
+	    data[i].value = drand48();
+	}
+
+	qsort(data, numSentences, (unsigned) sizeof(MYSTRUCT), (MYSORTER) mysorter);
+
+	DeltaBleu delta;
+
+	double startBleu;
+	   
+	do {
+	    startBleu = newBleu;
+
+	    for (i = 0; i < numSentences; i++) {
+	        unsigned best = data[i].best;
+		int index = data[i].index;
+		nbest = lists[index];
+		NBestHyp & bestHyp = nbest->getHyp(best);
+		int ot = bestHyp.numWords;
+		int ol = bestHyp.closestRefLeng;
+		unsigned short * oc = bestHyp.bleuCount->correct;
+	
+		unsigned numHyps = nbest->numHyps();
+		for (unsigned j = 0; j < numHyps; j++) {
+		    if (j == best)
+		      continue;
+		  
+		    unsigned corr[MAX_BLEU_NGRAM], totl[MAX_BLEU_NGRAM];
+		    unsigned len, rl;
+
+		    NBestHyp & hyp = nbest->getHyp(j);
+		    int nt = hyp.numWords;
+		    int nl = hyp.closestRefLeng;
+		    unsigned short * nc = hyp.bleuCount->correct;
+
+		    len = newLength + nt - ot;
+		    if (useClosestRefLeng) {
+			rl = newRL + nl - ol;
+		    } else {
+			rl = newRL;
+		    }
+
+		    for(unsigned k = 0; k < bleuNgram; k++) {
+		        corr[k] = newCorr[k] + nc[k] - oc[k];
+			totl[k] = newTotl[k] + nt - ot;
+			if (nt > 0) nt--;
+			if (ot > 0) ot--;	  
+		    }
+                    ot = bestHyp.numWords;
+                                       
+		    double bleu = computeBleu(bleuNgram, corr, totl, len, rl);
+	  
+		    if (bleu > newBleu) {
+		        data[i].best = j;
+		        newBleu = bleu;
+                        iterRL = rl;
+                        iterL = len;
+		    }
+		}
+	    }
+	} while (newBleu > startBleu);
+
+	if (newBleu > bestBleu) {
+	    bestBleu = newBleu;
+            bestRL = iterRL;
+            bestL = iterL;
+
+	    if (hypIdxs) {
+	        for (i = 0; i < numSentences; i++) {
+		    hypIdxs[data[i].index] = data[i].best;
+		}
+	    }
+	}    
+
+	cout << "iteration " << (it + 1) << ", oracle bleu: " << bestBleu << endl;
+    }
+
+    delete [] data;
+    if (allocLists) {
+	delete [] lists;
+    }
+
+    return bestBleu;
+}
+
+double
+findOracleError(NBestSet &nbestSet)
+{
+    double totalErrors = 0;
+    RefString id;
+    NBestList *nbest;
+    NBestSetIter iter(nbestSet);
+    unsigned i = 0;
+    while ((nbest = iter.next(id))) {
+        totalErrors += nbest->sortHypsByErrorRate(); 
+    }
+    
+    return (totalErrors / numRefWords);   
+    
+}
+
+void
+outputHyps(NBestSet &trainSet)
+{
+    if (printTopN) {
+	// printHyps is a dir
+	if (MKDIR(printHyps) < 0 && errno != EEXIST) {
+	    perror(printHyps);
+	    exit(1);
+	}
+	    
+	NBestSetIter iter(trainSet);
+	NBestList *nbest;
+	RefString id;
+	
+	while ((nbest = iter.next(id))) {
+	    printTopNbestHyps(id, *nbest, printTopN, printHyps);
+	}
+    } else {
+	File file(printHyps, "w");
+
+	lambdas = bestLambdas;
+	printTopHyps(file, trainSet);
+    }
+}
+
+void
+outputOracle(NBestSet &trainSet)
+{
+    if (optimizeBleu) {
+        unsigned numSentences = trainSet.numElements();
+	RefString *sids = 0;
+	unsigned *hids = 0;
+	NBestList **lsts = 0;
+
+	if (printOracleHyps) {
+	    sids = new RefString [ numSentences ];
+	    hids = new unsigned [ numSentences ];
+	    lsts = new NBestList * [ numSentences ];
+	}  
+      
+	double obleu =
+		    findOracleBleu(trainSet, oracleBleuIters, hids, sids, lsts);
+	
+	printf("oracleBleu = %g\n", obleu);
+	
+	if (sids && hids && lsts) {
+	    File file(printOracleHyps, "w");
+	    FILE *fp = file;
+
+	    for (unsigned i = 0; i < numSentences; i++) {
+		fprintf(fp, "%s", sids[i]);
+	    
+		NBestList *nbest = lsts[i];
+		VocabIndex *hyp = nbest->getHyp(hids[i]).words;
+
+		for (unsigned j = 0; hyp[j] != Vocab_None; j++) {
+		    fprintf(fp, " %s", nbest->vocab.getWord(hyp[j]));
+		}
+		fprintf(fp, "\n");
+	    }
+	}
+
+	delete [] lsts;
+	delete [] hids;
+	delete [] sids;
+        
+    } else {
+        double oerr = findOracleError(trainSet);
+        
+        printf("oracleErrorRate = %g\n", oerr);
+        
+        if (printOracleHyps) {
+            File file(printOracleHyps, "w");
+            FILE *fp = file;
+        
+            RefString id;
+            NBestList *nbest;
+            NBestSetIter iter(trainSet);
+            while ((nbest = iter.next(id))) {
+                fprintf(fp, "%s", id);
+                VocabIndex *hyp = nbest->getHyp(0).words;
+
+                for (unsigned j = 0; hyp[j] != Vocab_None; j++) {
+                  fprintf(fp, " %s", nbest->vocab.getWord(hyp[j]));
+		}
+                fprintf(fp, "\n");
+            }
+        }       
+    }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1638,25 +2822,51 @@ main(int argc, char **argv)
 	cerr << "cannot proceed without nbest files\n";
 	exit(2);
     }
-    if (!oneBest && !refFile) {
+
+    if (bleuCountsDir) {
+	optimizeBleu = 1;
+	oneBest = 1;
+	oneBestFirst = 0;
+
+	if (!initSimplex && !initPowell) {
+	    cerr << "bleu optimization only supported in simplex or powell model\n";
+	} else {
+	    cerr << "will optimize BLEU score instead of word error rate!\n";
+	}
+
+	if (useAvgRefLeng) {
+	    cerr << "use average bleu reference length" << endl;
+	} else if (useMinRefLeng) {
+	    cerr << "use minimum bleu reference length" << endl;
+	} else if (useClosestRefLeng) {
+	    cerr << "use closest bleu reference length" << endl;
+	} else {
+	    cerr << "did not specify reference length method, use average bleu referenc length" << endl;
+	    useAvgRefLeng = 1;
+	}	  
+    }
+
+    if (!oneBest && !refFile && !skipopt) {
 	cerr << "cannot proceed without references\n";
 	exit(2);
     }
-    if (oneBest && !refFile && !errorsDir) {
+    if (oneBest && !refFile && !errorsDir && !optimizeBleu && !skipopt) {
 	cerr << "cannot proceed without references or error counts\n";
 	exit(2);
     }
 
-    if ((oneBest || oneBestFirst) && !initSimplex) {
-	cerr << "1-best optimization only supported in simplex mode\n";
+    if ((oneBest || oneBestFirst) && !initSimplex && !initPowell && !skipopt) {
+	cerr << "1-best optimization only supported in simplex or powell mode\n";
 	exit(2);
     }
+
 
     Vocab vocab;
     NullLM nullLM(vocab);
     RefList refs(vocab);
+    RefList antiRefs(vocab);
 
-    NBestSet trainSet(vocab, refs, maxNbest, false, multiwords);
+    NBestSet trainSet(vocab, refs, maxNbest, false, multiwords ? multiChar : 0);
     trainSet.debugme(debug);
     trainSet.warn = false;	// don't warn about missing refs
 
@@ -1690,6 +2900,20 @@ main(int argc, char **argv)
     }
     SubVocabDistance subvocabDistance(vocab, hiddenVocab);
 
+    /* 
+     * Read word-specific error weights
+     */
+    if (wordWeightFile) {
+    	File file(wordWeightFile, "r");
+
+	cerr << "reading word weights...\n";
+
+	if (!readWordWeights(file, vocab, wordWeights)) {
+	    cerr << "error in word weights file\n";
+	    exit(1);
+	}
+    }
+
     /*
      * Posterior scaling:  if not specified (= 0.0) use LMW for
      * backward compatibility.
@@ -1703,6 +2927,13 @@ main(int argc, char **argv)
 	File file(refFile, "r");
 
 	refs.read(file, true);	 // add reference words to vocabulary
+    }
+
+    if (antiRefFile) {
+	cerr << "reading anti-references...\n";
+	File file(antiRefFile, "r");
+
+	antiRefs.read(file, true);	 // add words to vocabulary
     }
 
     {
@@ -1754,7 +2985,8 @@ main(int argc, char **argv)
 		strcpy(nbestDirectory, ".");
 	    }
 	} else {
-	    nbestDirectory = ".";
+	    nbestDirectory = strdup(".");
+	    assert(nbestDirectory != 0);
 	}
     }
     scoreDirectories = &argv[1];
@@ -1770,12 +3002,14 @@ main(int argc, char **argv)
 	    if (sscanf(&initLambdas[offset], " =%lf%n",
 						&lambdas[i], &consumed) > 0)
 	    {
+                lambdaInitials[i] = lambdas[i];
 	        lambdas[i] /= posteriorScale;
 		fixLambdas[i] = true;
 		numFixedWeights++;
 	    } else if (sscanf(&initLambdas[offset], "%lf%n",
 						&lambdas[i], &consumed) > 0)
 	    {
+                lambdaInitials[i] = lambdas[i];
 	        lambdas[i] /= posteriorScale;
 		lambdaSteps[i] = 1.0;
 	    } else {
@@ -1815,6 +3049,38 @@ main(int argc, char **argv)
     }
 
     /*
+     * Initialize Powell quick grid search
+     */
+    if (initPowell) {
+	unsigned offset = 0;
+
+	char buf[512];
+	unsigned consumed = 0;
+	for (unsigned i = 0; i < numScores; i++) {
+	    if (!fixLambdas[i]) {
+		if (sscanf(&initPowell[offset], "%lf,%lf%n",
+			   &lambdaMins[i], &lambdaMaxs[i], &consumed) != 2) {
+
+		    cerr << "failed to parse powell initialization : \"" << initPowell << "\"!" << endl;
+		    exit (-1);
+		}
+
+		if (lambdaMins[i] == lambdaMaxs[i] && 
+		    lambdaMins[i] == lambdaInitials[i])
+		{
+		    cerr << "Fixing " << i << "th parameter\n";
+		    fixLambdas[i] = true;
+		    numFixedWeights++;
+		}
+
+		offset += consumed;
+	    } else {
+		lambdaMins[i] = lambdaMaxs[i] = lambdaInitials[i];
+	    }
+	}
+    }
+
+    /*
      * Set up the score matrices
      */
     cerr << "reading scores...\n";
@@ -1823,7 +3089,7 @@ main(int argc, char **argv)
 
     RefString id;
     NBestList *nbest;
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	/*
 	 * Allocate score matrix for this nbest list
 	 */
@@ -1847,7 +3113,7 @@ main(int argc, char **argv)
 	/*
 	 * Read additional scores
 	 */
-	for (unsigned i = 1; i < argc; i ++) {
+	for (unsigned i = 1; i < (unsigned)argc; i ++) {
 	    if (!readScoreFile(argv[i], id, scores[i + 2], nbest->numHyps())) {
 		cerr << "warning: error reading scores for " << id
 		     << " from " << argv[i] << endl;
@@ -1857,7 +3123,7 @@ main(int argc, char **argv)
 	/*
 	 * Scale scores to help prevent underflow
 	 */
-	if (!combineLinear) {
+	if (!combineLinear && !optimizeBleu) {
 	    for (unsigned i = 0; i < numScores; i ++) {
 		for (unsigned j = nbest->numHyps(); j > 0; j --) {
 		    scores[i][j-1] -= scores[i][0];
@@ -1875,6 +3141,16 @@ main(int argc, char **argv)
 	dumpScores(cerr, trainSet);
     }
 
+    if (skipopt ) {
+	if (printHyps) {
+	    oneBest = 1;
+	    bestLambdas = lambdaInitials;        
+	    outputHyps(trainSet);
+	}
+
+	if (!computeOracle) exit(0);
+    }
+
     cerr << (errorsDir ? "reading" : "computing") << " error counts...\n";
 
     iter.init();
@@ -1884,11 +3160,14 @@ main(int argc, char **argv)
     /*
      * Compute hyp errors
      */
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	unsigned numWords;
 	VocabIndex *ref = refs.findRef(id);
+	VocabIndex *antiRef = antiRefs.findRef(id);
 
-	if (!(ref || (oneBest && !oneBestFirst) && errorsDir)) {
+	if (!(ref || ((oneBest && !oneBestFirst) &&
+	              (errorsDir || bleuCountsDir))))
+	{
 	    cerr << "missing reference for " << id << endl;
 	    exit(1);
 	}
@@ -1912,6 +3191,14 @@ main(int argc, char **argv)
 		cerr << "couldn't get error counts for " << id << endl;
 		exit(2);
 	    }
+        } else if (bleuCountsDir) {
+            /*
+             * read bleu counts
+             */
+            if (!readBleuCountsFile(bleuCountsDir, id, *nbest, numWords)) {
+                cerr << "couldn't get bleu counts for " << id << endl;
+                exit(2);
+            }
 	} else {
 	    /*
 	     * need to recompute hyp errors (after removeNoise() above)
@@ -1922,21 +3209,43 @@ main(int argc, char **argv)
 	    numWords = Vocab::length(ref);
 	}
 
+	if (antiRefWeight != 0.0) {
+	    if (antiRef == 0) {
+		cerr << "warning: missing anti-reference for " << id << endl;
+	    } else {
+		/*
+		 * Add anti-ref error to error counts
+		 */
+		unsigned sub, ins, del;
+		nbest->wordError(antiRef, sub, ins, del, antiRefWeight);
+	    }
+	}
+
 	/*
 	 * compute total length of references for later normalizations
 	 */
 	numRefWords += numWords;
     }
 
+    if (optimizeBleu) {
+
+      bleuRefLength = numRefWords;
+    }
+    
     cerr << numRefWords << " reference words\n";
 
     /*
      * preemptive trouble avoidance: prevent division by zero
      */
     if (numRefWords == 0) {
-	numRefWords = 1;
+	numRefWords = 1;        
     }
 
+    if (skipopt && computeOracle) {
+	outputOracle(trainSet);
+	exit(0);
+    }
+    
 #ifndef NO_TIMEOUT
     /*
      * set up search time-out handler
@@ -1955,20 +3264,35 @@ main(int argc, char **argv)
 	cerr << "Posterior scale step size set to " << posteriorScaleStep
 	     << endl;
 
-	unsigned errors = (int)computeErrors(trainSet, lambdas.data());
+        
+	unsigned errors;
+
+        errors = (int) computeErrors(trainSet, lambdas.data());
+
 	printLambdas(cout, lambdas);
 
-	if (initSimplex == 0) {
+	if (initSimplex == 0 && initPowell == 0) {
 	    train(trainSet);
-	} else {
+	} else if (initSimplex) {
 	    trainAmoeba(trainSet);
+	} else {          
+	    trainPowellQuick(trainSet);
 	}
+
+        if (!optimizeBleu) {
 	cout << "original errors = " << errors
 	     << " (" << ((double)errors/numRefWords) << "/word)"
 	     << endl;
 	cout << "best errors = " << bestError
 	     << " (" << ((double)bestError/numRefWords) << "/word)" 
 	     << endl;
+        } else {
+	    double bleu = 1.0 - (errors / bleuScale);
+	    double bestBleu = 1.0 - (bestError / bleuScale);
+
+	    cout << "original bleu = " << bleu << endl;
+	    cout << "best bleu = " << bestBleu << endl;          
+        }
     }
 
     if (oneBestFirst) {
@@ -2013,12 +3337,13 @@ main(int argc, char **argv)
     printLambdas(cout, bestLambdas, writeRoverControl);
 
     if (printHyps) {
-	File file(printHyps, "w");
-
-	lambdas = bestLambdas;
-	printTopHyps(file, trainSet);
+	outputHyps(trainSet);
     }
 
+    if (computeOracle) {
+	outputOracle(trainSet);
+    }
+    
     exit(0);
 }
 

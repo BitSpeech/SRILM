@@ -2,17 +2,21 @@
  * RefList.h --
  *	Lists of words strings identified by string ids
  *
- * Copyright (c) 1998-2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.5 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.h,v 1.6 2006/08/12 06:46:11 stolcke Exp $
  *
  */
 
 #ifndef _RefList_h_
 #define _RefList_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include "Boolean.h"
 #include "File.h"

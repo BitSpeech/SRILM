@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.28 2004/07/13 03:36:10 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/nbest-rover,v 1.31 2010/08/20 00:17:18 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -111,7 +111,7 @@ if [ "$sentids" = "-" ]; then
 	sed -e 's,.*/,,' -e 's,\.gz$,,' -e 's,\.score$,,' | \
 	sort > $tmp_sentids
 else
-	sort +0 -1 $sentids > $tmp_sentids
+	sort -k 1,1 $sentids > $tmp_sentids
 fi
 
 set -e
@@ -174,6 +174,8 @@ do
 			    nbest_file=$dir/$sentid.gz
 		    elif [ -f $dir/$sentid.score.gz ]; then
 			    nbest_file=$dir/$sentid.score.gz
+		    elif [ -f $dir/$sentid.score ]; then
+			    nbest_file=$dir/$sentid.score
 		    else
 			    echo "$dir/$sentid.score.gz is missing" >&2
 			    extra_weights=
@@ -187,7 +189,7 @@ do
 				-v max_nbest=${max_nbest:-$default_max_nbest} \
 				$nbest_file $extra_scores
 		    else
-			    gunzip -c -f $nbest_file
+			    gzip -dcf $nbest_file
 		    fi | \
 		    nbest-posteriors noheader=$noheader \
 				    lmw=${lmw:-$default_lmw} \
@@ -230,9 +232,14 @@ if [ -n "$ref_posteriors" ]; then
 	cat $tmp_sentids | \
 	while read sentid refwords
 	do
-		gunzip -c $lattice_dir/$sentid.gz | \
+		if [ -f $lattice_dir/$sentid.gz ]; then
+			suffix=.gz
+		else
+			suffix=
+		fi
+		gzip -dcf $lattice_dir/$sentid$suffix | \
 		find-reference-posteriors sentid=$sentid \
-		   posteriors_file=$posteriors_dir/$sentid.gz >> $ref_posteriors
+		   posteriors_file=$posteriors_dir/$sentid$suffix >> $ref_posteriors
 	done
 fi
 

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+ngram-count -debug 1 -text gb.test.txt -lm - \
+	-wbdiscount1 -wbdiscount2 -wbdiscount3 | \
+make-ngram-pfsg | \
+add-pauses-to-pfsg 
+
+

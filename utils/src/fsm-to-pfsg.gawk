@@ -9,7 +9,7 @@
 # scale=S		sets transition weight scaling factor to S
 #			(default -1)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.7 2003/07/14 17:56:03 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/fsm-to-pfsg.gawk,v 1.8 2009/09/08 18:16:40 stolcke Exp $
 #
 BEGIN {
 	pfsg_name = "from_fsm";
@@ -28,6 +28,8 @@ BEGIN {
 	num_newnodes = 0;
 	initial_node = -1;
 	empty_output = "NULL";
+	epsilon = "<eps>";	# FSM epsilon symbol
+	map_epsilon = "";	# map epsilon to this symbol
 	scale = -1;		# scaling of transition weights
 }
 
@@ -36,7 +38,11 @@ NF >= 3 {
 	from_node = $1;
 	to_node = $2;
 
+	if (map_epsilon && $3 == epsilon) $3 = map_epsilon;
+
 	if (transducer) {
+		if (map_epsilon && $4 == epsilon) $4 = map_epsilon;
+
 		# collapse input and output into a single symbol
 		$3 = $3 ":" $4;	
 		$4 = "";

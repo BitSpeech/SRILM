@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2005-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNgrams.cc,v 1.7 2006/01/06 05:35:13 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2005-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNgrams.cc,v 1.11 2010/06/02 05:54:08 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -16,15 +16,11 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNgr
 
 #include "Lattice.h"
 
-#include "LHash.cc"
 #include "Map2.cc"
 #include "Array.cc"
 
 #ifdef INSTANTIATE_TEMPLATES
-// reused instantiation in VocabMultiMap.cc
-#ifdef USE_SHORT_VOCAB
-INSTANTIATE_MAP2(NodeIndex, VocabContext, LogP2);
-#endif
+INSTANTIATE_MAP2(NodeIndex, const NBestWordInfo *, LogP2);
 #endif
 
 #define DebugPrintFatalMessages         0 
@@ -56,27 +52,28 @@ INSTANTIATE_MAP2(NodeIndex, VocabContext, LogP2);
  * Nodes with NULL or pause are handled by ignoring them when in the final
  * position of the N-gram, and skipping them when computing N-gram contexts.
  */
-FloatCount
+Prob
 Lattice::countNgramsAtNode(VocabIndex oldIndex, unsigned order,
-			   NgramCounts<FloatCount> &counts,
 			   LogP2 backwardProbs[], double posteriorScale,
-			   Map2<NodeIndex, VocabContext, LogP2> &forwardProbMap)
+			   Map2<NodeIndex, const NBestWordInfo *, LogP2> &forwardProbMap,
+			   Lattice::NgramAccumulatorFunction *accumulator,
+			   void *clientData, Boolean acousticInfo)
 {
     LatticeNode *oldNode = findNode(oldIndex);
     assert(oldNode != 0);
 
-    Map2Iter2<NodeIndex, VocabContext, LogP2>
+    Map2Iter2<NodeIndex, const NBestWordInfo *, LogP2>
 					expandIter(forwardProbMap, oldIndex);
     Prob countSum = 0.0;
 
     LogP2 *forwardProb;
-    VocabContext context;
+    const NBestWordInfo *context;
 
-    while (forwardProb = expandIter.next(context)) {
-	unsigned contextLength = Vocab::length(context);
+    while ((forwardProb = expandIter.next(context))) {
+	unsigned contextLength = NBestWordInfo::length(context);
 
-	makeArray(VocabIndex, extendedContext, contextLength + 2);
-	Vocab::copy(extendedContext, context);
+	makeArray(NBestWordInfo, extendedContext, contextLength + 2);
+	NBestWordInfo::copy(extendedContext, context);
 
 	TRANSITER_T<NodeIndex,LatticeTransition> 
 			      transIter(oldNode->outTransitions);
@@ -99,14 +96,38 @@ Lattice::countNgramsAtNode(VocabIndex oldIndex, unsigned order,
 	    if (posterior > LogP_One) posterior = LogP_One;
 
 	    // determine ngram context for sucessor nodes
-	    const VocabIndex *newContext;
+	    const NBestWordInfo *newContext;
 	    if (ignoreWord(word)) {
 		// context is unchanged
 		newContext = context;
 	    } else {
 		// construct context extended by one word
-		extendedContext[contextLength] = word;
-		extendedContext[contextLength+1] = Vocab_None;
+		extendedContext[contextLength].word = word;
+		// fill in acoustic information
+		if (acousticInfo && nextNode->htkinfo) {
+		    if (oldNode->htkinfo &&
+		        oldNode->htkinfo->time != HTK_undef_float &&
+			nextNode->htkinfo->time != HTK_undef_float)
+		    {
+			extendedContext[contextLength].start =
+						oldNode->htkinfo->time;
+			extendedContext[contextLength].duration =
+						nextNode->htkinfo->time -
+						    oldNode->htkinfo->time;
+		    }
+		    extendedContext[contextLength].acousticScore =
+						nextNode->htkinfo->acoustic;
+		    extendedContext[contextLength].languageScore =
+						nextNode->htkinfo->language;
+		    if (nextNode->htkinfo->div) {
+		    	if (extendedContext[contextLength].phones) {
+			    free(extendedContext[contextLength].phones);
+			}
+			extendedContext[contextLength].phones =
+						strdup(nextNode->htkinfo->div);
+		    }
+		}
+		extendedContext[contextLength+1].word = Vocab_None;
 
 		// decide if extended context needs to be shortened
 		if (contextLength < order - 1) {
@@ -130,13 +151,13 @@ Lattice::countNgramsAtNode(VocabIndex oldIndex, unsigned order,
 	    // is not one to be ignored.
 	    // (note we can reuse the extended context buffer from above)
 	    if (!ignoreWord(word)) {
-		FloatCount count = LogPtoProb(posterior);
+		Prob count = LogPtoProb(posterior);
 
-		for (VocabIndex *ngram = extendedContext;
-		     ngram[0] != Vocab_None;
+		for (NBestWordInfo *ngram = extendedContext;
+		     ngram->word != Vocab_None;
 		     ngram ++)
 		{
-		    *counts.insertCount(ngram) += count;
+		    (*accumulator)(this, ngram, count, clientData);
 		}
 
 		countSum += count;
@@ -148,6 +169,21 @@ Lattice::countNgramsAtNode(VocabIndex oldIndex, unsigned order,
     forwardProbMap.remove(oldIndex);
 
     return countSum;
+}
+
+//
+// Callback function for Lattice::countNgramsAtNode():
+//	sum ngram counts globally
+//
+static void
+ngramCountAccumulator(Lattice *lat, const NBestWordInfo *ngram, Prob count,
+						NgramCounts<FloatCount> *counts)
+{
+    makeArray(VocabIndex, words, NBestWordInfo::length(ngram)+1);
+
+    NBestWordInfo::copy(words, ngram);
+
+    *counts->insertCount(words) += count;
 }
 
 FloatCount
@@ -178,14 +214,15 @@ Lattice::countNgrams(unsigned order, NgramCounts<FloatCount> &counts,
       }
     }
 
-    Map2<NodeIndex, VocabContext, LogP2> forwardProbMap;
+    Map2<NodeIndex, const NBestWordInfo *, LogP2> forwardProbMap;
     FloatCount countSum = 0.0;
 
     // prime forward probability map with initial node
-    VocabIndex context[2];
-    context[0] = vocab.ssIndex();
-    context[1] = Vocab_None;
-    *counts.insertCount(context) += 1.0;
+    NBestWordInfo context[2];
+    context[0].word = vocab.ssIndex();
+    context[1].word = Vocab_None;
+    ngramCountAccumulator(this, context, 1.0, &counts);
+
     if (order > 1) {
 	*forwardProbMap.insert(initial, context) = LogP_One;
     } else {
@@ -195,11 +232,14 @@ Lattice::countNgrams(unsigned order, NgramCounts<FloatCount> &counts,
 
     for (unsigned i = 0; i < numReachable; i++) {
     	countSum +=
-	    countNgramsAtNode(sortedNodes[i], order, counts,
-			      backwardProbs, posteriorScale, forwardProbMap);
+	    countNgramsAtNode(sortedNodes[i], order,
+			      backwardProbs, posteriorScale, forwardProbMap,
+			      (Lattice::NgramAccumulatorFunction *)&ngramCountAccumulator,
+			      &counts);
     }
 
     delete [] backwardProbs;
+    delete [] sortedNodes;
 
     return countSum; 
 }

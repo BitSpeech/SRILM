@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1996,1999,2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1996-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SubVocab.cc,v 1.8 2006/08/12 06:46:11 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>

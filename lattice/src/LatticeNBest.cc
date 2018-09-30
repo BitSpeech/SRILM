@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2004-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNBest.cc,v 1.25 2006/01/09 19:15:48 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2004-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNBest.cc,v 1.28 2010/06/02 07:06:23 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,6 +24,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNBe
 #include "IntervalHeap.cc"
 #include "zio.h"
 #include "mkdir.h"
+#include "LatticeNBest.h"
 
 #define DebugPrintFatalMessages         0 
 #define DebugPrintFunctionality         1 
@@ -34,75 +35,6 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeNBe
 // for inner loop of the large functions or outloop of small functions
 #define DebugPrintInnerLoop             3
 #define DebugAStar             		4
-
-
-/* *************************
- * A path through the lattice (stored as reversed linked list)
- * ************************* */
-class LatticeNBestPath
-{
- friend class LatticeNBestHyp;
-
- public:
-  LatticeNBestPath(NodeIndex node, LatticeNBestPath *predecessor);
-  ~LatticeNBestPath();
-  void linkto();	// add a reference to this path
-  void release();	// remove a reference to this path
-  unsigned getPath(Array<NodeIndex> &path);
-
-  NodeIndex node;
-  LatticeNBestPath *pred;
-
- private:
-  unsigned numReferences;
-};
-
-
-/* *************************
- * An nbest hyp through lattice (and a custom sort function for the queue)
- * ************************* */
-class LatticeNBestHyp
-{
- public:
-  LatticeNBestHyp(double score, LogP myForwardProb, 
-                  NodeIndex myNodeIndex, int mySuccIndex, Boolean endOfSent,
-		  LatticeNBestPath *nbestPath, unsigned myWordCnt,
-		  LogP myAcoustic, LogP myNgram, LogP myLanguage,
-		  LogP myPron, LogP myDuration,
-		  LogP myXscore1, LogP myXscore2, LogP myXscore3,
-		  LogP myXscore4, LogP myXscore5, LogP myXscore6,
-		  LogP myXscore7, LogP myXscore8, LogP myXscore9);
-  ~LatticeNBestHyp();
-  
-  double score; // score for path (forward prob plus total backward prob)
-  LogP forwardProb; // forward prob so far on this path
-  Boolean endOfSent;
-  LatticeNBestPath *nbestPath;		// linked list of nodes to the start
-
-  NodeIndex nodeIndex;  
-  int succIndex;
-
-  // Accumulated HTK scores over path
-  unsigned wordCnt;                     // number of words (ignore non-words)
-  LogP acoustic;			// acoustic model log score
-  LogP ngram;				// ngram model log score
-  LogP language;			// language model log score
-  LogP pron;				// pronunciation log score
-  LogP duration;			// duration log score
-  LogP xscore1;			        // extra score #1
-  LogP xscore2;			        // extra score #2
-  LogP xscore3;			        // extra score #3
-  LogP xscore4;			        // extra score #4
-  LogP xscore5;			        // extra score #5
-  LogP xscore6;			        // extra score #6
-  LogP xscore7;			        // extra score #7
-  LogP xscore8;			        // extra score #8
-  LogP xscore9;			        // extra score #9
-
-  Boolean writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut);
-  char *getHypFeature(SubVocab &ignoreWords, Lattice &lat,
-						const char *multiwordSeparator);
-};
 
 
 static void
@@ -117,7 +49,7 @@ printDebugHyp(Lattice &lat, unsigned numOutput, unsigned numHyps,
   Array<NodeIndex> path;
   hyp.nbestPath->getPath(path);
 
-  for (int n = 0; n < path.size(); n++) {
+  for (unsigned n = 0; n < path.size(); n++) {
     LatticeNode *thisNode = lat.findNode(path[n]);
     assert(thisNode != 0);
     if (thisNode->word != Vocab_None) {
@@ -182,16 +114,6 @@ struct NodeInfo {
     };
 };
 
-static int
-compareLogP(const void *p1, const void *p2) 
-{
-    LogP pr = (*(const LogP *)p1 - *(const LogP *)p2);
-    
-    if (pr == 0) return 0;
-    else if (pr < 0) return 1;
-    else return -1;
-}
-
 /*
  * Compute top N word sequences with highest probability paths through latttice
  */
@@ -249,8 +171,7 @@ Lattice::computeNBest(unsigned N, NBestOptions &nbestOut, SubVocab &ignoreWords,
   LogP bestProb =
       computeForwardBackwardViterbi(viterbiForwardProbs, viterbiBackwardProbs);
   
-  int i;
-  for (i = 0; i < maxIndex; i++) {
+  for (unsigned i = 0; i < maxIndex; i++) {
       LatticeNode *node = nodes.find(i);      
     
       if (!node) continue;
@@ -320,7 +241,7 @@ Lattice::computeNBest(unsigned N, NBestOptions &nbestOut, SubVocab &ignoreWords,
 
   hyps.push(initialHyp);
 
-  int outputHyps = 0;
+  unsigned outputHyps = 0;
   Boolean firstPruned = true;
 
   while (outputHyps < N && !hyps.empty()) {
@@ -448,7 +369,7 @@ Lattice::computeNBest(unsigned N, NBestOptions &nbestOut, SubVocab &ignoreWords,
 	  hyps.pop_min();
 	  delete pruneHyp;
 	  if (debug(DebugPrintOutLoop) ||
-	      firstPruned && debug(DebugPrintFunctionality))
+	      (firstPruned && debug(DebugPrintFunctionality)))
 	  {
 	    dout() << "Lattice::computeNBest: max number of hyps reached, pruning lowest score hyp\n";
 	    firstPruned = false;
@@ -479,7 +400,7 @@ Lattice::computeNBest(unsigned N, NBestOptions &nbestOut, SubVocab &ignoreWords,
 	  hyps.pop_min();
 	  delete pruneHyp;
 	  if (debug(DebugPrintOutLoop) ||
-	      firstPruned && debug(DebugPrintFunctionality))
+	      (firstPruned && debug(DebugPrintFunctionality)))
 	  {
 	    dout() << "Lattice::computeNBest: max number of hyps reached, pruning lowest score hyp\n";
 	    firstPruned = false;
@@ -564,14 +485,14 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
 
     ENTRYHASH_T ht(2 * N);
 
-    int i, j;
+    unsigned i;
     Array<HypEntry> **hyps = new Array<HypEntry> * [numReachable];
     assert(hyps != 0);
     memset(hyps, 0, sizeof(void *) * numReachable);
 
-    int *map = new int [maxIndex];
+    unsigned *map = new unsigned[maxIndex];
     assert(map != 0);
-    memset(map, 0, sizeof(int) * maxIndex);
+    memset(map, 0, sizeof(unsigned) * maxIndex);
 
     for (i = 0; i <= finalPosition; i++) {
         map[sortedNodes[i]] = i;
@@ -681,7 +602,7 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
               xscore9  = node->htkinfo->xscore9;
 	}
 
-        int num;
+        unsigned num;
 
         // propogate to successors
         TRANSITER_T<NodeIndex, LatticeTransition>
@@ -689,16 +610,16 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
         transIter.init();
         LatticeTransition *inTrans;
         NodeIndex fromNodeIndex;
-        while (inTrans = transIter.next(fromNodeIndex)) {
+        while ((inTrans = transIter.next(fromNodeIndex))) {
 
-            int from = map[fromNodeIndex];
+            unsigned from = map[fromNodeIndex];
             
             Array<HypEntry> *fromArray = hyps[from];
             if (fromArray == 0) continue;
             num = fromArray->size();
             HypEntry *entries = fromArray->data();
                 
-            for (j = 0; j < num; j++) {
+            for (unsigned j = 0; j < num; j++) {
                 LatticeNBestHyp *hyp = entries[j].hyp;
                 LogP forwardProb = hyp->forwardProb + inTrans->weight;
 
@@ -787,7 +708,7 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
             ENTRYITER_T iter(ht);
             LatticeNBestHyp **phyp;
             const char *key;
-            while (phyp = iter.next(key)) {
+            while ((phyp = iter.next(key))) {
                 entries[num].key = key;
                 entries[num].hyp = *phyp;
                 num++;
@@ -800,7 +721,8 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
 	    assert(hyps[i] != 0);
             HypEntry *dst = hyps[i]->data();
             HypEntry *src = entries;
-            
+
+	    unsigned j;
             for (j = 0; j < num; j++, src++, dst++) {
                 dst->key = strdup(src->key);
                 dst->hyp = src->hyp;
@@ -818,13 +740,13 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
         // free hyps in freeList
         Array<int> &fl = freeList[i];
         
-        for (j = 0; j < fl.size(); j++) {
+        for (unsigned j = 0; j < fl.size(); j++) {
             int index = fl[j];
             
             if (hyps[index] == 0) continue;
             HypEntry *entries = hyps[index]->data();
             
-            for (int k = hyps[index]->size()-1; k >= 0; k--) {
+            for (unsigned k = hyps[index]->size()-1; (int)k >= 0; k--) {
                 delete entries[k].hyp;
                 free ((char *) entries[k].key);
             }
@@ -838,14 +760,13 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
     if (hyps[finalPosition] && hyps[finalPosition]->size()) {
         Array<HypEntry> *results = hyps[finalPosition];
         
-        int num = results->size();
+        unsigned num = results->size();
 
         HypEntry *entries = results->data();
 
         qsort(entries, num, sizeof(HypEntry), compEntry);
         
-        int i;
-        for (i = 0; i < num && i < N; i++) {
+        for (unsigned i = 0; i < num && i < N; i++) {
             
             LatticeNBestHyp *hyp = entries[i].hyp;
             hyp->writeHyp(i, *this, nbestOut);
@@ -865,10 +786,10 @@ Lattice::computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
     for (i = 0; i <= finalPosition; i++) {
         if (hyps[i] == 0) continue;
 
-        int num = hyps[i]->size();
+        unsigned num = hyps[i]->size();
         HypEntry *entries = hyps[i]->data();
 
-        for (j = 0; j < num; j++) {
+        for (unsigned j = 0; j < num; j++) {
             delete entries[j].hyp;
             free((void *)entries[j].key);
         }
@@ -1176,8 +1097,10 @@ LatticeNBestHyp::LatticeNBestHyp(double myScore, LogP myForwardProb,
 				 LogP myXscore4, LogP myXscore5, LogP myXscore6,
 				 LogP myXscore7, LogP myXscore8, LogP myXscore9)
   :  score(myScore), forwardProb(myForwardProb), 
-     nodeIndex(myNodeIndex), succIndex(mySuccIndex), endOfSent(myEndOfSent),
-     nbestPath(myNBestPath), wordCnt(myWordCnt), acoustic(myAcoustic),
+     endOfSent(myEndOfSent),
+     nbestPath(myNBestPath),
+     nodeIndex(myNodeIndex), succIndex(mySuccIndex),
+  wordCnt(myWordCnt), acoustic(myAcoustic),
      ngram(myNgram), language(myLanguage), pron(myPron), duration(myDuration), 
      xscore1(myXscore1), xscore2(myXscore2), xscore3(myXscore3),
      xscore4(myXscore4), xscore5(myXscore5), xscore6(myXscore6),
@@ -1239,7 +1162,7 @@ LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
     Array<NodeIndex> path;
     nbestPath->getPath(path);
 
-    for (int n = 0; n < path.size(); n++) {
+    for (unsigned n = 0; n < path.size(); n++) {
       LatticeNode *thisNode = lat.findNode(path[n]);
       LatticeNode *prevNode = lat.findNode(path[(n>0 ? n-1 : 0)]);
       assert(thisNode != 0 && prevNode != 0);

@@ -1,0 +1,24 @@
+../ngram-count-gt/eval97.text: line 5293: 5290 sentences, 38238 words, 681 OOVs
+0 zeroprobs, logprob= 0 ppl= 1 ppl1= 1
+iteration 0: log likelihood = -91030.5
+posterior counts 0: 0/0 0/773 0/4956
+posterior counts 1: 0/0 16.3445/148.685 128.082/1348
+posterior counts 2: 0/0 6.12878/75.3333 134.307/870
+posterior counts 3: 0/0 11.6851/103 112.177/604
+posterior counts 4: 0/0 12.9503/66.35 106.903/485
+posterior counts 5: 6430.91/8373.19 11255.2/18509.1 9703.08/21051
+iteration 1: log likelihood = -87079.7
+posterior counts 0: 0/0 0/773 0/4956
+posterior counts 1: 0/0 14.4924/149.775 77.1202/1348
+posterior counts 2: 0/0 4.43878/75.3084 83.5558/870
+posterior counts 3: 0/0 9.56042/103 75.1795/604
+posterior counts 4: 0/0 11.4832/66.5068 74.9346/485
+posterior counts 5: 7086.64/8413.71 12302.9/19589 8792.6/21051
+iteration 2: log likelihood = -86885.7
+posterior counts 0: 0/0 0/773 0/4956
+posterior counts 1: 0/0 14.3582/150.311 61.1758/1348
+posterior counts 2: 0/0 4.05152/75.357 65.7269/870
+posterior counts 3: 0/0 9.03058/103 61.9853/604
+posterior counts 4: 0/0 11.1573/66.6052 63.0726/485
+posterior counts 5: 7385.26/8515.63 12837.7/20223.7 8216.12/21051
+iteration 3: log likelihood = -86867.7

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2005 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeAlign.cc,v 1.10 2006/01/06 05:33:51 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeAlign.cc,v 1.12 2010/06/15 02:53:11 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -26,6 +26,7 @@ INSTANTIATE_LHASH(NodeIndex,LogP2);
 #endif
 #endif
 
+#ifdef DEBUG_LATTICE_ALIGNMENT
 static void
 printPath(NodeIndex *path, unsigned len)
 {
@@ -37,6 +38,7 @@ printPath(NodeIndex *path, unsigned len)
 	}
     }
 }
+#endif
 
 /*
  * This ugly thing is the body of an iteration to add one node (and its word)
@@ -120,11 +122,14 @@ addNodeToPath(Lattice &lat, SubVocab &ignoreWords, NodeIndex thisNode,
 
 	if (numWords > 0) {
 	    pathWords[numWords-1].transPosterior = LogPtoProb(transPosterior);
-	    //cerr << pathWords[numWords-1].transPosterior << " ";
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	    cerr << pathWords[numWords-1].transPosterior << " ";
+#endif
 	}
 
-	//cerr << lat.vocab.getWord(node->word) << " ";
-
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << lat.vocab.getWord(node->word) << " ";
+#endif
 	numWords ++;
 
 	lastWordNode = thisNode;
@@ -227,7 +232,9 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 	NodeIndex nextNodeToAlign =
 			findMaxPosteriorNode(nodesNotAligned, maxPosterior);
 
-	//cerr << "nextNodeToAlign = " << nextNodeToAlign << endl;
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << "nextNodeToAlign = " << nextNodeToAlign << endl;
+#endif
 
 	unsigned lengthToStart =
 		findFirstAligned(nextNodeToAlign, forwardPreds,
@@ -235,10 +242,12 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 	unsigned lengthToEnd = 
 		findFirstAligned(nextNodeToAlign, backwardPreds,
 				 nodeToAlignMap, pathToEnd);
-	//cerr << "toPath = " ; printPath(pathToStart, lengthToStart);
-	//cerr << endl;
-	//cerr << "fromPath = " ; printPath(pathToEnd, lengthToEnd);
-	//cerr << endl;
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << "toPath = " ; printPath(pathToStart, lengthToStart);
+	cerr << endl;
+	cerr << "fromPath = " ; printPath(pathToEnd, lengthToEnd);
+	cerr << endl;
+#endif
 
 	/*
 	 * Assemble the word string to align for the complete path.
@@ -249,7 +258,9 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 	NodeIndex lastWordNode = NoNode;
 	LogP probToLastWord = LogP_One;
 
-	//cerr << "words to align = ";
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << "words to align = ";
+#endif
 	for (int i = lengthToStart - 1; i >= 0; i --) {
 	    addNodeToPath(*this, ignoreWords, pathToStart[i],
 			    numWords, lastNode, lastWordNode, probToLastWord,
@@ -264,15 +275,16 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 			    totalPosterior, posteriorScale,
 			    pathNodes, pathWords, acousticInfo);
 
-	for (int i = 0; i < lengthToEnd; i ++) {
+	for (unsigned i = 0; i < lengthToEnd; i ++) {
 	    addNodeToPath(*this, ignoreWords, pathToEnd[i],
 			    numWords, lastNode, lastWordNode, probToLastWord,
 			    forwardProbs, backwardProbs,
 			    totalPosterior, posteriorScale,
 			    pathNodes, pathWords, acousticInfo);
 	}
-	//cerr << endl;
-
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << endl;
+#endif
 	// Eliminate the last Word, which we included only as a dummy
 	// to obtain the final transition posterior.
 	// The final entry will instead be used to encode the transition
@@ -302,7 +314,9 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 
 	    endPos = *mappedPos;
 	}
-	//cerr << "startpos = " << startPos << " endpos = " << endPos << endl;
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	cerr << "startpos = " << startPos << " endpos = " << endPos << endl;
+#endif
 
 	/* 
 	 * Align me, baby!
@@ -320,22 +334,28 @@ Lattice::alignLattice(WordMesh &sausage, SubVocab &ignoreWords,
 		 << "max posterior = " << LogPtoProb(maxPosterior) << endl;
 	    nodesNotAligned.remove(nextNodeToAlign);
 	} else {
-	    //cerr << "NEW WORD MESH\n";
-	    // {  File f(stderr); sausage.write(f); }
-	    //cerr << "END WORD MESH\n";
-	    //cerr << "alignment = ";
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	    cerr << "NEW WORD MESH\n";
+	    {  File f(stderr); sausage.write(f); }
+	    cerr << "END WORD MESH\n";
+	    cerr << "alignment = ";
+#endif
 	    /*
 	     * Remove aligned nodes from nodesNotAligned
 	     * and extend the nodeToAlignMap
 	     */
 	    for (unsigned k = 1; k < numWords; k ++) {
-		//cerr << " " << vocab.getWord(pathWords[k].word)
-		//     << "/" << pathNodes[k]
-		//     << "/" << pathPositions[k];
+#ifdef DEBUG_LATTICE_ALIGNMENT
+		cerr << " " << vocab.getWord(pathWords[k].word)
+		     << "/" << pathNodes[k]
+		     << "/" << pathPositions[k];
+#endif
 		nodesNotAligned.remove(pathNodes[k]);
 		*nodeToAlignMap.insert(pathNodes[k]) = pathPositions[k];
 	    }
-	    //cerr << endl;
+#ifdef DEBUG_LATTICE_ALIGNMENT
+	    cerr << endl;
+#endif
 	}
     }
 
@@ -371,7 +391,7 @@ Lattice::findMaxPosteriorNode(LHash<NodeIndex, LogP2> &nodeSet, LogP2 &max)
     NodeIndex node;
     LogP2 *nodePosterior;
 
-    while (nodePosterior = iter.next(node)) {
+    while ((nodePosterior = iter.next(node))) {
 	if (maxNode == NoNode || *nodePosterior > maxPosterior) {
 	    maxPosterior = *nodePosterior;
 	    maxNode = node;

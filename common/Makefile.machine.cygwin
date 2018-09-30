@@ -1,21 +1,24 @@
 #
-#    File:   Makefile.i686
+#    File:   Makefile.machine.cygwin
 #    Author: The SRI DECIPHER (TM) System
-#    Date:   Fri Feb 19 22:45:31 PST 1999
+#    Date:   2002/02/11 08:28:18
 #
 #    Description:
 #	Machine dependent compilation options and variable definitions
 #	for CYGWIN/i686 platform
 #
-#    Copyright (c) 1999-2002 SRI International.  All Rights Reserved.
+#    Copyright (c) 1999-2006 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.cygwin,v 1.10 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.cygwin,v 1.14 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -Wreturn-type -Wimplicit
+   GCC_FLAGS = -Wall -Wno-unused-variable -Wno-uninitialized
    CC = gcc $(GCC_FLAGS) -Wimplicit-int
    CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+
+   # avoid gcc warning that all code is PIC
+   PIC_FLAG =
 
    # suffix used for executable files
    EXE_SUFFIX = .exe

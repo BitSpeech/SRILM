@@ -46,7 +46,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map.h,v 1.18 2006/01/09 18:11:12 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Map.h,v 1.23 2009/07/02 17:48:35 stolcke Exp $
  *
  */
 
@@ -56,9 +56,16 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_MSC_VER) && !defined(WIN32)
+#include <sys/param.h>
+#endif
 
 #include "Boolean.h"
 #include "MemStats.h"
+
+#ifndef NBBY
+#define NBBY	8
+#endif
 
 /*
  * _Map is a non-template parent class to all classes Map<KeyT,DataT>.
@@ -154,18 +161,30 @@ template <class KeyT>
 /*
  * Signed integers use the smallest negative value as the non-key
  */
-inline void Map_noKey(int &key) { key = 0x80000000; }
-inline Boolean Map_noKeyP(int key) { return key == 0x80000000; }
-inline void Map_noKey(short int &key) { key = (short) 0x8000; }
-inline Boolean Map_noKeyP(short int key) { return key == (short int)0x8000; }
+const short ShortNokeyValue = (short)(1u<<(sizeof(short)*NBBY-1));
+const int IntNokeyValue = (int)(1u<<(sizeof(int)*NBBY-1));
+const long LongNokeyValue = (long)(1uL<<(sizeof(long)*NBBY-1));
+
+inline void Map_noKey(int &key) { key = IntNokeyValue; }
+inline Boolean Map_noKeyP(int key) { return key == IntNokeyValue; }
+inline void Map_noKey(short int &key) { key = ShortNokeyValue; }
+inline Boolean Map_noKeyP(short int key) { return key == ShortNokeyValue; }
+inline void Map_noKey(long int &key) { key = LongNokeyValue; }
+inline Boolean Map_noKeyP(long int key) { return key == LongNokeyValue; }
 
 /*
  * Unsigned integers use the largest value as the non-key
  */
-inline void Map_noKey(unsigned int &key) { key = 0xffffffff; }
-inline Boolean Map_noKeyP(unsigned int key) { return key == 0xffffffff; }
-inline void Map_noKey(short unsigned int &key) { key = 0xffff; }
-inline Boolean Map_noKeyP(short unsigned int key) { return key == 0xffff; }
+const short unsigned UShortNokeyValue = ~(short unsigned)0;
+const unsigned UIntNokeyValue = ~(unsigned)0;
+const long unsigned ULongNokeyValue = ~(long unsigned)0;
+
+inline void Map_noKey(unsigned &key) { key = UIntNokeyValue; }
+inline Boolean Map_noKeyP(unsigned key) { return key == UIntNokeyValue; }
+inline void Map_noKey(short unsigned &key) { key = UShortNokeyValue; }
+inline Boolean Map_noKeyP(short unsigned key) { return key == UShortNokeyValue; }
+inline void Map_noKey(long unsigned &key) { key = ULongNokeyValue; }
+inline Boolean Map_noKeyP(long unsigned key) { return key == ULongNokeyValue; }
 
 #endif /* _Map_h_ */
 

@@ -2,18 +2,25 @@
  * File.h
  *	File I/O utilities for LM
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995,2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.9 2006/01/05 19:32:42 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/File.h,v 1.15 2007/11/27 19:00:22 stolcke Exp $
  *
  */
 
 #ifndef _File_h_
 #define _File_h_
 
-#include <stdio.h>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
+
+#include <stdio.h>
+
+#include "Boolean.h"
 
 const unsigned int maxWordsPerLine = 50000;
 
@@ -42,20 +49,26 @@ public:
     ~File();
 
     char *getline();
+    void ungetline();
     int close();
-    int error() { return (fp == 0) || ferror(fp); };
+    Boolean reopen(const char *name, const char *mode);
+    Boolean reopen(const char *mode);		// switch to binary I/O
+    Boolean error() { return (fp == 0) || ferror(fp); };
 
     operator FILEptr() { return fp; };
     ostream &position(ostream &stream = cerr);
+    ostream &offset(ostream &stream = cerr);
 
     const char *name;
     unsigned int lineno;
-    int exitOnError;
+    Boolean exitOnError;
+    Boolean skipComments;
 
 private:
     FILE *fp;
     char *buffer;
     unsigned bufLen;
+    Boolean reuseBuffer;
 };
 
 #endif /* _File_h_ */

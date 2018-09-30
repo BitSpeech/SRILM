@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.25 2006/01/09 22:47:54 stolcke Exp $
+#    $Header: /home/srilm/devel/misc/src/RCS/Makefile,v 1.26 2006/08/11 20:32:22 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -132,7 +132,7 @@ release:	release-headers release-libraries release-programs
 
 depend:	SRILMversion.h
 
-clean:
+cleaner:
 	rm -f SRILMversion.h
 
 # Include common SRILM target definitions.

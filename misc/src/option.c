@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Header: /home/srilm/devel/misc/src/RCS/option.c,v 1.13 1999/08/07 22:15:36 stolcke Exp $ SPRITE (Berkeley)";
+static char rcsid[] = "$Header: /home/srilm/devel/misc/src/RCS/option.c,v 1.15 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)";
 #endif
 
 #include <option.h>
@@ -24,15 +24,13 @@ static char rcsid[] = "$Header: /home/srilm/devel/misc/src/RCS/option.c,v 1.13 1
 #include <string.h>
 #include <time.h>
 
-double strtod (const char *, char **);		/* should be in stdlib.h */
-
 #define OptNoArg(progName, opt) fprintf(stderr, \
 		      "Warning: %s option \"-%s\" needs an argument\n", \
 		      (progName), (opt))
 
 /* Forward references: */
 
-static void ParseTime _ARGS_ ((char *progName, char *str,
+static void ParseTime _ARGS_ ((_CONST char *progName, char *str,
 				 time_t *resultPtr));
 
 
@@ -311,7 +309,7 @@ Opt_Parse(argc, argv, optionArray, numOptions, flags)
 
 void
 Opt_PrintUsage(commandName, optionArray, numOptions)
-    char *commandName;
+    _CONST char *commandName;
     Option optionArray[];
     int numOptions;
 {
@@ -339,7 +337,7 @@ Opt_PrintUsage(commandName, optionArray, numOptions)
     for (i=0; i<numOptions; i++) {
 	if (optionArray[i].type != OPT_DOC) {
 	    fprintf(stderr, " -%s%-*s %s\n", optionArray[i].key,
-		    width+1-strlen(optionArray[i].key), ":",
+		    width+1-(int)strlen(optionArray[i].key), ":",
 		    optionArray[i].docMsg);
 	    switch (optionArray[i].type) {
 		case OPT_INT: {
@@ -396,7 +394,7 @@ Opt_PrintUsage(commandName, optionArray, numOptions)
 
 static void
 ParseTime(progName, str, resultPtr)
-    char	*progName;	/* name that the program was called as */
+    _CONST char	*progName;	/* name that the program was called as */
     char	*str;		/* the string to parse */
     time_t	*resultPtr;	/* pointer to result time value */
 {

@@ -5,7 +5,7 @@
 # (This requires that the waveform names conform to our standard
 # formats, the same as in sentid-to-ctm.)
 #
-# $Header: /home/srilm/devel/utils/src/RCS/fix-ctm.gawk,v 1.5 2006/01/11 06:50:31 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/fix-ctm.gawk,v 1.6 2009/11/19 00:10:02 stolcke Exp $
 #
 BEGIN {
         # time to add to word start times (should be about half FE window size)
@@ -35,7 +35,7 @@ BEGIN {
         hesitation["eee"] = 1;
         hesitation["ew"] = 1;
 
-	sort_cmd = "sort +0 -1 +1 -2 +2nb -3";
+	sort_cmd = "sort -b -k 1,1 -k 2,2 -k 3,3n";
 }
 {
 	sentid = $1;

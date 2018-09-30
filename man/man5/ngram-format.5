@@ -1,43 +1,29 @@
-.\" $Id: ngram-format.5,v 1.4 2004/02/27 03:33:40 stolcke Exp $
-.TH ngram-format 5 "$Date: 2004/02/27 03:33:40 $" "SRILM File Formats"
+.\" $Id: ngram-format.5,v 1.5 2007/12/19 22:08:05 stolcke Exp $
+.TH ngram-format 5 "$Date: 2007/12/19 22:08:05 $" "SRILM File Formats"
 .SH NAME
 ngram-format \- File format for ARPA backoff N-gram models
 .SH SYNOPSIS
-.br
+.nf
 \fB\\data\\\fP
-.br
 \fBngram 1=\fP\fIn1\fP
-.br
 \fBngram 2=\fP\fIn2\fP
-.br
 \&...
-.br
 \fBngram\fP \fIN\fP\fB=\fP\fInN\fP
 
-.br
 \fB\\1-grams:\fP
-.br
 \fIp\fP	\fIw\fP		[\fIbow\fP]
-.br
 \&...
 
-.br
 \fB\\2-grams:\fP
-.br
 \fIp\fP	\fIw1 w2\fP		[\fIbow\fP]
-.br
 \&...
 
-.br
 \fB\\\fP\fIN\fP\fB-grams:\fP
-.br
 \fIp\fP	\fIw1\fP ... \fIwN\fP
-.br
 \&...
 
-.br
 \fB\\end\\\fP
-
+.fi
 .SH DESCRIPTION
 The so-called ARPA (or Doug Paul) format for N-gram backoff models
 starts with a header, introduced by the keyword \fB\\data\\\fP,
@@ -75,8 +61,9 @@ models (although a warning is printed when an inconsistency is encountered).
 This allows easy textual insertion or deletion of parameters in a model file.
 The proper format can be recovered by passsing the model through
 the command
-.br
+.nf
 	ngram -order \fIN\fP -lm \fIinput\fP -write-lm \fIoutput\fP
+.fi
 .PP
 Note that the format is self-delimiting, allowing multiple models to
 be stored in one file, or to be surrounded by ancillary information.

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.24 2006/01/09 19:03:26 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Prob.h,v 1.26 2010/08/03 04:57:39 stolcke Exp $
  *
  */
 
@@ -13,6 +13,7 @@
 
 #include <stdlib.h>		/* for atof() */
 #include <math.h>
+#include <limits.h>
 #include <assert.h>
 
 #include "Boolean.h"
@@ -82,7 +83,7 @@ inline Prob LogPtoProb(LogP2 prob)
     }
 }
 
-inline Prob LogPtoPPL(LogP prob)
+inline Prob LogPtoPPL(LogP2 prob)
 {
     return exp(- prob * M_LN10);
 }
@@ -92,7 +93,7 @@ inline LogP ProbToLogP(Prob prob)
     return log10(prob);
 }
 
-inline LogP MixLogP(LogP prob1, LogP prob2, double lambda)
+inline LogP2 MixLogP(LogP2 prob1, LogP2 prob2, double lambda)
 {
     return ProbToLogP(lambda * LogPtoProb(prob1) +
 			(1 - lambda) * LogPtoProb(prob2));
@@ -124,7 +125,7 @@ inline LogP2 SubLogP(LogP2 x, LogP2 y)
     }
 }
 
-inline LogP weightLogP(double weight, LogP prob)
+inline LogP2 weightLogP(double weight, LogP2 prob)
 {
     /*
      * avoid NaN if weight == 0 && prob == -Infinity
@@ -152,17 +153,44 @@ inline Bytelog ProbToBytelog(Prob prob)
 
 inline Intlog ProbToIntlog(Prob prob)
 {
-    return (int)rint(log(prob) * 10000.5);
+    int intlog = (int)rint(log(prob) * 10000.5);
+
+    /* check for int over/underflow */
+    if (intlog > 0 && prob < 0.0) {
+	return INT_MIN;
+    } else if (intlog < 0 && prob > 0.0) {
+	return INT_MAX;
+    } else {
+	return intlog;
+    }
 }
 
 inline Bytelog LogPtoBytelog(LogP prob)
 {
-    return (int)rint(prob * (M_LN10 * 10000.5 / 1024.0));
+    int bytelog = (int)rint(prob * (M_LN10 * 10000.5 / 1024.0));
+
+    /* check for int over/underflow */
+    if (bytelog > 0 && prob < 0.0) {
+	return INT_MIN;
+    } else if (bytelog < 0 && prob > 0.0) {
+	return INT_MAX;
+    } else {
+	return bytelog;
+    }
 }
 
 inline Intlog LogPtoIntlog(LogP prob)
 {
-    return (int)rint(prob * (M_LN10 * 10000.5));
+    int intlog = (int)rint(prob * (M_LN10 * 10000.5));
+
+    /* check for int over/underflow */
+    if (intlog > 0 && prob < 0.0) {
+	return INT_MIN;		
+    } else if (intlog < 0 && prob > 0.0) {
+	return INT_MAX;
+    } else {
+	return intlog;
+    }
 }
 
 inline LogP IntlogToLogP(double prob)	/* use double argument to avoid loss

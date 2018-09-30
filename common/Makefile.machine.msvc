@@ -9,21 +9,55 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.msvc,v 1.2 2006/01/11 06:27:53 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.msvc,v 1.10 2010/09/27 23:42:23 stolcke Exp $
 #
 
-   # Use the MSVC compiler.
-   MACHINE_TYPE = msvc
-   MSC_FLAGS =  -DNEED_RAND48 -DWIN32  -EHsc  -W2 -nologo 
-   CC = CL.exe $(MSC_FLAGS)  
-   CXX = CL.exe  $(MSC_FLAGS) -DINSTANTIATE_TEMPLATES
-   AR = LIB.exe -NOLOGO -IGNORE:4006 -IGNORE:4221
-   ARCHIVE = $(AR)
-   LINK.c = LINK.exe $(LDFLAGS)
-   LINK.cc = LINK.exe $(LDFLAGS)
+   # Use the MSVC compiler (tested with Visual C++ 2005 Express Edition)
 
-   OUTPUT_OPTION = -Fo$@
-   LD_OUTPUT_OPTION = -OUT:$@
+   # Note 1: make sure environment is set
+   #
+   #	PATH	should include MSVC_INSTALL_DIR/bin and 
+   #		MSVC_INSTALL_DIR/Common7/IDE (for dll search)
+   #    MSVCDIR should be set to MSVC_INSTALL_DIR
+   #	INCLUDE	should be set to MSVC_INSTALL_DIR/include
+   #	LIB	should be set to MSVC_INSTALL_DIR/lib
+   #
+   # Note 2: We use MS-style options here although the MSCV tools convert
+   #	-option to /option.
+   #
+   # Build with
+   #	make MACHINE_TYPE=msvc
+   #
+
+   # locate the MSVC tools by absolute path.  This is the default location
+   ifeq ("$(MSVCDIR)", "")
+     ifeq ("$(VCINSTALLDIR)", "")
+       # Punt, try default location for VS2005
+       MSVCDIR ?= C:\\Program Files\\Microsoft Visual Studio 8\\VC
+     else
+       # VCINSTALLDIR is set so use it (likely VS2005 or VS2008)
+       MSVCDIR ?= $(VCINSTALLDIR)
+     endif
+   endif
+   MSVC_BIN := "$(shell cygpath '$(MSVCDIR)/bin')"
+
+   MSC_FLAGS =  /DNEED_RAND48 /EHsc /W2 /nologo /wd4996
+   CC = $(MSVC_BIN)/CL.exe $(MSC_FLAGS) 
+   CXX = $(MSVC_BIN)/CL.exe  $(MSC_FLAGS) /DINSTANTIATE_TEMPLATES
+   AR = $(MSVC_BIN)/LIB.exe /NOLOGO /IGNORE:4006 /IGNORE:4221
+   ARCHIVE = $(AR)
+   LINK.c = $(MSVC_BIN)/LINK.exe $(LDFLAGS)
+   LINK.cc = $(MSVC_BIN)/LINK.exe $(LDFLAGS)
+   # For Visual Studio 2008, need to find mt.exe in SDK directory
+   ifeq ("$(WINDOWSSDKDIR)", "")
+     MSVC_MTEXE := $(MSVC_BIN)/mt.exe
+   else
+     MSVC_MTEXE := "$(shell cygpath '$(WINDOWSSDKDIR)/bin/mt.exe')"
+   endif
+   POST_LINK = if [ -f $@.manifest ]; then $(MSVC_MTEXE) /manifest $@.manifest /outputresource:$@ ; fi
+
+   OUTPUT_OPTION = /Fo$@
+   LD_OUTPUT_OPTION = /OUT:$@
    AR_OUTPUT_OPTION = /OUT:$@
 
    # suffixes used for various files
@@ -32,15 +66,24 @@
    LIB_SUFFIX = .lib
    LIB_PREFIX = 
 
+   # Set to /MD for Multithreaded Dll code generation or /MT for Multithreaded
+   # code generation
+   MS_CODE_OPTION=/MD
+
+   # not applicable
+   PIC_FLAG =
+
    # Optional compilation flags.
-   OPTIMIZE_FLAGS =  -O2 -ML -DNDEBUG   -FD -EHsc  -GS  
-   DEBUG_FLAGS = -DDEBUG -D_DEBUG -Yd -MLd -Od -MLd -RTC1 -Z7
-   PROFILE_FLAGS = -O2 -ML -DNDEBUG   -FD -EHsc  -GS 
+   OPTIMIZE_FLAGS =  /O2 /DNDEBUG /FD /GS $(MS_CODE_OPTION)
+   # Or, choose more aggressive optimization:
+   #OPTIMIZE_FLAGS = /Ox /Og /Ob2 /Oi /Ot /G7 /DNDEBUG /FD /GS $(MS_CODE_OPTION)
+   DEBUG_FLAGS = /DDEBUG /Od /RTC1 /Zi $(MS_CODE_OPTION)d # /ZI
+   PROFILE_FLAGS = /O2 /DNDEBUG /FD /GS $(MS_CODE_OPTION)
 
    # Optional linking flags.
-   EXPORT_LDFLAGS = -RELEASE
-   DEBUG_LDFLAGS = -DEBUG
-   PROFILE_LDFLAGS = -MAP
+   EXPORT_LDFLAGS = /RELEASE
+   DEBUG_LDFLAGS = /DEBUG /OPT:NOICF
+   PROFILE_LDFLAGS = /MAP
 
    # Linker doesn't want compiler optimization flags
    LD_OPTION_FLAGS =
@@ -51,7 +94,8 @@
    CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -LIBPATH:$(SRILM_LIBDIR) -FORCE:MULTIPLE -NOLOGO -IGNORE:4006 -IGNORE:4088 -IGNORE:4221
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) /LIBPATH:$(SRILM_LIBDIR) /FORCE:MULTIPLE /NOLOGO /IGNORE:4006 /IGNORE:4088 /IGNORE:4221
+
 
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =
@@ -67,8 +111,10 @@
    ADDITIONAL_LIBRARIES = 
 
    # Extra files to remove
-   EXTRA_REMOVE_PROGRAMS = $(ALL_PROGRAMS:.exe=.map) $(ALL_PROGRAMS:.exe=.pdb)
-   EXTRA_REMOVE_DEPENDENCIES = vc70.idb
+   EXTRA_REMOVE_PROGRAMS = $(ALL_PROGRAMS:.exe=.map) \
+			   $(ALL_PROGRAMS:.exe=.pdb) \
+			   $(ALL_PROGRAMS:.exe=.exe.manifest)
+   EXTRA_REMOVE_DEPENDENCIES = vc*.idb
 
    # run-time linker path flag
    RLD_FLAG = 
@@ -88,7 +134,7 @@
    SYMBOL_PREFIX = 
 
    # Not needed
-   DEMANGLE_FILTER =
+   DEMANGLE_FILTER = 
 
    # Generate dependencies from source files.
    GEN_DEP = gcc $(INCLUDES) -MM
@@ -103,3 +149,4 @@
    GAWK = /usr/bin/gawk
 
    PERL = /usr/bin/perl
+

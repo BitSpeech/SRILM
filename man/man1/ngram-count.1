@@ -1,13 +1,11 @@
-.\" $Id: ngram-count.1,v 1.28 2005/01/05 23:15:47 stolcke Exp $
-.TH ngram-count 1 "$Date: 2005/01/05 23:15:47 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.44 2009/08/04 17:19:53 stolcke Exp $
+.TH ngram-count 1 "$Date: 2009/08/04 17:19:53 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
-.B ngram-count
-[\c
-.BR \-help ]
-.I option 
-\&...
+.nf
+\fBngram-count\fP [ \fB\-help\fP ] \fIoption\fP ...
+.fi
 .SH DESCRIPTION
 .B ngram-count
 generates and manipulates N-gram counts, and estimates N-gram language
@@ -43,8 +41,24 @@ replaced with the unknown-word token.
 If this option is not specified all words found are implicitly added
 to the vocabulary.
 .TP
+.BI \-vocab-aliases " file"
+Reads vocabulary alias definitions from
+.IR file ,
+consisting of lines of the form
+.nf
+	\fIalias\fP \fIword\fP
+.fi
+This causes all tokens
+.I alias
+to be mapped to
+.IR word .
+.TP
 .BI \-write-vocab " file"
 Write the vocabulary built in the counting process to
+.IR file .
+.TP
+.BI \-write-vocab-index " file"
+Write the internal word-to-integer mapping to 
 .IR file .
 .TP
 .B \-tagged
@@ -64,10 +78,22 @@ should contain one sentence unit per line.
 Begin/end sentence tokens are added if not already present.
 Empty lines are ignored.
 .TP
+.B \-text-has-weights
+Treat the first field in each text input line as a weight factor by
+which the N-gram counts for that line are to be multiplied.
+.TP
+.B \-no-sos
+Disable the automatic insertion of start-of-sentence tokens 
+in N-gram counting.
+.TP
+.B \-no-eos
+Disable the automatic insertion of end-of-sentence tokens
+in N-gram counting.
+.TP
 .BI \-read " countsfile"
 Read N-gram counts from a file.
-Each line contains an N-gram of 
-words, followed by an integer count, all separated by whitespace.
+Ascii count files contain one N-gram of 
+words per line, followed by an integer count, all separated by whitespace.
 Repeated counts for the same N-gram are added.
 Thus several count files can be merged by using 
 .BR cat (1)
@@ -81,10 +107,42 @@ Counts collected by
 and 
 .B \-read
 are additive as well.
+Binary count files (see below) are also recognized.
+.TP
+.BI \-read-google " dir"
+Read N-grams counts from an indexed directory structure rooted in
+.BR dir ,
+in a format developed by
+Google to store very large N-gram collections.
+The corresponding directory structure can be created using the script
+.B make-google-ngrams
+described in
+.BR training-scripts (1).
+.TP
+.BI \-intersect " file"
+Limit reading of counts via
+.B \-read 
+and
+.B \-read-google
+to a subset of N-grams defined by another count 
+.IR file .
+(The counts in 
+.I file
+are ignored, only the N-grams are relevant.)
 .TP
 .BI \-write " file"
 Write total counts to
 .IR file .
+.TP
+.BI \-write-binary " file"
+Write total counts to 
+.I file 
+in binary format.
+Binary count files cannot be compressed and are typically
+larger than compressed ascii count files.
+However, they can be loaded faster, especially when the
+.B \-limit-vocab 
+option is used.
 .TP
 .BI \-write-order " n"
 Order of counts to write.
@@ -106,6 +164,12 @@ Output counts in lexicographic order, as required for
 .B \-recompute
 Regenerate lower-order counts by summing the highest-order counts for 
 each N-gram prefix.
+.TP
+.B \-limit-vocab
+Discard N-gram counts on reading that do not pertain to the words 
+specified in the vocabulary.
+The default is that words used in the count files are automatically added to
+the vocabulary.
 .SS LM Options
 .TP
 .BI \-lm " lmfile"
@@ -114,6 +178,13 @@ to
 .I lmfile 
 in 
 .BR ngram-format (5).
+.TP
+.B \-write-binary-lm
+Output 
+.I lmfile
+in binary format.
+If an LM class does not provide a binary format the default (text) format
+will be output instead.
 .TP
 .BI \-nonevents " file"
 Read a list of words from
@@ -146,6 +217,29 @@ The maximum number of EM iterations.
 .BI \-em-delta " d"
 The convergence criterion for EM: if the relative change in log likelihood
 falls below the given value, iteration stops.
+.TP
+.B \-count-lm
+Estimate a count-based interpolated LM using Jelinek-Mercer smoothing
+(Chen & Goodman, 1998).
+Several of the options for skip-N-gram LMs (above) apply.
+An initial count-LM in the format described in 
+.BR ngram (1)
+needs to be specified using
+.BR \-init-lm .
+The options
+.B \-em-iters
+and
+.B \-em-delta
+control termination of the EM algorithm.
+Note that the N-gram counts used to estimate the maximum-likelihood
+estimates come from the 
+.B \-init-lm
+model.
+The counts specified with
+.B \-read
+or
+.B \-text
+are used only to estimate the smoothing (interpolation weights).
 .TP
 .B \-unk
 Build an ``open vocabulary'' LM, i.e., one that contains the unknown-word
@@ -265,6 +359,16 @@ is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Use Ristad's natural discounting law for N-grams of order
 .IR n .
 .TP
+.BI \-addsmooth\fIn\fP " delta"
+where
+.I n
+is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
+Smooth by adding 
+.I delta
+to each N-gram count.
+This is usually a poor smoothing method and included mainly for instructional
+purposes.
+.TP
 .B \-kndiscount\fIn\fP
 where
 .I n
@@ -310,11 +414,6 @@ is 1, 2, 3, 4, 5, 6, 7, 8, or 9.
 Use the original (unmodified) Kneser-Ney discounting method for N-grams of
 order
 .IR n .
-.PP
-In the above discounting options, if the parameter 
-.I n
-is omitted the option sets the default discounting method for all N-grams 
-of length greater than 9.
 .TP
 .B \-interpolate\fIn\fP
 where
@@ -328,7 +427,8 @@ model and can be evaluated as such -- the interpolation happens at
 estimation time.)
 This sometimes yields better models with some smoothing methods
 (see Chen & Goodman, 1998).
-Only Witten-Bell, absolute discounting, and modified Kneser-Ney smoothing
+Only Witten-Bell, absolute discounting, and
+(original or modified) Kneser-Ney smoothing
 currently support interpolation.
 .TP
 .BI \-meta-tag " string"
@@ -336,9 +436,9 @@ Interpret words starting with
 .I string
 as count-of-count (meta-count) tags.
 For example, an N-gram
-.br
+.nf
 	a b \fIstring\fP3	4
-.br
+.fi
 means that there were 4 trigrams starting with "a b"
 that occurred 3 times each.
 Meta-tags are only allowed in the last position of an N-gram.
@@ -366,25 +466,25 @@ so that smoothing methods that need this information still work correctly.
 ngram-merge(1), ngram(1), ngram-class(1), training-scripts(1), lm-scripts(1),
 ngram-format(5).
 .br
+S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques for
+Language Modeling,'' TR-10-98, Computer Science Group, Harvard Univ., 1998.
+.br
 S. M. Katz, ``Estimation of Probabilities from Sparse Data for the
 Language Model Component of a Speech Recognizer,'' \fIIEEE Trans. ASSP\fP 35(3),
 400\-401, 1987.
 .br
+R. Kneser and H. Ney, ``Improved backing-off for M-gram language modeling,''
+\fIProc. ICASSP\fP, 181-184, 1995.
+.br
 H. Ney and U. Essen, ``On Smoothing Techniques for Bigram-based Natural
 Language Modelling,'' \fIProc. ICASSP\fP, 825\-828, 1991.
-.br
-I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
-Probabilities of Novel Events in Adaptive Text Compression,''
-\fIIEEE Trans. Information Theory\fP 37(4), 1085\-1094, 1991.
 .br
 E. S. Ristad, ``A Natural Law of Succession,'' CS-TR-495-95,
 Comp. Sci. Dept., Princeton Univ., 1995.
 .br
-R. Kneser and H. Ney, ``Improved backing-off for M-gram language modeling,''
-\fIProc. ICASSP\fP, 181-184, 1995.
-.br
-S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques for
-Language Modeling,'' TR-10-98, Computer Science Group, Harvard Univ., 1998.
+I. H. Witten and T. C. Bell, ``The Zero-Frequency Problem: Estimating the
+Probabilities of Novel Events in Adaptive Text Compression,''
+\fIIEEE Trans. Information Theory\fP 37(4), 1085\-1094, 1991.
 .SH BUGS
 Several of the LM types supported by 
 .BR ngram (1)
@@ -413,4 +513,4 @@ and then read from files.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-2004 SRI International
+Copyright 1995\-2009 SRI International

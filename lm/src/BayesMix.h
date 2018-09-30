@@ -16,7 +16,7 @@
  *
  * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.8 2002/08/25 17:27:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.h,v 1.9 2007/12/05 00:31:49 stolcke Exp $
  *
  */
 
@@ -44,6 +44,9 @@ public:
 							unsigned &length);
     virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
+
+    virtual Boolean addUnkWords()
+       { return lm1.addUnkWords() || lm2.addUnkWords(); };
 
     /*
      * Propagate changes to running state to component models

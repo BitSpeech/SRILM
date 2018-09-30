@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.29 2006/01/09 22:47:54 stolcke Exp $
+#    $Header: /home/srilm/devel/dstruct/src/RCS/Makefile,v 1.33 2010/02/17 21:20:53 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -25,6 +25,12 @@ include $(SRILM)/common/Makefile.common.variables
 
 # Flags for generating "compact" data structures
 COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+
+# Flags for generating "short" data structures
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
+
+# Flags for generating "long long" data structures
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
 
 # Define variables.
 
@@ -35,7 +41,8 @@ TEMPLATE_SOURCES =	\
 	$(SRCDIR)/SArray.cc \
 	$(SRCDIR)/LHash.cc \
 	$(SRCDIR)/Map2.cc \
-	$(SRCDIR)/Trie.cc
+	$(SRCDIR)/Trie.cc \
+	$(SRCDIR)/CachedMem.cc \
 
 # Example Library declarations files.
 
@@ -48,6 +55,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/LHash.h		\
 	$(SRCDIR)/Map2.h		\
 	$(SRCDIR)/Trie.h		\
+	$(SRCDIR)/CachedMem.h		\
 	$(TEMPLATE_SOURCES)
 
 INTERNAL_LIB_HEADERS = 
@@ -76,12 +84,19 @@ ADDITIONAL_LIBRARIES += \
 	$(TCL_LIBRARY) \
 	$(MATH_LIBRARY)
 
+# Exported programs.
+REAL_PROGRAM_NAMES = \
+		maxalloc
+
 # Example programs.
 PROGRAM_NAMES = \
+		$(REAL_PROGRAM_NAMES) \
 		testArray \
 		testMap \
 		benchHash \
-		testSizes
+		testHash \
+		testSizes \
+		testCachedMem
 
 ifeq ($(NO_TCL), )
 PROGRAM_NAMES += \
@@ -141,7 +156,7 @@ $(PROGRAMS):	$(LIBRARY) $(OTHER_LIBRARIES)
 
 EXPORTED_HEADERS   = $(EXTERNAL_LIB_HEADERS)
 EXPORTED_LIBRARIES = $(LIBRARY)
-EXPORTED_PROGRAMS  = 
+EXPORTED_PROGRAMS  = $(REAL_PROGRAM_NAMES:%=$(BINDIR)/%$(EXE_SUFFIX))
 
 release:	release-headers release-libraries release-programs
 

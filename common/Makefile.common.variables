@@ -11,7 +11,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.26 2006/01/11 06:28:30 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.variables,v 1.31 2009/06/28 08:47:03 stolcke Exp $
 #
 
 
@@ -33,6 +33,7 @@ endif
 OPTIMIZE_OPTION =
 COMPACT_OPTION = _c
 SHORT_OPTION = _s
+LLONG_OPTION = _l
 DEBUG_OPTION = _g
 PROFILE_OPTION = _p
 EXPORT_OPTION = _x
@@ -42,6 +43,9 @@ COMPACT_FLAGS = $(OPTIMIZE_FLAGS)
 
 # Flags for generating "short" data structures (nothing by default)
 SHORT_FLAGS = $(COMPACT_FLAGS)
+
+# Flags for generating "long long" data structures (nothing by default)
+LLONG_FLAGS = $(COMPACT_FLAGS)
 
 # Purify support (can be changed in Makefile.machine.$(MACHINE_TYPE))
 PURIFY = purify
@@ -84,8 +88,15 @@ MATH_LIBRARY = -lm
 MATHERR_LINK = -u $(SYMBOL_PREFIX)matherr
 SYMBOL_PREFIX =
 
+# Default PIC flag is for gcc 
+# (for others override in Makefile.machine.*)
+PIC_FLAG = -fPIC
+
 # Include machine-type dependent variables
 include $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
+
+# Optionally include site dependent variables
+-include $(SRILM)/common/Makefile.site.$(MACHINE_TYPE)
 
 # Search in the SRILM library directories for things of the form "-l<LibName>".
 ifeq ($(EXTRA_LIBDIR), )
@@ -120,19 +131,27 @@ else
     ifeq ($(OPTION), $(SHORT_OPTION))
       OPTION_FLAGS = $(SHORT_FLAGS)
     else
-      ifeq ($(OPTION), $(DEBUG_OPTION))
-	OPTION_FLAGS = $(DEBUG_FLAGS)
+      ifeq ($(OPTION), $(LLONG_OPTION))
+	OPTION_FLAGS = $(LLONG_FLAGS)
       else
-	ifeq ($(OPTION), $(PROFILE_OPTION))
-	  OPTION_FLAGS = $(PROFILE_FLAGS)
-	  # We also need to link with the profiling flags.
-	  ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_FLAGS)
+	ifeq ($(OPTION), $(DEBUG_OPTION))
+	  OPTION_FLAGS = $(DEBUG_FLAGS)
+	  ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(DEBUG_LDFLAGS)
 	else
-	  ifeq ($(OPTION), $(EXPORT_OPTION))
-	    # Export programs are compiled with optimization
-	    #  and linked with special export flags.
-	    OPTION_FLAGS = $(OPTIMIZE_FLAGS) $(EXPORT_FLAGS)
-	    ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
+	  ifeq ($(OPTION), $(PROFILE_OPTION))
+	    OPTION_FLAGS = $(PROFILE_FLAGS)
+	    # We also need to link with the profiling flags.
+	    ifeq ($(PROFILE_LDFLAGS),)
+		PROFILE_LDFLAGS = $(PROFILE_FLAGS)
+	    endif
+	    ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(PROFILE_LDFLAGS)
+	  else
+	    ifeq ($(OPTION), $(EXPORT_OPTION))
+	      # Export programs are compiled with optimization
+	      #  and linked with special export flags.
+	      OPTION_FLAGS = $(OPTIMIZE_FLAGS) $(EXPORT_FLAGS)
+	      ADDITIONAL_LDFLAGS := $(ADDITIONAL_LDFLAGS) $(EXPORT_LDFLAGS)
+	    endif
 	  endif
 	endif
       endif
@@ -140,17 +159,30 @@ else
   endif
 endif
 
+# PIC compilation
+ifneq ($(MAKE_PIC),)
+  CFLAGS += $(PIC_FLAG)
+  CXXFLAGS += $(PIC_FLAG)
+endif
+
 
 # Define directories.
 
 # SRILM directories.
+# Note: attempt to construct relative paths when building inside $SRILM,
+# for the benefit of MSVC tools which don't understand absolute cygwin paths
 
+ifeq ($(patsubst $(SRILM)/%/src,,$(PWD)),)
+SRILM_INCDIR = ../../include
+SRILM_LIB = ../../lib
+SRILM_BIN = ../../bin
+else
 SRILM_INCDIR = $(SRILM)/include
-
 SRILM_LIB = $(SRILM)/lib
-SRILM_LIBDIR = $(SRILM_LIB)/$(MACHINE_TYPE)$(OBJ_OPTION)
-
 SRILM_BIN = $(SRILM)/bin
+endif
+
+SRILM_LIBDIR = $(SRILM_LIB)/$(MACHINE_TYPE)$(OBJ_OPTION)
 SRILM_BINDIR = $(SRILM_BIN)/$(MACHINE_TYPE)$(BIN_OPTION)
 
 # Default directories.

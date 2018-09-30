@@ -8,11 +8,15 @@
 #define _SArray_cc_
 
 #ifndef lint
-static char SArray_Copyright[] = "Copyright (c) 1995-2005 SRI International.  All Rights Reserved.";
-static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.cc,v 1.39 2006/01/05 20:21:27 stolcke Exp $";
+static char SArray_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char SArray_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.cc,v 1.42 2010/06/02 04:52:43 stolcke Exp $";
 #endif
 
-#include <new>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+#else
+# include <new>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,6 +130,15 @@ SArray<KeyT,DataT>::clear(unsigned size)
 	body = 0;
     }
     if (size != 0) {
+	alloc(size);
+    }
+}
+
+template <class KeyT, class DataT>
+void
+SArray<KeyT,DataT>::setsize(unsigned size)
+{
+    if (body == 0 && size != 0) {
 	alloc(size);
     }
 }
@@ -289,7 +302,7 @@ SArray<KeyT,DataT>::find(KeyT key, Boolean &foundP) const
 {
     unsigned index;
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return &(BODY(body)->data[index].value);
     } else {
 	return 0;
@@ -303,7 +316,7 @@ SArray<KeyT,DataT>::getInternalKey(KeyT key, Boolean &foundP) const
     unsigned index;
     static KeyT zeroKey;
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return BODY(body)->data[index].key;
     } else {
 	return zeroKey;
@@ -323,7 +336,7 @@ SArray<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 	alloc(1);
     }
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return &(BODY(body)->data[index].value);
     } else {
 	unsigned nEntries = numEntries();
@@ -386,7 +399,7 @@ SArray<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
 	assert(removedData != 0);
     }
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	unsigned nEntries = numEntries();
 
 	Map_freeKey(BODY(body)->data[index].key);

@@ -4,25 +4,35 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram.cc,v 1.85 2006/01/09 18:08:21 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram.cc,v 1.113 2011/01/14 01:02:18 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
 #ifndef _MSC_VER
 #include <unistd.h>
+#define GETPID getpid
+#else
+#include <process.h>
+#define GETPID _getpid
 #endif
 #include <string.h>
 #include <time.h>
 
+#ifdef NEED_RAND48
 extern "C" {
-    void srand48(long);           /* might be missing from math.h or stdlib.h */
+    void srand48(long);
 }
+#endif
 
 #include "option.h"
 #include "version.h"
@@ -32,6 +42,7 @@ extern "C" {
 #include "SubVocab.h"
 #include "MultiwordVocab.h"
 #include "MultiwordLM.h"
+#include "NonzeroLM.h"
 #include "NBest.h"
 #include "TaggedVocab.h"
 #include "Ngram.h"
@@ -44,10 +55,12 @@ extern "C" {
 #include "HiddenNgram.h"
 #include "HiddenSNgram.h"
 #include "NullLM.h"
+#include "LMClient.h"
 #include "BayesMix.h"
 #include "LoglinearMix.h"
 #include "AdaptiveMix.h"
 #include "AdaptiveMarginals.h"
+#include "NgramCountLM.h"
 #include "CacheLM.h"
 #include "DynamicLM.h"
 #include "DecipherNgram.h"
@@ -63,8 +76,14 @@ static char *pplFile = 0;
 static char *escape = 0;
 static char *countFile = 0;
 static int countEntropy = 0;
+static char *useServer = 0;
+static int cacheServedNgrams = 0;
+static unsigned serverPort = 0;
+static unsigned serverMaxClients = 0;
 static unsigned countOrder = 0;
+static int useFloatCounts = 0;
 static char *vocabFile = 0;
+static char *vocabAliasFile = 0;
 static char *noneventFile = 0;
 static int limitVocab = 0;
 static char *lmFile  = 0;
@@ -90,15 +109,21 @@ static double mixLambda8 = 0.0;
 static double mixLambda9 = 0.0;
 static int loglinearMix = 0;
 static int reverseSents = 0;
+static int noSOS = 0;
+static int noEOS = 0;
 static char *writeLM  = 0;
+static char *writeBinLM = 0;
+static char *writeBinV1LM = 0;
 static char *writeVocab  = 0;
 static int memuse = 0;
 static int renormalize = 0;
 static double prune = 0.0;
 static int pruneLowProbs = 0;
+static char *pruneHistoryLM = 0;
 static int minprune = 2;
 static int skipOOVs = 0;
 static unsigned generateSents = 0;
+static char *generatePrefixFile = 0;
 static int seed = 0;  /* default dynamically generated in main() */
 static int df = 0;
 static int skipNgram = 0;
@@ -114,9 +139,11 @@ static int factored = 0;
 static int toLower = 0;
 static int multiwords = 0;
 static int splitMultiwords = 0;
+static const char *multiChar = MultiwordSeparator;
 static int keepunk = 0;
 static int keepnull = 1;
 static char *mapUnknown = 0;
+static char *zeroprobWord = 0;
 static int null = 0;
 static unsigned cache = 0;
 static double cacheLambda = 0.05;
@@ -127,6 +154,7 @@ static char *noiseVocabFile = 0;
 static char *stopWordFile = 0;
 static int decipherHack = 0;
 static int hmm = 0;
+static int useCountLM = 0;
 static int adaptMix = 0;
 static double adaptDecay = 1.0;
 static unsigned adaptIters = 2;
@@ -176,6 +204,7 @@ static Option options[] = {
     { OPT_TRUE, "unk", &keepunk, "vocabulary contains unknown word tag" },
     { OPT_FALSE, "nonull", &keepnull, "remove <NULL> in LM" },
     { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
+    { OPT_STRING, "zeroprob-word", &zeroprobWord, "word to back off to for zero probs" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords for LM evaluation" },
     { OPT_STRING, "ppl", &pplFile, "text file to compute perplexity from" },
@@ -183,9 +212,16 @@ static Option options[] = {
     { OPT_STRING, "counts", &countFile, "count file to compute perplexity from" },
     { OPT_TRUE, "counts-entropy", &countEntropy, "compute entropy (not perplexity) from counts" },
     { OPT_UINT, "count-order", &countOrder, "max count order used by -counts" },
+    { OPT_TRUE, "float-counts", &useFloatCounts, "use fractional -counts" },
+    { OPT_STRING, "use-server", &useServer, "port@host to use as LM server" },
+    { OPT_TRUE, "cache-served-ngrams", &cacheServedNgrams, "enable client side caching" },
+    { OPT_UINT, "server-port", &serverPort, "port to listen on as probability server" },
+    { OPT_UINT, "server-maxclients", &serverMaxClients, "maximum number of simultaneous server clients" },
     { OPT_UINT, "gen", &generateSents, "number of random sentences to generate" },
+    { OPT_STRING, "gen-prefixes", &generatePrefixFile, "file of prefixes to generate sentences" },
     { OPT_INT, "seed", &seed, "seed for randomization" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "vocab-aliases", &vocabAliasFile, "vocab alias file" },
     { OPT_STRING, "nonevents", &noneventFile, "non-event vocabulary" },
     { OPT_TRUE, "limit-vocab", &limitVocab, "limit LM reading to specified vocabulary" },
     { OPT_STRING, "lm", &lmFile, "file in ARPA LM format" },
@@ -215,6 +251,7 @@ static Option options[] = {
     { OPT_FLOAT, "cache-lambda", &cacheLambda, "interpolation weight for -cache" },
     { OPT_TRUE, "dynamic", &dynamic, "interpolate with a dynamic lm" },
     { OPT_TRUE, "hmm", &hmm, "use HMM of n-grams model" },
+    { OPT_TRUE, "count-lm", &useCountLM, "use a count-based LM" },
     { OPT_TRUE, "adapt-mix", &adaptMix, "use adaptive mixture of n-grams model" },
     { OPT_FLOAT, "adapt-decay", &adaptDecay, "history likelihood decay factor" },
     { OPT_UINT, "adapt-iters", &adaptIters, "EM iterations for adaptive mix" },
@@ -224,19 +261,24 @@ static Option options[] = {
     { OPT_TRUE, "adapt-marginals-ratios", &adaptMarginalsRatios, "compute ratios between marginals-adapted and base probs" },
     { OPT_FLOAT, "dynamic-lambda", &dynamicLambda, "interpolation weight for -dynamic" },
     { OPT_TRUE, "reverse", &reverseSents, "reverse words" },
+    { OPT_TRUE, "no-sos", &noSOS, "don't insert start-of-sentence tokens" },
+    { OPT_TRUE, "no-eos", &noEOS, "don't insert end-of-sentence tokens" },
     { OPT_STRING, "rescore-ngram", &rescoreNgramFile, "recompute probs in N-gram LM" },
     { OPT_STRING, "write-lm", &writeLM, "re-write LM to file" },
+    { OPT_STRING, "write-bin-lm", &writeBinLM, "write LM to file in binary format" },
+    { OPT_STRING, "write-oldbin-lm", &writeBinV1LM, "write LM to file in old binary format" },
     { OPT_STRING, "write-vocab", &writeVocab, "write LM vocab to file" },
     { OPT_TRUE, "renorm", &renormalize, "renormalize backoff weights" },
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
     { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
     { OPT_TRUE, "prune-lowprobs", &pruneLowProbs, "low probability N-grams" },
-
+    { OPT_STRING, "prune-history-lm", &pruneHistoryLM, "LM used for history probabilities in pruning" },
     { OPT_TRUE, "memuse", &memuse, "show memory usage" },
 
     { OPT_STRING, "nbest", &nbestFile, "nbest list file to rescore" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of N-best filenames" },
     { OPT_TRUE, "split-multiwords", &splitMultiwords, "split multiwords in N-best lists" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_STRING, "write-nbest-dir", &writeNbestDir, "output directory for N-best rescoring" },
     { OPT_TRUE, "decipher-nbest", &writeDecipherNbest, "output Decipher n-best format" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
@@ -259,7 +301,7 @@ static Option options[] = {
 void
 rescoreNbest(LM &lm, const char *inFilename, const char *outFilename)
 {
-    NBestList nbList(lm.vocab, maxNbest, splitMultiwords);
+    NBestList nbList(lm.vocab, maxNbest, splitMultiwords ? multiChar : 0);
 
     File inlist(inFilename, "r");
     if (!nbList.read(inlist)) {
@@ -278,8 +320,6 @@ rescoreNbest(LM &lm, const char *inFilename, const char *outFilename)
 	 * backoff paths when they score higher than direct probabilities.
 	 */
 	DecipherNgram oldLM(lm.vocab, decipherOrder, !decipherNoBackoff);
-
-	oldLM.debugme(debug);
 
 	File file(decipherLM, "r");
 
@@ -310,36 +350,49 @@ LM *
 makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
 		    unsigned order, LM *oldLM, double lambda1, double lambda2)
 {
-    File file(filename, "r");
+    LM *lm;
+    Boolean useLMClient = false;
 
-    /*
-     * create factored LM if -factored was specified, 
-     * class-ngram if -classes were specified,
-     * and otherwise a regular ngram
-     */
-    Ngram *lm = factored ?
-		  new ProductNgram((ProductVocab &)vocab, order) :
-    		  (classVocab != 0) ?
-		    (simpleClasses ?
-			new SimpleClassNgram(vocab, *classVocab, order) :
-		        new ClassNgram(vocab, *classVocab, order)) :
-		    new Ngram(vocab, order);
-    assert(lm != 0);
+    if (useServer && strchr(filename, '@') && !strchr(filename, '/')) {
+	/*
+	 * Filename looks like a network LM spec -- create LMClient object
+	 */
+	lm = new LMClient(vocab, filename, order,
+					    cacheServedNgrams ? order : 0);
+	assert(lm != 0);
 
-    lm->debugme(debug);
-    lm->skipOOVs() = skipOOVs;
+	useLMClient = true;
+    } else {
+	File file(filename, "r");
 
-    if (!lm->read(file, limitVocab)) {
-	cerr << "format error in mix-lm file " << filename << endl;
-	exit(1);
-    }
+	/*
+	 * create factored LM if -factored was specified, 
+	 * class-ngram if -classes were specified,
+	 * and otherwise a regular ngram
+	 */
+	lm = factored ?
+		      new ProductNgram((ProductVocab &)vocab, order) :
+		      (classVocab != 0) ?
+			(simpleClasses ?
+			    new SimpleClassNgram(vocab, *classVocab, order) :
+			    new ClassNgram(vocab, *classVocab, order)) :
+			new Ngram(vocab, order);
+	assert(lm != 0);
 
-    /*
-     * Each class LM needs to read the class definitions
-     */
-    if (classesFile != 0) {
-	File file(classesFile, "r");
-	((ClassNgram *)lm)->readClasses(file);
+	((Ngram *)lm)->skipOOVs() = skipOOVs;
+
+	if (!lm->read(file, limitVocab)) {
+	    cerr << "format error in mix-lm file " << filename << endl;
+	    exit(1);
+	}
+
+	/*
+	 * Each class LM needs to read the class definitions
+	 */
+	if (classesFile != 0) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)lm)->readClasses(file);
+	}
     }
 
     /*
@@ -356,14 +409,12 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
 	LM *newLM = new LoglinearMix(vocab, *lm, *oldLM, lambda);
 	assert(newLM != 0);
 
-	newLM->debugme(debug);
-
 	return newLM;
-    } else if (bayesLength < 0) {
+    } else if (!useLMClient && bayesLength < 0) {
 	/*
-	 * static mixture
+	 * static mixture -- only possible with Ngram LMs
 	 */
-	((Ngram *)oldLM)->mixProbs(*lm, 1.0 - lambda);
+	((Ngram *)oldLM)->mixProbs(*(Ngram *)lm, 1.0 - lambda);
 	delete lm;
 
 	return oldLM;
@@ -375,10 +426,57 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
 					bayesLength, lambda, bayesScale);
 	assert(newLM != 0);
 
-	newLM->debugme(debug);
-
 	return newLM;
     }
+}
+
+LM *
+makeLoglinearMixLM(Array<const char *> filenames, Vocab &vocab,
+		   SubVocab *classVocab, unsigned order,
+		   LM *oldLM, Array<double> lambdas)
+{
+    Array<LM *> allLMs;
+    allLMs[0] = oldLM;
+
+    for (unsigned i = 1; i < filenames.size(); i++) {
+	const char *filename = filenames[i];
+	File file(filename, "r");
+
+	/*
+	 * create factored LM if -factored was specified, 
+	 * class-ngram if -classes were specified,
+	 * and otherwise a regular ngram
+	 */
+	Ngram *lm = factored ?
+		      new ProductNgram((ProductVocab &)vocab, order) :
+		      (classVocab != 0) ?
+			(simpleClasses ?
+			    new SimpleClassNgram(vocab, *classVocab, order) :
+			    new ClassNgram(vocab, *classVocab, order)) :
+			new Ngram(vocab, order);
+	assert(lm != 0);
+
+	lm->skipOOVs() = skipOOVs;
+
+	if (!lm->read(file, limitVocab)) {
+	    cerr << "format error in mix-lm file " << filename << endl;
+	    exit(1);
+	}
+
+	/*
+	 * Each class LM needs to read the class definitions
+	 */
+	if (classesFile != 0) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)lm)->readClasses(file);
+	}
+	allLMs[i] = lm;
+    }
+
+    LM *newLM = new LoglinearMix(vocab, allLMs, lambdas);
+    assert(newLM != 0);
+
+    return newLM;
 }
 
 int
@@ -388,11 +486,7 @@ main(int argc, char **argv)
     setlocale(LC_COLLATE, "");
 
     /* set default seed for randomization */
-#ifndef _MSC_VER
-    seed = time(NULL) + getpid();
-#else
-	seed = time(NULL);
-#endif
+    seed = time(NULL) + GETPID();
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
 
@@ -401,11 +495,11 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    if (hmm + adaptMix + decipherHack + tagged +
+    if (hmm + useCountLM + adaptMix + decipherHack + tagged +
 	skipNgram + hiddenS + df + factored + (hiddenVocabFile != 0) +
 	(classesFile != 0 || expandClasses >= 0) + (stopWordFile != 0) > 1)
     {
-	cerr << "HMM, AdaptiveMix, Decipher, tagged, factored, DF, hidden N-gram, hidden-S, class N-gram, skip N-gram and stop-word N-gram models are mutually exclusive\n";
+	cerr << "HMM, NgramCountLM, AdaptiveMix, Decipher, tagged, factored, DF, hidden N-gram, hidden-S, class N-gram, skip N-gram and stop-word N-gram models are mutually exclusive\n";
 	exit(2);
     }
 
@@ -418,6 +512,8 @@ main(int argc, char **argv)
      * Construct language model
      */
 
+    LM::initialDebugLevel = debug;
+
     Vocab *vocab;
     Ngram *ngramLM;
     LM *useLM;
@@ -427,8 +523,13 @@ main(int argc, char **argv)
 	exit(2);
     }
 
+    if (null + (lmFile != 0) + (useServer != 0) > 1) {
+	cerr << "-null, -lm, and -use-server are mutually exclusive\n";
+	exit(2);
+    }
+
     vocab = tagged ? new TaggedVocab :
-		multiwords ? new MultiwordVocab :
+		multiwords ? new MultiwordVocab(multiChar) :
 		      factored ? new ProductVocab :
    			          new Vocab;
     assert(vocab != 0);
@@ -451,6 +552,11 @@ main(int argc, char **argv)
     if (vocabFile) {
 	File file(vocabFile, "r");
 	vocab->read(file);
+    }
+
+    if (vocabAliasFile) {
+	File file(vocabAliasFile, "r");
+	vocab->readAliases(file);
     }
 
     if (noneventFile) {
@@ -516,14 +622,16 @@ main(int argc, char **argv)
 		        new Ngram(*vocab, order);
     assert(ngramLM != 0);
 
-    ngramLM->debugme(debug);
-
     if (skipOOVs) {
 	ngramLM->skipOOVs() = true;
     }
 
     if (null) {
 	useLM = new NullLM(*vocab);
+	assert(useLM != 0);
+    } else if (useServer) {
+    	useLM = new LMClient(*vocab, useServer, order,
+						cacheServedNgrams ? order : 0);
 	assert(useLM != 0);
     } else if (lmFile) {
 	if (hmm) {
@@ -533,14 +641,25 @@ main(int argc, char **argv)
 	    File file(lmFile, "r");
 	    HMMofNgrams *hmm = new HMMofNgrams(*vocab, order);
 
-	    hmm->debugme(debug);
-
 	    if (!hmm->read(file, limitVocab)) {
-		cerr << "format error in lm file\n";
+		cerr << "format error in hmm-lm file\n";
 		exit(1);
 	    }
 
 	    useLM = hmm;
+	} else if (useCountLM) {
+	    /*
+	     * Read an Ngram-count LM
+	     */
+	    File file(lmFile, "r");
+	    NgramCountLM *lm = new NgramCountLM(*vocab, order);
+
+	    if (!lm->read(file, limitVocab)) {
+		cerr << "format error in count-lm file\n";
+		exit(1);
+	    }
+
+	    useLM = lm;
 	} else if (adaptMix) {
 	    /*
 	     * Read an adaptive mixture of Ngrams
@@ -548,8 +667,6 @@ main(int argc, char **argv)
 	    File file(lmFile, "r");
 	    AdaptiveMix *lm = new AdaptiveMix(*vocab, adaptDecay,
 							bayesScale, adaptIters);
-
-	    lm->debugme(debug);
 
 	    if (!lm->read(file, limitVocab)) {
 		cerr << "format error in lm file\n";
@@ -657,13 +774,29 @@ main(int argc, char **argv)
 		Ngram *newLM =
 		    ((ClassNgram *)ngramLM)->expand(expandClasses, expandExact);
 
-		newLM->debugme(debug);
 		delete ngramLM;
 		ngramLM = newLM;
 	    }
 
 	    if (prune != 0.0) {
-		ngramLM->pruneProbs(prune, minprune);
+		if (pruneHistoryLM != 0) {
+		    File file(pruneHistoryLM, "r");
+
+		    /*
+		     * Note the history LM needs one less word of context
+		     * than the LM being pruned.
+		     */
+		    Ngram historyLM(*vocab, order > 1 ? order - 1 : 1);
+
+		    if (!historyLM.read(file, limitVocab)) {
+			cerr << "format error in history LM file\n";
+			exit(1);
+		    }
+
+		    ngramLM->pruneProbs(prune, minprune, &historyLM);
+		} else {
+		    ngramLM->pruneProbs(prune, minprune);
+		}
 	    }
 
 	    if (pruneLowProbs) {
@@ -677,9 +810,9 @@ main(int argc, char **argv)
 	exit(1);
     }
 
-    if (mixFile && (loglinearMix || bayesLength >= 0)) {
+    if (mixFile && !loglinearMix && bayesLength >= 0) {
 	/*
-	 * create a Bayes mixture LM 
+	 * create a Bayes (linear) mixture LM 
 	 */
 	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
 				mixLambda4 - mixLambda5 - mixLambda6 -
@@ -720,24 +853,76 @@ main(int argc, char **argv)
 				mixLambda6);
 	}
 	if (mixFile7) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile7, *vocab, classVocab, order, useLM,
 				mixLambda7,
 				mixLambda + mixLambda1 + mixLambda2 +
 				mixLambda3 + mixLambda4 + mixLambda5 +
 				mixLambda6 + mixLambda7);
 	}
 	if (mixFile8) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile8, *vocab, classVocab, order, useLM,
 				mixLambda8,
 				mixLambda + mixLambda1 + mixLambda2 +
 				mixLambda3 + mixLambda4 + mixLambda5 +
 				mixLambda6 + mixLambda7 + mixLambda8);
 	}
 	if (mixFile9) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile9, *vocab, classVocab, order, useLM,
 				mixLambda9, 1.0);
 	}
-    }
+    } else if (mixFile && loglinearMix) {
+	/*
+	 * Create log-linear mixture LM
+	 */
+	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3
+			    - mixLambda4 - mixLambda5 - mixLambda6 - mixLambda7
+			    - mixLambda8 - mixLambda9;
+
+	Array<const char *> filenames;
+	Array<double> lambdas;
+
+	/* Add redundant filename entry for base LM to make filenames array 
+	 * symmetric with lambdas */
+	filenames[0] = "";
+	filenames[1] = mixFile;
+	lambdas[0] = mixLambda;
+	lambdas[1] = mixLambda1;
+
+	if (mixFile2) {
+	    filenames[2] = mixFile2;
+	    lambdas[2] = mixLambda2;
+	}
+	if (mixFile3) {
+	    filenames[3] = mixFile3;
+	    lambdas[3] = mixLambda3;
+	}
+	if (mixFile4) {
+	    filenames[4] = mixFile4;
+	    lambdas[4] = mixLambda4;
+	}
+	if (mixFile5) {
+	    filenames[5] = mixFile5;
+	    lambdas[5] = mixLambda5;
+	}
+	if (mixFile6) {
+	    filenames[6] = mixFile6;
+	    lambdas[6] = mixLambda6;
+	}
+	if (mixFile7) {
+	    filenames[7] = mixFile7;
+	    lambdas[7] = mixLambda7;
+	}
+	if (mixFile8) {
+	    filenames[8] = mixFile8;
+	    lambdas[8] = mixLambda8;
+	}
+	if (mixFile9) {
+	    filenames[9] = mixFile9;
+	    lambdas[9] = mixLambda9;
+	}
+	useLM = makeLoglinearMixLM(filenames, *vocab, classVocab, order,
+					useLM, lambdas);
+    }    
 
     if (cache > 0) {
 	/*
@@ -751,7 +936,6 @@ main(int argc, char **argv)
 	assert(mixLM != 0);
 
         useLM = mixLM;
-	useLM->debugme(debug);
     }
 
     if (dynamic) {
@@ -766,7 +950,6 @@ main(int argc, char **argv)
 	assert(mixLM != 0);
 
         useLM = mixLM;
-	useLM->debugme(debug);
     }
 
     if (adaptMarginals != 0) {
@@ -778,7 +961,6 @@ main(int argc, char **argv)
 
 	{
 	    File file(adaptMarginals, "r");
-	    adaptMargLM->debugme(debug);
 	    adaptMargLM->read(file);
 	}
 
@@ -791,7 +973,6 @@ main(int argc, char **argv)
 	    assert(baseMargLM != 0);
 
 	    File file(baseMarginals, "r");
-	    baseMargLM->debugme(debug);
 	    baseMargLM->read(file);
 	}
 
@@ -803,7 +984,6 @@ main(int argc, char **argv)
 	}
 	assert(adaptLM != 0);
 	useLM = adaptLM;
-	useLM->debugme(debug);
     }
 
     /*
@@ -811,6 +991,16 @@ main(int argc, char **argv)
      */
     if (reverseSents) {
 	useLM->reverseWords = true;
+    }
+
+    /*
+     * Control insertion of <s> and </s>
+     */
+    if (noSOS) {
+    	useLM->addSentStart = false;
+    }
+    if (noEOS) {
+    	useLM->addSentEnd = false;
     }
 
     /*
@@ -836,8 +1026,11 @@ main(int argc, char **argv)
     if (multiwords) {
 	useLM = new MultiwordLM(*(MultiwordVocab *)vocab, *useLM);
 	assert(useLM != 0);
+    }
 
-	useLM->debugme(debug);
+    if (zeroprobWord) {
+	useLM = new NonzeroLM(*vocab, *useLM, zeroprobWord);
+	assert(useLM != 0);
     }
 
     /*
@@ -852,7 +1045,6 @@ main(int argc, char **argv)
 	// read N-gram to be rescored
 	Ngram *rescoreLM = new Ngram(*ngramVocab, order);
 	assert(rescoreLM != 0);
-	rescoreLM->debugme(debug);
 
 	File file(rescoreNgramFile, "r");
 	rescoreLM->read(file);
@@ -898,8 +1090,15 @@ main(int argc, char **argv)
 	 * Send perplexity info to stdout 
 	 */
 	useLM->dout(cout);
-	useLM->pplCountsFile(file, countOrder ? countOrder : order,
-						stats, escape, countEntropy);
+	if (useFloatCounts) {
+	    useLM->pplCountsFile(file, countOrder ? countOrder : order,
+					stats, escape, countEntropy,
+					(NgramCounts<FloatCount> *)0);
+	} else {
+	    useLM->pplCountsFile(file, countOrder ? countOrder : order,
+					stats, escape, countEntropy,
+					(NgramStats *)0);
+	}
 	useLM->dout(cerr);
 
 	cout << "file " << countFile << ": " << stats;
@@ -919,7 +1118,7 @@ main(int argc, char **argv)
 	File file(nbestFiles, "r");
 
 	char *line;
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 	    char *fname = strtok(line, wordSeparators);
 	    if (!fname) continue;
 
@@ -950,8 +1149,6 @@ main(int argc, char **argv)
 	    oldLM =
 		 new DecipherNgram(*vocab, decipherOrder, !decipherNoBackoff);
 	    assert(oldLM != 0);
-
-	    oldLM->debugme(debug);
 
 	    File file(decipherLM, "r");
 
@@ -987,14 +1184,56 @@ main(int argc, char **argv)
 	}
     }
 
+    if (generatePrefixFile) {
+	File inFile(generatePrefixFile, "r");
+	File outFile(stdout);
+
+	VocabString prefix[maxWordsPerLine+1];
+
+	char *line;
+	while ((line = inFile.getline())) {
+	    unsigned numWords =
+			vocab->parseWords(line, prefix, maxWordsPerLine);
+	    prefix[numWords] = 0;
+
+	    VocabString *sent = useLM->generateSentence(maxWordsPerLine,
+							(VocabString *)0,
+							prefix);
+	    Vocab::write(outFile, sent);
+	    putchar('\n');
+	}
+    }
+
     if (writeLM) {
 	File file(writeLM, "w");
-	useLM->write(file);
+	if (!useLM->write(file)) {
+	    cerr << "error writing " << writeLM << endl;
+	}
+    }
+
+    if (writeBinLM) {
+	File file(writeBinLM, "wb");
+        if (!useLM->writeBinary(file)) {
+	    cerr << "error writing " << writeBinLM << endl;
+	}
+    }
+
+    if (writeBinV1LM) {
+	File file(writeBinV1LM, "w");
+        if (!((Ngram *)useLM)->writeBinaryV1(file)) {
+	    cerr << "error writing " << writeBinV1LM << endl;
+	}
     }
 
     if (writeVocab) {
 	File file(writeVocab, "w");
 	vocab->write(file);
+    }
+
+    if (serverPort > 0) {
+	cerr << "starting prob server on port " << serverPort << endl;
+    	useLM->probServer(serverPort, serverMaxClients);
+	// never returns !
     }
 
 #ifdef DEBUG

@@ -4,15 +4,19 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/MemStats.h,v 1.2 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/MemStats.h,v 1.3 2006/08/12 06:31:24 stolcke Exp $
  *
  */
 
 #ifndef _MemStats_h_
 #define _MemStats_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stddef.h>
 
 /*

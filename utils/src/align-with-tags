@@ -4,11 +4,11 @@
 #	align reference transcript with tags to hypothesized 
 #	transcripts, merging the tags into the latter
 #
-# $Header: /home/srilm/devel/utils/src/RCS/align-with-tags,v 1.3 2004/09/28 20:39:07 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/align-with-tags,v 1.5 2010/08/20 00:17:18 stolcke Exp $
 #
 
 usage () {
-	echo "usage: $0 [-r ref -h hyp] [-options...]" >&2
+	echo "usage: $0 [-r ref -h hyp] [-dictionary D] [-aligndir A] [-options...]" >&2
 	exit 2;
 }
 
@@ -24,6 +24,9 @@ while [ $# -gt 0 ]; do
 		shift; shift;;
 	-dictionary)
 		dictionary=$2
+		shift; shift;;
+	-aligndir)
+		aligndir=$2
 		shift; shift;;
 	-\?)	usage;;
 	-*)	pass_options="$pass_option $1"
@@ -46,7 +49,16 @@ tmphyps=/tmp/hyps$$
 tmpnbest=/tmp/nbest$$
 tmpmerge=/tmp/merged$$
 
+if [ -n "$aligndir" ]; then
+	tmpmerge=
+fi
+
 trap "rm -rf $tmpdict $tmptags $tmprefs $tmphyps $tmpnbest $tmpmerge; exit" 0 1 2 15
+
+if [ -n "$aligndir" ]; then
+	mkdir -p $aligndir
+	tmpmerge=$aligndir
+fi
 
 prepare_text () {
 	gawk -v tag_file=$2 '
@@ -82,7 +94,7 @@ prepare_text () {
 }
 
 parse_alignment () {
-	gunzip -c -f < $1 | \
+	gzip -d -c -f < $1 | \
 	gawk -v sentid=$2 'BEGIN {
 		output = sentid;
 
@@ -140,7 +152,7 @@ prepare_text $hyp > $tmphyps
 # add tag pronunciations to the dictionary
 #
 if [ $dictionary != /dev/null ]; then 
-	gunzip -c -f $dictionary > $tmpdict
+	gzip -d -c -f $dictionary > $tmpdict
 else
 	> $tmpdict
 fi

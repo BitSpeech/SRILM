@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.34 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.cc,v 1.43 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -139,6 +143,34 @@ Vocab::addWord(VocabString name)
     } 
 }
 
+// add an alternate (alias) name for a word index
+VocabIndex
+Vocab::addWordAlias(VocabIndex word, VocabString name)
+{
+    if (_toLower) {
+	name = mapToLower(name);
+    }
+
+    // make sure word is a valid index
+    if (byIndex[word] == 0) {
+	return Vocab_None;
+    } else {
+	// avoid aliasing name to itself
+	if (strcmp(name, byIndex[word]) == 0) {
+	    return word;
+	}
+
+	// make sure name isn't otherwise used
+	remove(name);
+
+	VocabIndex *indexPtr = byName.insert(name);
+
+	*indexPtr = word;
+
+	return word;
+    }
+}
+
 // declare word to be a non-event
 VocabIndex
 Vocab::addNonEvent(VocabIndex word)
@@ -162,7 +194,7 @@ Vocab::addNonEvents(Vocab &nonevents)
     Boolean ok = true;
 
     VocabString name;
-    while (name = viter.next()) {
+    while ((name = viter.next())) {
 	if (addNonEvent(name) == Vocab_None) {
 	    ok = false;
 	}
@@ -230,7 +262,7 @@ Vocab::metaTagOfType(unsigned type)
 VocabString
 Vocab::getWord(VocabIndex index)
 {
-    if (index < byIndex.base() || index >= nextIndex) {
+    if (index < (VocabIndex)byIndex.base() || index >= nextIndex) {
 	return 0;
     } else {
 	return (*(Array<VocabString>*)&byIndex)[index];	// discard const
@@ -245,23 +277,31 @@ Vocab::remove(VocabString name)
 	name = mapToLower(name);
     }
 
-    VocabIndex *indexPtr = byName.remove(name);
+    VocabIndex *indexPtr = byName.find(name);
 
-    if (indexPtr) {
-	byIndex[*indexPtr] = 0;
-	nonEventMap.remove(*indexPtr);
-	metaTagMap.remove(*indexPtr);
+    if (indexPtr == 0) {
+    	return;
+    } else if (strcmp(name, byIndex[*indexPtr]) != 0) {
+	// name is an alias: only remove the string mapping, not the index
+	byName.remove(name);
+    } else {
+	VocabIndex idx = *indexPtr;
 
-	if (*indexPtr == _ssIndex) {
+	byName.remove(name);
+	byIndex[idx] = 0;
+	nonEventMap.remove(idx);
+	metaTagMap.remove(idx);
+
+	if (idx == _ssIndex) {
 	    _ssIndex = Vocab_None;
 	}
-	if (*indexPtr == _seIndex) {
+	if (idx == _seIndex) {
 	    _seIndex = Vocab_None;
 	}
-	if (*indexPtr == _unkIndex) {
+	if (idx == _unkIndex) {
 	    _unkIndex = Vocab_None;
 	}
-	if (*indexPtr == _pauseIndex) {
+	if (idx == _pauseIndex) {
 	    _pauseIndex = Vocab_None;
 	}
     }
@@ -271,7 +311,7 @@ Vocab::remove(VocabString name)
 void
 Vocab::remove(VocabIndex index)
 {
-    if (index < byIndex.base() || index >= nextIndex) {
+    if (index < (VocabIndex)byIndex.base() || index >= nextIndex) {
 	return;
     } else {
 	VocabString name = byIndex[index];
@@ -345,14 +385,32 @@ Vocab::getIndices(const VocabString *words,
     return i;
 }
 
+// Convert word sequence to index sequence, checking if words are in 
+// vocabulary; return false is not, true otherwise.
+Boolean
+Vocab::checkWords(const VocabString *words, VocabIndex *wids, unsigned int max)
+{
+    unsigned int i;
+
+    for (i = 0; i < max && words[i] != 0; i++) {
+	if ((wids[i] = getIndex(words[i], Vocab_None)) == Vocab_None) {
+	    return false;
+	}
+    }
+    if (i < max) {
+	wids[i] = Vocab_None;
+    }
+    return true;
+}
+
 // parse strings into words and update stats
 unsigned int
 Vocab::parseWords(char *sentence, VocabString *words, unsigned int max)
 {
     char *word;
-    int i = 0;
+    unsigned i;
 
-    for (word = strtok(sentence, wordSeparators);
+    for (i = 0, word = strtok(sentence, wordSeparators);
 	 i < max && word != 0;
 	 i++, word = strtok(0, wordSeparators))
     {
@@ -609,10 +667,10 @@ Vocab::read(File &file)
     char *line;
     unsigned int howmany = 0;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	/*
 	 * getline() returns only non-empty lines, so strtok()
-	 * will find at least one word.  Any further ones on that
+	 * will find at least one word.  Any further ones on that line
 	 * are ignored.
 	 */
 	VocabString word = strtok(line, wordSeparators);
@@ -627,6 +685,47 @@ Vocab::read(File &file)
     return howmany;
 }
 
+// Read alias mapping from file
+unsigned int
+Vocab::readAliases(File &file)
+{
+    char *line;
+    unsigned int howmany = 0;
+
+    while ((line = file.getline())) {
+	/*
+	 * getline() returns only non-empty lines, so strtok()
+	 * will find at least one word.  Anything after the second word
+	 * is ignored.
+	 */
+	VocabString alias = strtok(line, wordSeparators);
+	VocabString word = strtok(0, wordSeparators);
+
+	if (word == 0) {
+	    file.position() << "warning: line contains only one token\n";
+	    continue;
+	}
+
+	VocabIndex windex;
+
+	if ((windex = addWord(word)) == Vocab_None) {
+	    file.position() << "warning: failed to add " << word
+			    << " to vocabulary\n";
+	    continue;
+	}
+
+	if (addWordAlias(windex, alias) == Vocab_None) {
+	    file.position() << "warning: failed to add alias " << alias
+			    << " for word " << word
+			    << " to vocabulary\n";
+	    continue;
+	}
+
+	howmany++;
+    }
+    return howmany;
+}
+
 VocabIndex
 Vocab::highIndex() const
 {
@@ -636,6 +735,132 @@ Vocab::highIndex() const
 	return nextIndex - 1;
     }
 }
+
+/*
+ * Check that vocabulary contains words in the range of ngrams given
+ * (used for reading Google ngrams efficiently)
+ * startRange == 0 means the beginning (INITIAL) of the sorting order
+ * endRange == 0 means the end (FINAL) of the sorting order implicitly
+ *
+ * Algorithm:
+ *	if empty(startRange)
+ *	    return TRUE
+ *	else
+ *	    if first(startRange) == first(endRange) and 
+ *	       first(startRange) in vocab
+ *		return ngramsInRange(rest(startRange), rest(endRange))
+ *	    else
+ *		if first(startRange) in vocab and
+ *		   ngramsInRange(rest(startRange), FINAL)
+ *		    return TRUE
+ *		if first(endRange) in vocab and
+ *		   ngramsInRange(INITIAL, rest(endRange))
+ *		    return TRUE
+ *		for all w in vocab
+ *		   if w > first(startRange) and w < last(endRange)
+ *			return TRUE;
+ */
+Boolean
+Vocab::ngramsInRange(VocabString *startRange, VocabString *endRange)
+{
+    if ((startRange && startRange[0] == 0) ||
+        (endRange && endRange[0] == 0))
+    {
+	return true;
+    } else if (startRange && endRange &&
+               strcmp(startRange[0], endRange[0]) == 0 &&
+               getIndex(startRange[0]) != Vocab_None)
+    {
+	return ngramsInRange(&startRange[1], &endRange[1]);
+    } else {
+    	if (startRange && getIndex(startRange[0]) != Vocab_None &&
+	    ngramsInRange(&startRange[1], 0))
+    	{
+	    return true;
+	}
+	if (endRange && getIndex(endRange[0]) != Vocab_None &&
+	    ngramsInRange(0, &endRange[1]))
+	{
+	    return true;
+	}
+
+    	/*
+	 * Cycle through entire vocabulary, looking for a word that's in range
+	 */
+	VocabIter iter(*this);
+	VocabString word;
+
+	while ((word = iter.next())) {
+	    if ((startRange == 0 || strcmp(startRange[0], word) < 0) &&
+	        (endRange == 0 || strcmp(word, endRange[0]) < 0))
+	    {
+		return true;
+	    }
+	}
+	return false;
+    }
+}
+
+/*
+ * Input/output of word-index mappings
+ *	word-index mappings store the VocabString-VocabIndex mapping in
+ *	binary data formats.
+ *	The format is ascii with one word per line:
+ *		index	string
+ *	The mapping is terminated by EOF or a line consisting only of ".".
+ */
+void
+Vocab::writeIndexMap(File &file)
+{
+    // Output index map in order of internal vocab indices.
+    // This ensures that vocab strings are assigned indices in the same order
+    // on reading, and ensures faster insertions into SArray-based tries.
+    for (unsigned i = byIndex.base(); i < nextIndex; i ++) {
+	if (byIndex[i]) {
+	    fprintf(file, "%u %s\n", i, byIndex[i]);
+	}
+    }
+    fprintf(file, ".\n");
+}
+
+Boolean
+Vocab::readIndexMap(File &file, Array<VocabIndex> &map, Boolean limitVocab)
+{
+    char *line;
+
+    while ((line = file.getline())) {
+	VocabIndex id, newid;
+
+	/*
+	 * getline() returns only non-empty lines, so strtok()
+	 * will find at least one word.  Anything after the second word
+	 * is ignored.
+	 */
+	
+	VocabString idstring = strtok(line, wordSeparators);
+	VocabString word = strtok(0, wordSeparators);
+
+	if (idstring[0] == '.' && idstring[1] == '\0' && word == 0) {
+	    // end of vocabulary table
+	    break;
+	}
+
+	if (sscanf(idstring, "%u", &id) != 1 || word == 0) {
+	    file.position() << "malformed vocab index line\n";
+	    return false;
+	}
+
+	if (limitVocab) {
+	    newid = getIndex(word);
+	} else {
+	    newid = addWord(word);
+	}
+	map[id] = newid;
+    }
+
+    return true;
+}
+
 
 /*
  * Iteration
@@ -656,7 +881,7 @@ VocabIter::next(VocabIndex &index)
 {
     VocabString word;
     VocabIndex *idx;
-    if (idx = myIter.next(word)) {
+    if ((idx = myIter.next(word))) {
 	index = *idx;
 	return word;
     } else {

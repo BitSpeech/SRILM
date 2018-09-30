@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.14 2006/01/05 08:44:25 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiAlign.h,v 1.16 2007/10/18 05:07:11 stolcke Exp $
  *
  */
 
@@ -40,6 +40,11 @@ public:
     Vocab &vocab;		// vocabulary used for words
     char *name;
 
+    inline const char *getName() {
+	if (name == 0) return "NONAME";
+	else return name;
+    }
+
     virtual Boolean read(File &file) = 0;
     virtual Boolean write(File &file) = 0;
 
@@ -65,10 +70,10 @@ public:
      */
     virtual void alignWords(const NBestWordInfo *winfo, Prob score,
 			    Prob *wordScores = 0, const HypID *hypID = 0)
-	{ unsigned numWords = 0;
-	  for (unsigned i = 0; winfo[i].word != Vocab_None; i ++) numWords ++;
+	{ unsigned numWords = 0, i;
+	  for (i = 0; winfo[i].word != Vocab_None; i ++) numWords ++;
 	  makeArray(VocabIndex, words, numWords + 1);
-	  for (unsigned i = 0; i <= numWords; i ++) words[i] = winfo[i].word;
+	  for (i = 0; i <= numWords; i ++) words[i] = winfo[i].word;
 	  alignWords(words, score, wordScores, hypID);
 	};
 

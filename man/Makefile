@@ -1,10 +1,10 @@
 #
 # Makefile for SRI-LM man pages
 # 
-# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.15 2003/03/12 08:41:10 stolcke Exp stolcke $
+# $Header: /home/srilm/devel/man/RCS/Makefile,v 1.20 2009/01/27 05:23:22 stolcke Exp $
 #
 
-GROFF = groff -Tascii -mgan
+GROFF = gnroff -c -Tascii -mgan
 
 MAN1PAGES = \
 	ngram \
@@ -42,13 +42,19 @@ MAN5PAGES = \
 	pfsg-format \
 	wlat-format
 
-CATS = $(MAN1PAGES:%=cat1/%.1) \
-	$(MAN3PAGES:%=cat3/%.3)\
-	$(MAN5PAGES:%=cat5/%.5)
+MAN7PAGES = \
+	ngram-discount \
+	srilm-faq
 
-HTMLS = $(MAN1PAGES:%=html/%.html) \
-	$(MAN3PAGES:%=html/%.html) \
-	$(MAN5PAGES:%=html/%.html)
+CATS = $(MAN1PAGES:%=cat1/%.1) \
+	$(MAN3PAGES:%=cat3/%.3) \
+	$(MAN5PAGES:%=cat5/%.5) \
+	$(MAN7PAGES:%=cat7/%.7)
+
+HTMLS = $(MAN1PAGES:%=html/%.1.html) \
+	$(MAN3PAGES:%=html/%.3.html) \
+	$(MAN5PAGES:%=html/%.5.html) \
+	$(MAN7PAGES:%=html/%.7.html)
 
 all:	cats htmls index
 
@@ -72,14 +78,16 @@ cat3/%.3:	man3/%.3
 	$(GROFF) $< >$@
 cat5/%.5:	man5/%.5
 	$(GROFF) $< >$@
+cat7/%.7:	man7/%.7
+	$(GROFF) $< >$@
 	
-#html/%.html:	cat1/%.1
-#	rman -f HTML -r '%s.html' $< >$@ 
-html/%.html:	man1/%.1
+html/%.1.html:	man1/%.1
 	scripts/man2html $< >$@ 
-html/%.html:	man3/%.3
+html/%.3.html:	man3/%.3
 	scripts/man2html $< >$@ 
-html/%.html:	man5/%.5
+html/%.5.html:	man5/%.5
+	scripts/man2html $< >$@ 
+html/%.7.html:	man7/%.7
 	scripts/man2html $< >$@ 
 
 clean:

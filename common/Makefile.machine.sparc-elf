@@ -9,16 +9,16 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf,v 1.22 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc-elf,v 1.27 2010/06/02 14:44:52 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
    # XXX: Since most of our fast machines are UltraSPARC based, optimize
    # the code for that platform.
-   GCC_FLAGS = -mtune=ultrasparc -Wreturn-type -Wimplicit
-   CC = /usr/local/lang/gcc-3.4.3/bin/gcc $(GCC_FLAGS)
-   CXX = /usr/local/lang/gcc-3.4.3/bin/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -mtune=ultrasparc -Wall -Wno-unused-variable -Wno-uninitialized
+   CC = $(GCC_PATH)gcc $(GCC_FLAGS)
+   CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O3
@@ -26,12 +26,11 @@ ifeq ($(USE_CC), )
    PROFILE_FLAGS = -pg -g -O3
 else
    # Use the Sun C compiler
-   ACCPREFIX=/opt/SUNWspro/SC4.2/bin/
-   CC = $(ACCPREFIX)cc -Xa
-   CXX = $(ACCPREFIX)CC -ptr$(OBJDIR) -ptv
+   CC = $(ACC_PATH)cc -Xa
+   CXX = $(ACC_PATH)CC -ptr$(OBJDIR) -ptv
 
    ARCHIVE = $(CXX) $(CXXFLAGS) -xar -o
-   DEMANGLE_FILTER = 2>&1 | $(ACCPREFIX)c++filt
+   DEMANGLE_FILTER = 2>&1 | $(ACC_PATH)c++filt
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -fast -xO2	# -xO4 crashes compiler ...
@@ -46,8 +45,8 @@ endif
    EXPORT_LDFLAGS = -s
 
    # Shared compilation flags.
-   CFLAGS = -DSVR4 $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+   CFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)

@@ -3,16 +3,21 @@
 # rescore-reweight
 #	reweight nbest-list scores and select top hyps
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.17 2003/05/03 01:35:45 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-reweight,v 1.19 2010/08/20 00:17:18 stolcke Exp $
 #
 
 multiwords=0
+multichar=_
 
 while [ $# -gt 0 ]
 do
     case "$1" in
     -multiwords)
 	    multiwords=1
+	    ;;
+    -multi-char)
+	    multichar="$2"
+	    shift
 	    ;;
     -*)	echo "$0: unknown option $1" >&2
 	    exit 2 ;;
@@ -24,8 +29,8 @@ do
 done
 
 if [ $# -lt 1 ]; then
-	echo "usage: $0 [-multiwords] score-dir [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
-	echo "    or $0 [-multiwords] file-list [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
+	echo "usage: $0 [-multiwords] [-multi-char C] score-dir [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
+	echo "    or $0 [-multiwords] [-multi-char C] file-list [lmw [wtw [scoredir weight ...] [max-nbest]]]" >&2
 	exit 1
 fi
 
@@ -61,10 +66,10 @@ fi | \
 while read file
 do
 	case $file in
-	*.score.Z)	cat="gunzip -c"
+	*.score.Z)	cat="gzip -dcf"
 		sentid=`basename $file .score.Z`
 		;;
-	*.score.gz)	cat="gunzip -c"
+	*.score.gz)	cat="gzip -dcf"
 		sentid=`basename $file .score.gz`
 		;;
 	*.score)	cat=cat
@@ -119,11 +124,11 @@ NF >= 3 {
 END {
 	# resolve multiwords if requested
 	if (multiwords) {
-		gsub("_", " ", besthyp);
+		gsub(multichar, " ", besthyp);
 	}
 	print sentid besthyp;
 	printf "%s: best hyp is %d\n", sentid, winrank > "/dev/stderr";
 }
-' sentid="$sentid" lmweight="$lmweight" wtweight="$wtweight" maxnbest="$maxnbest" multiwords=$multiwords
+' sentid="$sentid" lmweight="$lmweight" wtweight="$wtweight" maxnbest="$maxnbest" multiwords=$multiwords multichar="$multichar"
 done
 

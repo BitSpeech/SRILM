@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeExpand.cc,v 1.5 2006/01/06 05:34:22 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeExpand.cc,v 1.8 2011/01/14 01:06:15 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -523,7 +523,7 @@ Lattice::expandNodeToTrigram(NodeIndex nodeIndex, LM &lm, unsigned maxNodes)
     }
 
     // going through all its incoming edges
-    while (inTrans = inTransIter.next(fromNodeIndex)) {
+    while ((inTrans = inTransIter.next(fromNodeIndex))) {
 
       if (nodeIndex == fromNodeIndex) {
 
@@ -899,7 +899,7 @@ Lattice::expandNodeToCompactTrigram(NodeIndex nodeIndex, Ngram &ngram,
 	
 	LogP * triProb; 
 
-	if (triProb = ngram.findProb(toNode->word, context)) {
+	if ((triProb = ngram.findProb(toNode->word, context))) {
 	  LogP logProb = *triProb; 
 	  
 	  if (debug(DebugPrintInnerLoop)) {
@@ -1140,7 +1140,7 @@ Lattice::expandNodeToLM(VocabIndex oldIndex, LM &lm, unsigned maxNodes,
     NodeIndex *newIndex;
     VocabContext context;
 
-    while (newIndex = expandIter.next(context)) {
+    while ((newIndex = expandIter.next(context))) {
 
 	// node structure might have been moved as a result of insertions
 	LatticeNode *oldNode = findNode(oldIndex);
@@ -1189,7 +1189,7 @@ Lattice::expandNodeToLM(VocabIndex oldIndex, LM &lm, unsigned maxNodes,
 	    NodeIndex oldIndex3;
 	    LatticeNode *oldNode3;
 	    LogP weight;
-	    while (oldNode3 = followIter.next(oldIndex3, weight)) {
+	    while ((oldNode3 = followIter.next(oldIndex3, weight))) {
 
 		// if one of the following nodes has null or pause as word then
 		// we don't attempt any further look-ahead and use the maximal
@@ -1258,7 +1258,7 @@ Lattice::expandNodeToCompactLM(VocabIndex oldIndex, LM &lm, unsigned maxNodes,
     NodeIndex *newIndex;
     VocabContext context;
 
-    while (newIndex = expandIter.next(context)) {
+    while ((newIndex = expandIter.next(context))) {
 
 	// node structure might have been moved as a result of insertions
 	LatticeNode *oldNode = findNode(oldIndex);
@@ -1332,8 +1332,8 @@ Lattice::expandNodeToCompactLM(VocabIndex oldIndex, LM &lm, unsigned maxNodes,
 	    NodeIndex oldIndex3;
 	    LatticeNode *oldNode3;
 	    LogP weight;
-	    int lastUsedLength = -1;
-	    while (oldNode3 = followIter.next(oldIndex3, weight)) {
+	    unsigned lastUsedLength = (unsigned)-1;
+	    while ((oldNode3 = followIter.next(oldIndex3, weight))) {
 
 		unsigned usedLength;
 

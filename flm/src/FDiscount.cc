@@ -5,14 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FDiscount.cc,v 1.9 2006/01/09 18:33:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FDiscount.cc,v 1.13 2010/06/02 05:51:57 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "hexdec.h"
@@ -64,7 +66,7 @@ FGoodTuring::estimate(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
 	countOfCounts[i]  = 0;
     }
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (vocab.isNonEvent(wids[counts.order - 1])) {
 	    continue;
 	} else if (vocab.isMetaTag(wids[counts.order - 1])) {
@@ -147,21 +149,7 @@ Boolean
 FNaturalDiscount::estimate(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
 				unsigned int node, FactoredVocab& vocab)
 {
-    /*
-     * Determine the true vocab size, i.e., the number of true event
-     * tokens, by enumeration.
-     */
-    VocabIter viter(vocab);
-    VocabIndex wid;
-
-    unsigned total = 0;
-    while (viter.next(wid)) {
-	if (!vocab.isNonEvent(wid)) {
-	    total ++;
-	}
-    }
-
-    vocabSize = total;
+    _vocabSize = Discount::vocabSize(vocab);
     return true;
 }
 
@@ -190,7 +178,7 @@ FKneserNey::estimate(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
     FNgramSpecs<FNgramCount>::FNgramSpec::PSIter iter(counts, wids);
     NgramCount *count;
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (vocab.isNonEvent(wids[counts.order - 1])) {
 	    continue;
 	} else if (vocab.isMetaTag(wids[counts.order - 1])) {
@@ -272,7 +260,7 @@ FKneserNey::prepareCounts(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
         FNgramSpecs<FNgramCount>::FNgramSpec::PSIter iter(spec.parentSubsets[node], ngram);
 	FNgramCount *count;
 
-	while (count = iter.next()) {
+	while ((count = iter.next())) {
 	    if (!vocab.Vocab::isNonEvent(ngram[0]) &&
 		!(vocab.nullIsWord() && ngram[0] == vocab.nullIndex))
 	    {
@@ -319,7 +307,7 @@ FKneserNey::prepareCounts(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
       FNgramSpecs<FNgramCount>::FNgramSpec::PSIter iter(spec.parentSubsets[max_parent_node],ngram);
       FNgramCount *count;
 
-      while (count = iter.next()) {
+      while ((count = iter.next())) {
 	if (*count > 0) {
 	  FNgramCount *loCount = 
 	    spec.parentSubsets[node].
@@ -343,7 +331,7 @@ FKneserNey::prepareCounts(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
 	FNgramCount *count;
 	unsigned total=0;
 	unsigned thoseWoCounts=0;
-	while (count = iter.next()) {
+	while ((count = iter.next())) {
 	  total++;
 	  if (!vocab.Vocab::isNonEvent(ngram[0]) &&
 	      !(vocab.nullIsWord() && ngram[0] == vocab.nullIndex))
@@ -394,7 +382,7 @@ FModKneserNey::estimate(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
     FNgramSpecs<FNgramCount>::FNgramSpec::PSIter iter(counts, wids);
     NgramCount *count;
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (vocab.isNonEvent(wids[counts.order - 1])) {
 	    continue;
 	} else if (vocab.isMetaTag(wids[counts.order - 1])) {
@@ -458,6 +446,4 @@ FModKneserNey::estimate(FNgramSpecs<FNgramCount>::FNgramSpec &spec,
     }
     return true;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

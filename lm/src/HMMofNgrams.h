@@ -9,7 +9,7 @@
  *
  * Copyright (c) 1997,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.h,v 1.6 2003/02/15 06:56:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.h,v 1.7 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 
@@ -52,7 +52,7 @@ public:
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
     Boolean read(File &file, Boolean limitVocab = false);
-    void write(File &file);
+    Boolean write(File &file);
 
     void setState(const char *state);	/* re-read HMM from file */
 

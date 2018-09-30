@@ -1,58 +1,22 @@
-.\" $Id: lm-scripts.1,v 1.6 2003/04/12 21:21:28 stolcke Exp $
-.TH lm-scripts 1 "$Date: 2003/04/12 21:21:28 $" "SRILM Tools"
+.\" $Id: lm-scripts.1,v 1.8 2007/12/20 19:13:52 stolcke Exp $
+.TH lm-scripts 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
-lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm \- manipulate N-gram language models
+lm-scripts, add-dummy-bows, change-lm-vocab, empty-sentence-lm, get-unigram-probs, make-hiddens-lm, make-lm-subset, make-sub-lm, remove-lowprob-ngrams, reverse-lm, sort-lm \- manipulate N-gram language models
 .SH SYNOPSIS
-.B add-dummy-bows
-.RI [ lm-file ]
-.BI > new-lm-file
-.br
-.B change-lm-vocab
-.B \-vocab
-.I vocab
-.B \-lm
-.I lm-file
-.B \-write-lm
-.I new-lm-file
-.RB [ -tolower ] 
-.RB [ -subset ]
-.RI [ ngram-options ...]
-.br
-.B empty-sentence-lm
-.B \-prob
-.I p
-.B \-lm
-.I lm-file
-.B \-write-lm
-.I new-lm-file
-.RI [ ngram-options ...]
-.br
-.B make-hiddens-lm 
-.RI [ lm-file ]
-.BI > hiddens-lm-file
-.br
-.B make-lm-subset 
-.IR count-file |\c
-.B - 
-.RI [ lm-file |\c
-.BR - ]
-.br
-.B make-sub-lm
-.RB [ maxorder=\fIN\fP ]
-.RI [ lm-file ]
-.BI > new-lm-file
-.br
-.B remove-lowprob-ngrams 
-.RI [ lm-file ]
-.BI > new-lm-file
-.br
-.B reverse-lm
-.RI [ lm-file ]
-.BI > new-lm-file
-.br
-.B sort-lm
-.RI [ lm-file ]
-.BI > sorted-lm-file
+.nf
+\fBadd-dummy-bows\fP [ \fIlm-file\fP ] \fB>\fP \fInew-lm-file\fP
+\fBchange-lm-vocab\fP \fB\-vocab\fP \fIvocab\fP \fB\-lm\fP \fIlm-file\fP \fB\-write-lm\fP \fInew-lm-file\fP \\
+	[ \fB\-tolower\fP ] [ \fB\-subset\fP ] [ \fIngram-options\fP ... ]
+\fBempty-sentence-lm\fP \fB\-prob\fP \fIp\fP \fB\-lm\fP \fIlm-file\fP \fB\-write-lm\fP \fInew-lm-file\fP \\
+	[ \fIngram-options\fP ... ]
+\fBget-unigram-probs\fP [ \fBlinear=1\fP ] [ \fIlm-file\fP ]
+\fBmake-hiddens-lm\fP [ \fIlm-file\fP ] \fB>\fP \fIhiddens-lm-file\fP
+\fBmake-lm-subset\fP \fIcount-file\fP|\fB-\fP [ lm-file |\fB-\fP ] \fB>\fP \fInew-lm-file\fP
+\fBmake-sub-lm\fP [ \fBmaxorder=\fP\fIN\fP ] [ \fIlm-file\fP ] \fB>\fP \fInew-lm-file\fP
+\fBremove-lowprob-ngrams\fP [ \fIlm-file\fP ] \fB>\fP \fInew-lm-file\fP
+\fBreverse-lm\fP  [ \fIlm-file\fP ] \fB>\fP \fInew-lm-file\fP
+\fBsort-lm\fP [ \fIlm-file\fP ] \fB>\fP \fIsorted-lm-file\fP
+.fi
 .SH DESCRIPTION
 These scripts perform various useful manipulations on N-gram models
 in their textual representation.
@@ -166,6 +130,13 @@ other LM software.
 (The LMs output by SRILM are sorted somewhat differently, reflecting 
 the internal data structures used; that is also the order that should give
 best cache utilization when using SRILM to read models.)
+.PP
+.B get-unigram-probs
+extracts the unigram probabilities in a simple table format
+from a backoff language model.
+The 
+.B linear=1 
+option causes probabilities to be output on a linear (instead of log) scale.
 .SH "SEE ALSO"
 ngram-format(5), ngram(1).
 .SH BUGS
@@ -177,4 +148,4 @@ as a result of inconsistent marginals in the input model.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2003 SRI International
+Copyright 1995-2006 SRI International

@@ -1,9 +1,0 @@
-#!/bin/sh
-
-hidden-ngram  \
-	-debug 1 \
-	-mapw 1.0 \
-	-order 4 -lm aba.4bo.gz \
-	-posteriors \
-	-text-map text_map_tp4 -escape \#
-

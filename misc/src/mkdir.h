@@ -7,11 +7,14 @@
 
     Copyright (c) 2006, SRI International.  All Rights Reserved.
 
-    RCS ID: $Id: mkdir.h,v 1.1 2006/01/09 19:14:04 stolcke Exp $
+    RCS ID: $Id: mkdir.h,v 1.2 2006/10/17 18:53:33 stolcke Exp $
 */
 
 /*
  *  $Log: mkdir.h,v $
+ *  Revision 1.2  2006/10/17 18:53:33  stolcke
+ *  win32 portability
+ *
  *  Revision 1.1  2006/01/09 19:14:04  stolcke
  *  Initial revision
  *
@@ -20,7 +23,7 @@
 #ifndef _MKDIR_H
 #define _MKDIR_H
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(WIN32)
 # include <direct.h>
 # define MKDIR(d)	_mkdir(d)
 #else

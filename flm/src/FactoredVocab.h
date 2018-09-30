@@ -5,17 +5,19 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  * Kevin Duh <duh@ee.washington.edu>
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.h,v 1.12 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.h,v 1.17 2009/05/07 05:27:22 stolcke Exp $
  *
  */
 
 #ifndef _FactoredVocab_h_
 #define _FactoredVocab_h_
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include "Boolean.h"
 #include "File.h"
@@ -28,6 +30,8 @@ using namespace std;
 #include "Debug.h"
 
 const VocabString	Vocab_NULL = "<NULL>";
+
+#include "FNgramStats.h"	// define FNgramCount
 
 // should be a word that can never occur in any database
 // const VocabString	Empty_Slot = "";
@@ -44,13 +48,8 @@ class FactoredVocab : public  Vocab, public Debug
 public:
   class TagIter;
   friend class TagIter;
-#ifdef USE_SHORT_COUNTS
-  friend class FNgramCounts<XCount>;
-  friend class FNgramSpecs<XCount>;
-#else
-  friend class FNgramCounts<unsigned int>;
-  friend class FNgramSpecs<unsigned int>;
-#endif
+  friend class FNgramCounts<FNgramCount>;
+  friend class FNgramSpecs<FNgramCount>;
   friend class FNgram;
   friend class ProductVocab;
 
@@ -64,7 +63,7 @@ private:
      LHash<VocabIndex,unsigned> tagMap;
   };
 
-  TagVocab *tagVocabs;
+  Array<TagVocab> tagVocabs;
   unsigned int curTagVocab;
 
   LHash<VocabString,unsigned> tagPosition;
@@ -136,6 +135,4 @@ public:
 
 };
 
-#endif /* EXCLUDE_CONTRIB_END */
-     
 #endif /* _FactoredVocab_h_ */

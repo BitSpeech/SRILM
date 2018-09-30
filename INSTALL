@@ -12,20 +12,36 @@ libraries.
 
 3 - You need a SunOS (Sparc or i386), IRIX 5.x, Alpha OSF, Linux i686, Mac OSX,
     or CYGWIN platform to compile out of the box.  For other OS/cpu combinations
-    you will have to modify the bin/machine-type script to detect (and name)
+    you will have to modify the sbin/machine-type script to detect (and name)
     the platform type, and create a file common/Makefile.machine.<platform>
     that defines platform-dependent makefile variables.
+    As a workaround, the MACHINE_TYPE variable can also be set on the make
+    comand line
+			make MACHINE_TYPE=foo ...
+
+    in which case no changes to sbin/machine-type are needed.
+
     Some platform-specific notes may be found in doc/README.<platform>.
 
-    Even on the known platforms you might have to edit
+    Even on the known platforms you might have to modify variables defined in
     common/Makefile.machine.<platform> .  Candidates for changes are
 
-    CC, CXX: 	choose compiler or compiler version.  For example, you will
-		probably have to change the path to the compiler driver.
+    CC, CXX: 	choose compiler or compiler version.  For example, you might
+		have to specify a directory path to the compiler driver.
+    PIC_FLAG:	define if your compiler uses something other than -fPIC to 
+		generate position-independent code.  In particular, define this
+		to be empty if your compiler does not generate PIC, or does so
+		by default.
+    DEMANGLE_FILTER:  If the "c++filt" program is not installed on your system
+		set this variable to empty.
     TCL_INCLUDE, TCL_LIBRARY:  to whatever is needed to find the Tcl header
-		files and library.
+		files and library.  If Tcl is not available, set NO_TCL=X
+		and leave the above variables empty.
 
-    If Tcl is not available, set NO_TCL=X and leave the above variables empty.
+    It is recommended that you record changes to platform dependent variables
+    in common/Makefile.site.<platform> and leave Makefile.machine.<platform>
+    unchanged.  That makes it easier to upgrade SRILM to future releases 
+    (just copy common/Makefile.site.<platform> to a new installation).
 
 4 - You need the following free third-party software to build SRILM:
 
@@ -34,19 +50,25 @@ libraries.
 	  SRILM is occasionally tested with other compilers, see the 
 	  portability notes in the CHANGES file.
 	- GNU make 
+	- C shell (installed in /bin/csh)
 	- John Ousterhout's Tcl toolkit, version 7.3 or higher
 	  (this is currently used only for some test programs, but is needed
 	  for the build to go through without manual intervention).
+	- Additional platform-dependent prerequisites are mentioned in
+	  doc/README.<os>-<machinetype>, e.g., doc/README.windows-cygwin.
 
     The following tools are needed at runtime only:
 
-	- gzip, to read/write compressed files
 	- GNU awk (gawk), to interpret many of the utility scripts
+	- gzip, to read/write compressed files
+	- bzip2, to read/write .bz2 compressed files (optional)
+	- p7zip, to read/write .7z compressed files (optional)
+	- xz, to read/write .xz compressed files (optional)
 
     For Windows 9x or NT, you will need the CYGWIN UNIX compatibility 
-    environment, which includes all of the above.  The MinGW platform
-    will also work, but with some loss of functionality.  See
-    doc/README.windows for more information.
+    environment, which includes all of the above.  The MinGW and
+    Visual C platforms will also work, but with some loss of functionality.
+    See doc/README.windows-* for more information.
 
     Links to these packages can be found on the SRILM download page
     (http://www.speech.sri.com/projects/srilm/download.html).
@@ -55,9 +77,6 @@ libraries.
 
 	gnumake World		or 
 	make World		(if the GNU version is the system default)
-
-    For the CYGWIN platform, don't forget to set MAKE_MODE=UNIX in the
-    environment.
 
     This will create the directories
 
@@ -69,6 +88,12 @@ libraries.
     these directories.  Binaries are actually installed in subdirectories
     indicating the platform type.
 
+    To create binaries for a platform that is not the default on your system,
+    use make MACHINE_TYPE=xxx, e.g.
+
+ 	make MACHINE_TYPE=i686-m64 World	# 64-bit binaries for Linux
+ 	make MACHINE_TYPE=msvc World		# MS Visual C++ on Windows 
+
 6 - The result of the above should be a fair number of .h and .cc files in
     include/, libraries in lib/$MACHINE_TYPE, and programs in 
     bin/$MACHINE_TYPE.  In your shell, set the following environment
@@ -77,14 +102,17 @@ libraries.
 	PATH		add $SRILM/bin/$MACHINE_TYPE and $SRILM/bin
 	MANPATH		add $SRILM/man
 
-7 - To test the compiled tools, change into the $SRILM/test directory and run
+7 - To test the compiled tools, run
 
-	gnumake all
+	gnumake test
+
+    from the top-level directory.
 
     This exercises the most important (though not all) functionality in
     SRILM and compares the results to reference outputs.  If discrepancies are 
-    reported, examine the output files in $SRILM/test/output and compare them
-    to the corresponding files in $SRILM/test/reference.
+    reported, examine the output files in $SRILM/<module>/test/output and
+    compare them to the corresponding files in $SRILM/<module>/test/reference,
+    where <module> is a subdirectory name (lm, flm, lattice).
 
 8 - After a successful build, clean up the source directories of object and 
     binary files that are no longer needed:
@@ -108,8 +136,16 @@ libraries.
 
 	OPTION=_c	"compact" data structures
 	OPTION=_s	"short" count representation
+	OPTION=_l	"long long" count representation
 	OPTION=_g	debuggable, non-optimized code
 	OPTION=_p	profiling executables
+
+    In addition, if libraries with position-independent code are needed, add
+
+	MAKE_PIC=yes
+
+    to the make command line.  This may incur a slight performance penalty but
+    is necessary for certain software projects that link against SRILM libs.
 
 10 - Recent versions of gawk may not perform correct floating-point arithmetic
      unless either
@@ -123,5 +159,5 @@ libraries.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2006/01/06 00:40:58 $
+$Date: 2010/02/03 19:11:40 $
 

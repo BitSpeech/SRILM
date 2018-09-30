@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2000,2004 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.h,v 1.3 2004/08/03 23:21:31 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.h,v 1.4 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 
@@ -67,6 +67,7 @@ class DictionaryDistance: public VocabDistance
 {
 public:
     DictionaryDistance(Vocab &vocab, VocabMultiMap &dictionary);
+    virtual ~DictionaryDistance() {};
 
     double penalty(VocabIndex w1) { return 1.0; };
     double distance(VocabIndex w1, VocabIndex w2);
@@ -83,6 +84,7 @@ class DictionaryAbsDistance: public VocabDistance
 {
 public:
     DictionaryAbsDistance(Vocab &vocab, VocabMultiMap &dictionary);
+    virtual ~DictionaryAbsDistance() {};
 
     double penalty(VocabIndex w1);
     double distance(VocabIndex w1, VocabIndex w2);

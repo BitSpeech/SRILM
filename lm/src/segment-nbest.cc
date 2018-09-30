@@ -6,12 +6,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: segment-nbest.cc,v 1.25 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: segment-nbest.cc,v 1.27 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -63,7 +67,7 @@ static double mixLambda = 0.5;
 
 const LogP LogP_PseudoZero = -100;
 
-static int contextLength = 0;
+static unsigned contextLength = 0;
 
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
@@ -757,7 +761,7 @@ processNbestLists(const char *fileList, LM &lm, LM &oldLM,
 	File file(fileList, "r");
 
 	char *line;
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 	    char *fname = strtok(line, wordSeparators);
 	    if (fname) {
 		nbestFileList[numNbestLists] = strdup(fname);
@@ -853,7 +857,7 @@ main(int argc, char **argv)
      * use at least 2 to hold previous word and <s> tags
      */
     contextLength = order - 1;
-    if (contextLength < 2) {
+    if ((int)contextLength < 2) {
 	contextLength = 2;
     }
 

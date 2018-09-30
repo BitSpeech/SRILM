@@ -5,9 +5,11 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,1997,2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.10 2002/05/24 19:03:49 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordAlign.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
 #endif
+
+#include <assert.h>
 
 #include "WordAlign.h"
 
@@ -169,6 +171,9 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
 		if (alignment != 0) {
 		    alignment[k] = INS_ALIGN;
 		}
+		break;
+	    case END_ALIGN:
+		assert(0);
 		break;
 	    }
 

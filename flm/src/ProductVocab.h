@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductVocab.h,v 1.8 2005/09/24 00:21:55 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductVocab.h,v 1.9 2006/08/11 20:47:15 stolcke Exp $
  *
  */
 
@@ -16,8 +16,6 @@
 #define _ProductVocab_h_
 
 #include "Vocab.h"
-
-#ifndef EXCLUDE_CONTRIB
 
 #include "FactoredVocab.h"
 #include "LHash.h"
@@ -64,21 +62,5 @@ protected:
     // to a vector of ids for each corresponding factor.
     LHash<VocabIndex, Array<VocabIndex> > productIdToFactorIds;
 };
-
-#else /* EXCLUDE_CONTRIB_END */
-
-class ProductVocab: public Vocab
-{
-public:
-    ProductVocab(VocabIndex start = 0, VocabIndex end = 0x7fffffff)
-	{ cerr << "Third-party FLM support not included.\n"; exit(1); };
-
-    Boolean &nullIsWord() { return dummy; };
-
-protected:
-    Boolean dummy;
-};
-
-#endif /* INCLUDE_CONTRIB */
 
 #endif /* _ProductVocab_h_ */

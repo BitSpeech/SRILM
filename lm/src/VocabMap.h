@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995,1998,2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.7 2005/05/20 23:49:02 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMap.h,v 1.8 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 
@@ -22,6 +22,7 @@ class VocabMap
 
 public:
     VocabMap(Vocab &v1, Vocab &v2, Boolean logmap = false);
+    virtual ~VocabMap() {};
     
     Prob get(VocabIndex w1, VocabIndex w2);
     void put(VocabIndex w1, VocabIndex w2, Prob prob);

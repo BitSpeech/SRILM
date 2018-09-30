@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.54 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.69 2009/06/11 05:08:30 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
@@ -29,6 +33,7 @@ using namespace std;
 #include "TaggedNgramStats.h"
 #include "StopNgramStats.h"
 #include "Discount.h"
+#include "NgramCountLM.h"
 #include "Array.cc"
 
 const unsigned maxorder = 9;		/* this is only relevant to the 
@@ -38,16 +43,23 @@ static char *filetag = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *textFile = 0;
+static int textFileHasWeights = 0;
+static int noSOS = 0;
+static int noEOS = 0;
 static char *readFile = 0;
+static char *intersectFile = 0;
 static int readWithMincounts = 0;
+static char *readGoogleDir = 0;
 
 static unsigned writeOrder = 0;		/* default is all ngram orders */
 static char *writeFile[maxorder+1];
+static char *writeBinaryFile;
 
 static unsigned gtmin[maxorder+1] = {1, 1, 1, 2, 2, 2, 2, 2, 2, 2};
 static unsigned gtmax[maxorder+1] = {5, 1, 7, 7, 7, 7, 7, 7, 7, 7};
 
 static double cdiscount[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+static double addsmooth[maxorder+1] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 static int ndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int wbdiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static int kndiscount[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -59,11 +71,15 @@ static int interpolate[maxorder+1] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static char *gtFile[maxorder+1];
 static char *knFile[maxorder+1];
 static char *lmFile = 0;
+static int writeBinaryLM = 0;
 static char *initLMFile = 0;
 
 static char *vocabFile = 0;
+static char *vocabAliasFile = 0;
 static char *noneventFile = 0;
+static int limitVocab = 0;
 static char *writeVocab = 0;
+static char *writeVocabIndex = 0;
 static int memuse = 0;
 static int recompute = 0;
 static int sortNgrams = 0;
@@ -78,6 +94,7 @@ static int useFloatCounts = 0;
 
 static double varPrune = 0.0;
 
+static int useCountLM = 0;
 static int skipNgram = 0;
 static double skipInit = 0.5;
 static unsigned maxEMiters = 100;
@@ -96,8 +113,13 @@ static Option options[] = {
     { OPT_UINT, "write-order", &writeOrder, "output ngram counts order" },
     { OPT_STRING, "tag", &filetag, "file tag to use in messages" },
     { OPT_STRING, "text", &textFile, "text file to read" },
+    { OPT_TRUE, "text-has-weights", &textFileHasWeights, "text file contains count weights" },
+    { OPT_TRUE, "no-sos", &noSOS, "don't insert start-of-sentence tokens" },
+    { OPT_TRUE, "no-eos", &noEOS, "don't insert end-of-sentence tokens" },
     { OPT_STRING, "read", &readFile, "counts file to read" },
+    { OPT_STRING, "intersect", &intersectFile, "intersect counts with this file" },
     { OPT_TRUE, "read-with-mincounts", &readWithMincounts, "apply minimum counts when reading counts file" },
+    { OPT_STRING, "read-google", &readGoogleDir, "Google counts directory to read" },
 
     { OPT_STRING, "write", &writeFile[0], "counts file to write" },
     { OPT_STRING, "write1", &writeFile[1], "1gram counts file to write" },
@@ -109,6 +131,8 @@ static Option options[] = {
     { OPT_STRING, "write7", &writeFile[7], "7gram counts file to write" },
     { OPT_STRING, "write8", &writeFile[8], "8gram counts file to write" },
     { OPT_STRING, "write9", &writeFile[9], "9gram counts file to write" },
+
+    { OPT_STRING, "write-binary", &writeBinaryFile, "binary counts file to write" },
 
     { OPT_UINT, "gtmin", &gtmin[0], "lower GT discounting cutoff" },
     { OPT_UINT, "gtmax", &gtmax[0], "upper GT discounting cutoff" },
@@ -163,6 +187,17 @@ static Option options[] = {
     { OPT_TRUE, "ndiscount7", &ndiscount[7], "7gram natural discounting" },
     { OPT_TRUE, "ndiscount8", &ndiscount[8], "8gram natural discounting" },
     { OPT_TRUE, "ndiscount9", &ndiscount[9], "9gram natural discounting" },
+
+    { OPT_FLOAT, "addsmooth", &addsmooth[0], "additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth1", &addsmooth[1], "1gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth2", &addsmooth[2], "2gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth3", &addsmooth[3], "3gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth4", &addsmooth[4], "4gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth5", &addsmooth[5], "5gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth6", &addsmooth[6], "6gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth7", &addsmooth[7], "7gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth8", &addsmooth[8], "8gram additive smoothing constant" },
+    { OPT_FLOAT, "addsmooth9", &addsmooth[9], "9gram additive smoothing constant" },
 
     { OPT_TRUE, "wbdiscount", &wbdiscount[0], "use Witten-Bell discounting" },
     { OPT_TRUE, "wbdiscount1", &wbdiscount[1], "1gram Witten-Bell discounting"},
@@ -223,12 +258,14 @@ static Option options[] = {
     { OPT_TRUE, "interpolate9", &interpolate[9], "use interpolated 9gram estimates"},
 
     { OPT_STRING, "lm", &lmFile, "LM to estimate" },
+    { OPT_TRUE, "write-binary-lm", &writeBinaryLM, "output LM in binary format" },
     { OPT_STRING, "init-lm", &initLMFile, "initial LM for EM estimation" },
     { OPT_TRUE, "unk", &keepunk, "keep <unk> in LM" },
     { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
     { OPT_STRING, "meta-tag", &metaTag, "meta tag used to input count-of-count information" },
     { OPT_TRUE, "float-counts", &useFloatCounts, "use fractional counts" },
     { OPT_TRUE, "tagged", &tagged, "build a tagged LM" },
+    { OPT_TRUE, "count-lm", &useCountLM, "train a count-based LM" },
     { OPT_TRUE, "skip", &skipNgram, "build a skip N-gram LM" },
     { OPT_FLOAT, "skip-init", &skipInit, "default initial skip probability" },
     { OPT_UINT, "em-iters", &maxEMiters, "max number of EM iterations" },
@@ -240,8 +277,11 @@ static Option options[] = {
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
     { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "vocab-aliases", &vocabAliasFile, "vocab alias file" },
     { OPT_STRING, "nonevents", &noneventFile, "non-event vocabulary" },
+    { OPT_TRUE, "limit-vocab", &limitVocab, "limit count reading to specified vocabulary" },
     { OPT_STRING, "write-vocab", &writeVocab, "write vocab to file" },
+    { OPT_STRING, "write-vocab-index", &writeVocabIndex, "write vocab index map to file" },
     { OPT_TRUE, "memuse", &memuse, "show memory usage" },
     { OPT_DOC, 0, 0, "the default action is to write counts to stdout" }
 };
@@ -274,6 +314,7 @@ main(int argc, char **argv)
     if (ndiscount[0] +
 	wbdiscount[0] +
 	(cdiscount[0] != -1.0) +
+	(addsmooth[0] != -1.0) +
 	ukndiscount[0] + 
 	(knFile[0] != 0 || kndiscount[0]) +
 	(gtFile[0] != 0) > 1)
@@ -339,6 +380,18 @@ main(int argc, char **argv)
 	USE_STATS(openVocab) = false;
     }
 
+    if (noSOS) {
+        USE_STATS(addSentStart) = false;
+    }
+    if (noEOS) {
+        USE_STATS(addSentEnd) = false;
+    }
+
+    if (vocabAliasFile) {
+	File file(vocabAliasFile, "r");
+	USE_STATS(vocab.readAliases(file));
+    }
+
     if (stopWordFile) {
 	File file(stopWordFile, "r");
 	stopWords->read(file);
@@ -356,11 +409,19 @@ main(int argc, char **argv)
 	USE_STATS(vocab).addNonEvents(nonEvents);
     }
 
+    if (intersectFile) {
+	File file(intersectFile, "r");
+
+        USE_STATS(read(file, order, limitVocab));
+	USE_STATS(setCounts(0));
+	USE_STATS(intersect) = true;
+    }
+
     if (readFile) {
 	File file(readFile, "r");
 
 	if (readWithMincounts) {
-	    makeArray(unsigned, minCounts, order);
+	    makeArray(Count, minCounts, order);
 
 	    /* construct min-counts array from -gtNmin options */
 	    unsigned i;
@@ -372,13 +433,21 @@ main(int argc, char **argv)
 	    }
 	    USE_STATS(readMinCounts(file, order, minCounts));
 	} else {
-	    USE_STATS(read(file));
+	    USE_STATS(read(file, order, limitVocab));
+	}
+    }
+
+    if (readGoogleDir) {
+    	if (!USE_STATS(readGoogle(readGoogleDir, order, limitVocab))) {
+	    cerr << "error reading Google counts from "
+	         << readGoogleDir << endl;
+	    exit(1);
 	}
     }
 
     if (textFile) {
 	File file(textFile, "r");
-	USE_STATS(countFile(file));
+	USE_STATS(countFile(file, textFileHasWeights));
     }
 
     if (memuse) {
@@ -392,15 +461,6 @@ main(int argc, char **argv)
 	    floatStats->sumCounts(order);
 	else
 	    intStats->sumCounts(order);
-    }
-
-    unsigned int i;
-    for (i = 1; i <= maxorder; i++) {
-	if (writeFile[i]) {
-	    File file(writeFile[i], "w");
-	    USE_STATS(write(file, i, sortNgrams));
-	    written = true;
-	}
     }
 
     /*
@@ -419,6 +479,7 @@ main(int argc, char **argv)
     Discount **discounts = new Discount *[order];
     assert(discounts != 0);
 
+    unsigned i;
     for (i = 0; i < order; i ++) {
 	discounts[i] = 0;
     }
@@ -429,12 +490,13 @@ main(int argc, char **argv)
      * - the user wants them written to a file
      * - we also want to estimate a LM later
      */
-    for (i = 1; i <= order; i++) {
+    for (i = 1; !useCountLM && i <= order; i++) {
 	/*
 	 * Detect inconsistent options for this order
 	 */
 	if (i <= maxorder &&
-	    ndiscount[i] + wbdiscount[i] + (cdiscount[i] != -1.0) +
+	    ndiscount[i] + wbdiscount[i] +
+	    (cdiscount[i] != -1.0) + (addsmooth[i] != -1.0) +
 	    ukndiscount[i] + (knFile[i] != 0 || kndiscount[i]) +
 	    (gtFile[i] != 0) > 1)
 	{
@@ -446,13 +508,15 @@ main(int argc, char **argv)
 	 * Inherit default discounting method where needed
 	 */
 	if (i <= maxorder &&
-	    !ndiscount[i] && !wbdiscount[i] && cdiscount[i] == -1.0 &&
+	    !ndiscount[i] && !wbdiscount[i] &&
+	    cdiscount[i] == -1.0 && addsmooth[i] == -1.0 &&
 	    !ukndiscount[i] && knFile[i] == 0 && !kndiscount[i] &&
 	    gtFile[i] == 0)
 	{
 	    if (ndiscount[0]) ndiscount[i] = ndiscount[0];
 	    else if (wbdiscount[0]) wbdiscount[i] = wbdiscount[0]; 
 	    else if (cdiscount[0] != -1.0) cdiscount[i] = cdiscount[0];
+	    else if (addsmooth[0] != -1.0) addsmooth[i] = addsmooth[0];
 	    else if (ukndiscount[0]) ukndiscount[i] = ukndiscount[0];
 	    else if (kndiscount[0]) kndiscount[i] = kndiscount[0];
 
@@ -486,6 +550,10 @@ main(int argc, char **argv)
 	    if (debug) cerr << "using ConstDiscount for " << i << "-grams";
 	    discount = new ConstDiscount(cdiscount[useorder], gtmin[useorder]);
 	    assert(discount);
+	} else if (addsmooth[useorder] != -1.0) {
+	    if (debug) cerr << "using AddSmooth for " << i << "-grams";
+	    discount = new AddSmooth(addsmooth[useorder], gtmin[useorder]);
+	    assert(discount);
 	} else if (ukndiscount[useorder]) {
 	    if (debug) cerr << "using KneserNey for " << i << "-grams";
 	    discount = new KneserNey(gtmin[useorder], knCountsModified, knCountsModifyAtEnd);
@@ -499,7 +567,7 @@ main(int argc, char **argv)
 	    discount = new GoodTuring(gtmin[useorder], gtmax[useorder]);
 	    assert(discount);
 	}
-	if (debug) cerr << endl;
+	if (debug && discount != 0) cerr << endl;
 
 	/*
 	 * Now read in, or estimate the discounting parameters.
@@ -558,10 +626,79 @@ main(int argc, char **argv)
 
     /*
      * Estimate a new model from the existing counts,
-     * either using a default discounting scheme, or the GT parameters
-     * read in from files
      */
-    if (lmFile) {
+    if (useCountLM && lmFile) {
+    	/*
+	 * count-LM estimation is different 
+	 * - read existing model from file
+	 * - set estimation parameters
+	 * - estimate 
+	 * - write updated model
+	 */
+	NgramCountLM *lm;
+
+	lm = new NgramCountLM(*vocab, order);
+	assert(lm != 0);
+
+	lm->maxEMiters = maxEMiters;
+	lm->minEMdelta = minEMdelta;
+
+	/*
+	 * Set debug level on LM object
+	 */
+	lm->debugme(debug);
+
+	/*
+	 * Read initial LM parameters
+	 */
+	if (initLMFile) {
+	    File file(initLMFile, "r");
+
+	    if (!lm->read(file, limitVocab)) {
+		cerr << "format error in init-lm file\n";
+		exit(1);
+	    }
+	} else {
+	    cerr << "count-lm estimation needs initial model\n";
+	    exit(1);
+	}
+        
+	if (useFloatCounts) {
+	    cerr << "cannot use -float-counts with count-lm\n";
+	    exit(1);
+	}
+
+        if (!lm->estimate(*intStats)) {
+	    cerr << "LM estimation failed\n";
+	    exit(1);
+	} else {
+	    /*
+	     * Write updated parameters, but avoid writing out the counts,
+	     * which are unchanged.
+	     */
+	    lm->writeCounts = false;
+	    if (writeBinaryLM) {
+		File file(lmFile, "wb");
+		lm->writeBinary(file);
+	    } else {
+		File file(lmFile, "w");
+		lm->write(file);
+	    }
+	}
+
+	written = true;
+
+	// XXX: don't free the lm since this itself may take a long time
+	// and we're going to exit anyways.
+#ifdef DEBUG
+	delete lm;
+#endif
+    } else if (lmFile) {
+        /*
+	 * Backoff ngram LM estimation:
+	 * either using a default discounting scheme, or the GT parameters
+	 * read in from files
+	 */
 	Ngram *lm;
 	
 	if (varPrune != 0.0) {
@@ -594,7 +731,7 @@ main(int argc, char **argv)
 	if (initLMFile) {
 	    File file(initLMFile, "r");
 
-	    if (!lm->read(file)) {
+	    if (!lm->read(file, limitVocab)) {
 		cerr << "format error in init-lm file\n";
 		exit(1);
 	    }
@@ -616,8 +753,13 @@ main(int argc, char **argv)
 		lm->pruneProbs(prune, minprune);
 	    }
 
-	    File file(lmFile, "w");
-	    lm->write(file);
+	    if (writeBinaryLM) {
+		File file(lmFile, "wb");
+		lm->writeBinary(file);
+	    } else {
+		File file(lmFile, "w");
+		lm->write(file);
+	    }
 	}
 	written = true;
 
@@ -631,6 +773,34 @@ main(int argc, char **argv)
     if (writeVocab) {
 	File file(writeVocab, "w");
 	vocab->write(file);
+	written = true;
+    }
+
+    if (writeVocabIndex) {
+	File file(writeVocabIndex, "w");
+	vocab->writeIndexMap(file);
+	written = true;
+    }
+
+    /*
+     * Write counts of a specific order
+     */
+    for (i = 1; i <= maxorder; i++) {
+	if (writeFile[i]) {
+	    File file(writeFile[i], "w");
+	    USE_STATS(write(file, i, sortNgrams));
+	    written = true;
+	}
+    }
+
+    /*
+     * Write binary counts
+     */
+    if (writeBinaryFile) {
+	File file(writeBinaryFile, "wb");
+	if (!USE_STATS(writeBinary(file, writeOrder))) {
+	    cerr << "error writing " << writeBinaryFile << endl;
+	}
 	written = true;
     }
 

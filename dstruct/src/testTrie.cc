@@ -1,7 +1,9 @@
 //
 // Interactive testing for Trie datastructure
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/testTrie.cc,v 1.13 2005/07/17 22:00:01 stolcke Exp $
+// Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+//
+// $Header: /home/srilm/devel/dstruct/src/RCS/testTrie.cc,v 1.14 2010/06/02 04:56:52 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -73,7 +75,7 @@ Insert(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    char *value;
 
    if (argc < 2) {
-	Tcl_SetResult(interp, "word expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"word expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -125,11 +127,11 @@ List(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
    }
 
-   if (result = myTrie.findTrie(keys)) {
+   if ((result = myTrie.findTrie(keys))) {
 	ITER_T iter(*result, compKeys);
 	KEY_T key;
 
-	while (result = iter.next(key)) {
+	while ((result = iter.next(key))) {
 	    if (result->value()) {
 		cout << "key = " << key << ", value = " << result->value() << endl;
 		cout << "find = " << *(result->find()) << endl;
@@ -152,23 +154,23 @@ RList(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    KEY_T *keys;
 
    if (argc < 2) {
-	Tcl_SetResult(interp, "level expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"level expected", TCL_STATIC);
 	return TCL_ERROR;
    }
    if (Tcl_GetInt(interp, argv[1], &level) == TCL_ERROR) {
 	return TCL_ERROR;
-    }
+   }
 
    keys = get_keys(interp, argv + 2);
    if (!keys) {
 	return TCL_ERROR;
    }
 
-   if (result = myTrie.findTrie(keys)) {
+   if ((result = myTrie.findTrie(keys))) {
 	KEY_T keys2[100];
 	ITER2_T iter(*result, keys2, level, compKeys);
 
-	while (result = iter.next()) {
+	while ((result = iter.next())) {
 	    if (result->value()) {
 		cout << "key =" ;
 		for (int i = 0; !Map_noKeyP(keys2[i]); i++) {

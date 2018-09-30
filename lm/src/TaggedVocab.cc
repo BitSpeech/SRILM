@@ -4,12 +4,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.8 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -22,16 +26,19 @@ const char tagSep = '/';		/* delimiter separating word from tag */
 static char *
 findTagSep(VocabString name)
 {
-    char *sep = (char *)strchr(name, tagSep);	// discard const
+    unsigned len = strlen(name);
 
-    /*
-     * Don't mistake '/' inside SGML tags as tag separators
-     */
-    if (sep > name && *(sep - 1) == '<') {
-	return (char *)strchr(sep + 1, tagSep);	// discard const
-    } else {
-	return sep;
+    for (const char *p = &name[len-1]; p >= name; p --) {
+	if (*p == tagSep &&
+	    /*
+	     * Don't mistake '/' inside SGML tags as tag separators
+	     */
+	    (p == name || *(p-1) != '<'))
+	{
+	    return (char *)p;		/* discard const */
+	}
     }
+    return 0;
 }
 
 /*
@@ -58,7 +65,7 @@ TaggedVocab::~TaggedVocab()
     VocabIndex idx;
     VocabString *tword;
 
-    while (tword = iter.next(idx)) {
+    while ((tword = iter.next(idx))) {
 	free((void *)*tword);
     }
 }
@@ -79,24 +86,39 @@ TaggedVocab::addWord(VocabString name)
      * Check if the string is a tagged word, and if so add both word and
      * tag string to the respective vocabs.
      */
-    char *sep = findTagSep(name);
+    char saved, *sep = findTagSep(name);
+
+    VocabIndex wordId, tagId;
 
     if (sep) {
-	char saved = *sep;
+	saved = *sep;
 	*sep = '\0';
 
 	/*
 	 * empty words are allowed to denote tags by themselves
 	 */
-	VocabIndex wordId = (sep == name) ? Tagged_None : Vocab::addWord(name);
-	VocabIndex tagId = _tags.addWord(sep + 1);
-
-	*sep = saved;
-
-	return tagWord(wordId, tagId);
+	wordId = (sep == name) ? Tagged_None : Vocab::addWord(name);
+	tagId = _tags.addWord(sep + 1);
     } else {
-	return Vocab::addWord(name);
+	wordId = Vocab::addWord(name);
+	tagId = Tag_None;
     }
+	
+    if (wordId == Vocab_None) {
+	cerr << "maximum number of tagged words (" << maxTaggedIndex << ") exceeded\n";
+	assert(wordId != Vocab_None);
+    }
+
+    if (tagId == Vocab_None) {
+	cerr << "maximum number of tags (" << maxTagIndex << ") exceeded\n";
+	assert(tagId != Vocab_None);
+    }
+
+    if (sep) {
+	*sep = saved;
+    }
+
+    return tagWord(wordId, tagId);
 }
 
 VocabString

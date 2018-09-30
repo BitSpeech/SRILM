@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HMMofNgrams.cc,v 1.16 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "HMMofNgrams.h"
@@ -55,7 +59,7 @@ HMMofNgrams::~HMMofNgrams()
 
     HMMState *state;
     HMMIndex index;
-    while (state = iter.next(index)) {
+    while ((state = iter.next(index))) {
 	state->~HMMState();
     }
 }
@@ -71,7 +75,7 @@ HMMofNgrams::debugme(unsigned level)
 
     HMMState *state;
     HMMIndex index;
-    while (state = iter.next(index)) {
+    while ((state = iter.next(index))) {
 	if (state->ngram) {
 	    state->ngram->debugme(level);
 	}
@@ -87,7 +91,7 @@ HMMofNgrams::dout(ostream &stream)
 
     HMMState *state;
     HMMIndex index;
-    while (state = iter.next(index)) {
+    while ((state = iter.next(index))) {
 	if (state->ngram) {
 	    state->ngram->dout(stream);
 	}
@@ -112,7 +116,7 @@ HMMofNgrams::read(File &file, Boolean limitVocab)
     char *line;
     VocabString fields[maxTransPerState + 3];
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	unsigned numFields =
 			vocab.parseWords(line, fields, maxTransPerState + 3);
 
@@ -223,7 +227,7 @@ HMMofNgrams::read(File &file, Boolean limitVocab)
 
     HMMState *state;
     HMMIndex stateIndex;
-    while (state = iter.next(stateIndex)) {
+    while ((state = iter.next(stateIndex))) {
 	if (stateIndex != initialState && stateIndex != finalState &&
 	    !state->ngram)
 	{
@@ -236,14 +240,14 @@ HMMofNgrams::read(File &file, Boolean limitVocab)
     return true;
 }
 
-void
+Boolean
 HMMofNgrams::write(File &file)
 {
     LHashIter<HMMIndex,HMMState> iter(states);
 
     HMMState *state;
     HMMIndex stateIndex;
-    while (state = iter.next(stateIndex)) {
+    while ((state = iter.next(stateIndex))) {
 	
 	VocabString stateName = stateVocab.getWord(stateIndex);
 
@@ -254,7 +258,7 @@ HMMofNgrams::write(File &file)
 	HMMIndex toIndex;
 	Prob *prob;
 
-	while(prob = transIter.next(toIndex)) {
+	while ((prob = transIter.next(toIndex))) {
 	    fprintf(file, " %s %lf",
 				stateVocab.getWord(toIndex), (double)*prob);
 	}
@@ -264,9 +268,19 @@ HMMofNgrams::write(File &file)
 	 * Output the Ngram inline
 	 */
 	if (state->ngram) {
-	    state->ngram->write(file);
+	    Boolean status;
+
+	    if (writeInBinary) {
+		status = state->ngram->writeBinary(file);
+	    } else {
+		status = state->ngram->write(file);
+	    }
+
+	    if (!status) return false;
 	}
     }
+
+    return true;
 }
 
 /*
@@ -447,7 +461,7 @@ HMMofNgrams::prefixProb(VocabIndex word, const VocabIndex *context,
 	    HMMIndex toIndex;
 	    Prob *transProb;
 
-	    while(transProb = transIter.next(toIndex)) {
+	    while ((transProb = transIter.next(toIndex))) {
 		/*
 		 * Emit </s> in the current state LM, 
 		 * transition to next state,

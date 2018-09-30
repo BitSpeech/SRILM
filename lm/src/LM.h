@@ -5,32 +5,34 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.37 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/LM.h,v 1.57 2011/01/14 01:01:39 stolcke Exp $
  *
  */
 
 #ifndef _LM_h_
 #define _LM_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include "Boolean.h"
 #include "Prob.h"
+#include "Counts.h"
 #include "File.h"
 #include "Vocab.h"
 #include "SubVocab.h"
 #include "TextStats.h"
 #include "Debug.h"
 #include "MemStats.h"
-
-typedef unsigned int Count;		/* a count of something */
-typedef double FloatCount;		/* a fractional count */
+#include "NgramStats.h"
 
 class LM;		/* forward declaration */
-class NgramStats;	/* forward declaration */
 
 /*
  * This is the iter class from which more specialized iters can be
@@ -42,6 +44,7 @@ class _LM_FollowIter
 {
 public:
     _LM_FollowIter(LM &lm, const VocabIndex *context);
+    virtual ~_LM_FollowIter() {};
 
     virtual void init();
     virtual VocabIndex next();
@@ -74,18 +77,36 @@ public:
 					unsigned clength = maxWordsPerLine);
 		    /* joint probability of a reversed word string */
 
-    virtual LogP countsProb(NgramStats &counts, TextStats &stats,
+    template <class CountT>
+    LogP countsProb(NgramCounts<CountT> &counts, TextStats &stats,
 				    unsigned order, Boolean entropy = false);
 						/* probability from counts */
 
-    virtual unsigned pplCountsFile(File &file, unsigned order, TextStats &stats,
+    template <class CountT>
+    CountT pplCountsFile(File &file, unsigned order, TextStats &stats,
 					const char *escapeString = 0,
-					Boolean entropy = false);
+					Boolean entropy = false,
+					NgramCounts<CountT> *counts = 0);
+    virtual NgramCount pplCountsFile(File &file, unsigned order,
+					TextStats &stats,
+					const char *escapeString = 0,
+					Boolean entropy = false)
+       { return pplCountsFile(file, order, stats, escapeString, entropy,
+					(NgramCounts<NgramCount> *)0); };
+    virtual FloatCount pplFloatCountsFile(File &file, unsigned order,
+					TextStats &stats,
+					const char *escapeString = 0,
+					Boolean entropy = false)
+       { return pplCountsFile(file, order, stats, escapeString, entropy,
+					(NgramCounts<FloatCount> *)0); };
+
     virtual unsigned pplFile(File &file, TextStats &stats,
 				const char *escapeString = 0);
     virtual unsigned rescoreFile(File &file, double lmScale, double wtScale,
 			       LM &oldLM, double oldLmScale, double oldWtScale,
 			       const char *escapeString = 0);
+
+    virtual unsigned probServer(unsigned port, unsigned maxClients = 0);
 
     virtual void setState(const char *state);	/* hook to manipulate global
 						   LM state */
@@ -95,9 +116,11 @@ public:
 
     virtual VocabIndex generateWord(const VocabIndex *context);
     virtual VocabIndex *generateSentence(unsigned maxWords = maxWordsPerLine,
-				VocabIndex *sentence = 0);
+				VocabIndex *sentence = 0,
+				VocabIndex *prefix = 0);
     virtual VocabString *generateSentence(unsigned maxWords = maxWordsPerLine,
-				VocabString *sentence = 0);
+				VocabString *sentence = 0,
+				VocabString *prefix = 0);
 
     virtual void *contextID(const VocabIndex *context)
 	{ unsigned length; return contextID(context, length); };
@@ -111,10 +134,12 @@ public:
     virtual LogP contextBOW(const VocabIndex *context, unsigned length);
 				   /* backoff weight for truncating context */
 
+    virtual Boolean addUnkWords();
     virtual Boolean isNonWord(VocabIndex word);
 
     virtual Boolean read(File &file, Boolean limitVocab = false);
-    virtual void write(File &file);
+    virtual Boolean write(File &file);
+    virtual Boolean writeBinary(File &file);
 
     virtual Boolean running() { return _running; }
     virtual Boolean running(Boolean newstate)
@@ -135,6 +160,10 @@ public:
     const char *stateTag;		/* tag introducing global state info */
 
     Boolean reverseWords;		/* compute word probs in reverse */
+    Boolean addSentStart;		/* add <s> tags to sentences */
+    Boolean addSentEnd;			/* add </s> tags to sentences */
+
+    static unsigned initialDebugLevel;	/* default debug level for LMs */
 
 protected:
     Boolean _running;	/* indicates the LM is being used for sequential
@@ -142,6 +171,7 @@ protected:
     unsigned prepareSentence(const VocabIndex *sentence,
 				VocabIndex *reversed, unsigned len);
 			/* reverse sentence for wordProb computation */
+    Boolean writeInBinary;
 };
 
 /*
@@ -160,7 +190,7 @@ class LM_FollowIter
 public:
     LM_FollowIter(LM &lm, VocabIndex *context)
 	: realIter(lm.followIter(context)) {};
-    ~LM_FollowIter() { delete realIter; };
+    virtual ~LM_FollowIter() { delete realIter; };
 
     virtual void init() { realIter->init(); };
     virtual VocabIndex next() { LogP prob; return next(prob); }
@@ -168,6 +198,30 @@ public:
 
 private:
     _LM_FollowIter *realIter;		/* LM-specific iterator */
+};
+
+/*
+ * Wrapper class for conveniently truncating contexts temporarily
+ *	Creating the object truncates a VocabIndex string 
+ *	NOTE: this modifies the constructor argument as well.
+ * 	Destroying the object undoes the truncation
+ */
+class TruncatedContext
+{
+public:
+    TruncatedContext(const VocabIndex *context, unsigned len)
+	: myContext(context), contextLength(len)
+	{ saved = myContext[contextLength];
+	  ((VocabIndex *)myContext)[contextLength] = Vocab_None; };
+    ~TruncatedContext()
+	{ ((VocabIndex *)myContext)[contextLength] = saved; };
+
+    inline operator const VocabIndex *() { return myContext; };
+
+private:
+    const VocabIndex *myContext;
+    unsigned contextLength;
+    VocabIndex saved;
 };
 
 #endif /* _LM_h_ */

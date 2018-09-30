@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/ztest.c,v 1.1 1997/01/23 20:05:17 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997,2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/ztest.c,v 1.3 2008/12/21 23:19:52 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -13,15 +13,18 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/ztest.c,v 1.1
 
 #include "zio.h"
 #include "option.h"
+#include "version.h"
 
 char *inFile = "-";
 char *outFile = "-";
 int numLines = 0;
+int version = 0;
 
 static Option options[] = {
-    { OPT_STRING, "read", &inFile, "input file" },
-    { OPT_STRING, "write", &outFile, "output file" },
-    { OPT_INT, "lines", &numLines, "number of lines to copy" },
+    { OPT_TRUE, "version", (void *)&version, "print version information" },
+    { OPT_STRING, "read", (void *)&inFile, "input file" },
+    { OPT_STRING, "write", (void *)&outFile, "output file" },
+    { OPT_INT, "lines", (void *)&numLines, "number of lines to copy" },
 };
 
 int
@@ -33,6 +36,11 @@ main(int argc, char **argv)
     int lineno;
 
     Opt_Parse(argc, argv, options, Opt_Number(options), 0);
+
+    if (version) {
+	printVersion(RcsId);
+	exit(0);
+    }
 
     in = zopen(inFile, "r");
     if (in == NULL) {

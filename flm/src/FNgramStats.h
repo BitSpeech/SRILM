@@ -6,24 +6,33 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  * (based on code from Stolcke@SRI so copyright is preserved)
  *
- * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramStats.h,v 1.9 2005/09/25 05:18:18 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramStats.h,v 1.16 2009/06/11 05:30:47 stolcke Exp $
  *
  */
 
 #ifndef _FNgramStats_h_
 #define _FNgramStats_h_
 
-#ifndef EXCLUDE_CONTRIB
-
 #include <stdio.h>
 
 #include "LMStats.h"
 #include "XCount.h"
+#include "SubVocab.h"
+
+#ifdef USE_XCOUNTS
+typedef XCount FNgramCount;
+#else
+# ifdef USE_LONGLONG_COUNTS
+typedef unsigned long long FNgramCount;
+# else
+typedef unsigned long FNgramCount;
+# endif
+#endif
+
 #include "FactoredVocab.h"
 #include "FNgramSpecs.h"
-#include "SubVocab.h"
 #include "wmatrix.h"
 
 #include "Trie.h"
@@ -34,7 +43,13 @@ const unsigned int	maxFNgramOrder = 100;	/* Used in allocating various
 						 * practical purposes, this
 						 * should be infinite. */
 
+class FactoredVocab;				// forward declaration
+template <class CountT> class FNgramSpecs;	// forward declaration
 template <class CountT> class FNgramCountsIter;	// forward declaration
+
+#ifndef FNgramNode
+#define FNgramNode        Trie<VocabIndex,CountT>
+#endif
 
 template <class CountT>
 class FNgramCounts: public LMStats
@@ -62,6 +77,8 @@ public:
 				     WidMatrix& wm,
 				     CountT factor);
   virtual unsigned int countSentence(const VocabString *words, 
+				     const char *factor);
+  virtual unsigned int countSentence(const VocabString *words, 
 				     CountT factor);
 
 
@@ -81,7 +98,7 @@ public:
   Boolean read();
   // version that ignores the file argument.
   Boolean read(File &file) { return read(); }
-  Boolean readMinCounts(File &file, unsigned order, unsigned* minCounts) 
+  Boolean readMinCounts(File &file, unsigned order, Count *minCounts) 
   { fprintf(stderr,"Error: FNgramStats::readMinCounts(file,order,min) not implemented\n"); exit(-1); return false; }
 
   static unsigned int writeFNgram(File &file, const VocabString *words,
@@ -111,7 +128,7 @@ public:
   void estimateDiscounts();
   void computeCardinalityFunctions();
 
-  virtual unsigned int countFile(File &file);
+  virtual unsigned int countFile(File &file, Boolean weighted = false);
 
   Boolean virtualBeginSentence;
   Boolean virtualEndSentence;
@@ -135,11 +152,6 @@ protected:
 /*
  * Instantiate the count trie for integer types
  */
-#ifdef USE_SHORT_COUNTS
-typedef XCount FNgramCount;
-#else
-typedef unsigned int FNgramCount;
-#endif
 
 class FNgramStats: public FNgramCounts<FNgramCount>
 {
@@ -148,8 +160,6 @@ public:
 	: FNgramCounts<FNgramCount>(vocab, fngs) {};
     virtual ~FNgramStats() {};
 };
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FNgramStats_h_ */
 

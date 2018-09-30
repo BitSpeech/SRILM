@@ -5,13 +5,15 @@
 #
 # This duplicates the action of ModKneserNey::prepareCounts().
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-kn-counts.gawk,v 1.4 2002/07/27 00:57:36 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-kn-counts.gawk,v 1.5 2007/06/16 04:51:18 stolcke Exp $
 #
 BEGIN {
 	order = 3;
 	no_max_order = 0;
 
 	sent_start = "<s>";
+
+	ngram_count = "ngram-count";
 
 	output = "-";
 	max_per_file = 0;
@@ -24,12 +26,12 @@ BEGIN {
 function set_output () {
 	close(output_cmd);
 
-	ngram_count = "ngram-count -order " order " -read - -sort -write ";
+	ngram_cmd = ngram_count " -order " order " -read - -sort -write ";
 
 	if (max_per_file > 0) {
-		output_cmd = ngram_count output "-" ++file_no ".ngrams.gz";
+		output_cmd = ngram_cmd output "-" ++file_no ".ngrams.gz";
 	} else {
-		output_cmd = ngram_count output;
+		output_cmd = ngram_cmd output;
 	}
 }
 

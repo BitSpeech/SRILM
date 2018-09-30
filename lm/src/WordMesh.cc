@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.37 2006/01/09 18:08:21 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordMesh.cc,v 1.41 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -44,14 +44,14 @@ WordMesh::~WordMesh()
 	LHashIter<VocabIndex,NBestWordInfo> infoIter(*wordInfo[i]);
 	NBestWordInfo *winfo;
 	VocabIndex word;
-	while (winfo = infoIter.next(word)) {
+	while ((winfo = infoIter.next(word))) {
 	    winfo->~NBestWordInfo();
 	}
 	delete wordInfo[i];
 
 	LHashIter<VocabIndex,Array<HypID> > mapIter(*hypMap[i]);
 	Array<HypID> *hyps;
-	while (hyps = mapIter.next(word)) {
+	while ((hyps = mapIter.next(word))) {
 	    hyps->~Array();
 	}
 	delete hypMap[i];
@@ -102,7 +102,7 @@ WordMesh::write(File &file)
 	VocabIndex word;
 	VocabIndex refWord = Vocab_None;
 
-	while (prob = alignIter.next(word)) {
+	while ((prob = alignIter.next(word))) {
 	    fprintf(file, " %s %lg", vocab.getWord(word), *prob);
 
 	    /*
@@ -150,7 +150,7 @@ WordMesh::write(File &file)
 			mapIter(*hypMap[sortedAligns[i]], comparePosteriors);
 	Array<HypID> *hypList;
 
-	while (hypList = mapIter.next(word)) {
+	while ((hypList = mapIter.next(word))) {
 	    /*
 	     * Only output hyp IDs if they are different from the refID
 	     * (to avoid redundancy with "reference" line)
@@ -174,7 +174,7 @@ WordMesh::write(File &file)
 			infoIter(*wordInfo[sortedAligns[i]], comparePosteriors);
 	NBestWordInfo *winfo;
 
-	while (winfo = infoIter.next(word)) {
+	while ((winfo = infoIter.next(word))) {
 	    fprintf(file, "info %u %s ", i, vocab.getWord(word));
 	    winfo->write(file);
 	    fprintf(file, "\n");
@@ -195,7 +195,7 @@ WordMesh::read(File &file)
 
     totalPosterior = 1.0;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	char arg1[100];
 	double arg2;
 	unsigned parsed;
@@ -354,7 +354,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column,
 		LHashIter<VocabIndex,Prob> iter(*column);
 		Prob *prob;
 		VocabIndex alignWord;
-		while (prob = iter.next(alignWord)) {
+		while ((prob = iter.next(alignWord))) {
 		    if (alignWord != deleteIndex) {
 			deletePenalty += *prob * distance->penalty(alignWord);
 		    }
@@ -378,7 +378,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column,
 	    	LHashIter<VocabIndex,Prob> iter(*column);
 		Prob *prob;
 		VocabIndex alignWord;
-		while (prob = iter.next(alignWord)) {
+		while ((prob = iter.next(alignWord))) {
 		    if (alignWord == deleteIndex) {
 			totalDistance +=
 			    *prob * distance->penalty(word);
@@ -420,7 +420,7 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column1,
 	LHashIter<VocabIndex,Prob> iter(*column2);
 	Prob *prob;
 	VocabIndex word2;
-	while (prob = iter.next(word2)) {
+	while ((prob = iter.next(word2))) {
 	    double error = alignError(column1, columnPosterior, word2);
 
 	    /*
@@ -461,7 +461,6 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
      */
     for (unsigned i = 0; i <= numWords; i ++) {
 	winfo[i].word = words[i];
-	winfo[i].invalidate();
 	winfo[i].wordPosterior = 0.0;
 	winfo[i].transPosterior = 0.0;
     }
@@ -640,7 +639,9 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 	    }
 
 	    switch (chart[i][j].error) {
-
+	    case END_ALIGN:
+		assert(0);
+		break;
 	    case CORR_ALIGN:
 	    case SUB_ALIGN:
 		*aligns[sortedAligns[fromPos+i-1]]->insert(winfo[j-1].word) +=
@@ -705,7 +706,9 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		 * and position new column
 		 */
 		for (unsigned k = numAligns; k > fromPos + i; k --) {
-		    sortedAligns[k] = sortedAligns[k-1];
+		    // use an intermediate variable to avoid bug in MVC.
+		    unsigned a = sortedAligns[k-1];
+		    sortedAligns[k] = a;
 		}
 		sortedAligns[fromPos + i] = numAligns;
 
@@ -932,6 +935,9 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 	while (i > 0 || j > 0) {
 
 	    switch (chart[i][j].error) {
+	    case END_ALIGN:
+		assert(0);
+		break;
 	    case CORR_ALIGN:
 	    case SUB_ALIGN:
 		/*
@@ -944,7 +950,7 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 				iter(*other.aligns[other.sortedAligns[j-1]]);
 		    Prob *otherProb;
 		    VocabIndex otherWord;
-		    while (otherProb = iter.next(otherWord)) {
+		    while ((otherProb = iter.next(otherWord))) {
 			totalScore +=
 			    (*aligns[sortedAligns[i-1]]->insert(otherWord) +=
 							    score * *otherProb);
@@ -1029,7 +1035,9 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 		 * and position new column
 		 */
 		for (unsigned k = numAligns; k > i; k --) {
-		    sortedAligns[k] = sortedAligns[k-1];
+		    // use an intermediate variable to avoid bug in MVC.
+		    unsigned a = sortedAligns[k-1];
+		    sortedAligns[k] = a;
 		}
 		sortedAligns[i] = numAligns;
 
@@ -1085,7 +1093,7 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 				iter(*other.aligns[other.sortedAligns[j-1]]);
 		    Prob *otherProb;
 		    VocabIndex otherWord;
-		    while (otherProb = iter.next(otherWord)) {
+		    while ((otherProb = iter.next(otherWord))) {
 			*aligns[numAligns]->insert(otherWord) +=
 							score * *otherProb;
 
@@ -1163,7 +1171,7 @@ WordMesh::normalizeDeletes()
 
 	Prob *prob;
 	VocabIndex word;
-	while (prob = alignIter.next(word)) {
+	while ((prob = alignIter.next(word))) {
 	    if (word != deleteIndex) {
 		wordPosteriorSum += *prob;
 	    }
@@ -1178,9 +1186,15 @@ WordMesh::normalizeDeletes()
 	    deletePosterior = totalPosterior - wordPosteriorSum;
 	}
 
-	if (deletePosterior < Prob_Epsilon) {
+	/*
+	 * Delete null tokens with zero posterior.
+	 * Insert nulls that should be there based on missing posterior mass.
+	 * Avoid deleting nulls with small positive posterior that were
+	 * already present in the alignment.
+	 */
+	if (deletePosterior <= 0.0) {
 	    aligns[i]->remove(deleteIndex);
-	} else {
+	} else if (deletePosterior > Prob_Epsilon) {
 	    *aligns[i]->insert(deleteIndex) = deletePosterior;
 	}
 
@@ -1304,6 +1318,9 @@ WordMesh::wordError(const VocabIndex *words,
 	while (i > 0 || j > 0) {
 
 	    switch (chart[i][j].error) {
+	    case END_ALIGN:
+		assert(0);
+		break;
 	    case CORR_ALIGN:
 		i --; j--;
 		break;
@@ -1375,7 +1392,7 @@ WordMesh::minimizeWordError(NBestWordInfo *winfo, unsigned length,
 
 	Prob *prob;
 	VocabIndex word;
-	while (prob = alignIter.next(word)) {
+	while ((prob = alignIter.next(word))) {
 	    Prob effectiveProb = *prob; // prob adjusted for deletion bias
 
 	    if (word == deleteIndex) {

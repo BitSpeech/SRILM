@@ -3,7 +3,7 @@
 # add-pauses-to-pfsg --
 #	Modify Decipher PFSG to allow pauses between words
 #
-# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg.gawk,v 1.11 2002/06/29 19:59:12 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/add-pauses-to-pfsg.gawk,v 1.13 2011/01/12 04:06:31 stolcke Exp $
 #
 BEGIN {
 	pause = "-pau-";
@@ -14,11 +14,6 @@ BEGIN {
 	wordwrap = 1;		# wrap pause filler around words
 	pauselast = 0;		# make pauses follow wrapped words
 	version = 0;		# no "version" line by default
-
-	# portable way to test for lowercase characters
-	# check for high-order bit is supposed to catch multibyte characters
-	word_pattern = "[[:lower:]\x80-\xFF]";		
-	if ("a" !~ word_pattern) word_pattern = "[a-z\x80-\xFF]";
 }
 
 #
@@ -113,8 +108,12 @@ function is_word(w) {
 	if (vocab) {
 	    return w in word_list;
 	} else {
-	    return w !~ /^\*.*\*$/ && w ~ word_pattern;
+	    return !is_classname(w);
 	}
+}
+
+function is_classname(w) {
+	return w ~ /^\*.*\*$/ || !(w ~ /[[:lower:]]/ || w ~ /[^\x00-\x7F]/);
 }
 
 #
@@ -139,7 +138,7 @@ $1 == "nodes" {
 
 	    # if it contains lowercase characters it's a word and
 	    # needs to wrapped
-	    if (wordwrap && is_word(node_name)) {
+	    if (wordwrap && is_word(node_name) && node_name != pause) {
 		if (!(node_name in all_words)) {
 		    all_words[node_name] = 1;
 		    words[++num_words] = node_name;

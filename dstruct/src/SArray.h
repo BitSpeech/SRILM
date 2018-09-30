@@ -12,7 +12,7 @@
  *
  * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.30 2005/08/19 04:31:46 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/SArray.h,v 1.31 2007/07/16 23:41:39 stolcke Exp $
  *
  */
 
@@ -56,6 +56,7 @@ public:
     DataT *insert(KeyT key, Boolean &foundP = _Map::foundP);
     DataT *remove(KeyT key, Boolean &foundP = _Map::foundP);
     void clear(unsigned size = 0);
+    void setsize(unsigned size = 0);
     unsigned numEntries() const;
 
     void dump() const;			/* debugging: dump contents to cerr */

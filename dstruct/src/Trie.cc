@@ -8,13 +8,18 @@
 #define _Trie_cc_
 
 #ifndef lint
-static char Trie_Copyright[] = "Copyright (c) 1995-1998,2004 SRI International.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
+static char Trie_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.cc,v 1.20 2010/06/02 04:52:43 stolcke Exp $";
 #endif
 
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -48,8 +53,8 @@ using namespace std;
 #endif /* USE_SARRAY_TRIE */
    
 template <class KeyT, class DataT>
-Trie<KeyT,DataT>::Trie()
-    : sub(0)
+Trie<KeyT,DataT>::Trie(unsigned size)
+    : sub(size)
 {
     /*
      * Data starts out zero-initialized for convenience
@@ -67,7 +72,7 @@ Trie<KeyT,DataT>::~Trie()
     /*
      * destroy all subtries recursively
      */
-    while (node = iter.next(key)) {
+    while ((node = iter.next(key))) {
 	node->~Trie();
     }
 }
@@ -79,7 +84,7 @@ template <class KeyT, class DataT>
 void
 Trie<KeyT,DataT>::dump() const
 {
-    static int indent = 0;
+    static unsigned indent = 0;
     TrieIter<KeyT,DataT> iter(*this);
     KeyT key;
     Trie<KeyT,DataT> *node;
@@ -88,7 +93,7 @@ Trie<KeyT,DataT>::dump() const
     cerr << "Value = " << data << endl;
 #endif
     indent += 5;
-    while (node = iter.next(key)) {
+    while ((node = iter.next(key))) {
 	for (unsigned i = 0; i < indent; i ++) {
 	    cerr << " ";
 	}
@@ -112,7 +117,7 @@ Trie<KeyT,DataT>::memStats(MemStats &stats) const
     KeyT key;
     Trie<KeyT,DataT> *node;
 
-    while (node = iter.next(key)) {
+    while ((node = iter.next(key))) {
 	stats.total -= sizeof(*node);
 	node->memStats(stats);
     }
@@ -179,7 +184,7 @@ Trie<KeyT,DataT>::removeTrie(const KeyT *keys, Boolean &foundP)
 	    /*
 	     * XXX: Need to call deallocator explicitly
 	     */
-	    subtrie->sub.clear(0);
+	    subtrie->~Trie();
 	    return subtrie;
 	} else {
 	    return 0;

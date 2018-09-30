@@ -78,14 +78,18 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.17 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/Trie.h,v 1.20 2009/08/31 20:10:10 stolcke Exp $
  *
  */
 
 #ifndef _Trie_h_
 #define _Trie_h_
 
-#include <new>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+#else
+# include <new>
+#endif
 
 #include "MemStats.h"
 
@@ -115,7 +119,7 @@ class Trie
     friend class TrieIter<KeyT,DataT>;
     friend class TrieIter2<KeyT,DataT>;
 public:
-    Trie();
+    Trie(unsigned size = 0);
     ~Trie();
 
     DataT &value() { return data; };
@@ -166,8 +170,7 @@ public:
 
 private:
     TRIE_INDEX_T< KeyT, Trie<KeyT,DataT> > sub
-#ifdef __INTEL_COMPILER
-    /* GNU cc also supports this, but fails to compile the resulting code */
+#ifdef USE_PACKED_TRIE
 						__attribute__ ((packed))
 #endif
     					      ;	/* LHash of child nodes */

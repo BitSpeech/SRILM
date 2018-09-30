@@ -1,0 +1,57 @@
+#
+# Makefile for SRILM test suite 
+#
+# $Header: /home/srilm/devel/common/RCS/Makefile.test,v 1.14 2009/12/02 21:34:22 stolcke Exp $
+#
+
+TEST=*
+
+all:	test
+
+test:
+	@PATH=$$SRILM/bin/$${MACHINE_TYPE}${OPTION}:$$SRILM/bin:$$PATH; export PATH; \
+	$(SRILM)/sbin/go.unzip; \
+	for testdir in tests/$(TEST); do \
+		$(SRILM)/sbin/go.run-test $$testdir; \
+	done
+
+profile:
+	@PATH=$$PWD/../bin/$${MACHINE_TYPE}_p:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
+	$(SRILM)/sbin/go.unzip; \
+	for testdir in tests/$(TEST); do \
+		$(SRILM)/sbin/go.run-test $$testdir; \
+	done
+
+pure:
+	@PATH=$$PWD/../bin/$${MACHINE_TYPE}_pure:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
+	$(SRILM)/sbin/go.unzip; \
+	for testdir in tests/$(TEST); do \
+		$(SRILM)/sbin/go.run-test $$testdir; \
+	done
+
+try:
+	@PATH=$$PWD/../bin/$${MACHINE_TYPE}${OPTION}:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
+	echo PATH=$$PATH; \
+	$(SRILM)/sbin/go.unzip; \
+	for testdir in tests/$(TEST); do \
+		$(SRILM)/sbin/go.run-test $$testdir; \
+	done
+
+try-output:
+	@PATH=$$PWD/../bin/$${MACHINE_TYPE}${OPTION}:$$PWD/../src:$$SRILM/bin/$$MACHINE_TYPE:$$SRILM/bin:$$PATH; export PATH; \
+	echo PATH=$$PATH; \
+	$(SRILM)/sbin/go.unzip; \
+	for testdir in tests/$(TEST); do \
+		(cd tests/$(TEST); sh -x run-test); \
+	done
+
+refs:
+	[ ! -d reference -o -d reference.old ] || mv reference reference.old
+	mkdir -p reference
+	@for testdir in tests/$(TEST); do \
+		$(SRILM)/sbin/go.update-refs $$testdir; \
+	done
+
+clean:
+	rm -f output/*
+	find tests \( -name core -o -name gmon.out \) -print | xargs rm -f

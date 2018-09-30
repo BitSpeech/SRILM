@@ -4,7 +4,9 @@
  *
  * Contributed by Dustin Hillard (hillard@ssli.ee.washington.edu)
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.h,v 1.3 2006/01/05 20:21:27 stolcke Exp $
+ * Copyright (c) 2010 SRI International.  All Rights Reserved.
+
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.h,v 1.5 2010/06/02 04:52:43 stolcke Exp $
  *
  *    Implementation started with the code from http://www.mhhe.com/engcs/compsci/sahni/enrich/c9/interval.pdf
  *      An online portion of the textbook "Data Structures, Algorithms, and Applications in C++" by Sartaj Sahni
@@ -33,39 +35,42 @@
 #ifndef _IntervalHeap_h_
 #define _IntervalHeap_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <assert.h>
 
+#include "Boolean.h"
 #include "Array.cc"
 
 template <class _Tp>
 struct lessThan
 {
-  bool operator()(const _Tp& __x, const _Tp& __y) const { return __x < __y; }
+  Boolean operator()(const _Tp& __x, const _Tp& __y) const { return __x < __y; }
 };
 
 template <class _Tp>
 struct greaterThan
 {
-  bool operator()(const _Tp& __x, const _Tp& __y) const { return __x > __y; }
+  Boolean operator()(const _Tp& __x, const _Tp& __y) const { return __x > __y; }
 };
 
 template <class _Tp>
 struct equalTo
 {
-  bool operator()(const _Tp& __x, const _Tp& __y) const { return __x == __y; }
+  Boolean operator()(const _Tp& __x, const _Tp& __y) const { return __x == __y; }
 };
 
-template<class T, 
-	 class Less    = lessThan<T>, 
-	 class Greater = greaterThan<T>,
-	 class Equal   = equalTo<T>      > class IntervalHeap; // forward declaration
+template<class T, class Less, class Greater, class Equal> class IntervalHeap;
+							// forward declaration
 
 template <class T>
 class TwoElement {
-  friend class IntervalHeap<T>;
+  friend class IntervalHeap<T, lessThan<T>, greaterThan<T>, equalTo<T> >;
  public:
   T left;  // left element
   T right; // right element
@@ -77,7 +82,7 @@ class IntervalHeap {
  public:
   IntervalHeap(int IntervalHeapSize = 10);
   ~IntervalHeap() {}
-  int size() const {return CurrentSize;}
+  unsigned size() const {return CurrentSize;}
   int empty() const {return (CurrentSize == 0);}
   T top_min() {assert(CurrentSize != 0);
            //if (CurrentSize == 0)

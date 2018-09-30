@@ -4,11 +4,15 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2004-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testHash.cc,v 1.3 2006/01/05 20:21:27 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testHash.cc,v 1.5 2006/08/12 06:46:11 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 
 #include "File.h"
@@ -16,10 +20,10 @@ using namespace std;
 #include "NgramStats.h"
 #include "Array.cc"
 
-static inline unsigned
+static inline unsigned long
 myLHash_hashKey(const VocabIndex *key, unsigned maxBits)
 {
-    unsigned i = 0;
+    unsigned long i = 0;
 
     for (; *key != Vocab_None; key ++) {
 	i += (i << 12) + *key;
@@ -39,9 +43,9 @@ main(int argc, char *argv[])
 /* Test for integer hashing
     for (int i = -2; i <= 2; i ++) {
 	    unsigned key = (unsigned)i;
-	    unsigned hash = LHash_hashKey(key, numBits);
+	    unsigned long hash = LHash_hashKey(key, numBits);
 
-	    printf("key = %d \t hash = 0x%08x\n", key, hash);
+	    printf("key = %d \t hash = 0x%08lx\n", key, hash);
     }
 */
 
@@ -62,7 +66,7 @@ main(int argc, char *argv[])
 	NgramsIter iter(ngrams, key, n);
       
 	while (iter.next()) {
-	    unsigned hash = myLHash_hashKey(key, numBits);
+	    unsigned long hash = myLHash_hashKey(key, numBits);
 	    cout << key << " " << hash << endl;
 	}
     }

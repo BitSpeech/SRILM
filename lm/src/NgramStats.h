@@ -2,9 +2,9 @@
  * NgramStats.h --
  *	N-gram statistics
  *
- * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.23 2005/09/25 05:17:22 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.h,v 1.36 2010/06/02 06:22:48 stolcke Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #include "XCount.h"
 #include "LMStats.h"
 
+#include "Array.h"
 #include "Trie.h"
 
 const unsigned int	maxNgramOrder = 100;	/* Used in allocating various
@@ -59,16 +60,22 @@ public:
 
     virtual unsigned countSentence(const VocabString *word)
 	{ return countSentence(word, (CountT)1); };
+    virtual unsigned countSentence(const VocabString *word, const char *factor);
     virtual unsigned countSentence(const VocabString *word, CountT factor);
     virtual unsigned countSentence(const VocabIndex *word)
 	{ return countSentence(word, (CountT)1); };
     virtual unsigned countSentence(const VocabIndex *word, CountT factor);
 
     Boolean read(File &file) { return read(file, order); };
-    Boolean read(File &file, unsigned int order);
-    Boolean readMinCounts(File &file, unsigned order, unsigned *minCounts);
+    Boolean read(File &file, unsigned int order, Boolean limitVocab = false);
+    Boolean readGoogle(const char *dir, unsigned int order,
+    						Boolean limitVocab = false);
+    Boolean readMinCounts(File &file, unsigned order, Count *minCounts,
+    						Boolean limitVocab = false);
     void write(File &file) { write(file, order); };
     void write(File &file, unsigned int order, Boolean sorted = false);
+    Boolean writeBinary(File &file) { return writeBinary(file, order); };
+    Boolean writeBinary(File &file, unsigned order);
 
     static unsigned int parseNgram(char *line,
 				  VocabString *words, unsigned int max,
@@ -86,9 +93,13 @@ public:
 					/* sum child counts on parent nodes */
     unsigned pruneCounts(CountT minCount);
 					/* remove low-count N-grams */
+    void setCounts(CountT value = 0);	/* set all counts to constant */
 
     void dump();			/* debugging dump */
     void memStats(MemStats &stats);	/* compute memory stats */
+    void clear() { counts.clear(); };	/* delete all counts */
+
+    Boolean intersect;			/* intersect ngrams upon reading */
 
 protected:
     unsigned int order;
@@ -97,9 +108,21 @@ protected:
 				unsigned minOrder = 1, CountT factor = 1);
     void addCounts(const VocabIndex *prefix,
 			const LHash<VocabIndex, CountT> &set);
-    void writeNode(NgramNode *node, File &file, char *buffer, char *bptr,
+    void writeNode(NgramNode &node, File &file, char *buffer, char *bptr,
 	    unsigned int level, unsigned int order, Boolean sorted);
-    CountT sumNode(NgramNode *node, unsigned int level, unsigned int order);
+    CountT sumNode(NgramNode &node, unsigned level, unsigned order);
+
+    /*
+     * Binary format support
+     */
+    Boolean readBinary(File &file, unsigned order, Boolean limitVocab);
+    Boolean readBinaryNode(NgramNode &node,
+    					unsigned order, unsigned maxOrder,
+					File &file, long long &offset,
+					Boolean limitVocab,
+					Array<VocabIndex> &vocabMap);
+    Boolean writeBinaryNode(NgramNode &node, unsigned level, unsigned order,
+    						File &file, long long &offset);
 };
 
 /*
@@ -137,10 +160,14 @@ private:
  * Instantiate the count trie for integer and float count types
  */
 
-#ifdef USE_SHORT_COUNTS
+#ifdef USE_XCOUNTS
 typedef XCount NgramCount;
 #else
-typedef unsigned int NgramCount;
+# ifdef USE_LONGLONG_COUNTS
+typedef unsigned long long NgramCount;
+# else
+typedef unsigned long NgramCount;
+# endif
 #endif
 
 class NgramStats: public NgramCounts<NgramCount>

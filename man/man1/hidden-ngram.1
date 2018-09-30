@@ -1,13 +1,11 @@
-.\" $Id: hidden-ngram.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $
-.TH hidden-ngram 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: hidden-ngram.1,v 1.31 2007/12/20 19:13:52 stolcke Exp $
+.TH hidden-ngram 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
 hidden-ngram \- tag hidden events between words
 .SH SYNOPSIS
-.B hidden-ngram 
-[\c
-.BR \-help ]
-.I option
-\&...
+.nf
+\fBdisambig\fP [ \fB\-help\fP ] \fIoption\fP ...
+.fi
 .SH DESCRIPTION
 .B hidden-ngram
 tags a stream of word tokens with hidden events occurring between words.
@@ -52,10 +50,10 @@ Read the input words from a map file contain both the words and
 additional likelihoods of events following each word.
 Each line contains one input word, plus optional hidden-event/likelihood
 pairs in the format
-.br
-	w	e1 [p1] e2 [p2] ...
-.br
-If a p value is omitted a likelihood of 1 is assumed.
+.nf
+	\fIw\fP	\fIe1\fP [\fIp1\fP] \fIe2\fP [\fIp2\fP] ...
+.fi
+If a \fIp\fP value is omitted a likelihood of 1 is assumed.
 All events not explicitly listed are given likelihood 0, and are
 hence excluded for that word.
 In particular, the label 
@@ -78,6 +76,51 @@ than probabilities.
 Specifies the word/tag language model as a standard ARPA N-gram backoff model
 file in
 .BR ngram-format (5).
+.TP
+.BI \-use-server " S"
+Use a network LM server (typically implemented by 
+.BR ngram (1)
+with the 
+.B \-server-port
+option) as the main model.
+The server specification
+.I S
+can be an unsigned integer port number (referring to a server port running on
+the local host),
+a hostname (referring to default port 2525 on the named host),
+or a string of the form 
+.IR port @ host ,
+where
+.I port 
+is a portnumber and 
+.I host
+is either a hostname ("dukas.speech.sri.com")
+or IP number in dotted-quad format ("140.44.1.15").
+.br
+For server-based LMs, the
+.B \-order
+option limits the context length of N-grams queried by the client
+(with 0 denoting unlimited length).
+Hence, the effective LM order is the mimimum of the client-specified value
+and any limit implemented in the server.
+.br
+When
+.B \-use-server 
+is specified, the arguments to the options
+.BR \-mix-lm ,
+.BR \-mix-lm2 ,
+etc. are also interpreted as network LM server specifications provided
+they contain a '@' character and do not contain a '/' character.
+This allows the creation of mixtures of several file- and/or
+network-based LMs.
+.TP
+.B \-cache-served-ngrams
+Enables client-side caching of N-gram probabilities to eliminated duplicate
+network queries, in conjunction with
+.BR \-use-server .
+This can results in a substantial speedup
+but requires memory in the client that may grow linearly with the
+amount of data processed.
 .TP
 .BI \-order " n"
 Set the effective N-gram order used by the language model to
@@ -166,6 +209,19 @@ and
 through
 .BR \-mix-lambda9 .
 .TP
+.BI \-bayes " length"
+Set the context length used for Bayesian interpolation.
+The default value is 0, giving the standard fixed interpolation weight
+specified by
+.BR \-lambda .
+.TP
+.BI \-bayes-scale " scale"
+Set the exponential scale factor on the context likelihood in conjunction
+with the
+.B \-bayes
+function.
+Default value is 1.0.
+.TP
 .BI \-lmw " W"
 Scales the language model probabilities by a factor 
 .IR W .
@@ -179,10 +235,39 @@ Default map weight is 1.
 .B \-tolower
 Map vocabulary to lowercase, removing case distinctions.
 .TP
+.BI \-vocab " file"
+Initialize the vocabulary for the LM from
+.IR file .
+This is useful in conjunction with
+.BR \-limit-vocab .
+.TP
+.BI \-vocab-aliases " file"
+Reads vocabulary alias definitions from
+.IR file ,
+consisting of lines of the form
+.nf
+	\fIalias\fP \fIword\fP
+.fi
+This causes all tokens
+.I alias
+to be mapped to
+.IR word .
+.TP
 .BI \-hidden-vocab " file"
 Read the list of hidden tags from
 .IR file .
 Note: This is a subset of the vocabulary contained in the language model.
+.TP
+.B \-limit-vocab
+Discard LM parameters on reading that do not pertain to the words 
+specified in the vocabulary, either by 
+.B \-vocab
+or
+.BR \-hidden-vocab .
+The default is that words used in the LM are automatically added to the 
+vocabulary.
+This option can be used to reduce the memory requirements for large LMs 
+that are going to be evaluated only on a small vocabulary subset.
 .TP
 .B \-force-event
 Forces a non-default event after every word.
@@ -294,6 +379,15 @@ in decoding with
 quickly becomes infeasibly large unless 
 .BR \-simple-classes
 is also specified.
+.PP
+The file given by 
+.B \-classes 
+is read multiple times if
+.B \-limit-vocab
+is in effect or if a mixture of LMs is specified.
+This will lead to incorrect behavior if the argument of
+.B \-classes 
+is stdin (``-'').
 .SH "SEE ALSO"
 ngram(1), ngram-count(1), disambig(1), segment(1),
 ngram-format(5), classes-format(5).
@@ -306,4 +400,4 @@ Andreas Stolcke <stolcke@speech.sri.com>,
 .br
 Anand Venkataraman <anand@speech.sri.com>.
 .br
-Copyright 1998\-2004 SRI International
+Copyright 1998\-2006 SRI International

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2005 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/XCount.cc,v 1.4 2005/09/30 17:54:44 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/XCount.cc,v 1.7 2006/07/31 17:36:55 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -15,46 +15,49 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/XCount.cc,v 1.4
 
 #include "XCount.h"
 
-#include "Array.cc"
+XCountValue XCount::xcountTable[XCount_TableSize];
+unsigned XCount::refCounts[XCount_TableSize];
+XCountIndex XCount::freeList = XCount_Maxinline;
 
-#define XCOUNT_XBIT		(1<<XCOUNT_MAXBITS)
-
-Array<unsigned> XCount::xcountTable;
-unsigned short XCount::freeList = XCOUNT_MAXINLINE;
-
-unsigned short
+XCountIndex
 XCount::getXCountTableIndex()
 {
     static Boolean initialized = false;
 
     if (!initialized) {
     	// populate xcountTable free list
-	for (unsigned short i = 0; i < XCOUNT_MAXINLINE; i++) {
-	    freeXCountTableIndex(i);
+	for (XCountIndex i = 0; i < XCount_TableSize; i++) {
+	    xcountTable[i] = freeList;
+	    freeList = i;
 	}
 
     	initialized = true;
     }
 
-    Boolean xcountTableEmpty = (freeList == XCOUNT_MAXINLINE);
+    Boolean xcountTableEmpty = (freeList == XCount_Maxinline);
     assert(!xcountTableEmpty);
 
-    unsigned short result = freeList;
+    XCountIndex result = freeList;
     freeList = xcountTable[freeList];
+
+    refCounts[result] = 1;
     return result;
 }
 
 void 
-XCount::freeXCountTableIndex(unsigned short idx)
+XCount::freeXCountTableIndex(XCountIndex idx)
 {
-    xcountTable[idx] = freeList;
-    freeList = idx;
+    refCounts[idx] --;
+    if (refCounts[idx] == 0) {
+	xcountTable[idx] = freeList;
+	freeList = idx;
+    }
 }
 
-XCount::XCount(unsigned value)
+XCount::XCount(XCountValue value)
     : indirect(false)
 {
-    if (value <= XCOUNT_MAXINLINE) {
+    if (value <= XCount_Maxinline) {
     	indirect = false;
 	count = value;
     } else {
@@ -65,6 +68,15 @@ XCount::XCount(unsigned value)
     }
 }
 
+XCount::XCount(const XCount &other)
+{
+    indirect = other.indirect;
+    count = other.count;
+    if (indirect) {
+	refCounts[count] ++;
+    }
+}
+
 XCount::~XCount()
 {
     if (indirect) {
@@ -72,7 +84,7 @@ XCount::~XCount()
     }
 }
 
-XCount::operator unsigned() const
+XCount::operator XCountValue() const
 {
     if (!indirect) {
 	return count;
@@ -86,22 +98,14 @@ XCount::operator= (const XCount &other)
 {
     if (&other != this) {
     	if (indirect) {
-	    if (other.indirect) {
-	    	xcountTable[count] = xcountTable[other.count];
-	    } else {
-		freeXCountTableIndex(count);
-		indirect = false;
-		count = other.count;
-	    }
-	} else {
-	    if (other.indirect) {
-		indirect = true;
-		count = getXCountTableIndex();
+	    freeXCountTableIndex(count);
+	}
 
-		xcountTable[count] = xcountTable[other.count];
-	    } else {
-	    	count = other.count;
-	    }
+	count = other.count;
+	indirect = other.indirect;
+
+	if (other.indirect) {
+	    refCounts[other.count] ++;
 	}
     }
     return *this;
@@ -118,7 +122,7 @@ XCount::write(ostream &str) const
     	str << "X" << count;
     }
 #else
-    str << (unsigned)*this;
+    str << (XCountValue)*this;
 #endif
 }
 

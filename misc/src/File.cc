@@ -5,13 +5,14 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.5 2005/12/29 20:40:09 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.16 2010/06/02 04:44:21 stolcke Exp $";
 #endif
 
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 
 #include "Boolean.h"
@@ -20,13 +21,19 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/File.cc,v 1.5
 #define ZIO_HACK
 #include "zio.h"
 
+#if defined(sgi) || defined(_MSC_VER) || defined(WIN32) || defined(linux) && defined(__INTEL_COMPILER) && __INTEL_COMPILER<=700
+#define fseeko fseek
+#define ftello ftell
+#endif
+
 const char *wordSeparators = " \t\r\n";
 
 #define START_BUF_LEN 128
 
 File::File(const char *name, const char *mode, int exitOnError)
-    : fp(0), lineno(0), name(name), exitOnError(exitOnError),
-      buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN)
+    : name(name), lineno(0), exitOnError(exitOnError), skipComments(true),
+      fp(0), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+      reuseBuffer(false)
 {
     assert(buffer != 0);
 
@@ -41,8 +48,9 @@ File::File(const char *name, const char *mode, int exitOnError)
 }
 
 File::File(FILE *fp, int exitOnError)
-    : fp(fp), lineno(0), name(0), exitOnError(exitOnError),
-      buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN)
+    : name(0), lineno(0), exitOnError(exitOnError), skipComments(true),
+      fp(fp), buffer((char *)malloc(START_BUF_LEN)), bufLen(START_BUF_LEN),
+      reuseBuffer(false)
 {
     assert(buffer != 0);
 }
@@ -75,9 +83,69 @@ File::close()
     return status;
 }
 
+Boolean
+File::reopen(const char *newName, const char *mode)
+{
+    /*
+     * If we opened the file (name != 0), then we should close it
+     * as well.
+     */
+    if (name != 0) {
+	close();
+    }
+
+    /*
+     * Open new file as in File::File()
+     */
+    name = newName;
+
+    fp = fopen(name, mode);
+
+    if (fp == 0) {
+	if (exitOnError) {
+	    perror(name);
+	    exit(exitOnError);
+	}
+
+	return false;
+    }
+
+    return true;
+}
+
+Boolean
+File::reopen(const char *mode)
+{
+    if (fp == 0) {
+    	return false;
+    }
+
+    if (fflush(fp) != 0) {
+	if (exitOnError != 0) {
+	    perror(name ? name : "");
+	    exit(exitOnError);
+	}
+    }
+
+    FILE *fpNew = fdopen(fileno(fp), mode);
+
+    if (fpNew == 0) {
+    	return false;
+    } else {
+    	// XXX: we can't fclose(fp), so the old stream object becomes garbage
+	fp = fpNew;
+	return true;
+    }
+}
+
 char *
 File::getline()
 {
+    if (reuseBuffer) {
+	reuseBuffer = false;
+	return buffer;
+    }
+
     while (1) {
 
 	unsigned bufOffset = 0;
@@ -123,12 +191,19 @@ File::getline()
 	/*
 	 * skip comment lines (started with double '#')
 	 */
-	if (buffer[0] == '#' && buffer[1] == '#') {
+	if (skipComments && buffer[0] == '#' && buffer[1] == '#') {
 	    continue;
 	}
 
+	reuseBuffer = false;
 	return buffer;
-     }
+    }
+}
+
+void
+File::ungetline()
+{
+    reuseBuffer = true;
 }
 
 ostream &
@@ -138,4 +213,13 @@ File::position(ostream &stream)
 	stream << name << ": ";
     }
     return stream << "line " << lineno << ": ";
+}
+
+ostream &
+File::offset(ostream &stream)
+{
+    if (name) {
+	stream << name << ": ";
+    }
+    return stream << "offset " << ftello(fp) << ": ";
 }

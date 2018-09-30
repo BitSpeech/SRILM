@@ -1,15 +1,11 @@
-.\" $Id: segment-nbest.1,v 1.8 2004/12/03 17:59:01 stolcke Exp $
-.TH segment-nbest 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: segment-nbest.1,v 1.9 2007/12/20 19:13:52 stolcke Exp $
+.TH segment-nbest 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
 segment-nbest \- rescore and segment N-best lists using hidden segment N-gram model
 .SH SYNOPSIS
-.B segment-nbest
-[\c
-.BR \-help ]
-option
-\&...
-nbest-file-list
-\&...
+.nf
+\fsegment-nbest\fP [ \fB\-help\fP ] \fIoption\fP ... \fInbest-file-list\fP ...
+.fi
 .SH DESCRIPTION
 .B segment-nbest
 processes a series of consecutive N-best lists from a speech
@@ -188,9 +184,9 @@ Each
 .I nbest-file-list
 will be processed in turn,
 with individual output delimited by a line of the form
-.br
+.nf
 	<nbestfile \fInbest-file-list\fP>
-.br
+.fi
 .SH "SEE ALSO"
 ngram-count(1), segment(1), ngram-format(5), nbest-format(5).
 .br

@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.15 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VarNgram.cc,v 1.19 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 
@@ -39,6 +43,21 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
      * coefficients.
      */
     makeArray(VocabIndex, context, order);
+    unsigned vocabSize = Ngram::vocabSize();
+
+    /*
+     * Remove all old contexts ...
+     */
+    clear();
+
+    /*
+     * ... but save time by allocating unigram probabilities for all words in
+     * the vocabulary.
+     */
+    {
+	VocabIndex emptyContext = Vocab_None;
+	contexts.find(&emptyContext)->probs.setsize(vocab.numWords());
+    }
 
     /*
      * Ensure <s> unigram exists (being a non-event, it is not inserted
@@ -57,7 +76,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	/*
 	 * This enumerates all contexts, i.e., i-1 grams.
 	 */
-	while (contextCount = contextIter.next()) {
+	while ((contextCount = contextIter.next())) {
 	    /*
 	     * Skip contexts ending in </s>.  This typically only occurs
 	     * with the doubling of </s> to generate trigrams from
@@ -65,9 +84,9 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	     * If <unk> is not real word, also skip context that contain
 	     * it.
 	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex() ||
-	        vocab.isNonEvent(vocab.unkIndex()) &&
-				 vocab.contains(context, vocab.unkIndex()))
+	    if ((i > 1 && context[i-2] == vocab.seIndex()) ||
+	        (vocab.isNonEvent(vocab.unkIndex()) &&
+				 vocab.contains(context, vocab.unkIndex())))
 	    {
 		continue;
 	    }
@@ -85,7 +104,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	     */
 	    NgramCount totalCount = 0;
 	    Count observedVocab = 0;
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		if (vocab.isNonEvent(word[0])) {
 		    continue;
 		}
@@ -122,7 +141,7 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 			    (discounts[i-1] == 0) ||
 			    discounts[i-1]->nodiscount();
 
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		Prob prob;
 		LogP lprob;
 		double discount;
@@ -183,10 +202,17 @@ VarNgram::estimate(NgramStats &stats, Discount **discounts)
 	     * his CMU tools).  It may happen that no probability mass
 	     * is left after totalling all the explicit probs, typically
 	     * because the discount coefficients were out of range and
-	     * forced to 1.0.  To arrive at some non-zero backoff mass
+	     * forced to 1.0.  Unless we have seen all vocabulary words in
+	     * this context, to arrive at some non-zero backoff mass,
 	     * we try incrementing the denominator in the estimator by 1.
+	     * Another hack: If the discounting method uses interpolation 
+	     * we first try disabling that because interpolation removes
+	     * probability mass.
 	     */
-	    if (!noDiscount && totalCount > 0 && totalProb == 1.0) {
+	    if (!noDiscount && totalCount > 0 &&
+		observedVocab < vocabSize &&
+		totalProb > 1.0 - Prob_Epsilon)
+	    {
 		totalCount += 1;
 
 		if (debug(DEBUG_ESTIMATE_WARNINGS)) {

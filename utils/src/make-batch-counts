@@ -16,7 +16,7 @@
 # countdir	is the directory where count files are deposited
 # options	are arguments passed on to ngram-count
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-batch-counts,v 1.3 2004/03/01 05:45:57 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-batch-counts,v 1.6 2008/12/21 18:34:59 stolcke Exp $
 #
 
 if [ $# -lt 1 ]; then
@@ -48,18 +48,59 @@ if [ ! -d $countdir ]; then
 	mkdir $countdir
 fi
 
-grep -v '^#' $filelist | xargs -l$batchsize echo > $infiles
+trap 'rm -f $newfile $test_in $test_out; exit 1' 1 2 15
 
-trap 'rm -f $newfile; exit 1' 1 2 15
+# determine if ngram-count can generate compressed files
+test_in=$countdir/testin
+test_out=$countdir/testout.gz
 
-fileno=1
+> $test_in
+ngram-count -text $test_in -write $test_out
+if gzip -l $test_out >/dev/null 2>&1; then
+	gz=.gz
+else
+	gz=
+fi
+rm $test_in $test_out
+
 > $statsfile
-while read datafiles; do
-	newfile=$countdir/$what-$fileno.ngrams.gz
 
-	echo "counting in $newfile sources $datafiles" >&2
+#
+# format filelist into one batch per line, preceded by line number
+#
+gawk -v batchsize=$batchsize \
+'BEGIN {
+	batchno = 1;
+}
+/^#/ || NF == 0 {
+	next;
+}
+{
+	files = files " " $0;
+	numfiles += 1;
+
+	if (numfiles >= batchsize) {
+		print batchno, files;
+		files = "";
+		numfiles = 0;
+		batchno += 1;
+	}
+}
+END {
+	if (numfiles > 0) {
+		print batchno, files;
+	}
+}' $filelist | \
+while read fileno datafiles; do
+	newfile=$countdir/$what-$fileno.ngrams$gz
+
+	# avoid including $datafiles on command line to avoid length limit
+	cat <<EOF >&2
+counting in $newfile sources $datafiles
+EOF
 	
-	$filter $datafiles | \
+	echo $datafiles | \
+	xargs $filter | \
 	ngram-count -text - \
 		-tag $newfile \
 		-sort \
@@ -67,7 +108,5 @@ while read datafiles; do
 		-write $newfile \
 		$options \
 		2>> $statsfile
-
-	fileno=`expr $fileno + 1`
-done < $infiles
+done
 

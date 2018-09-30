@@ -11,7 +11,7 @@
 #
 # usage: change-lm-vocab [-subset] -vocab vocabfile -lm oldlm -write-lm newlm
 #
-# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.7 2003/04/12 20:11:49 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/change-lm-vocab,v 1.8 2010/08/20 00:17:18 stolcke Exp $
 #
 
 oldlm=-
@@ -37,7 +37,7 @@ else
 	ngram_vocab="$vocab"
 fi
 
-gunzip -cf $oldlm | gawk '
+gzip -dcf $oldlm | gawk '
 # read the vocab file
 NR == 1 && vocab {
 	# always include sentence begin/end

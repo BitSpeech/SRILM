@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMarginals.cc,v 1.3 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2004-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMarginals.cc,v 1.7 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 
@@ -26,9 +30,9 @@ using namespace std;
 
 AdaptiveMarginals::AdaptiveMarginals(Vocab &vocab, LM &baseLM,
 			    LM &baseMarginals, LM&adaptMarginals, double beta)
-    : LM(vocab), baseLM(baseLM), baseMarginals(baseMarginals),
-      adaptMarginals(adaptMarginals), beta(beta),
-      computeRatios(false), haveAlphas(false)
+    : LM(vocab), beta(beta), computeRatios(false),
+      baseLM(baseLM), baseMarginals(baseMarginals),
+      adaptMarginals(adaptMarginals), haveAlphas(false)
 {
     if (beta < 0.0 || beta > 1.0) {
 	cerr << "warning: adaptation weight out of range: " << beta << endl;
@@ -85,7 +89,12 @@ AdaptiveMarginals::wordProb(VocabIndex word, const VocabIndex *context)
     }
 
     LogP *alpha = adaptAlphas.find(word);
-    assert(alpha != 0);
+
+    /*
+     * Missing alphas occur for words that have been added to the vocabulary
+     * since the LM was loaded, so assume they have prob = 0
+     */
+    LogP alphaVal = alpha ? *alpha : LogP_Zero;
 
     /* 
      * Truncate context to used length, for denominator caching.
@@ -93,17 +102,17 @@ AdaptiveMarginals::wordProb(VocabIndex word, const VocabIndex *context)
      */
     unsigned usedContextLength;
     baseLM.contextID(Vocab_None, context, usedContextLength);
-    VocabIndex saved = context[usedContextLength];
-    ((VocabIndex *)context)[usedContextLength] = Vocab_None;
 
-    LogP numerator = baseLM.wordProb(word, context) + *alpha;
+    TruncatedContext usedContext(context, usedContextLength);
+
+    LogP numerator = baseLM.wordProb(word, usedContext) + alphaVal;
 
     if (running() && debug(DEBUG_ADAPT_RATIOS)) {
-	dout() << "[alpha=" << LogPtoProb(*alpha) << "]";
+	dout() << "[alpha=" << LogPtoProb(alphaVal) << "]";
     }
 
     Boolean foundp;
-    LogP *denominator = denomProbs.insert(context, foundp);
+    LogP *denominator = denomProbs.insert(usedContext, foundp);
 
     /*
      * *denominator will be 0 for lower-order N-grams that have been created
@@ -132,14 +141,14 @@ AdaptiveMarginals::wordProb(VocabIndex word, const VocabIndex *context)
 	while (iter.next(wid)) {
 	    if (!baseLM.isNonWord(wid)) {
 		LogP *alpha2 = adaptAlphas.find(wid);
-		assert(alpha2 != 0);
+		LogP alpha2Val = alpha2 ? *alpha2 : LogP_Zero;
 
 		/*
 		 * Use wordProbRecompute() here since the context stays
 		 * the same and it might save work.
 		 */
-		sum += LogPtoProb(baseLM.wordProbRecompute(wid, context) +
-								    *alpha2);
+		sum += LogPtoProb(baseLM.wordProbRecompute(wid, usedContext) +
+								    alpha2Val);
 	    }
 	}
 
@@ -152,10 +161,8 @@ AdaptiveMarginals::wordProb(VocabIndex word, const VocabIndex *context)
 	baseLM.running(wasRunning);
     }
 
-    ((VocabIndex *)context)[usedContextLength] = saved;
-
     if (computeRatios) {
-	return *alpha - *denominator;
+	return alphaVal - *denominator;
     } else {
 	return numerator - *denominator;
     }

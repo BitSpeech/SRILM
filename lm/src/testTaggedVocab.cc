@@ -3,8 +3,8 @@
 //
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testTaggedVocab.cc,v 1.4 2003/03/05 00:53:24 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testTaggedVocab.cc,v 1.5 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <tcl.h>
@@ -21,7 +21,7 @@ VocabAddWord(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    char buffer[100];
 
    if (argc != 2) {
-	Tcl_SetResult(interp, "word expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"word expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -42,7 +42,7 @@ VocabGetWord(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    char buffer[100];
 
    if (argc != 2) {
-	Tcl_SetResult(interp, "word expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"word expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -63,7 +63,7 @@ VocabGetIndex(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    VocabIndex index, tag;
 
    if (argc < 2) {
-	Tcl_SetResult(interp, "index expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"index expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -87,7 +87,7 @@ int
 VocabDeleteWord(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
    if (argc != 2) {
-	Tcl_SetResult(interp, "word expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"word expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -102,7 +102,7 @@ VocabDeleteIndex(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    VocabIndex index;
 
    if (argc != 2) {
-	Tcl_SetResult(interp, "index expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"index expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -123,16 +123,16 @@ VocabList(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    VocabIter titer(myVocab.tags());
 
    if (argc != 1) {
-	Tcl_SetResult(interp, "no args expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"no args expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
    printf("%d words\n", myVocab.numWords());
-   while (word = iter.next(index)) {
+   while ((word = iter.next(index))) {
 	printf("index = %d, word = %s\n", index, word);
    }
    printf("%d tags\n", myVocab.tags().numWords());
-   while (tag = titer.next(index)) {
+   while ((tag = titer.next(index))) {
 	printf("index = %d, tag = %s\n", index, tag);
    }
    return TCL_OK;
@@ -143,13 +143,13 @@ int
 VocabRead(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
    if (argc != 2) {
-	Tcl_SetResult(interp, "filename expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"filename expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
    File file(argv[1], "r", 0);
    if (file.error()) {
-	Tcl_SetResult(interp, "fopen failed", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"fopen failed", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -162,13 +162,13 @@ int
 VocabWrite(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
    if (argc != 2) {
-	Tcl_SetResult(interp, "filename expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"filename expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
    File file(argv[1], "w", 0);
    if (file.error()) {
-	Tcl_SetResult(interp, "fopen failed", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"fopen failed", TCL_STATIC);
 	return TCL_ERROR;
    }
 

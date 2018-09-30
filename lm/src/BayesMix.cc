@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2002 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.11 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/BayesMix.cc,v 1.13 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 
@@ -23,8 +27,9 @@ using namespace std;
 
 BayesMix::BayesMix(Vocab &vocab, LM &lm1, LM &lm2,
 			    unsigned int clength, Prob prior, double llscale)
-    : LM(vocab), lm1(lm1), lm2(lm2),
-      clength(clength), prior(prior), llscale(llscale)
+    : LM(vocab),
+      clength(clength), prior(prior), llscale(llscale),
+      lm1(lm1), lm2(lm2)
 {
     if (prior < 0.0 || prior > 1.0) {
 	cerr << "warning: mixture prior out of range: " << prior << endl;

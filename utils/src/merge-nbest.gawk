@@ -3,7 +3,7 @@
 # merge-nbest --
 #	merge hyps from multiple N-best lists into a single list
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.6 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/merge-nbest.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
 #
 
 BEGIN {
@@ -21,6 +21,7 @@ BEGIN {
 
 	max_nbest = 0;
 	multiwords = 0;
+	multichar = "_";
 	nopauses = 0;
 }
 
@@ -42,11 +43,7 @@ function addlogs(x,y) {
 }
 
 function process_nbest(file) {
-	if (file ~ /.*\.gz$|.*\.Z/) {
-	    input = "exec gunzip -c " file;
-	} else {
-	    input = "exec cat " file;
-	}
+        input = "exec gzip -dcf " file;
 
 	nbestformat = 0;
 	num_hyps = 0;
@@ -100,7 +97,7 @@ function process_nbest(file) {
 
 		# resolve multiwords and eliminate pauses if so desired
 		if (multiwords) {
-			gsub("_", " ", words);
+			gsub(multichar, " ", words);
 		}
 		if (nopauses) {
 			gsub(" " pause, " ", words);
@@ -162,6 +159,8 @@ BEGIN {
 
 	        if (var == "multiwords") {
 		    multiwords = val + 0;
+	        } else if (var == "multichar") {
+		    multichar = val;
 		} else if (var == "max_nbest") {
 		    max_nbest = val + 0;
 		} else if (var == "nopauses") {

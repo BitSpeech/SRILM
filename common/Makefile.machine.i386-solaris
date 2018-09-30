@@ -9,27 +9,26 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.18 2006/01/05 21:08:24 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris,v 1.23 2010/06/02 14:44:52 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
-   GCC_BIN = /usr/local/lang/gcc-3.4.3/bin
-   GCC_FLAGS = -mtune=pentium3 -Wreturn-type -Wimplicit
-   CC = $(GCC_BIN)/gcc $(GCC_FLAGS) -Wimplicit-int
-   CXX = $(GCC_BIN)/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -mtune=pentium3 -Wall -Wno-unused-variable -Wno-uninitialized
+   CC = $(GCC_PATH)gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    OPTIMIZE_FLAGS = -g -O2 -malign-double 
    DEBUG_FLAGS = -g -DDEBUG
    PROFILE_FLAGS = -g -pg -O2
 else
    # Use the Sun C compiler
-   ACCPREFIX=/opt/SUNWspro/SC4.2/bin/
-   CC = $(ACCPREFIX)cc -Xa
-   CXX = $(ACCPREFIX)CC -ptr$(OBJDIR) -ptv
+   ACC_PATH = /opt/SUNWspro/bin/
+   CC = $(ACC_PATH)cc -Xa
+   CXX = $(ACC_PATH)CC -ptr$(OBJDIR) -ptv
 
    ARCHIVE = $(CXX) $(CXXFLAGS) -xar -o
-   DEMANGLE_FILTER = 2>&1 | $(ACCPREFIX)c++filt
+   DEMANGLE_FILTER = 2>&1 | $(ACC_PATH)c++filt
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -fast -xO2	# -xO4 crashes compiler ...
@@ -44,8 +43,8 @@ endif
    EXPORT_LDFLAGS = -s
 
    # Shared compilation flags.
-   CFLAGS = -DSVR4 $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+   CFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)

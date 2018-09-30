@@ -1,148 +1,39 @@
-.\" $Id: nbest-scripts.1,v 1.34 2005/07/05 18:26:36 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2005/07/05 18:26:36 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.37 2008/05/10 17:00:50 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2008/05/10 17:00:50 $" "SRILM Tools"
 .SH NAME
 nbest-scripts, combine-rover-controls, compare-sclite, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
-.B rescore-decipher 
-.RB [ \-bytelog ]
-.RB [ \-nodecipherlm ]
-.RB [ \-multiwords ]
-.RB [ \-pretty
-.IR mapfile ]
-.RB [ \-ngram-tool
-.IR program ]
-.RB [ \-filter
-.IR command ]
-.RB [ \-norescore ]
-.RB [ \-lm-only ]
-.RB [ \-count-oovs ]
-.RB [ \-limit-vocab ]
-.RB [ \-fast ]
-.I nbest-file-list
-.I score-dir
-.B \-lm 
-\&...
-.I lm-options
-\&...
-.br
-.B rescore-acoustic
-.IR old-nbest-dir | old-file-list
-.I old-ac-weight
-.I new-score-dir1
-.I new-ac-weight1
-\&...
-.I new-nbest-dir
-.RI [ max-nbest ]
-.br
-.B rescore-reweight
-.RB [ \-multiwords ]
-.IR score-dir | file-list
-.RI [ lmw
-.RI [ wtw
-.RI [ "score-dir1 score-weight1"
-\&...]
-.RI [ max-nbest ]]]
-.br
-.B rescore-minimize-wer
-.I score-dir
-.RI [ lmw
-.RI [ wtw
-.RI [ max-nbest ]]]
-.br
-.B nbest2-to-nbest1
-.RI [ nbest-file ]
-.br
-.B nbest-rover
-[
-.I sentid-list
-|
-.B -
-]
-.I control-file
-[
-.I posterior-file
-[
-.I nbest-lattice-options
-] ]
-.br
-.B combine-rover-controls
-[
-.BI lambda= weights 
-]
-.I rover-control
-[ ... ]
-.br
-.B nbest-posteriors
-[
-.BI weight= W
-.BI lmw= lmw
-.BI wtw= wtw
-.BI postscale= S
-.BI max_nbest= M
-]
-.I nbest-file
-.br
-.B merge-nbest
-[
-.BI max_nbest= M
-.B multiwords=1
-.B nopauses=1
-]
-.I nbest-file
-\&...
-.br
-.B nbest-vocab
-.RI [ nbest-list ...]
-.br
-.B nbest-error
-.IR score-dir | file-list
-.I refs
-.RI [ nbest-lattice-option ...]
-.br
-.B sentid-to-sclite
-.I hyps
-.br
-.B sentid-to-ctm
-.I hyps
-.br
-.B fix-ctm
-.I ctmfile
-.br
-.B compute-sclite
-.B \-r
-.I refs
-.B \-h
-.I hyps
-[\c
-.B \-h
-.I hyps
-\&...]
-[\c
-.B \-S
-.I subset
-\&...]
-.RB [ \-multiwords | \-M ]
-.RB [ \-noperiods ]
-.RB [ \-R ]
-.RB [ \-g
-.IR glmfile ]
-.RB [ \-H ]
-.RB [ \-v ]
-.RI [ sclite-options ...]
-.br
-.B compare-sclite
-.B \-r
-.I refs
-.B \-h1
-.I hyps1
-.B \-h2
-.I hyps2
-[\c
-.B \-S
-.I subset\c
-]
-.RB [ \-multiwords | \-M ]
-.RI [ sclite-options ...]
+.nf
+\fBrescore-decipher\fP [ \fB\-bytelog\fP ] [ \fB\-nodecipherlm\fP ] [ \fB\-multiwords\fP ] \\
+	[ \fB\-multi-char\fP \fIC\fP ] [ \fB\-pretty\fP \fImapfile\fP ] \\
+	[ \fB\-ngram-tool\fP \fIprogram\fP ][ \fB\-filter\fP \fIcommand\fP ] \\
+	[ \fB\-norescore\fP ] [ \fB\-lm-only\fP ] [ \fB\-count-oovs\fP ] [ \fB\-limit-vocab\fP ] \\
+	[ \fB\-vocab-aliases\fP \fImapfile\fP ] [ \fB\-fast\fP ] \\
+	\fInbest-file-list\fP \fIscore-dir\fP \fB\-lm\fP ... \fIlm-options\fP ...
+\fBrescore-acoustic\fP \fIold-nbest-dir\fP|\fIold-file-list\fP \fIold-ac-weight\fP \\
+	\fInew-score-dir1\fP \fInew-ac-weight1\fP ... \fInew-nbest-dir\fP [ \fImax-nbest\fP ]
+\fBrescore-reweight\fP [ \fB\-multiwords\fP ] [ \fB\-multi-char\fP \fIC\fP ] \fIscore-dir\fP|\fIfile-list\fP \\
+	[ \fIlmw\fP [ \fIwtw\fP [ \fIscore-dir1 score-weight1\fP ... ] [ \fImax-nbest\fP ]]]
+\fBrescore-minimize-wer\fP \fIscore-dir\fP [ \fIlmw\fP [ \fIwtw\fP [ \fImax-nbest\fP ]]]
+\fBnbest2-to-nbest1\fP [ \fInbest-file\fP ]
+\fBnbest-rover\fP [ \fIsentid-list\fP | \fB-\fP ] \fIcontrol-file\fP \\
+	[ \fIposterior-file\fP [ \fInbest-lattice-options\fP ] ]
+\fBcombine-rover-controls\fP [ \fBlambda=\fP\fIweights\fP ] \fIrover-control\fP [ ... ]
+\fBnbest-posteriors\fP [ \fBweight=\fP\fIW\fP ] [ \fBlmw=\fP\fIlmw\fP ] [ \fBwtw=\fP\fIwtw\fP ] [ \fBpostscale=\fP\fIS\fP ] \\
+	[ \fBmax_nbest=\fP\fIM\fP ] \fInbest-file\fP
+\fBmerge-nbest\fP [ \fBmultiwords=1\fP ] [ \fBmultichar=\fP\fIC\fP ] [ \fBnopauses=1\fP ] \\
+	[ \fBmax_nbest=\fP\fIM\fP ] \fInbest-file\fP ...
+\fBnbest-vocab\fP [ \fInbest-list\fP ... ]
+\fBnbest-error\fP \fIscore-dir\fP|\fIfile-list\fP \fIrefs\fP [ \fInbest-lattice-option\fP ... ]
+\fBsentid-to-sclite\fP \fIhyps\fP
+\fBsentid-to-ctm\fP \fIhyps\fP
+\fBfix-ctm\fP \fIctmfile\fP
+\fBcompute-sclite\fP \fB\-r\fP \fIrefs\fP \fB\-h\fP \fIhyps\fP [ \fB\-h\fP \fIhyps\fP ... ] [ \fB\-S\fP \fIsubset\fP ... ] \\
+	[ \fB\-multiwords\fP|\fB\-M\fP ] [ \fB\-noperiods\fP ] [ \fB\-R\fP ] [ \fB\-g\fP \fIglmfile\fP ] [ \fB\-H\fP ] \\
+	[ \fB\-v\fP ] [ \fIsclite-options\fP ...]
+\fBcompare-sclite\fP \fB\-r\fP \fIrefs\fP \fB\-h1\fP \fIhyps1\fP \fB\-h2\fP \fIhyps2\fP [ \fB\-S\fP \fIsubset\fP ] \\
+	[ \fIcompute-sclite-options\fP ... ]
+.fi
 .SH DESCRIPTION
 These scripts perform common tasks on N-best hypotheses in 
 .BR nbest-format (5),
@@ -160,20 +51,30 @@ The rescored N-best lists are stored in directory
 All following arguments are passed to 
 .BR ngram (1)
 and are used to control the language model.
-The
+The following options are handled by 
+.B rescore-decipher
+itself:
+.TP 20
 .B \-bytelog 
-option causes scores to be output on the bytelog scale
+causes scores to be output on the bytelog scale
 (see 
 .BR nbest-format (1)).
+.TP
 .B \-nodecipherlm
 indicates that the recognizer language model is not being provided
 (with
 .BR \-decipher-lm ).
 (This is only possible if the N-best lists are not in ``NBestList1.0'' format.)
-.BR \-multiwords
+.TP
+.B \-multiwords
 specifies that N-best lists contain words joined by underscores, which are
 to be split into their component prior to rescoring.
-.BR \-pretty
+.TP
+.BI \-multi-char " C"
+defines a multiword separator character.
+The default is underscore ``_''.
+.TP
+.BI \-pretty " mapfile"
 specifies a word mapping file that allows individual words to be globally
 replaced by strings of zero or more other words, e.g., to remove vocabulary
 mismatches between the input N-best lists and the rescoring LM.
@@ -181,15 +82,19 @@ The
 .I mapfile
 contains one mapping per line, the first field specifying the word to be
 replaced and subsequent fields forming the replacement string.
-.BR \-ngram-tool
-specifies a non-standard program to perform the actual LM evaluation
+.TP
+.BI \-ngram-tool " program"
+specifies a non-standard
+.I program
+to perform the actual LM evaluation
 (by default, 
 .BR ngram (1)
 is used).
 Such a program must understand
 .BR ngram 's
 command-line options related to N-best rescoring.
-.BR \-filter
+.TP
+.BI \-filter " command"
 specifies a
 .I command
 that is used to filter the N-best hypotheses prior to
@@ -197,7 +102,8 @@ evaluating the language model.
 This may be used for more general textual rewriting so that non-standard
 LMs can be applied.
 The output N-best lists will contain the filtered hypotheses.
-.BR \-norescore
+.TP
+.B \-norescore
 causes N-best lists to be simply reformatted from one of the Decipher formats
 into the SRILM N-best format, separating acoustic and LM scores, without
 replacing the existing LM scores.
@@ -212,17 +118,35 @@ are relevant, and others are ignored.
 and 
 .B \-filter
 may be used together to perform textual rewriting of N-best lists.
-.BR \-lm-only
+.TP
+.B \-lm-only
 dumps out LM scores only, instead of complete N-best lists.
+.TP
 .BR \-count-oovs
 writes the count of out-of-vocabulary and zero-probability words to
 the output score files (instead of rescored N-best lists).
+.TP
 .B \-limit-vocab
 saves memory by arranging for
 .BR ngram (1) 
 to load only those N-gram parameters that are relevant to the vocabulary
 of the N-best lists to be rescored.
-The option
+After determining the N-best vocabulary the 
+.B \-limit-vocab
+option is passed to 
+.BR ngram (1).
+.TP
+.BI \-vocab-aliases " map"
+declares that certain words are to be treated as alternative spellings 
+of the same word for LM evaluation; see the same option for 
+.BR ngram (1).
+The 
+.I map
+is filtered of unused words when used in conjunction with
+.BR \-limit-vocab ,
+and then passed on to 
+.BR ngram (1).
+.TP
 .B \-fast
 performs rescoring using only functions built into
 .BR ngram (1).
@@ -285,12 +209,16 @@ These additional scores are combined with those contained in the
 N-best lists themselves as in
 .B rescore-acoustic 
 (using unit weight for the original acoustic scores).
+The
 .B \-multiwords
-indicates that multi-words are to be split into their components.
+and
+.B \-multi-char
+options have the same function as for
+.BR rescore-decipher .
 The output format for 1-best hypotheses is
-.br
+.nf
 	\fIsentid\fP \fIw1\fP \fIw2\fP ...
-.br
+.fi
 where
 .I sentid
 is the sentence ID derived from the N-best filename, followed by 
@@ -319,13 +247,11 @@ These must match the filenames in a set of N-best directories,
 which are specified in a
 .IR control-file .
 The format for the latter is
-.br
+.nf
 	\fIdir1\fP \fIlmw1\fP \fIwtw1\fP \fIw1\fP [\fIn1\fP [\fIs1\fP]]
-.br
 	\fIdir2\fP \fIlmw2\fP \fIwtw2\fP \fIw2\fP [\fIn2\fP [\fIs2\fP]]
-.br
 	...
-.br
+.fi
 Each line specifies an N-best directory, the language model and word transition
 weights to be used in score combination, and a weight to be applied to the
 posterior probabilities.
@@ -336,9 +262,9 @@ which defaults to the language model weight.
 Optionally,
 .I control-file
 can also contain lines of the form
-.br
+.fi
 	\fIdir\fP \fIw\fP \fB+\fP
-.br
+.fi
 These indicate that additional score files can be found in directory
 .I dir
 and that the scores found therein should be added to the following 
@@ -416,7 +342,9 @@ option limits input to the first
 .I M
 hypotheses from each input list.
 .B multiwords=1
-merges hypotheses that are identical after resolving multiwords.
+merges hypotheses that are identical after resolving multiwords, with 
+.BI multichar= C
+defining a non-default multiword separator character.
 .B nopauses=1
 merges hypotheses that are identical after removal of pause words.
 .PP
@@ -573,4 +501,4 @@ lists.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2004 SRI International
+Copyright 1995-2006 SRI International

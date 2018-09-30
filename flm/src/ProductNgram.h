@@ -3,9 +3,9 @@
  *	Product N-gram backoff language models
  *      Jeff Bilmes <bilmes@ee.washington.edu>
  *
- * Copyright (c) 1995,2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductNgram.h,v 1.6 2004/12/03 02:41:05 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/ProductNgram.h,v 1.9 2007/01/24 19:25:59 stolcke Exp $
  *
  */
 
@@ -16,7 +16,6 @@
 #include "Ngram.h"
 #include "ProductVocab.h"
 
-#ifndef EXCLUDE_CONTRIB
 #include "FNgram.h"
 
 class ProductNgram: public Ngram
@@ -44,11 +43,11 @@ public:
 
     // not implemented yet -- 
     // dummy functions to prevent inapproriate use of Ngram versions
-    virtual void writeWithOrder(File &file, unsigned int order)
-	{ sorry("writeWithOrder"); };
+    virtual Boolean writeWithOrder(File &file, unsigned int order)
+	{ sorry("writeWithOrder"); return false; };
     virtual Boolean estimate(NgramStats &stats,
-                        unsigned *mincount = 0,
-                        unsigned *maxcounts = 0)
+                        Count *mincount = 0,
+                        Count *maxcounts = 0)
 	{ sorry("estimate"); return false; };
     virtual Boolean estimate(NgramStats &stats, Discount **discounts)
 	{ sorry("estimate"); return false; };
@@ -91,16 +90,5 @@ protected:
 	exit(1);
     };
 };
-
-#else /* EXCLUDE_CONTRIB_END */
-
-class ProductNgram: public Ngram
-{
-public:
-    ProductNgram(ProductVocab &vocab, unsigned order) : Ngram(vocab, order)
-	{ cerr << "Third-party FLM support not included.\n"; exit(1); };
-};
-
-#endif /* INCLUDE_CONTRIB */
 
 #endif /* _ProductNgram_h_ */

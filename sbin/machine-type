@@ -13,9 +13,12 @@
 #
 #    Copyright (c) 1995, SRI International.  All Rights Reserved.
 #
-#    RCS ID: $Id: machine-type,v 1.9 2005/09/30 22:55:35 stolcke Exp $
+#    RCS ID: $Id: machine-type,v 1.10 2006/03/04 06:25:37 stolcke Exp $
 #
 #    $Log: machine-type,v $
+#    Revision 1.10  2006/03/04 06:25:37  stolcke
+#    return i686 on x86_64 machines
+#
 #    Revision 1.9  2005/09/30 22:55:35  stolcke
 #    support x86_64 platform
 #
@@ -103,7 +106,8 @@ if ($#RESULT > 0) then
     else if (`uname -m` == i686) then
 	set MACHINE_TYPE = i686
     else if (`uname -m` == x86_64) then
-	set MACHINE_TYPE = i686-m64
+	#set MACHINE_TYPE = i686-m64
+	set MACHINE_TYPE = i686
     else
 	## Generate an error by doing nothing.  (Used to be the line below:)
 	## echo "ERROR: Unsupported machine type: "$RESULT

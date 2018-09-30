@@ -8,12 +8,36 @@
 */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.22 2006/01/09 17:39:03 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.30 2010/06/02 04:47:32 stolcke Exp $";
 #endif
 
 /*
  * $Log: zio.c,v $
+ * Revision 1.30  2010/06/02 04:47:32  stolcke
+ * avoid compiler warning
+ *
+ * Revision 1.29  2010/04/05 15:12:03  stolcke
+ * avoid using gunzip to avoid script wrapper overhead
+ *
+ * Revision 1.28  2009/08/22 22:41:19  stolcke
+ * support for xz compressed files
+ *
+ * Revision 1.27  2008/05/27 03:21:41  stolcke
+ * avoid compiler warnings about exit()
+ *
+ * Revision 1.26  2007/11/11 19:49:11  stolcke
+ * use  7z e to uncompress (probably doesn't matter)
+ *
+ * Revision 1.25  2007/11/11 16:06:53  stolcke
+ * 7zip compression support
+ *
+ * Revision 1.24  2006/03/06 05:46:43  stolcke
+ * define NO_ZIO in zio.h instead of zio.c
+ *
+ * Revision 1.23  2006/03/01 00:45:45  stolcke
+ * allow disabling of zio for windows environment (NO_ZIO)
+ *
  * Revision 1.22  2006/01/09 17:39:03  stolcke
  * MSVC port
  *
@@ -85,6 +109,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.22 
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #ifndef _MSC_VER
 #include <unistd.h>
 #include <sys/param.h>
@@ -97,10 +122,6 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.22 
 
 #ifndef MAXPATHLEN
 #define MAXPATHLEN 1024
-#endif
-
-#ifndef SIGPIPE
-#define NO_ZIO
 #endif
 
 #include "zio.h"
@@ -118,10 +139,16 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/zio.c,v 1.22 
 #define UNCOMPRESS_CMD	  "exec uncompress -c"
 
 #define GZIP_CMD	  "exec gzip -c"
-#define GUNZIP_CMD	  "exec gunzip -cf"
+#define GUNZIP_CMD	  "exec gzip -dcf"
 
 #define BZIP2_CMD	  "exec bzip2"
-#define BUNZIP2_CMD	  "exec bunzip2 -c"
+#define BUNZIP2_CMD	  "exec bzip2 -dcf"
+
+#define SEVENZIP_CMD	  "exec 7z a -si"
+#define SEVENUNZIP_CMD	  "exec 7z e -so"
+
+#define XZ_CMD	  	  "exec xz"
+#define XZ_DECOMPRESS_CMD "exec xz -dcf"
 
 /*
  * Does the filename refer to stdin/stdout ?
@@ -141,7 +168,8 @@ compressed_filename_p (const char *name)
     unsigned len = strlen(name);
 
     return
-	(len > sizeof(COMPRESS_SUFFIX)-1) &&
+	(sizeof(COMPRESS_SUFFIX) > 1) &&
+	    (len > sizeof(COMPRESS_SUFFIX)-1) &&
 		(strcmp(name + len - (sizeof(COMPRESS_SUFFIX)-1),
 			COMPRESS_SUFFIX) == 0);
 }
@@ -155,12 +183,14 @@ gzipped_filename_p (const char *name)
     unsigned len = strlen(name);
 
     return 
-	(len > sizeof(GZIP_SUFFIX)-1) &&
+	((sizeof(GZIP_SUFFIX) > 1) &&
+	    (len > sizeof(GZIP_SUFFIX)-1) &&
 		(strcmp(name + len - (sizeof(GZIP_SUFFIX)-1),
-			GZIP_SUFFIX) == 0) ||
-	(len > sizeof(OLD_GZIP_SUFFIX)-1) &&
+			GZIP_SUFFIX) == 0)) ||
+	((sizeof(OLD_GZIP_SUFFIX) > 1) &&
+	    (len > sizeof(OLD_GZIP_SUFFIX)-1) &&
 		(strcmp(name + len - (sizeof(OLD_GZIP_SUFFIX)-1),
-			OLD_GZIP_SUFFIX) == 0);
+			OLD_GZIP_SUFFIX) == 0));
 }
 
 /*
@@ -172,9 +202,41 @@ bzipped_filename_p (const char *name)
     unsigned len = strlen(name);
 
     return 
-	(len > sizeof(BZIP2_SUFFIX)-1) &&
+	(sizeof(BZIP2_SUFFIX) > 1) &&
+	    (len > sizeof(BZIP2_SUFFIX)-1) &&
 		(strcmp(name + len - (sizeof(BZIP2_SUFFIX)-1),
 			BZIP2_SUFFIX) == 0);
+}
+
+/*
+ * Does the filename refer to a 7-zip file ?
+ */
+int
+sevenzipped_filename_p (const char *name)
+{
+    unsigned len = strlen(name);
+
+    return 
+	(sizeof(SEVENZIP_SUFFIX) > 1) &&
+	    (len > sizeof(SEVENZIP_SUFFIX)-1) &&
+		(strcmp(name + len - (sizeof(SEVENZIP_SUFFIX)-1),
+			SEVENZIP_SUFFIX) == 0);
+}
+
+
+/*
+ * Does the filename refer to a xz-compressed file ?
+ */
+int
+xz_filename_p (const char *name)
+{
+    unsigned len = strlen(name);
+
+    return 
+	(sizeof(XZ_SUFFIX) > 1) &&
+	    (len > sizeof(XZ_SUFFIX)-1) &&
+		(strcmp(name + len - (sizeof(XZ_SUFFIX)-1),
+			XZ_SUFFIX) == 0);
 }
 
 /*
@@ -260,6 +322,7 @@ FILE *zopen(const char *name, const char *mode)
     } else {
 	char *compress_cmd = NULL;
 	char *uncompress_cmd = NULL;
+	int zip_to_stdout = 1;
 	
 	if (compressed_filename_p(name)) {
 	    compress_cmd = COMPRESS_CMD;
@@ -270,6 +333,13 @@ FILE *zopen(const char *name, const char *mode)
 	} else if (bzipped_filename_p(name)) {
 	    compress_cmd = BZIP2_CMD;
 	    uncompress_cmd = BUNZIP2_CMD;
+	} else if (sevenzipped_filename_p(name)) {
+	    compress_cmd = SEVENZIP_CMD;
+	    uncompress_cmd = SEVENUNZIP_CMD;
+	    zip_to_stdout = 0;
+	} else if (xz_filename_p(name)) {
+	    compress_cmd = XZ_CMD;
+	    uncompress_cmd = XZ_DECOMPRESS_CMD;
 	}
 
 	if (compress_cmd != NULL) {
@@ -289,7 +359,18 @@ FILE *zopen(const char *name, const char *mode)
 	    } else if (*mode == 'w') {
 		if (!writable_p(name))
 		    return NULL;
-		sprintf(command, "%s;%s >%s", STD_PATH, compress_cmd, name);
+		if (zip_to_stdout) {
+		    sprintf(command, "%s;%s >%s", STD_PATH, compress_cmd, name);
+		} else {
+		    /*
+		     * This is necessary because the compression program might
+		     * complain if a zero-length file already exists.
+		     * However, it means that existing file owner & permission
+		     * attributes are not preserved.
+		     */
+		    unlink(name);
+		    sprintf(command, "%s;%s %s", STD_PATH, compress_cmd, name);
+		}
 		return popen(command, mode);
 	    } else {
 		return NULL;
@@ -409,6 +490,7 @@ main (argc, argv)
 	perror(argv[1]);
    }
    zclose(stream);
-   
+
+   exit(0);
 }
 #endif /* STAND */

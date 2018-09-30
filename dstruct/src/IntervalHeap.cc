@@ -10,26 +10,23 @@
 #define _IntervalHeap_cc_
 
 #ifndef lint
-static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.cc,v 1.3 2005/12/17 00:44:26 stolcke Exp $";
+static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/IntervalHeap.cc,v 1.6 2010/06/02 06:37:43 stolcke Exp $";
 #endif
 
 #include "IntervalHeap.h"
 
 template<class T, class Less, class Greater, class Equal>
 IntervalHeap<T, Less, Greater, Equal>::IntervalHeap(int IntervalHeapSize)
-{// Interval heap constructor.
-  MaxSize = IntervalHeapSize;
-  // determine number of array positions needed
-  // array will be heap[0:n-1]
-  int n = MaxSize / 2 + MaxSize % 2 + 1;
-  Array< TwoElement<T> > heap(0,n);
-  CurrentSize = 0;  
+  : CurrentSize(0),
+    heap(0, IntervalHeapSize / 2 + IntervalHeapSize % 2)
+{
 }
 
 template<class T, class Less, class Greater, class Equal>
 void IntervalHeap<T, Less, Greater, Equal>::push(const T& x)
-{// Insert x into the interval heap.
+{ // Insert x into the interval heap.
   // handle CurrentSize < 2 as a special case
+  
   if (CurrentSize < 2) {
     if (CurrentSize) // CurrentSize is 1
       if ( less(x, heap[1].left) )
@@ -44,7 +41,7 @@ void IntervalHeap<T, Less, Greater, Equal>::push(const T& x)
   }
   // CurrentSize >= 2
   int LastNode = CurrentSize / 2 + CurrentSize % 2;
-  bool minHeap; // true iff x is to be inserted in the min heap part of the interval heap
+  Boolean minHeap; // true iff x is to be inserted in the min heap part of the interval heap
   if (CurrentSize % 2)
     // odd number of elements
     if ( less(x, heap[LastNode].left) )
@@ -57,10 +54,16 @@ void IntervalHeap<T, Less, Greater, Equal>::push(const T& x)
       minHeap = true;
     else minHeap = false;
   }
+
+  // make sure memory for lastNode gets allocated
+  // if not, heap[LastNode].xxx = heap[LastNode/2].xxx may cause problem if LastNode triggers memory allocation
+  T &dummy = heap[LastNode].left; 
+
   if (minHeap) {// fix min heap of interval heap 
     // find place for x 
     // i starts at LastNode and moves up tree
     int i = LastNode;
+    
     while (i != 1 && (less(x, heap[i / 2].left) || equal(x, heap[i / 2].left)) ){
       // cannot put x in heap[i]
       // move left element down
@@ -94,7 +97,7 @@ void IntervalHeap<T, Less, Greater, Equal>::push(const T& x)
 
 template<class T, class Less, class Greater, class Equal>
 void IntervalHeap<T, Less, Greater, Equal>::pop_min()
-{// Set x to min element and delete
+{ // Set x to min element and delete
   // min element from interval heap.
   // check if interval heap is empty
   if (CurrentSize == 0)

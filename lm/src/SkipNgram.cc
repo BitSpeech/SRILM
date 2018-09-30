@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/SkipNgram.cc,v 1.14 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "SkipNgram.h"
@@ -22,8 +26,9 @@ using namespace std;
 #define DEBUG_PRINT_LIKELIHOODS	0
 
 SkipNgram::SkipNgram(Vocab &vocab, unsigned order)
-    : Ngram(vocab, order), skipProbs(vocab.numWords()),
-      initialSkipProb(0.5), maxEMiters(100), minEMdelta(0.0001)
+    : Ngram(vocab, order),
+      maxEMiters(100), minEMdelta(0.0001),
+      initialSkipProb(0.5), skipProbs(vocab.numWords())
 {
 }
 
@@ -50,8 +55,8 @@ SkipNgram::wordProb(VocabIndex word, const VocabIndex *context)
 	 * word.
 	 */
 	if (word == vocab.unkIndex() ||
-	    order > 1 && context[0] == vocab.unkIndex() ||
-	    order > 2 && context[2] == vocab.unkIndex())
+	    (order > 1 && context[0] == vocab.unkIndex()) ||
+	    (order > 2 && context[2] == vocab.unkIndex()))
 	{
 	    return LogP_Zero;
 	}
@@ -99,7 +104,7 @@ SkipNgram::read(File &file, Boolean limitVocab)
 
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	
 	VocabString words[3];
 	VocabIndex wid;
@@ -127,14 +132,15 @@ SkipNgram::read(File &file, Boolean limitVocab)
     return true;
 }
 
-void
+Boolean
 SkipNgram::write(File &file)
 {
     /*
      * First write out the Ngram parameters in the usual format
      */
-
-    Ngram::write(file);
+    if (!Ngram::write(file)) {
+	return false;
+    }
     
     fprintf(file, "\n");
 
@@ -143,11 +149,13 @@ SkipNgram::write(File &file)
     VocabIndex wid;
     Prob *prob;
 
-    while (prob = skipProbsIter.next(wid)) {
+    while ((prob = skipProbsIter.next(wid))) {
 	fprintf(file, "%s %lg\n", vocab.getWord(wid), *prob);
     }
 
     fprintf(file, "\n");
+
+    return true;
 }
 
 /*
@@ -300,7 +308,7 @@ SkipNgram::estimateEstep(NgramStats &stats,
     NgramsIter ngramIter(stats, ngram, order + 1);
     NgramCount *ngramCount;
 
-    while (ngramCount = ngramIter.next()) {
+    while ((ngramCount = ngramIter.next())) {
 	totalLikelihood += estimateEstepNgram(ngram, *ngramCount,
 						stats, ngramExps, skipExps);
     }
@@ -317,7 +325,7 @@ SkipNgram::estimateEstep(NgramStats &stats,
     for (unsigned j = order; j > 1; j --) {
 	NgramsIter ngramIter(stats, start, &ngram[1], j - 1);
 
-	while (ngramCount = ngramIter.next()) {
+	while ((ngramCount = ngramIter.next())) {
 	    totalLikelihood += estimateEstepNgram(ngram, *ngramCount,
 						   stats, ngramExps, skipExps);
 	}
@@ -346,7 +354,7 @@ SkipNgram::estimateMstep(NgramStats &stats,
     VocabIndex wid;
     double *skipCount;
 
-    while (skipCount = skipExpsIter.next(wid)) {
+    while ((skipCount = skipExpsIter.next(wid))) {
 	NgramCount *total = stats.findCount(0, wid);
 	assert(total != 0);
 

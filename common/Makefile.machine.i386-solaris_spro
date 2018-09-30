@@ -9,16 +9,18 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris_spro,v 1.1 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i386-solaris_spro,v 1.5 2009/06/28 09:04:32 stolcke Exp $
 #
 
    # Use the Sun Studio compilers
-   ACCPREFIX=/usr/local/lang/Studio11/SUNWspro/bin/
-   CC = $(ACCPREFIX)cc -Xa 
-   CXX = $(ACCPREFIX)CC -ptr$(OBJDIR) -ptv
+   ACC_PATH = /opt/SUNWspro/bin/
+   CC = $(ACC_PATH)cc -Xa 
+   CXX = $(ACC_PATH)CC -ptr$(OBJDIR) -ptv
+
+   PIC_FLAG = -KPIC
 
    ARCHIVE = $(CXX) $(CXXFLAGS) -xar -o
-   DEMANGLE_FILTER = 2>&1 | $(ACCPREFIX)c++filt
+   DEMANGLE_FILTER = 2>&1 | $(ACC_PATH)c++filt
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -xchip=pentium4 -fast -xO3
@@ -29,11 +31,11 @@
    EXPORT_LDFLAGS = -s
 
    # Shared compilation flags.
-   CFLAGS = -DSVR4 $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = -DSVR4 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+   CFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = -DSVR4 -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
+   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR) -z muldefs
 
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =

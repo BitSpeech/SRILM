@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-class.cc,v 1.26 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-class.cc,v 1.31 2010/06/15 02:57:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
@@ -56,6 +60,7 @@ static int fullMerge = 0;
 static int interact = 0;
 static int debug = 0;
 static int saveFreq = 0;
+static unsigned saveMaxClasses = 0;
 
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
@@ -72,6 +77,7 @@ static Option options[] = {
     { OPT_STRING, "class-counts", &classCountsFile, "class N-gram count output" },
     { OPT_STRING, "classes", &classesFile, "class definitions output" },
     { OPT_INT, "save", &saveFreq, "save classes/counts every this many iterations" },
+    { OPT_UINT, "save-maxclasses", &saveMaxClasses, "maximum number of intermediate classes to save" },
 };
 
 /*
@@ -94,7 +100,7 @@ class UniqueWordClasses: public Debug
 {
 public:
     UniqueWordClasses(Vocab &vocab, SubVocab &classVocab);
-    ~UniqueWordClasses() {};
+    virtual ~UniqueWordClasses() {};
 
     VocabIndex newClass();		// create a new class
     void initialize(NgramStats &counts, SubVocab &noclassVocab);
@@ -189,7 +195,7 @@ UniqueWordClasses::initialize(NgramStats &counts, SubVocab &noclassVocab)
     NgramsIter iter1(counts, ngram, 1);
     NgramCount *count;
 
-    while (count = iter1.next()) {
+    while ((count = iter1.next())) {
 	VocabIndex classUnigram[2];
 	
 	if (noclassVocab.getWord(ngram[0]) != 0) {
@@ -227,7 +233,7 @@ UniqueWordClasses::initialize(NgramStats &counts, SubVocab &noclassVocab)
      */
     NgramsIter iter2(counts, ngram, 2);
 
-    while (count = iter2.next()) {
+    while ((count = iter2.next())) {
 	VocabIndex classBigram[3];
 
 	if (noclassVocab.getWord(ngram[0]) != 0) {
@@ -277,7 +283,7 @@ UniqueWordClasses::mergeCounts(NgramStats &counts,
      */
     unigram[0] = c2;
     NgramsIter iter2(counts, unigram, unigram2, 1);
-    while(count = iter2.next()) {
+    while ((count = iter2.next())) {
 	bigram[0] = c1;
 	bigram[1] = unigram2[0];
 	*counts.insertCount(bigram) += *count;
@@ -297,7 +303,7 @@ UniqueWordClasses::mergeCounts(NgramStats &counts,
      * 3) add column c2 to column c1 and remove column c2
      */
     NgramsIter iter3(counts, unigram, 1);
-    while (count = iter3.next()) {
+    while ((count = iter3.next())) {
 	bigram[0] = unigram[0];
 	bigram[1] = c2;
 	NgramCount *count2 = counts.removeCount(bigram);
@@ -330,7 +336,7 @@ UniqueWordClasses::merge(VocabIndex c1, VocabIndex c2)
     VocabIndex *clasz;
     VocabIndex word;
 
-    while (clasz = iter1.next(word)) {
+    while ((clasz = iter1.next(word))) {
 	if (*clasz == c2) {
 	    *clasz = c1;
 	}
@@ -346,7 +352,7 @@ UniqueWordClasses::merge(VocabIndex c1, VocabIndex c2)
 	VocabIndex clasz;
 	LogP *logp;
 
-	while (logp = iter.next(clasz)) {
+	while ((logp = iter.next(clasz))) {
 	    *logp += NlogN(getCount(clasz, c1) + getCount(clasz, c2)) 
 		   + NlogN(getCount(c1, clasz) + getCount(c2, clasz))
 		   - NlogN(getCount(clasz, c1)) - NlogN(getCount(clasz, c2))
@@ -363,7 +369,7 @@ UniqueWordClasses::merge(VocabIndex c1, VocabIndex c2)
 	Map2Iter<VocabIndex,VocabIndex,LogP> iter1(mergeContribs);
 	VocabIndex class1;
 
-	while(iter1.next(class1)) {
+	while ((iter1.next(class1))) {
 	    mergeContribs.remove(class1, c1);
 	    mergeContribs.remove(class1, c2);
 
@@ -371,7 +377,7 @@ UniqueWordClasses::merge(VocabIndex c1, VocabIndex c2)
 	    VocabIndex class2;
 	    LogP *logp;
 
-	    while (logp = iter2.next(class2)) {
+	    while ((logp = iter2.next(class2))) {
 		*logp += NlogN(getCount(class1,c1) + getCount(class2,c1) +
 			       getCount(class1,c2) + getCount(class2,c2))
 		       + NlogN(getCount(c1,class1) + getCount(c1,class2) +
@@ -409,7 +415,7 @@ UniqueWordClasses::writeClasses(File &file)
     NgramCount *wordCount;
     VocabIndex word;
 
-    while (wordCount = wordIter.next(word)) {
+    while ((wordCount = wordIter.next(word))) {
 	VocabIndex *clasz = wordToClass.find(word);
 
 	/*
@@ -445,9 +451,9 @@ UniqueWordClasses::writeClasses(File &file)
 	VocabIndex word;
 
 	Prob *prob;
-	while (prob = wordIter.next(word)) {
+	while ((prob = wordIter.next(word))) {
 	    fprintf(file, "%s %lg %s\n", classVocab.getWord(clasz),
-					*prob, vocab.getWord(word));
+					 *prob, vocab.getWord(word));
 	}
     }
 }
@@ -461,7 +467,7 @@ UniqueWordClasses::writeContribs(File &file)
     VocabIndex clasz;
     LogP *logp;
 
-    while (logp = iter.next(clasz)) {
+    while ((logp = iter.next(clasz))) {
 	fprintf(file, "%s %lg\n", vocab.getWord(clasz), *logp);
     }
 
@@ -469,10 +475,10 @@ UniqueWordClasses::writeContribs(File &file)
 
     Map2Iter<VocabIndex,VocabIndex,LogP> iter1(mergeContribs);
     VocabIndex class1;
-    while(iter1.next(class1)) {
+    while ((iter1.next(class1))) {
 	Map2Iter2<VocabIndex,VocabIndex,LogP> iter2(mergeContribs, class1);
 	VocabIndex class2;
-	while (logp = iter2.next(class2)) {
+	while ((logp = iter2.next(class2))) {
 	    fprintf(file, "%s %s %lg\n", vocab.getWord(class1),
 					vocab.getWord(class2), *logp);
 	}
@@ -489,7 +495,7 @@ UniqueWordClasses::getStats(TextStats &stats)
 
     stats.numWords = 0;
 
-    while (count = wordIter.next(word)) {
+    while ((count = wordIter.next(word))) {
 	if (word == vocab.seIndex()) {
 	    stats.numSentences = *count;
 	} else if (word != vocab.ssIndex()) {
@@ -542,7 +548,7 @@ UniqueWordClasses::totalLogP()
     LHashIter<VocabIndex,NgramCount> wordIter(wordCounts);
     VocabIndex word;
 
-    while (count = wordIter.next(word)) {
+    while ((count = wordIter.next(word))) {
 	total += NlogN(*count);
     }
 
@@ -552,7 +558,7 @@ UniqueWordClasses::totalLogP()
     VocabIndex classNgram[3];
     NgramsIter iter2(classNgramCounts, classNgram, 2);
 
-    while (count = iter2.next()) {
+    while ((count = iter2.next())) {
 	total += NlogN(*count);
     }
 
@@ -561,7 +567,7 @@ UniqueWordClasses::totalLogP()
      */
     NgramsIter iter1(classNgramCounts, classNgram, 1);
 
-    while (count = iter1.next()) {
+    while ((count = iter1.next())) {
 	total -= 2.0 * NlogN(*count);
     }
 
@@ -605,7 +611,7 @@ UniqueWordClasses::computeClassContribs()
     NgramsIter iter(classNgramCounts, bigram, 2);
     NgramCount *count;
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	*classContribs.insert(bigram[0]) += NlogN(*count);
 	if (bigram[0] != bigram[1]) {
 	    *classContribs.insert(bigram[1]) += NlogN(*count);
@@ -633,13 +639,13 @@ UniqueWordClasses::computeClassContrib(VocabIndex c)
     NgramCount *count;
     NgramsIter iter1(classNgramCounts, class1, class2, 1);
 
-    while (count = iter1.next()) {
+    while ((count = iter1.next())) {
 	total += NlogN(*count);
     }
 
     NgramsIter iter2(classNgramCountsR, class1, class2, 1);
 
-    while (count = iter2.next()) {
+    while ((count = iter2.next())) {
 	if (class2[0] != c) {
 	    total += NlogN(*count);
 	}
@@ -673,11 +679,11 @@ UniqueWordClasses::computeMergeContribs()
     VocabIter iter1(classVocab);
     VocabIndex class1;
 
-    while (iter1.next(class1)) {
+    while ((iter1.next(class1))) {
 	VocabIter iter2(classVocab);
 	VocabIndex class2;
 
-	while (iter2.next(class2)) {
+	while ((iter2.next(class2))) {
 	    if (class1 < class2) {
 		(void)computeMergeContrib(class1, class2);
 	    }
@@ -691,7 +697,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1)
     VocabIter iter(classVocab);
     VocabIndex c2;
 
-    while (iter.next(c2)) {
+    while ((iter.next(c2))) {
 	if (c1 != c2) {
 	    (void)computeMergeContrib(c1, c2);
 	}
@@ -735,7 +741,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
      */
     unigram[0] = c1;
     NgramsIter iter0(classNgramCountsR, unigram, &bigram[1], 1);
-    while (count = iter0.next()) {
+    while ((count = iter0.next())) {
 	if (bigram[1] != c1 && bigram[1] != c2) {
 	    total += NlogN(*count + getCountR(c2, bigram[1]));
 	}
@@ -743,7 +749,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
 
     unigram[0] = c2;
     NgramsIter iter1(classNgramCountsR, unigram, &bigram[1], 1);
-    while (count = iter1.next()) {
+    while ((count = iter1.next())) {
 	if (bigram[1] != c1 && bigram[1] != c2 &&
 	    getCountR(c1, bigram[1]) == 0)
 	{
@@ -756,7 +762,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
      */
     unigram[0] = c1;
     NgramsIter iter2(classNgramCounts, unigram, &bigram[1], 1);
-    while (count = iter2.next()) {
+    while ((count = iter2.next())) {
 	if (bigram[1] != c1 && bigram[1] != c2) {
 	    total += NlogN(*count + getCount(c2, bigram[1]));
 	}
@@ -764,7 +770,7 @@ UniqueWordClasses::computeMergeContrib(VocabIndex c1, VocabIndex c2)
 
     unigram[0] = c2;
     NgramsIter iter3(classNgramCounts, unigram, &bigram[1], 1);
-    while (count = iter3.next()) {
+    while ((count = iter3.next())) {
 	if (bigram[1] != c1 && bigram[1] != c2 &&
 	    getCount(c1, bigram[1]) == 0)
 	{
@@ -845,9 +851,9 @@ UniqueWordClasses::bestMerge(Vocab &mergeSet, VocabIndex &b1, VocabIndex &b2)
  * during merging.
  */
 static File *
-logFile(const char *basename, unsigned freq, unsigned iter)
+logFile(const char *basename, unsigned freq, int iter)
 {
-    if (freq > 0 && basename != 0 && iter%freq == 0) {
+    if (freq > 0 && iter >= 0 && basename != 0 && iter % freq == 0) {
 	makeArray(char, filename, strlen(basename) + 10);
 
 	if (stdio_filename_p(basename)) {
@@ -883,9 +889,10 @@ UniqueWordClasses::fullMerge(unsigned numClasses)
     TextStats stats;
     getStats(stats);
 
-    unsigned numTokens = stats.numWords + stats.numSentences;
+    unsigned numTokens = (unsigned)(stats.numWords + stats.numSentences);
 
     unsigned iters = 0;
+    int saveIters = -1;
 
     if (debug(DEBUG_TRACE_MERGE)) {
 	dout() << "iter " << iters
@@ -910,13 +917,23 @@ UniqueWordClasses::fullMerge(unsigned numClasses)
 	/*
 	 * Save classes and counts if and when requested
 	 */
-	File *cf = logFile(classesFile, saveFreq, iters);
+	if (saveMaxClasses == 0) {
+	    saveIters = iters;
+	} else if (saveIters < 0) {
+	    if (classVocab.numWords() <= saveMaxClasses) {
+		saveIters = 0;		// start saving now
+	    }
+	} else {
+	    saveIters ++;
+	}
+
+	File *cf = logFile(classesFile, saveFreq, saveIters);
 	if (cf != 0) {
 	    writeClasses(*cf);
 	    delete cf;
 	}
 
-	cf = logFile(classCountsFile, saveFreq, iters);
+	cf = logFile(classCountsFile, saveFreq, saveIters);
 	if (cf != 0) {
 	    writeCounts(*cf);
 	    delete cf;
@@ -949,9 +966,10 @@ UniqueWordClasses::incrementalMerge(unsigned numClasses)
     TextStats stats;
     getStats(stats);
 
-    unsigned numTokens = stats.numWords + stats.numSentences;
+    unsigned numTokens = (unsigned)(stats.numWords + stats.numSentences);
 
     unsigned iters = 0;
+    int saveIters = -1;
 
     if (debug(DEBUG_TRACE_MERGE)) {
 	dout() << "iter " << iters
@@ -972,7 +990,7 @@ UniqueWordClasses::incrementalMerge(unsigned numClasses)
     NgramsIter unigramIter(classNgramCounts, unigram, 1, orderByCount);
     NgramCount *classCount;
 
-    while (classCount = unigramIter.next()) {
+    while ((classCount = unigramIter.next())) {
 	if (classVocab.getWord(unigram[0]) != 0) {
 	    listOfClasses[nClasses ++] = unigram[0];
 	}
@@ -1022,13 +1040,23 @@ UniqueWordClasses::incrementalMerge(unsigned numClasses)
 	/*
 	 * Save classes and counts if and when requested
 	 */
-	File *cf = logFile(classesFile, saveFreq, iters);
+	if (saveMaxClasses == 0) {
+	    saveIters = iters;
+	} else if (saveIters < 0) {
+	    if (classVocab.numWords() <= saveMaxClasses) {
+		saveIters = 0;		// start saving now
+	    }
+	} else {
+	    saveIters ++;
+	}
+
+	File *cf = logFile(classesFile, saveFreq, saveIters);
 	if (cf != 0) {
 	    writeClasses(*cf);
 	    delete cf;
 	}
 
-	cf = logFile(classCountsFile, saveFreq, iters);
+	cf = logFile(classCountsFile, saveFreq, saveIters);
 	if (cf != 0) {
 	    writeCounts(*cf);
 	    delete cf;

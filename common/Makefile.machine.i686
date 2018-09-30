@@ -9,13 +9,13 @@
 #
 #    Copyright (c) 1999-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.13 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686,v 1.19 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -mtune=pentium3 -Wreturn-type -Wimplicit
-   CC = /usr/local/lang/gcc-3.4.3/bin/gcc $(GCC_FLAGS)
-   CXX = /usr/local/lang/gcc-3.4.3/bin/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -m32 -mtune=pentium3 -Wall -Wno-unused-variable -Wno-uninitialized
+   CC = $(GCC_PATH)gcc $(GCC_FLAGS)
+   CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O3
@@ -26,8 +26,8 @@
    EXPORT_LDFLAGS = -s
 
    # Shared compilation flags.
-   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
+   CFLAGS = -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CFLAGS) $(INCLUDES)
+   CXXFLAGS = -D_FILE_OFFSET_BITS=64 $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
 
    # Shared linking flags.
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
@@ -65,7 +65,7 @@
    LINT_FLAGS = -DDEBUG $(CFLAGS)
 
    # Location of gawk binary
-   GAWK = /usr/bin/gawk
+   GAWK = /usr/bin/awk
 
    # Location of perl binary
    PERL = /usr/bin/perl

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.cc,v 1.3 2001/07/31 02:38:32 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabDistance.cc,v 1.4 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include "VocabDistance.h"
@@ -55,14 +55,14 @@ DictionaryDistance::distance(VocabIndex w1, VocabIndex w2)
 	const VocabIndex *pron1;
 	Prob p1;
 
-	while (pron1 = iter1.next(p1)) {
+	while ((pron1 = iter1.next(p1))) {
 	    unsigned len1 = Vocab::length(pron1);
 
 	    VocabMultiMapIter iter2(dictionary, w2);
 	    const VocabIndex *pron2;
 	    Prob p2;
 
-	    while (pron2 = iter2.next(p2)) {
+	    while ((pron2 = iter2.next(p2))) {
 		unsigned len2 = Vocab::length(pron2);
 
 		unsigned maxLen = (len1 > len2) ? len1 : len2;
@@ -125,7 +125,7 @@ DictionaryAbsDistance::penalty(VocabIndex w)
 	const VocabIndex *pron;
 	Prob p;
 
-	while (pron = iter.next(p)) {
+	while ((pron = iter.next(p))) {
 	    unsigned len = Vocab::length(pron);
 
 	    if (minLength < 0.0 || len < minLength) {
@@ -169,12 +169,12 @@ DictionaryAbsDistance::distance(VocabIndex w1, VocabIndex w2)
 	const VocabIndex *pron1;
 	Prob p1;
 
-	while (pron1 = iter1.next(p1)) {
+	while ((pron1 = iter1.next(p1))) {
 	    VocabMultiMapIter iter2(dictionary, w2);
 	    const VocabIndex *pron2;
 	    Prob p2;
 
-	    while (pron2 = iter2.next(p2)) {
+	    while ((pron2 = iter2.next(p2))) {
 		unsigned sub, ins, del;
 		double thisDistance =
 			(double)wordError(pron1, pron2, sub, ins, del);

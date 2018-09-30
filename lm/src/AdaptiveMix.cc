@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.13 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.cc,v 1.16 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -51,7 +55,7 @@ AdaptiveMix::read(File &file, Boolean limitVocab)
     numComps = 0;
 	
     char *line;
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	double weight;
 	char filename[100];
 	unsigned order = defaultNgramOrder;
@@ -94,7 +98,7 @@ AdaptiveMix::read(File &file, Boolean limitVocab)
     return true;
 }
 
-void
+Boolean
 AdaptiveMix::write(File &file)
 {
     for (unsigned i = 0; i < numComps; i ++) {
@@ -103,6 +107,8 @@ AdaptiveMix::write(File &file)
 	compLMs[i]->write(file);
 	fprintf(file, "\n");
     }
+
+    return true;
 }
 
 void

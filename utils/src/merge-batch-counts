@@ -3,11 +3,28 @@
 # merge-batch-counts --
 #	combine batch count files into a single count file
 #
-# $Header: /home/srilm/devel/utils/src/RCS/merge-batch-counts,v 1.3 1997/11/16 04:01:40 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/merge-batch-counts,v 1.8 2008/12/22 00:36:01 stolcke Exp $
 # 
 
+merge_options=
+merge_size=2
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+    -float-counts)
+	merge_options=-float-counts
+	shift
+	;;
+    -l)	merge_size=$2
+	shift; shift
+	;;
+    *)	break
+	;;
+    esac
+done
+
 if [ $# -lt 1 ]; then
-	echo "usage: $0 countdir [file-list | start-iter]" >&2
+	echo "usage: $0 [-float-counts] [-l N] countdir [file-list | start-iter]" >&2
 	exit 2
 fi
 
@@ -19,12 +36,32 @@ mergedir=$countdir
 
 merger=ngram-merge
 
-newfilefile=/tmp/newfiles$$
+newfilefile=$mergedir/newfiles$$
 
 set -e
 
+# find right xarg option
+if xargs -L1 </dev/null >/dev/null 2>&1; then
+	xargs_l=L
+else
+	xargs_l=l
+fi
+
 # make sure partially generated files are deleted
-trap 'rm -f $newfile; exit 1' 1 2 15
+trap 'rm -f $newfile $newfilefile $test_in $test_out; exit 1' 1 2 15
+
+# determine if ngram-merge can generate compressed files
+test_in=$mergedir/testin
+test_out=$mergedir/testout.gz
+
+> $test_in
+$merger -write $test_out $test_in $test_in
+if gzip -l $test_out >/dev/null 2>&1; then
+	gz=.gz
+else
+	gz=
+fi
+rm $test_in $test_out
 
 case X$filelist in
 X[0-9]*)
@@ -32,14 +69,18 @@ X[0-9]*)
 	what=merge
 	iter=`expr $filelist + 1`
 	infiles=$mergedir/$what-iter$iter.files
-	find $countdir/. -name $what-iter$filelist-\*.ngrams.gz -print | \
-		sort | xargs -l2 /bin/echo > $infiles
+	find $countdir/. \( \
+			-name $what-iter$filelist-\*.ngrams.gz -o \
+			-name $what-iter$filelist-\*.ngrams \) -print | \
+		sort | xargs -${xargs_l}2 /bin/echo > $infiles
 	;;
 X)
 	what=merge
 	infiles=$mergedir/$what-iter$iter.files
-	find $countdir/. -name \*.ngrams.gz -print | sort | \
-		xargs -l2 /bin/echo > $infiles
+	find $countdir/. \( \
+			-name \*.ngrams.gz -o \
+			-name \*.ngrams \) -print | sort | \
+		xargs -${xargs_l}2 /bin/echo > $infiles
 	;;
 X*)
 	what=`basename $filelist .files`
@@ -54,20 +95,27 @@ while [ $numfiles -gt 1 ]; do
 	echo "ITERATION $iter, $numfiles files" >&2
 	fileno=1
 	> $newfilefile
-	while read file1 file2; do
-		newfile=$mergedir/$what-iter$iter-$fileno.ngrams.gz
-		echo $newfile >>$newfilefile
+	while read file1 morefiles; do
+		newfile=$mergedir/$what-iter$iter-$fileno.ngrams$gz
 
 		if [ -f $newfile ]; then
 			echo "retaining old $newfile" >&2
-		elif [ -z "$file2" ]; then
+			echo $newfile >>$newfilefile
+		elif [ -z "$morefiles" ]; then
 			echo "linking $file1 to $newfile" >&2
 			rm -f $newfile
 			ln $file1 $newfile
+
+			# put the linked file at the top of the file list
+			# for the next iteration, to keep file sizes balanced
+			mv $newfilefile $newfilefile.old
+			echo $newfile >$newfilefile
+			cat $newfilefile.old >> $newfilefile
+			rm $newfilefile.old
 		else 
-			echo "merging $file1 $file2 into $newfile" >&2
-			$merger -write $newfile $file1 $file2
-			newfile=
+			echo "merging $file1 $morefiles into $newfile" >&2
+			$merger $merge_options -write $newfile $file1 $morefiles
+			echo $newfile >>$newfilefile
 		fi
 		fileno=`expr $fileno + 1`
 	done < $infiles
@@ -76,7 +124,7 @@ while [ $numfiles -gt 1 ]; do
 
 	iter=`expr $iter + 1`
 	infiles=$mergedir/$what-iter$iter.files
-	cat $newfilefile | xargs -l2 /bin/echo > $infiles
+	cat $newfilefile | xargs -${xargs_l}$merge_size /bin/echo > $infiles
 	numfiles=`wc -w < $infiles`
 done
 rm -f $newfilefile

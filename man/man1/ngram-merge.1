@@ -1,21 +1,12 @@
-.\" $Id: ngram-merge.1,v 1.7 2004/12/03 17:59:01 stolcke Exp $
-.TH ngram-merge 1 "$Date: 2004/12/03 17:59:01 $"  "SRILM Tools"
+.\" $Id: ngram-merge.1,v 1.8 2007/12/20 19:13:52 stolcke Exp $
+.TH ngram-merge 1 "$Date: 2007/12/20 19:13:52 $"  "SRILM Tools"
 .SH NAME
 ngram-merge \- merge N-gram counts
 .SH SYNOPSIS
-.B ngram-merge
-[\c
-.BR \-help ]
-[\c
-.B \-write
-.IR outfile ]
-[\c
-.BR \-float-counts ]
-[\c
-.BR -- ]
-.I infile1
-.I infile2
-\&...
+.nf
+\fBngram-merge\fP [ \fB\-help\fP ] [ \fB\-write\fP \fIoutfile\fP ] [ \fB\-float-counts\fP ] \\
+	[ \fB--\fP ] \fIinfile1 infile2\fP ...
+.fi
 .SH DESCRIPTION
 .B ngram-merge 
 reads two or more lexicographically sorted N-gram count files
@@ -26,9 +17,9 @@ The output is thus suitable for subsequent merging steps.
 .PP
 The input format consists of one N-gram count per line,
 .br
-.I
-	word1 word2 ... wordn count
-.P
+.nf
+	\fIword1 word2\fP ... \fIwordn count\fP
+.fi
 .br
 The lines must be sorted lexicographically on the words, leftmost first.
 The input may contain N-grams of different lengths.

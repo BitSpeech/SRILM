@@ -8,23 +8,80 @@
 #	without ngram-count having to read all counts into memory.
 #	The output is compatible with the ngram-count -kn<n> options.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-kn-discounts.gawk,v 1.2 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-kn-discounts.gawk,v 1.4 2007/06/17 01:21:18 stolcke Exp $
 #
 # usage: make-kn-discounts min=<mincount> countfile
 #
 BEGIN {
-    min=1;
+    min = 1;
 }
+
 /^#/ {
     # skip comments
     next;
 }
+
 {
     countOfCounts[$1] = $2;
+    if ($1 != "total" && $1 > maxCount && $2 > 0) {
+	maxCount = $1;
+    }
 }
+
+#
+# Estimate missing counts-of-counts f(k) based on the empirical law
+#
+#	log f(k) - log f(k+1) = a / k
+#
+# for some constant a dependent on the distribution.
+#
+function handle_missing_counts() {
+
+    #
+    # compute average a value based on well-defined counts-of-counts
+    #
+    a_sum = 0;
+
+    for (k = maxCount - 1; k > 0; k --) {
+	if (countOfCounts[k] == 0) break;
+
+	a =  k * (log(countOfCounts[k]) - log(countOfCounts[k + 1]));
+
+	if (debug) {
+		print "k = " k ", a = " a > "/dev/stderr";
+	}
+
+	a_sum += a;
+    }
+
+    if (maxCount - 1 == k) {
+	# no data to estimate a, give up
+	return;
+    }
+
+    avg_a = a_sum / (maxCount - k - 1);
+
+    if (debug) {
+	print "average a = " avg_a > "/dev/stderr";
+    }
+
+    ## print "avg_a", avg_a > "/dev/stderr";
+
+    for ( ; k > 0; k --) {
+	if (countOfCounts[k] == 0) {
+	    countOfCounts[k] = exp(log(countOfCounts[k + 1]) + avg_a / k);
+
+	    print "estimating missing count-of-count " k \
+					" = " countOfCounts[k] > "/dev/stderr";
+	}
+    }
+}
+
 END {
     # Code below is essentially identical to ModKneserNey::estimate()
     # (Discount.cc).
+
+    handle_missing_counts();
 
     if (countOfCounts[1] == 0 || \
 	countOfCounts[2] == 0 || \

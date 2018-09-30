@@ -5,17 +5,15 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  *
  *
- * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FDiscount.h,v 1.7 2006/01/09 18:33:31 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/FDiscount.h,v 1.9 2010/06/02 06:33:08 stolcke Exp $
  *
  *
  */
 
 #ifndef _FDiscount_h_
 #define _FDiscount_h_
-
-#ifndef EXCLUDE_CONTRIB
 
 #include "Discount.h"
 
@@ -212,8 +210,8 @@ public:
     FModKneserNey(unsigned mincount = 0,
 		  Boolean countsAreModified = false,
 		  Boolean prepareCountsAtEnd = false)
-    	: ModKneserNey(mincount, countsAreModified, prepareCountsAtEnd),
-	  FKneserNey(mincount, countsAreModified, prepareCountsAtEnd) {};
+    	: FKneserNey(mincount, countsAreModified, prepareCountsAtEnd),
+	  ModKneserNey(mincount, countsAreModified, prepareCountsAtEnd) {};
 
     double discount(Count count, Count totalCount, Count observedVocab) {
 	return ModKneserNey::discount(count,totalCount,observedVocab);
@@ -236,8 +234,6 @@ public:
 			       unsigned int node, FactoredVocab& vocab)
 	{ return FKneserNey::prepareCounts(spec,node,vocab); }
 };
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FDiscount_h_ */
 

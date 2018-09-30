@@ -11,14 +11,16 @@
 #define _FNgramStats_cc_
 
 #ifndef lint
-static char FNgramStats_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramStats.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
+static char FNgramStats_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramStats.cc,v 1.18 2010/06/02 05:51:57 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 
@@ -117,6 +119,21 @@ FNgramCounts<CountT>::FNgramCounts(FactoredVocab &vocab,
 }
 
 
+template <class CountT>
+unsigned int
+FNgramCounts<CountT>::countSentence(const VocabString *words, const char *factor)
+{
+    CountT factorCount;
+
+    /*
+     * Parse the weight string as a count
+     */
+    if (!stringToCount(factor, factorCount)) {
+	return 0;
+    }
+
+    return countSentence(words, factorCount);
+}
 
 template <class CountT>
 unsigned int
@@ -137,7 +154,7 @@ FNgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 
     ::memset(widMatrix[0],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
     if (openVocab) {
-      for (int i=0;i<howmany;i++) {
+      for (unsigned i = 0; i < howmany; i++) {
 	::memset(widMatrix[i+1],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
 	vocab.addWords(wordMatrix[i],widMatrix[i+1],maxNumParentsPerChild+1);
 	for (int j=0;widMatrix[i+1][j] != Vocab_None;j++) {
@@ -145,14 +162,14 @@ FNgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 	}
       }
     } else {
-      for (int i=0;i<howmany;i++) {
+      for (unsigned i = 0; i < howmany; i++) {
 	::memset(widMatrix[i+1],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
 	vocab.getIndices(wordMatrix[i],widMatrix[i+1],maxNumParentsPerChild+1,
 			 vocab.unkIndex());
 	// TODO: while this code is finished for closed vocab, we need
 	// still to update FactoredVocab::read() before closed vocab
 	// stuff will work.
-	for (int j=0;widMatrix[i+1][j] != Vocab_None;j++) {
+	for (unsigned j = 0; widMatrix[i+1][j] != Vocab_None; j++) {
 	  if (widMatrix[i+1][j] == vocab.unkIndex()) {
 	    // NOTE: since we use the same global index set for all
 	    // words even if they're in different factors, you might
@@ -166,7 +183,7 @@ FNgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 	    // problem shouldn't happen.
 
 	    // need to update all LMs that have this index as a child.
-	    for (int lm=0;lm<fnSpecs.fnSpecArray.size();lm++) {
+	    for (unsigned lm = 0; lm < fnSpecs.fnSpecArray.size(); lm++) {
 	      if (j == fnSpecs.fnSpecArray[lm].childPosition)
 		fnSpecs.fnSpecArray[lm].stats.numOOVs++;
 	    }
@@ -254,7 +271,7 @@ FNgramCounts<CountT>::incrementCounts(FNgramNode* counts,
 {
   FNgramNode *node = counts;
 
-  for (int i = 0; i < order; i++) {
+  for (unsigned i = 0; i < order; i++) {
     VocabIndex wid = words[i];
     /*
      * check of end-of-sentence
@@ -288,7 +305,7 @@ FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid tok
   
   unsigned wordNum;
   for (wordNum=start; wm[wordNum][FNGRAM_WORD_TAG_POS] != Vocab_None; wordNum++) {
-    for (int j=0;j<fnSpecs.fnSpecArray.size();j++) {
+    for (unsigned j = 0; j < fnSpecs.fnSpecArray.size(); j++) {
       // TODO: for efficiency, change these loops so that wids is created in 
       // reverse order (thereby reducing number of writes)
       // and then calling a version of incrementCounts() that takes
@@ -301,7 +318,7 @@ FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid tok
       for (int k=0;k<numSubSets;k++) {
 	if (fnSpecs.fnSpecArray[j].parentSubsets[k].counts == NULL)
 	  continue;
-	int wid_index = 0;
+	unsigned wid_index = 0;
 	for (int l=fnSpecs.fnSpecArray[j].numParents-1;l>=0;l--) {
 	  if (k & (1<<l)) {
 	    if (fnSpecs.fnSpecArray[j].parentOffsets[l] + (int)wordNum < (int)start) {
@@ -346,7 +363,7 @@ FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid tok
       
     }
   }
-  for (int j=0;j<fnSpecs.fnSpecArray.size();j++) {
+  for (unsigned j = 0; j < fnSpecs.fnSpecArray.size(); j++) {
     // we subtract off beginning (start) and potentially more for
     // start/end of sentence tokens.
     // NOTE: NgramCounts<CountT>::countSentence() checks the
@@ -379,54 +396,6 @@ FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid tok
 /*
  * Type-dependent count <--> string conversions
  */
-#ifdef INSTANTIATE_TEMPLATES
-static
-#endif
-char ctsBuffer[100];
-
-template <class CountT>
-static inline const char *
-countToString(CountT count)
-{
-    sprintf(ctsBuffer, "%lg", (double)count);
-    return ctsBuffer;
-}
-
-static inline const char *
-countToString(unsigned count)
-{
-    sprintf(ctsBuffer, "%u", count);
-    return ctsBuffer;
-}
-
-static inline const char *
-countToString(int count)
-{
-    sprintf(ctsBuffer, "%d", count);
-    return ctsBuffer;
-}
-
-template <class CountT>
-static inline Boolean
-stringToCount(const char *str, CountT &count)
-{
-    double x;
-    if (sscanf(str, "%lf", &x) == 1) {
-	count = x;
-	return true;
-    } else {
-	return false;
-    }
-}
-
-static inline Boolean
-stringToCount(const char *str, unsigned &count)
-{
-    /*
-     * scanf("%u") doesn't check for a positive sign, so we have to ourselves.
-     */
-    return (*str != '-' && sscanf(str, "%u", &count) == 1);
-}
 
 static inline Boolean
 stringToGenInt(const char *str, unsigned &count)
@@ -439,12 +408,6 @@ stringToGenInt(const char *str, unsigned &count)
   if (endptr == str || res < 0) return false;
   count = (unsigned) res;
   return true;
-}
-
-static inline Boolean
-stringToCount(const char *str, int &count)
-{
-    return (sscanf(str, "%d", &count) == 1);
 }
 
 /*****************************************************************************************
@@ -544,7 +507,7 @@ FNgramCounts<CountT>::read(unsigned int specNum,File &file)
     if (specNum >= fnSpecs.fnSpecArray.size())
       return false;
 
-    while (howmany = readFNgram(file, words, maxFNgramOrder + 1, count, parSpec,ok)) {
+    while ((howmany = readFNgram(file, words, maxFNgramOrder + 1, count, parSpec,ok))) {
       if (!ok)
 	return false;
 
@@ -554,7 +517,7 @@ FNgramCounts<CountT>::read(unsigned int specNum,File &file)
       Boolean skipNgramCount = false;
       if (openVocab) {
 	vocab.addWords2(words+1, wids, maxFNgramOrder,tagsfound+1);
-	for (int j = 0; j < maxFNgramOrder && words[j+1] != 0; j++) {
+	for (unsigned j = 0; j < maxFNgramOrder && words[j+1] != 0; j++) {
 	  if (tagsfound[j+1]==0) {
 	    skipNgramCount = true;
 	  }
@@ -589,7 +552,7 @@ template <class CountT>
 Boolean
 FNgramCounts<CountT>::read()
 {
-  for (int i=0;i<fnSpecs.fnSpecArray.size();i++) {
+  for (unsigned i = 0; i < fnSpecs.fnSpecArray.size(); i++) {
     File f(fnSpecs.fnSpecArray[i].countFileName, "r");
     if (!read(i,f))
       return false;
@@ -701,8 +664,8 @@ FNgramCounts<CountT>::writeSpec(File &file,
     return;
   
   static char buffer[maxLineLength];
-  const int numSubSets = 1<<fnSpecs.fnSpecArray[specNum].numParents;
-  for (unsigned int i=0;i<numSubSets;i++) {
+  const unsigned numSubSets = 1U<<fnSpecs.fnSpecArray[specNum].numParents;
+  for (unsigned int i = 0; i < numSubSets; i++) {
     if (fnSpecs.fnSpecArray[specNum].parentSubsets[i].counts != NULL) {
       writeNode(fnSpecs.fnSpecArray[specNum].parentSubsets[i].counts,
 		i,file, buffer, buffer, 1, numBitsSet(i)+1, sorted);
@@ -718,7 +681,7 @@ template <class CountT>
 void
 FNgramCounts<CountT>::write(const Boolean sorted)
 {
-  for (int i=0;i<fnSpecs.fnSpecArray.size();i++) {
+  for (unsigned i = 0; i < fnSpecs.fnSpecArray.size(); i++) {
     if (strcmp(fnSpecs.fnSpecArray[i].countFileName,FNGRAM_DEV_NULL_FILE) != 0) {
       File f(fnSpecs.fnSpecArray[i].countFileName, "w");
       writeSpec(f,i,sorted);
@@ -757,7 +720,7 @@ CountT
 FNgramCounts<CountT>::sumCounts(unsigned int specNum)
 {
   CountT sum=0;
-  for (int node=0;node<fnSpecs.fnSpecArray[specNum].numSubSets; node++) {
+  for (unsigned node = 0; node < fnSpecs.fnSpecArray[specNum].numSubSets; node++) {
     sum+=sumCounts(specNum,node);
   }
   return sum;
@@ -768,7 +731,7 @@ CountT
 FNgramCounts<CountT>::sumCounts()
 {
   CountT sum=0;
-  for (int i=0;i<fnSpecs.fnSpecArray.size();i++) {
+  for (unsigned i = 0; i < fnSpecs.fnSpecArray.size(); i++) {
     sum+=sumCounts(i);
   }
   return sum;
@@ -778,13 +741,13 @@ FNgramCounts<CountT>::sumCounts()
 // parse file into sentences and update stats
 template <class CountT>
 unsigned int
-FNgramCounts<CountT>::countFile(File &file)
+FNgramCounts<CountT>::countFile(File &file, Boolean weighted)
 {
-    int numWords = 0;
+    unsigned numWords = 0;
     char *line;
 
-    while (line = file.getline()) {
-	unsigned int howmany = countString(line);
+    while ((line = file.getline())) {
+	unsigned int howmany = countString(line, weighted);
 
 	/*
 	 * Since getline() returns only non-empty lines,
@@ -798,14 +761,12 @@ FNgramCounts<CountT>::countFile(File &file)
     }
     if (debug(DEBUG_PRINT_TEXTSTATS)) {
       file.position(dout()) << endl;
-      for (int i=0;i<fnSpecs.fnSpecArray.size();i++) {
+      for (unsigned i=0; i < fnSpecs.fnSpecArray.size(); i++) {
 	dout() << "LM(" << i << ") " << fnSpecs.fnSpecArray[i].stats;
       }
       // file.position(dout()) << this -> stats;
     }
     return numWords;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FNgramStats_cc_ */

@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: segment.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: segment.cc,v 1.19 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -30,7 +34,7 @@ static int version = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
-static char *textFile = "-";
+static const char *textFile = "-";
 static const char *sTag = 0;
 static double bias = 1.0;
 static int continuous = 0;
@@ -263,7 +267,7 @@ segmentFile(File &file, LM &lm, double bias)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString sentence[maxWordsPerLine];
 	unsigned numWords = Vocab::parseWords(line, sentence, maxWordsPerLine);
 
@@ -325,7 +329,7 @@ segmentFileContinuous(File &file, LM &lm, double bias)
     unsigned lineStart = 0; // index into the above to mark the offset for the 
 			    // current line's data
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine];
 	unsigned numWords =
 		Vocab::parseWords(line, words, maxWordsPerLine);

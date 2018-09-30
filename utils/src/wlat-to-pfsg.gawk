@@ -5,7 +5,7 @@
 #
 # usage: wlat-to-pfsg word-lattice> pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-pfsg.gawk,v 1.5 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/wlat-to-pfsg.gawk,v 1.6 2009/06/07 17:33:09 stolcke Exp $
 #
 
 #########################################
@@ -18,6 +18,8 @@ BEGIN {
 	round = 0.5;
 
 	null = "NULL";
+	start_tag = "<s>";
+	end_tag = "</s>";
 
 	tmpfile = "tmp.pfsg.trans";
 }
@@ -49,6 +51,9 @@ function end_grammar(name) {
 	for (i = 0; i < num_nodes; i ++) {
 	    if (node_string[i] == "") {
 		print "warning: node word " i " is undefined" >> "/dev/stderr";
+		node_string[i] = null;
+	    } else if (i == initial_node && node_string[i] == start_tag || \
+		       i == final_node && node_string[i] == end_tag) {
 		node_string[i] = null;
 	    }
 	    printf " %s", node_string[i];

@@ -14,9 +14,9 @@
  * LHashIter<KeyT,DataT> performs iterations (in random key order) over
  * the entries in a hash table.
  *
- * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.31 2005/08/19 04:31:46 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.h,v 1.35 2010/06/02 04:52:43 stolcke Exp $
  *
  */
 
@@ -32,8 +32,8 @@
 #define LHASH_MAXBIT_NBITS		5
 #define LHASH_MAXENTRY_NBITS		27
 
-const unsigned LHash_maxBitLimit = ((1<<LHASH_MAXBIT_NBITS)-1);
-const unsigned LHash_maxEntriesLimit = ((1<<LHASH_MAXENTRY_NBITS)-1);
+const unsigned LHash_maxBitLimit = ((1U<<LHASH_MAXBIT_NBITS)-1);
+const unsigned LHash_maxEntriesLimit = ((1U<<LHASH_MAXENTRY_NBITS)-1);
 
 template <class KeyT, class DataT> class LHash;		// forward declaration
 template <class KeyT, class DataT> class LHashIter;	// forward declaration
@@ -76,11 +76,16 @@ public:
     DataT *insert(KeyT key, Boolean &foundP = _Map::foundP);
     DataT *remove(KeyT key, Boolean &foundP = _Map::foundP);
     void clear(unsigned size = 0);
+    void setsize(unsigned size = 0);
     unsigned numEntries() const
 	{ return body ? ((LHashBody<KeyT,DataT> *)body)->nEntries : 0; } ;
     void dump() const; 			/* debugging: dump contents to cerr */
 
     void memStats(MemStats &stats) const;
+
+#ifdef DEBUG
+    static unsigned long collisionCount;/* for performance diagnostics */
+#endif
 
 private:
     void *body;				/* handle to the above -- this keeps
@@ -121,8 +126,8 @@ private:
 /*
  * Key Comparison functions
  */
-#define hashSize(nbits) (1<<(nbits))	/* allocated size of data array */
-#define hashMask(nbits) (~((~0)<<(nbits)))
+#define hashSize(nbits) (1U<<(nbits))	/* allocated size of data array */
+#define hashMask(nbits) (~((~0L)<<(nbits)))
 					/* bitmask used to compute hash
 					 * code modulo maxEntries */
 
@@ -144,13 +149,13 @@ LHash_equalKey(const char *key1, const char *key2)
  * (We provide versions for integral types and char strings;
  * user has to add more specialized definitions.)
  */
-inline unsigned
-LHash_hashKey(unsigned key, unsigned maxBits)
+inline unsigned long
+LHash_hashKey(unsigned long key, unsigned maxBits)
 {
     return (((key * 1103515245 + 12345) >> (30-maxBits)) & hashMask(maxBits));
 }
 
-inline unsigned
+inline unsigned long
 LHash_hashKey(const char *key, unsigned maxBits)
 {
     /*
@@ -172,7 +177,7 @@ LHash_hashKey(const char *key, unsigned maxBits)
      *    works well both for decimal and non-decimal strings.
      */
 
-    unsigned i = 0;
+    unsigned long i = 0;
 
     for (; *key; key++) {
 	i += (i << 3) + *key;

@@ -8,13 +8,18 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.49 2006/01/09 18:11:12 stolcke Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/devel/dstruct/src/RCS/LHash.cc,v 1.53 2010/06/02 04:52:43 stolcke Exp $";
 #endif
 
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -31,6 +36,11 @@ using namespace std;
 template <class KeyT, class DataT>
 DataT *LHash<KeyT,DataT>::removedData = 0;
 #endif /* __GNUG__ */
+
+#ifdef DEBUG
+template <class KeyT, class DataT>
+unsigned long LHash<KeyT,DataT>::collisionCount = 0;
+#endif
 
 const unsigned minHashBits = 3;		/* minimum no. bits for hashing
 					 * tables smaller than this use linear
@@ -173,6 +183,15 @@ LHash<KeyT,DataT>::clear(unsigned size)
 }
 
 template <class KeyT, class DataT>
+void
+LHash<KeyT,DataT>::setsize(unsigned size)
+{
+    if (body == 0 && size != 0) {
+	alloc(roundSize(size));
+    }
+}
+
+template <class KeyT, class DataT>
 LHash<KeyT,DataT>::~LHash()
 {
     clear(0);
@@ -274,7 +293,7 @@ LHash<KeyT,DataT>::locate(KeyT key, unsigned &index) const
 	     * Do a hashed search
 	     */
 	    unsigned hash = LHash_hashKey(key, maxBits);
-	    unsigned i; 
+	    unsigned i;
 
 	    for (i = hash; ; i = (i + 1) & hashMask(maxBits))
 	    {
@@ -285,6 +304,9 @@ LHash<KeyT,DataT>::locate(KeyT key, unsigned &index) const
 		    index = i;
 		    return true;
 		}
+#ifdef DEBUG
+		collisionCount += 1;
+#endif
 	    }
 	}
     } else {
@@ -298,7 +320,7 @@ LHash<KeyT,DataT>::find(KeyT key, Boolean &foundP) const
 {
     unsigned index;
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return &(BODY(body)->data[index].value);
     } else {
 	return 0;
@@ -312,7 +334,7 @@ LHash<KeyT,DataT>::getInternalKey(KeyT key, Boolean &foundP) const
     unsigned index;
     static KeyT zeroKey;
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return BODY(body)->data[index].key;
     } else {
 	return zeroKey;
@@ -334,7 +356,7 @@ LHash<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 	alloc(1);
     }
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	return &(BODY(body)->data[index].value);
     } else {
 	unsigned maxEntries = hashSize(BODY(body)->maxBits);
@@ -418,7 +440,7 @@ LHash<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
 	assert(removedData != 0);
     }
 
-    if (foundP = locate(key, index)) {
+    if ((foundP = locate(key, index))) {
 	Map_freeKey(BODY(body)->data[index].key);
 	Map_noKey(BODY(body)->data[index].key);
 	memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));

@@ -4,20 +4,23 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2004, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/ProductVocab.cc,v 1.11 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010, SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/ProductVocab.cc,v 1.15 2010/06/02 05:51:57 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
-#include "ProductVocab.h"
+#include "FNgramStats.h"		// define FNgramCount
 #include "FNgramSpecs.h"
+#include "ProductVocab.h"
 
 #include "LHash.cc"
 #include "Array.cc"
@@ -74,13 +77,13 @@ ProductVocab::addWord(VocabString name)
     // rather than doing string compares.
     if (FNGRAM_WORD_TAG_POS < numTags) {
 	if (wid_factors[FNGRAM_WORD_TAG_POS] == ssIndex()) {
-	    for (int i = 0; i< numTags; i++) {
+	    for (unsigned i = 0; i< numTags; i++) {
 		if (wid_factors[i] == fvocab.unkIndex() ||
 		    wid_factors[i] == fvocab.nullIndex)
 		    wid_factors[i] = fvocab.ssIndex();
 	    }
 	} else if (wid_factors[FNGRAM_WORD_TAG_POS] == seIndex()) {
-	    for (int i = 0; i< numTags; i++) {
+	    for (unsigned i = 0; i< numTags; i++) {
 		if (wid_factors[i] == fvocab.unkIndex() ||
 		    wid_factors[i] == fvocab.nullIndex)
 		    wid_factors[i] = fvocab.seIndex();
@@ -155,13 +158,13 @@ ProductVocab::getIndex(VocabString name, VocabIndex unkIndex)
     // rather than doing string compares.
     if (FNGRAM_WORD_TAG_POS < numTags) {
 	if (wid_factors[FNGRAM_WORD_TAG_POS] == ssIndex()) {
-	    for (int i = 0; i< numTags; i++) {
+	    for (unsigned i = 0; i< numTags; i++) {
 		if (wid_factors[i] == fvocab.unkIndex() ||
 		    wid_factors[i] == fvocab.nullIndex)
 		    wid_factors[i] = fvocab.ssIndex();
 	    }
 	} else if (wid_factors[FNGRAM_WORD_TAG_POS] == seIndex()) {
-	    for (int i = 0; i< numTags; i++) {
+	    for (unsigned i = 0; i< numTags; i++) {
 		if (wid_factors[i] == fvocab.unkIndex() ||
 		    wid_factors[i] == fvocab.nullIndex)
 		    wid_factors[i] = fvocab.seIndex();
@@ -207,6 +210,4 @@ ProductVocab::loadWidFactors(VocabIndex word, VocabIndex *factors)
     }
     return true;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

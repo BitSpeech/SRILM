@@ -76,17 +76,21 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995-2005 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.34 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Vocab.h,v 1.41 2010/06/02 05:49:58 stolcke Exp $
  *
  */
 
 #ifndef _Vocab_h_
 #define _Vocab_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include "Boolean.h"
 #include "File.h"
@@ -102,7 +106,7 @@ typedef unsigned int	VocabIndex;
 #endif
 typedef const char	*VocabString;
 
-const unsigned int	maxWordLength = 256;
+const unsigned int	maxWordLength = 1024;
 
 const VocabIndex	Vocab_None = (VocabIndex)-1;
 
@@ -123,6 +127,7 @@ public:
     virtual ~Vocab() {};
 
     virtual VocabIndex addWord(VocabString name);
+    virtual VocabIndex addWordAlias(VocabIndex word, VocabString name);
     virtual VocabString getWord(VocabIndex index);
     virtual VocabIndex getIndex(VocabString name,
 				    VocabIndex unkIndex = Vocab_None);
@@ -152,7 +157,7 @@ public:
     virtual Boolean isNonEvent(VocabString word)	/* pseudo-word? */
 	{ return isNonEvent(getIndex(word)); };
     virtual Boolean isNonEvent(VocabIndex word) const	/* non-event? */
-	{ return !_unkIsWord && (word == _unkIndex) ||
+	{ return (!_unkIsWord && (word == _unkIndex)) ||
 		 nonEventMap.find(word) != 0; };
 
     virtual VocabIndex addNonEvent(VocabIndex word);
@@ -190,6 +195,8 @@ public:
     virtual unsigned int getIndices(const VocabString *words,
 			    VocabIndex *wids, unsigned int max,
 			    VocabIndex unkIndex = Vocab_None);
+    virtual Boolean checkWords(const VocabString *words,
+			       VocabIndex *wids, unsigned int max);
     static unsigned int parseWords(char *line,
 				   VocabString *words, unsigned int max);
 
@@ -215,13 +222,19 @@ public:
 
     VocabIndexComparator compareIndex() const;
     VocabIndicesComparator compareIndices() const;
+    Boolean ngramsInRange(VocabString *startRange, VocabString *endRange);
 
     /*
      * Miscellaneous
      */
     virtual unsigned int read(File &file);
+    virtual unsigned int readAliases(File &file);
     virtual void write(File &file, Boolean sorted = true) const;
     virtual void use() const { outputVocab = (Vocab *)this; }; // discard const
+
+    virtual Boolean readIndexMap(File &file, Array<VocabIndex> &map,
+						Boolean limitVocab = false);
+    virtual void writeIndexMap(File &file);
 
     virtual void memStats(MemStats &stats) const;
 

@@ -1,7 +1,9 @@
 //
 // Interactive testing for Map2 datastructure
 //
-// $Header: /home/srilm/devel/dstruct/src/RCS/testMap2.cc,v 1.3 2003/03/05 00:54:09 stolcke Exp $
+// Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
+//
+// $Header: /home/srilm/devel/dstruct/src/RCS/testMap2.cc,v 1.4 2010/06/02 04:52:43 stolcke Exp $
 //
 
 #include <stdio.h>
@@ -57,7 +59,7 @@ Find(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    DATA_T *result;
 
    if (argc < 2) {
-	Tcl_SetResult(interp, "2 args expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"2 args expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -78,7 +80,7 @@ Insert(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    DATA_T *result;
 
    if (argc < 3) {
-	Tcl_SetResult(interp, "3 args expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"3 args expected", TCL_STATIC);
 	return TCL_ERROR;
    }
    char *value = strdup(argv[1]);
@@ -102,7 +104,7 @@ Delete(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    DATA_T *result;
 
    if (argc < 2) {
-	Tcl_SetResult(interp, "2 args expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"2 args expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -123,7 +125,7 @@ DeleteRow(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
    Boolean result;
 
    if (argc < 1) {
-	Tcl_SetResult(interp, "1 arg expected", TCL_STATIC);
+	Tcl_SetResult(interp, (char *)"1 arg expected", TCL_STATIC);
 	return TCL_ERROR;
    }
 
@@ -131,7 +133,7 @@ DeleteRow(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 
    result = myMap2.remove(key1);
    if (result) {
-       Tcl_SetResult(interp, "FOUND", TCL_STATIC);
+       Tcl_SetResult(interp, (char *)"FOUND", TCL_STATIC);
    }
    return TCL_OK;
 }
@@ -149,7 +151,7 @@ List(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 	KEY2_T key2;
 	DATA_T *data;
 
-	while (data = myIter2.next(key2)) {
+	while ((data = myIter2.next(key2))) {
 	    cout << "key = " << key1 << "," << key2 
 		    << ", value = " << *data << endl;
 	}

@@ -7,7 +7,7 @@
 #	Note: this script makes assumptions about the structure of sentence
 #	ID, specifically, how they encode speakers and timemarks.
 #
-# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-ctm.gawk,v 1.9 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/sentid-to-ctm.gawk,v 1.10 2009/11/19 00:10:02 stolcke Exp $
 #
 
 BEGIN {
@@ -17,7 +17,7 @@ BEGIN {
 	pause = "-pau-";
 	reject = "@reject@";
 
-	sort_cmd = "sort -u +0 -1 +1 -2 +2nb -3";
+	sort_cmd = "sort -b -k 1,1 -k 2,2 -k 3,3n";
 }
 
 # read confidences and/or segment information if given

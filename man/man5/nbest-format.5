@@ -1,5 +1,5 @@
-.\" $Id: nbest-format.5,v 1.4 2001/08/11 20:03:03 stolcke Exp $
-.TH nbest-format 5 "$Date: 2001/08/11 20:03:03 $" "SRILM File Formats"
+.\" $Id: nbest-format.5,v 1.5 2007/12/19 22:08:05 stolcke Exp $
+.TH nbest-format 5 "$Date: 2007/12/19 22:08:05 $" "SRILM File Formats"
 .SH NAME
 nbest-format \- File formats for N-best hypotheses lists
 .SH DESCRIPTION
@@ -9,13 +9,13 @@ The first two formats originated in the SRI Decipher(TM) recognition
 system, the third format is particular to SRILM.
 .PP
 The first format consists of the header
-.br
+.nf
 	NBestList1.0
-.br
+.fi
 followed by one or more lines of the form
-.br
+.nf
 	(\fIscore\fP) \fIw1 w2 w3\fP ...
-.br
+.fi
 where
 .I score
 is a composite acoustic/language model score
@@ -31,13 +31,13 @@ and by
 The second Decipher(TM) format is an extension of the first format
 that encodes word-level scores and time alignments.
 It is marked by a header of the form
-.br
+.nf
 	NBestList2.0
-.br
+.fi
 The hypotheses are in the format
-.br
+.nf
 	(\fIscore\fP) \fIw1\fP ( st: \fIst1\fP et: \fIet1\fP g: \fIg1\fP a: \fIa1\fP ) \fIw2\fP ...
-.br
+.fi
 where words are followed by start and end times, language model and 
 acoustic scores (bytelog-scaled), respectively.  
 This format may also contain scores and time marks for sub-word units
@@ -49,9 +49,9 @@ and may thus be easily identified.
 .PP
 The third format understood by SRILM lists
 hypotheses in the format
-.br
+.nf
 	\fIascore\fP \fIlscore\fP \fInwords\fP \fIw1 w2 w3\fP ...
-.br
+.fi
 where the first three columns contain the
 acoustic model log probability, the language model log probability,
 and the number of words in the hypothesis string, respectively.

@@ -1,19 +1,11 @@
-.\" $Id: select-vocab.1,v 1.4 2003/12/14 02:43:14 stolcke Exp $
-.TH select-vocab 1 "$Date: 2003/12/14 02:43:14 $" "SRILM Tools"
+.\" $Id: select-vocab.1,v 1.5 2007/12/20 19:13:52 stolcke Exp $
+.TH select-vocab 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
 select-vocab \- Select a maximum-likelihood vocabulary from a mixture of corpora.
 .SH SYNOPSIS
-.B select-vocab 
-[
-.I -options
-\&... ]
-.B \-heldout
-.I file
-.I f1
-.I f2
-\&...
-.I fn
-
+.nf
+\fBselect-vocab\fP [ \fIoption\fP ... ] \fB\-heldout\fP \fIfile f1 f2\fP ... 
+.fi
 .SH DESCRIPTION
 .B select-vocab
 picks a vocabulary from the union of the vocabularies of files

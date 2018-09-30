@@ -1,13 +1,11 @@
-.\" $Id: anti-ngram.1,v 1.6 2004/12/03 17:59:01 stolcke Exp $
-.TH anti-ngram 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: anti-ngram.1,v 1.8 2008/04/24 07:39:29 stolcke Exp $
+.TH anti-ngram 1 "$Date: 2008/04/24 07:39:29 $" "SRILM Tools"
 .SH NAME
 anti-ngram \- count posterior-weighted N-grams in N-best lists
 .SH SYNOPSIS
-.B anti-ngram
-[\c
-.BR \-help ]
-.I option 
-\&...
+.nf
+\fBanti-ngram\fP [ \fB\-help\fP ] \fIoption\fP ...
+.fi
 .SH DESCRIPTION
 .B anti-ngram
 counts the N-grams in a set of N-best hypotheses lists.
@@ -68,6 +66,10 @@ Map vocabulary to lowercase, eliminating case distinctions.
 .B \-multiwords
 Split multiwords (words joined by '_') into their components when
 reading N-best lists.
+.TP
+.BI \-multi-char " C"
+Character used to delimit component words in multiwords
+(an underscore character by default).
 .TP
 .BI \-rescore-lmw " lmw"
 Sets the language model weight used in combining the language model log
@@ -132,4 +134,4 @@ option to limit the vocabulary.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 2000\-2004 SRI International
+Copyright 2000\-2008 SRI International

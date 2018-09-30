@@ -2,9 +2,9 @@
  * Lattice.h --
  *	Word lattices
  *
- * Copyright (c) 1997-2006, SRI International.  All Rights Reserved.
+ * Copyright (c) 1997-2010, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.h,v 1.85 2006/01/06 11:58:17 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lattice/src/RCS/Lattice.h,v 1.100 2010/06/02 08:02:31 stolcke Exp $
  *
  */
 
@@ -31,6 +31,7 @@
 #include "VocabMultiMap.h"
 #include "MultiwordVocab.h"
 #include "WordMesh.h"
+#include "NBest.h"
 
 #include "HTKLattice.h"
 
@@ -164,7 +165,7 @@ compareTransitions(const TRANS_T<NodeIndex,LatticeTransition> &transList1,
  ************************* */
 class LatticeNode
 {
-  friend class LatticeTransition;
+    friend class LatticeTransition;
 
 public:
     LatticeNode();     // initializing lattice node;
@@ -242,6 +243,7 @@ class NBestOptions
 };
 
 class PackedNodeList; 
+class NodePathInfo;
 
 /* *************************
  * A lattice 
@@ -261,7 +263,7 @@ public:
        ************************************************* */
     Lattice(Vocab &vocab, const char *name = LATTICE_NONAME);
     Lattice(Vocab &vocab, const char *name, SubVocab &ignoreVocab);
-    ~Lattice();
+    virtual ~Lattice();
 
     Boolean computeNodeEntropy(); 
     LogP detectSelfLoop(NodeIndex nodeIndex);
@@ -277,6 +279,10 @@ public:
     Boolean noBackoffWeights;	// hack to suppress backoff weights in expansion
     Boolean collapseSameWordNodes(SubVocab &exceptions);
     void splitMultiwordNodes(MultiwordVocab &vocab, LM &lm);
+    void splitHTKMultiwordNodes(MultiwordVocab &vocab,
+		LHash<const char *, Array< Array<char *> * > > &multiwordDict);
+    static Boolean readMultiwordDict(File &file, 
+		LHash<const char *, Array< Array<char *> * > > &multiwordDict);
     Boolean scorePronunciations(VocabMultiMap &dictionary,
 						Boolean intlogs = false);
     void alignLattice(WordMesh &sausage, double posteriorScale = 1.0)
@@ -307,6 +313,7 @@ public:
     Boolean readHTK(File &file, HTKHeader *header = 0,
 				Boolean useNullNodes = false);
     Boolean readMesh(File &file);
+    Boolean createFromMesh(WordMesh &inputMesh);
 
     Boolean writePFSG(File &file);
     Boolean writeCompactPFSG(File &file);
@@ -317,7 +324,9 @@ public:
     void setHTKHeader(HTKHeader &header);
 
     Boolean useUnk;		// map unknown words to <unk>
+    Boolean keepUnk;		// keep unknown word labels
     Boolean limitIntlogs;	// whether output probs should fit in bytelogs
+    Boolean printSentTags;	// whether sentence start/end tags are printed
 
     /* ********************************************************* 
        nodes and transitions
@@ -404,8 +413,35 @@ public:
     Boolean computeNBestViterbi(unsigned N, NBestOptions &nbestOut,
 					SubVocab &ignoreWords,
 					const char *multiwordSeparator = 0);
+
+    LogP decode1Best(VocabIndex *words, unsigned maxWords,
+    		     SubVocab &ignoreWords, LM *lm,
+		     unsigned contextLen, double beamwidth,
+		     LogP logP_floor = LogP_Zero, unsigned maxPaths = 0);
+
+    LogP decode1Best(NBestWordInfo *winfo, unsigned maxWords,
+    		     SubVocab &ignoreWords, LM *lm,
+		     unsigned contextLen, double beamwidth,
+		     LogP logP_floor = LogP_Zero, unsigned maxPaths = 0);
+  
+    Boolean decodeNBest(unsigned N, NBestOptions &nbestOut,
+    			SubVocab &ignoreWords, LM *lm,
+			unsigned contextLen, unsigned maxFanIn,
+			double beamwidth, const char *multiwordSeparator,
+			LogP logP_floor = LogP_Zero, unsigned maxPaths = 0);
+
+    unsigned findBestPath(unsigned n, VocabString *words, NodeIndex *path,
+			  unsigned maxNodes, LogP &prob);
+    unsigned findBestPath(VocabIndex *words, NodeIndex *path,
+			  unsigned maxNodes, LogP & prob);
+
     FloatCount countNgrams(unsigned order, NgramCounts<FloatCount> &counts,
 						double posteriorScale = 1.0);
+    FloatCount indexNgrams(unsigned order, File &file,
+    					Prob minCount = 0.0,
+					NBestTimestamp maxPause = 0.0,
+					NBestTimestamp timeTolerance = 0.0,
+					double posteriorScale = 1.0);
 
     double getDuration();
     double computeDensity(double duration = 0.0)
@@ -435,8 +471,9 @@ public:
 
     SubVocab ignoreVocab;	// words to ignore in lattice operations
 
-protected: 
     HTKHeader htkheader;	// HTK header information
+
+protected: 
     Array<HTKWordInfo *> htkinfos;
 				// HTK link information (to avoid duplication
 				// inside node structures)
@@ -470,10 +507,16 @@ protected:
 
     LogP computeViterbi(NodeIndex forwardPreds[], NodeIndex *backwardPreds = 0);
 
-    FloatCount countNgramsAtNode(VocabIndex oldIndex, unsigned order,
-		 NgramCounts<FloatCount> &counts,
+    typedef void NgramAccumulatorFunction(Lattice *lat,
+						const NBestWordInfo *ngram,
+						Prob count,
+						void *clientData);
+    Prob countNgramsAtNode(VocabIndex oldIndex, unsigned order,
 		 LogP2 backwardProbs[], double posteriorScale,
-		 Map2<NodeIndex, VocabContext, LogP2> &forwardProbMap);
+		 Map2<NodeIndex, const NBestWordInfo *, LogP2> &forwardProbMap,
+		 Lattice::NgramAccumulatorFunction *accumulator,
+		 void *clientData, Boolean acousticInfo = false);
+
     Boolean
       expandNodeToTrigram(NodeIndex nodeIndex, LM &lm, unsigned maxNodes = 0);
 
@@ -503,11 +546,11 @@ protected:
 
     Boolean 
       approxMatchInTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			 int overlap); 
+			 unsigned overlap); 
 
     Boolean 
       approxMatchOutTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			  int overlap); 
+			  unsigned overlap); 
 
     void
       packNodeF(NodeIndex nodeIndex, Boolean maxAdd = false);
@@ -528,6 +571,19 @@ protected:
     unsigned findFirstAligned(NodeIndex from, NodeIndex predecessors[],
 				LHash<NodeIndex, unsigned> &nodeSet,
 				NodeIndex pathNodes[]);
+
+
+    NodePathInfo **decode(unsigned contextLen, LM *lm, unsigned finalPosition,
+    			  NodeIndex *sortedNodes, double beamwidth,
+			  float lmscale, int nbest, int maxFanIn,
+			  LogP logP_floor = LogP_Zero, unsigned maxPaths = 0);
+
+    // helper for findBestPath(...)
+    void pathFinder(NodeIndex nodeIndex, LatticeNode *node, unsigned depth,
+		    VocabIndex *wids, unsigned numMatched, NodeIndex *path,
+		    LogP prob, NodeIndex *bestPath, unsigned maxNodes,
+		    LogP &bestProb, unsigned &bestLength,
+		    LHash<long, LogP> &records);
 };
 
 /*
@@ -579,8 +635,7 @@ class NodeQueue: public Debug
 {
 public:
     NodeQueue() { queueHead = queueTail = 0; }
-
-    ~NodeQueue(); 
+    virtual ~NodeQueue(); 
 
     NodeIndex popNodeQueue(); 
     QueueItem *popQueueItem(); 
@@ -651,6 +706,7 @@ class PackedNodeList: public Debug
 {
 public: 
   PackedNodeList() : lastPackedNode(0) {};
+  virtual ~PackedNodeList() {};
   Boolean packNodes(Lattice &lat, PackInput &packInput);
 
 private:

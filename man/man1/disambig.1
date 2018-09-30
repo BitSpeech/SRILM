@@ -1,5 +1,5 @@
-.\" $Id: disambig.1,v 1.24 2004/12/03 17:59:01 stolcke Exp $
-.TH disambig 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: disambig.1,v 1.31 2007/12/20 19:13:52 stolcke Exp $
+.TH disambig 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
 disambig \- disambiguate text tokens using an N-gram model
 .SH SYNOPSIS
@@ -37,9 +37,9 @@ Specifies the file containing the V1-to-V2 mapping information.
 Each line of
 .I file
 contains the mapping for a single word in V1:
-.br
-	w1	w21 [p21] w22 [p22] ...
-.br
+.nf
+	\fIw1\fP	\fIw21\fP [\fIp21\fP] \fIw22\fP [\fIp22\fP] ...
+.fi
 where
 .I w1
 is a word from V1, which has possible mappings
@@ -52,6 +52,13 @@ probability
 which defaults to 1.
 The number is used as the conditional probability P(\fIw1\fP|\fIw21\fP),
 but the program does not depend on these numbers being properly normalized.
+.TP
+.BI \-escape " string"
+Set an ``escape string.''
+Input lines starting with
+.I string
+are not processed and passed unchanged to stdout instead.
+This allows associated information to be passed to scoring scripts etc.
 .TP
 .BI \-text\-map " file"
 Processes a combined text/map file.
@@ -72,11 +79,13 @@ This is convenient if different instances of a word have different mappings.
 There is no implicit insertion of begin/end sentence tokens in this 
 mode.  Sentence boundaries should be indicated explicitly by 
 lines of the form
-.br
+.nf
 	</s>	</s>
-.br
 	<s>	<s>
-.br
+.fi
+An escaped line (see 
+.BR \-escape )
+also implicitly marks a sentence boundary.
 .TP
 .BR \-classes " file"
 Specifies the V1-to-V2 mapping information in 
@@ -99,10 +108,142 @@ Specifies the V2 language model as a standard ARPA N-gram backoff model file
 The default is not to use a language model, i.e., choose V2 tokens
 based only on the probabilities in the map file.
 .TP
+.BI \-use-server " S"
+Use a network LM server (typically implemented by 
+.BR ngram (1)
+with the 
+.B \-server-port
+option) as the main model.
+The server specification
+.I S
+can be an unsigned integer port number (referring to a server port running on
+the local host),
+a hostname (referring to default port 2525 on the named host),
+or a string of the form 
+.IR port @ host ,
+where
+.I port 
+is a portnumber and 
+.I host
+is either a hostname ("dukas.speech.sri.com")
+or IP number in dotted-quad format ("140.44.1.15").
+.br
+For server-based LMs, the
+.B \-order
+option limits the context length of N-grams queried by the client
+(with 0 denoting unlimited length).
+Hence, the effective LM order is the mimimum of the client-specified value
+and any limit implemented in the server.
+.br
+When
+.B \-use-server 
+is specified, the arguments to the options
+.BR \-mix-lm ,
+.BR \-mix-lm2 ,
+etc. are also interpreted as network LM server specifications provided
+they contain a '@' character and do not contain a '/' character.
+This allows the creation of mixtures of several file- and/or
+network-based LMs.
+.TP
+.B \-cache-served-ngrams
+Enables client-side caching of N-gram probabilities to eliminated duplicate
+network queries, in conjunction with
+.BR \-use-server .
+This may result  in a substantial speedup
+but requires memory in the client that may grow linearly with the
+amount of data processed.
+.TP
 .BI \-order " n"
 Set the effective N-gram order used by the language model to
 .IR n .
 Default is 2 (use a bigram model).
+.TP
+.BI \-mix-lm " file"
+Read a second N-gram model for interpolation purposes.
+.TP
+.B \-factored
+Interpret the files specified by 
+.BR \-lm
+and
+.B \-mix-lm
+as a factored N-gram model specification.
+See 
+.BR ngram (1)
+for details.
+.TP
+.BR \-count-lm
+Interpret the model specified by
+.BR \-lm
+(but not
+.BR \-mix-lm )
+as a count-based LM.
+See
+.BR ngram (1)
+for details.
+.TP
+.BI \-lambda " weight"
+Set the weight of the main model when interpolating with
+.BR \-mix-lm .
+Default value is 0.5.
+.TP
+.BI \-mix-lm2 " file"
+.TP
+.BI \-mix-lm3 " file"
+.TP
+.BI \-mix-lm4 " file"
+.TP
+.BI \-mix-lm5 " file"
+.TP
+.BI \-mix-lm6 " file"
+.TP
+.BI \-mix-lm7 " file"
+.TP
+.BI \-mix-lm8 " file"
+.TP
+.BI \-mix-lm9 " file"
+Up to 9 more N-gram models can be specified for interpolation.
+.TP
+.BI \-mix-lambda2 " weight"
+.TP
+.BI \-mix-lambda3 " weight"
+.TP
+.BI \-mix-lambda4 " weight"
+.TP
+.BI \-mix-lambda5 " weight"
+.TP
+.BI \-mix-lambda6 " weight"
+.TP
+.BI \-mix-lambda7 " weight"
+.TP
+.BI \-mix-lambda8 " weight"
+.TP
+.BI \-mix-lambda9 " weight"
+These are the weights for the additional mixture components, corresponding
+to
+.B \-mix-lm2
+through
+.BR \-mix-lm9 .
+The weight for the
+.B \-mix-lm 
+model is 1 minus the sum of 
+.B \-lambda
+and 
+.B \-mix-lambda2
+through
+.BR \-mix-lambda9 .
+.TP
+.BI \-bayes " length"
+Set the context length used for Bayesian interpolation.
+The default value is 0, giving the standard fixed interpolation weight
+specified by
+.BR \-lambda .
+.TP
+.BI \-bayes-scale " scale"
+Set the exponential scale factor on the context likelihood in conjunction
+with the
+.B \-bayes
+function.
+Default value is 1.0.
 .TP
 .BI \-lmw " W"
 Scales the language model probabilities by a factor 
@@ -133,6 +274,19 @@ themselves, except that the word will still be treated as <unk> by the language
 model.
 Also, with this option the LM is assumed to be open-vocabulary
 (the default is close-vocabulary).
+.TP
+.BI \-vocab-aliases " file"
+Reads vocabulary alias definitions from
+.IR file ,
+consisting of lines of the form
+.nf
+	\fIalias\fP \fIword\fP
+.fi
+This causes all V2 tokens
+.I alias
+to be mapped to
+.IR word ,
+and is useful for adapting mismatched language models.
 .TP
 .B \-no-eos
 Do no assume that each input line contains a complete sentence.
@@ -226,12 +380,16 @@ and
 options effectively disable
 .BR \-keep-unk ,
 i.e., unknown input words are always mapped to <unk>.
+Also, 
+.B \-continuous
+doesn't preserve the positions of escaped input lines relative to
+the input.
 .SH "SEE ALSO"
-ngram-count(1), hidden-ngram(1), training-scripts(1),
+ngram-count(1), ngram(1), hidden-ngram(1), training-scripts(1),
 ngram-format(5), classes-format(5).
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>,
 .br
 Anand Venkataraman <anand@speech.sri.com>.
 .br
-Copyright 1995\-2004 SRI International
+Copyright 1995\-2007 SRI International

@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2002-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.8 2006/01/05 08:44:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2002-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-pron-score.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -33,6 +33,7 @@ static int version = 0;
 static unsigned debug = 0;
 static int toLower = 0;
 static int multiwords = 0;
+static const char *multiChar = MultiwordSeparator;
 static char *rescoreFile = 0;
 static char *nbestFiles = 0;
 static char *pauseLMFile = 0;
@@ -57,6 +58,7 @@ static Option options[] = {
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_STRING, "rescore", &rescoreFile, "hyp stream input file to rescore" },
     { OPT_STRING, "nbest", &rescoreFile, "same as -rescore" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
@@ -158,6 +160,11 @@ processNbest(const char *nbestFile, MultiwordVocab &vocab,
 		 * can score. Assume pronunciation prob = 1.
 		 */
 		if (hyp.wordInfo[i].phones == 0) {
+		    if (debug >= DEBUG_SCORES) {
+			cerr << "WORD " << vocab.getWord(hyp.words[i])
+			     << " PRON missing\n";
+		    }
+
 		    continue;
 		}
 
@@ -295,7 +302,7 @@ main (int argc, char *argv[])
 	exit(0);
     }
 
-    MultiwordVocab vocab;
+    MultiwordVocab vocab(multiChar);
     vocab.toLower() = toLower ? true : false;
 
     noPauseIndex = vocab.addWord(noPauseTag);
@@ -344,7 +351,7 @@ main (int argc, char *argv[])
     if (nbestFiles) {
 	File file(nbestFiles, "r");
 	char *line;
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 	    char *fname = strtok(line, wordSeparators);
 	    if (!fname) continue;
 

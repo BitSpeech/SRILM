@@ -3,9 +3,11 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/testFile.cc,v 1.2 1999/10/13 09:16:47 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/misc/src/RCS/testFile.cc,v 1.4 2010/06/02 04:47:32 stolcke Exp $";
 #endif
+
+#include <stdlib.h>
 
 #include "File.h"
 
@@ -16,7 +18,7 @@ main()
 
 	char *line;
 
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 		file.position() << line;
 	}
 

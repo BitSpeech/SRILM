@@ -1,0 +1,54 @@
++ get-gt-counts out=biglm max=20 maxorder=3
++ ngram-count -order 2 -text ../ngram-count-gt/eval97.text -sort -write biglm.contexts
++ ngram-count -read - -read-with-mincounts -order 3 -gt1 biglm.gt1 -gt2 biglm.gt2 -gt3 biglm.gt3 -debug 1 -vocab ../ngram-count-gt/eval2001.vocab -lm swbd.3bo.gz -meta-tag __meta__
+read 22040 contexts
+using GoodTuring for 1-grams
+using GoodTuring for 2-grams
+using GoodTuring for 3-grams
+discarded 1 1-gram probs predicting pseudo-events
+warning: distributing 0.00276249 left-over probability mass over 6550 zeroton words
+warning: 0 backoff probability mass left for "referring" -- incrementing denominator
+discarded 2 2-gram contexts containing pseudo-events
+discarded 6 2-gram probs predicting pseudo-events
+warning: 0 backoff probability mass left for "my quit" -- incrementing denominator
+warning: 0 backoff probability mass left for "huh it" -- incrementing denominator
+warning: 0 backoff probability mass left for "sort it" -- incrementing denominator
+warning: 0 backoff probability mass left for "uhhuh huh" -- incrementing denominator
+warning: 0 backoff probability mass left for "am so" -- incrementing denominator
+warning: 0 backoff probability mass left for "end always" -- incrementing denominator
+warning: 0 backoff probability mass left for "supposed it's" -- incrementing denominator
+warning: 0 backoff probability mass left for "end i" -- incrementing denominator
+warning: 0 backoff probability mass left for "ended i" -- incrementing denominator
+warning: 0 backoff probability mass left for "right college" -- incrementing denominator
+warning: 0 backoff probability mass left for "t watching" -- incrementing denominator
+warning: 0 backoff probability mass left for "all start" -- incrementing denominator
+warning: 0 backoff probability mass left for "sort was" -- incrementing denominator
+warning: 0 backoff probability mass left for "growing was" -- incrementing denominator
+warning: 0 backoff probability mass left for "too spend" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind had" -- incrementing denominator
+warning: 0 backoff probability mass left for "you started" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind there's" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind i've" -- incrementing denominator
+warning: 0 backoff probability mass left for "graduate in" -- incrementing denominator
+warning: 0 backoff probability mass left for "l in" -- incrementing denominator
+warning: 0 backoff probability mass left for "ability their" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind like" -- incrementing denominator
+warning: 0 backoff probability mass left for "us wanted" -- incrementing denominator
+warning: 0 backoff probability mass left for "d washington" -- incrementing denominator
+warning: 0 backoff probability mass left for "right but" -- incrementing denominator
+warning: 0 backoff probability mass left for "supposed we" -- incrementing denominator
+warning: 0 backoff probability mass left for "b h" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind were" -- incrementing denominator
+warning: 0 backoff probability mass left for "supposed were" -- incrementing denominator
+warning: 0 backoff probability mass left for "wind they" -- incrementing denominator
+warning: 0 backoff probability mass left for "or whether" -- incrementing denominator
+warning: 0 backoff probability mass left for "kinds what" -- incrementing denominator
+warning: 0 backoff probability mass left for "going never" -- incrementing denominator
+warning: 0 backoff probability mass left for "kind be" -- incrementing denominator
+warning: 0 backoff probability mass left for "sort be" -- incrementing denominator
+warning: 0 backoff probability mass left for "supposed not" -- incrementing denominator
+discarded 2389 3-gram contexts containing pseudo-events
+discarded 9071 3-gram probs predicting pseudo-events
+writing 33110 1-grams
+writing 297073 2-grams
+writing 143139 3-grams

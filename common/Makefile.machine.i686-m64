@@ -9,13 +9,13 @@
 #
 #    Copyright (c) 1999-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686-m64,v 1.2 2006/01/05 20:25:44 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.i686-m64,v 1.5 2010/06/02 14:44:52 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -march=athlon64 -m64 -Wreturn-type -Wimplicit
-   CC = /usr/bin/gcc $(GCC_FLAGS)
-   CXX = /usr/bin/g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -march=athlon64 -m64 -Wall -Wno-unused-variable -Wno-uninitialized
+   CC = $(GCC_PATH)gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # Optional compilation flags.
    OPTIMIZE_FLAGS = -g -O3 
@@ -66,5 +66,5 @@
    LINT_FLAGS = -DDEBUG $(CFLAGS)
 
    # Location of gawk binary
-   GAWK = /usr/bin/gawk
+   GAWK = /usr/bin/awk
 

@@ -9,14 +9,16 @@
 #define _FNgramSpecs_cc_
 
 #ifndef lint
-static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramSpecs.cc,v 1.14 2006/01/05 20:21:27 stolcke Exp $";
+static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramSpecs.cc,v 1.18 2010/06/02 06:33:08 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 
@@ -124,7 +126,7 @@ FNgramSpecs<CountT>::FNgramSpec::ParentSubset::accumulateCounts(FNgramNode* coun
   TrieIter<VocabIndex,CountT> iter(*counts);
   VocabIndex wid;
 
-  while (child = iter.next(wid)) {
+  while ((child = iter.next(wid))) {
     accumulator += accumulateCounts(child);
   }
   // not a leaf node, so destroy old accumulated counts
@@ -581,7 +583,7 @@ template <class CountT>  Boolean
 FNgramSpecs<CountT>::FNgramSpec::BGChildIter::next(unsigned int&node) {
   for (;state>=0;state--) {
     // all bits in child=state must also be on in homeNode
-    if (((state & homeNode) == state) &&
+    if (((state & (int)homeNode) == state) &&
 	((1+numBitsSet(state)) == numBitsSetOfHomeNode)) {
       node = state--;
       return true;
@@ -614,7 +616,7 @@ template <class CountT>  Boolean
 FNgramSpecs<CountT>::FNgramSpec::BGChildIterCnstr::next(unsigned int&node) {
   for (;state>=0;state--) {
     if ((// all bits in child=state must also be on in homeNode
-	 ((state & homeNode) == state) &&
+	 ((state & (int)homeNode) == state) &&
 	 ((1+numBitsSet(state)) == numBitsSetOfHomeNode))
 	&&
 	(// child can validly come from a parent with current BO constraints
@@ -649,7 +651,7 @@ template <class CountT>  Boolean
 FNgramSpecs<CountT>::FNgramSpec::BGGrandChildIter::next(unsigned int&node) {
   for (;state>=0;state--) {
     // all bits in child=state must also be on in homeNode
-    if (((state & homeNode) == state) &&
+    if (((state & (int)homeNode) == state) &&
 	((great+2+numBitsSet(state)) == numBitsSetOfHomeNode)) {
       node = state--;
       return true;
@@ -677,7 +679,7 @@ template <class CountT>  Boolean
 FNgramSpecs<CountT>::FNgramSpec::BGDescendantIter::next(unsigned int&node) {
   for (;state>=0;state--) {
     // all bits in child=state must also be on in homeNode
-    if ((state & homeNode) == state) {
+    if ((state & (int)homeNode) == state) {
       node = state--;
       return true;
     }
@@ -697,7 +699,7 @@ template <class CountT>
 FNgramSpecs<CountT>::FNgramSpecs(File& f,
 				 FactoredVocab& fv,
 				 unsigned debuglevel)
-  : fvocab(fv), Debug(debuglevel)
+  : Debug(debuglevel), fvocab(fv)
 {
   if (f.error())
     return;
@@ -708,7 +710,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
   // position of word is always zero
   *tagPosition.insert(FNGRAM_WORD_TAG_STR) = FNGRAM_WORD_TAG_POS;
   // this initialization assumes that FNGRAM_WORD_TAG_POS == 0
-  int nextPosition = 1;
+  unsigned nextPosition = 1;
 
   // get number of CS Ngrams
   line = f.getline();
@@ -802,7 +804,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 
     fnSpecArray[i].numSubSets = 1<<fnSpecArray[i].numParents;
 
-    for (int j=0;j<fnSpecArray[i].numParents;j++) {
+    for (unsigned j = 0; j < fnSpecArray[i].numParents; j++) {
 
       ////////////////////////////////////
       // get name of parent
@@ -849,7 +851,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
       }
 
       // make sure that the same parent is not specified twice.
-      for (int l=0;l<j;l++) {
+      for (unsigned l = 0; l < j; l++) {
 	if ((fnSpecArray[i].parentPositions[j] == fnSpecArray[i].parentPositions[l]) &&
 	    (fnSpecArray[i].parentOffsets[j] == fnSpecArray[i].parentOffsets[l])) {
 	  f.position() << "Error: cannot specify same parent more than once\n";
@@ -907,10 +909,10 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 
     // finally! done with this line, now get node specs
 
-    const int numSubSets = 1<<fnSpecArray[i].numParents;
+    const unsigned numSubSets = 1U<<fnSpecArray[i].numParents;
 
     // next set of numNodeSpecs lines contain node specs
-    for (int j=0;j<numNodeSpecs;j++) {
+    for (unsigned j = 0; j < (unsigned)numNodeSpecs; j++) {
       // line should have the form
       // NODE_NUM BACKOFFCONSTRAINT <options>
       // options include what ngram-count.cc uses on comand line for
@@ -927,13 +929,13 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
       }
       VocabString tokens[128];
 
-      int howmany = Vocab::parseWords(line,tokens,128);
+      unsigned howmany = Vocab::parseWords(line,tokens,128);
 
       if (howmany < 2) {
 	f.position() << "Error: specifier must at least specify node id and back-off constraint\n";
 	exit(-1);
       }
-      int tok = 0;
+      unsigned tok = 0;
       
       // get node id
       int nodeId = 0x0;
@@ -949,7 +951,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	  tokens[tok] << "for node specifier when reading factored spec file\n";
 	exit(-1);
       }
-      if (nodeId >= numSubSets) {
+      if ((unsigned)nodeId >= numSubSets) {
 	fprintf(stderr,"Error: node specifier must be between 0x0 and 0x%x inclusive\n",
 		numSubSets-1);
 	exit(-1);
@@ -1241,7 +1243,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
     if (debug(DEBUG_EXTREME)) {
       // debug all the iterators.
 
-      for (int level=fnSpecArray[i].numParents; level>=0; level--) {
+      for (unsigned level = fnSpecArray[i].numParents; (int)level >= 0; level--) {
 	typename FNgramSpec::LevelIter iter(fnSpecArray[i].numParents,level);
 	fprintf(stderr, "level 0x%X:",level);
 	unsigned int node;
@@ -1250,7 +1252,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	}
 	fprintf(stderr, "\n");
       }
-      for (int node=0;node<numSubSets;node++) {      
+      for (unsigned node = 0; node < numSubSets; node++) {      
 	fprintf(stderr, "node 0x%X\n",node);
 
 	typename FNgramSpec::BGParentIter piter(fnSpecArray[i].numParents,node);
@@ -1305,7 +1307,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	  }
 	  numChildrenUsed++;
 	  // make sure kn-count-parent has counts itself.
-	  if (fnSpecArray[i].parentSubsets[child].knCountParent != ~0x0) {
+	  if (fnSpecArray[i].parentSubsets[child].knCountParent != ~0x0U) {
 	    const unsigned kncp = fnSpecArray[i].parentSubsets[child].knCountParent;
 	    if (kncp >= numSubSets || 
 		fnSpecArray[i].parentSubsets[kncp].counts == NULL) {
@@ -1521,10 +1523,10 @@ static inline char bchar(const Boolean b) {
 template <class CountT> void
 FNgramSpecs<CountT>::printFInfo()
 {
-  for (int i=0;i<fnSpecArray.size();i++) {
+  for (unsigned i = 0; i < fnSpecArray.size(); i++) {
     fprintf(stderr, "----\nchild = [%s], %d parents\n",fnSpecArray[i].child,
 	   fnSpecArray[i].numParents);
-    for (int j=0;j<fnSpecArray[i].numParents;j++) {
+    for (unsigned j = 0; j < fnSpecArray[i].numParents; j++) {
       fprintf(stderr, "   parent %d = [%s(%d)] = [%d(%d)]\n",j,
 	     fnSpecArray[i].parents[j],
 	     fnSpecArray[i].parentOffsets[j],
@@ -1532,7 +1534,7 @@ FNgramSpecs<CountT>::printFInfo()
 	     fnSpecArray[i].parentOffsets[j]);
     }
     fprintf(stderr, "   count filename = (%s)\n",fnSpecArray[i].countFileName);
-    for (int subset=0;subset<(1<<fnSpecArray[i].numParents);subset++) {
+    for (unsigned subset = 0; subset < (1U<<fnSpecArray[i].numParents); subset++) {
       if (fnSpecArray[i].parentSubsets[subset].counts != NULL) {
 	fprintf(stderr,
 	       "   node 0x%X, constraint 0x%X, count object is %s\n",subset,
@@ -1597,8 +1599,8 @@ FNgramSpecs<CountT>::loadWordFactors(const VocabString *words,
     return 0;
 
   // parse words into factors
-  int i;
-  for (i=0; i<max && words[i] != 0; i++) {
+  unsigned i;
+  for (i = 0; i < max && words[i] != 0; i++) {
 
     // TODO: call FactoredVocab::loadWordFactor() here instead of
     // code below.
@@ -1675,8 +1677,8 @@ FNgramSpecs<CountT>::loadWordFactors(const VocabString *words,
       }
     }
     // store any nulls
-    int j;
-    for (j=0;j<tagPosition.numEntries();j++) {
+    unsigned j;
+    for (j = 0; j < tagPosition.numEntries(); j++) {
       if (wm.word_factors[i][j] == 0) {
 	wm.word_factors[i][j] = fvocab.tagNulls[j];
       }
@@ -1708,7 +1710,7 @@ template <class CountT>
 void
 FNgramSpecs<CountT>::estimateDiscounts(FactoredVocab& vocab)
 {
-  for (int i=0;i<fnSpecArray.size();i++) {
+  for (unsigned i = 0; i < fnSpecArray.size(); i++) {
     // estimate the discounts in increasing level order in BG
 
     // Change this for loop to:
@@ -1720,10 +1722,10 @@ FNgramSpecs<CountT>::estimateDiscounts(FactoredVocab& vocab)
 #define METAMETAMETAETC 0
 #if METAMETAMETAETC
     // fprintf(stderr,"Doing meta meta meta etc. counts\n");
-    for (int level=fnSpecArray[i].numParents;level>=0;level--) {    
+    for (unsigned level = fnSpecArray[i].numParents; (int)level >= 0; level--) {    
 #else
       // fprintf(stderr,"Doing just meta counts\n");
-    for (int level=0;level<=fnSpecArray[i].numParents;level++) {
+    for (unsigned level = 0;level <= fnSpecArray[i].numParents; level++) {
 #endif
       typename FNgramSpec::LevelIter iter(fnSpecArray[i].numParents,level);
       unsigned int subset;
@@ -1822,7 +1824,7 @@ template <class CountT>
 void
 FNgramSpecs<CountT>::computeCardinalityFunctions(FactoredVocab& vocab)
 {
-  for (int specNum=0;specNum<fnSpecArray.size();specNum++) {
+  for (unsigned specNum = 0; specNum < fnSpecArray.size(); specNum++) {
     // child
     vocab.setCurrentTagVocab(fnSpecArray[specNum].childPosition);
     const unsigned numChildWords = vocab.currentTagVocabCardinality();
@@ -1837,7 +1839,7 @@ FNgramSpecs<CountT>::computeCardinalityFunctions(FactoredVocab& vocab)
 	= log10((double)numChildWords);
 
       // parents
-      for (int par=0;par<fnSpecArray[specNum].numParents;par++) {
+      for (unsigned par = 0; par < fnSpecArray[specNum].numParents; par++) {
 	if (node & (1<<par)) {
 	  vocab.setCurrentTagVocab(fnSpecArray[specNum].parentPositions[par]);
 	  const unsigned numParWords = vocab.currentTagVocabCardinality();
@@ -1882,7 +1884,5 @@ FNgramSpecs<CountT>::wordTag()
 {
   return FNGRAM_WORD_TAG_STR;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FNgramSpecs_cc_ */

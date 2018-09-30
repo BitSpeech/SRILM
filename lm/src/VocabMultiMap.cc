@@ -6,12 +6,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000,2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.cc,v 1.4 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2011 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.cc,v 1.7 2011/01/12 20:10:59 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -53,11 +57,11 @@ VocabMultiMap::remove(VocabIndex w1, const VocabIndex *w2)
 }
 
 Boolean
-VocabMultiMap::read(File &file)
+VocabMultiMap::read(File &file, Boolean limitVocab)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine];
 
 	unsigned howmany = Vocab::parseWords(line, words, maxWordsPerLine);
@@ -67,10 +71,17 @@ VocabMultiMap::read(File &file)
 	    return false;
 	}
 
+	VocabIndex w1;
+
 	/*
-	 * The first word is always the source of the map
+	 * The first word is always the source of the map.
+	 * If limitVocab is in effect and the word is OOV, skip this entry.
 	 */
-	VocabIndex w1 = vocab1.addWord(words[0]);
+	if (limitVocab && !vocab1.checkWords(&words[0], &w1, 1)) {
+	    continue;
+	}
+
+	w1 = vocab1.addWord(words[0]);
 
 	/*
 	 * The second word is an optional probability
@@ -110,7 +121,7 @@ VocabMultiMap::write(File &file)
 	const VocabIndex *w2;
 	Prob *prob;
 
-	while (prob = iter2.next(w2)) {
+	while ((prob = iter2.next(w2))) {
 	    if (*prob == (logmap ? LogP_One : 1.0)) {
 		fprintf(file, "%s\t", word1);
 	    } else {

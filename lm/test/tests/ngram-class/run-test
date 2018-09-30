@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# fix sorting order to avoid test failure
+LC_COLLATE=C
+export LC_COLLATE
+
+text=../disambig/newdevtest.ascii
+C=50
+
+ngram-count -order 1 -text $text -write - | \
+gawk 'NF == 2 && $2 >= 5 { print $1 }' > min5.vocab
+
+ngram-class -debug 1 \
+	-vocab min5.vocab -noclass-vocab noclass.vocab \
+	-text ../disambig/newdevtest.ascii \
+        -incremental -numclasses $C \
+        -classes - | \
+sort +2 -3
+

@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.82 2006/01/09 17:53:16 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.87 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -29,6 +29,7 @@ static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.82 2006/01/09 17:53:16 stol
 #include "WordAlign.h"
 #include "VocabMultiMap.h"
 #include "RefList.h"
+#include "MultiwordVocab.h"	// for MultiwordSeparator
 #include "Array.cc"
 
 #define DEBUG_ERRORS		1
@@ -49,9 +50,11 @@ static unsigned debug = 0;
 static int werRescore = 0;
 static unsigned maxRescore = 0;
 static char *vocabFile = 0;
+static char *vocabAliasFile = 0;
 static char *writeVocabFile = 0;
 static int toLower = 0;
 static int multiwords = 0;
+static const char *multiChar = MultiwordSeparator;
 static char *readFile = 0;
 static char *writeFile = 0;
 static char *writeDir = 0;
@@ -97,8 +100,10 @@ static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
     { OPT_UINT, "debug", &debug, "debugging level" },
     { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "vocab-aliases", &vocabAliasFile, "vocab alias file" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_TRUE, "wer", &werRescore, "optimize expected WER using N-best list" },
     { OPT_FALSE, "lattice-wer", &werRescore, "optimize expected WER using lattice" },
     { OPT_STRING, "read", &readFile, "lattice file to read" },
@@ -466,7 +471,7 @@ void
 alignLattices(MultiAlign &lat, File &file)
 {
     char *line;
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	char *lname = strtok(line, wordSeparators);
 	if (!lname) continue;
 
@@ -557,7 +562,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
      * Process nbest list
      */
     if (nbestFile) {
-	NBestList nbestList(vocab, maxNbest, multiwords,
+	NBestList nbestList(vocab, maxNbest, multiwords ? multiChar : 0,
 						nbestBacktrace || outputCTM);
 	nbestList.debugme(debug);
 
@@ -632,7 +637,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
     /*
      * If reference words are known, record them in alignment
      */
-    if (reference && !computeNbestError) {
+    if (reference && !werRescore && !computeNbestError && !dumpErrors) {
 	lat->alignReference(reference);
     }
     
@@ -665,12 +670,17 @@ main (int argc, char *argv[])
     Vocab vocab;
     NullLM nullLM(vocab);
 
+    vocab.toLower() = toLower ? true : false;
+
     if (vocabFile) {
 	File file(vocabFile, "r");
 	vocab.read(file);
     }
 
-    vocab.toLower() = toLower ? true : false;
+    if (vocabAliasFile) {
+	File file(vocabAliasFile, "r");
+	vocab.readAliases(file);
+    }
 
     /*
      * Skip noise tags in scoring
@@ -786,7 +796,7 @@ main (int argc, char *argv[])
 
 	File file(nbestFiles, "r");
 	char *line;
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 	    char *fname = strtok(line, wordSeparators);
 	    if (!fname) continue;
 

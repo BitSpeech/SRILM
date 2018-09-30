@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgram.cc,v 1.6 2006/01/05 08:44:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedNgram.cc,v 1.7 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include "TaggedNgram.h"
@@ -117,7 +117,7 @@ void TaggedNgram::recomputeBOWs()
 	BOnode *node;
 	NgramBOsIter iter1(*this, context, i);
 	
-	while (node = iter1.next()) {
+	while ((node = iter1.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob;
@@ -125,7 +125,7 @@ void TaggedNgram::recomputeBOWs()
 	    double numerator = 1.0;
 	    double denominator = 1.0;
 
-	    while (prob = piter.next(word)) {
+	    while ((prob = piter.next(word))) {
 		numerator -= LogPtoProb(*prob);
 		if (i > 0) {
 		    denominator -=

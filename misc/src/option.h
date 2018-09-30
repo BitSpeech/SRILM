@@ -12,7 +12,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.11 2006/01/05 06:05:17 stolcke Exp $ SPRITE (Berkeley)
+ * $Header: /home/srilm/devel/misc/src/RCS/option.h,v 1.12 2010/01/14 03:47:26 stolcke Exp $ SPRITE (Berkeley)
  */
 
 #ifndef _OPTION
@@ -142,7 +142,7 @@ typedef struct Option {
 int Opt_Parse _ARGS_ ((int argc, char *argv[], Option *optionArray, 
 		       int numOptions, int flags));
 
-void Opt_PrintUsage _ARGS_ ((char *commandName, Option *optionArray,
+void Opt_PrintUsage _ARGS_ ((_CONST char *commandName, Option *optionArray,
 			     int numOptions));
 
 /*

@@ -1,13 +1,11 @@
-.\" $Id: ngram-class.1,v 1.5 2004/12/03 17:59:01 stolcke Exp $
-.TH ngram-class 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: ngram-class.1,v 1.7 2007/12/20 19:13:52 stolcke Exp $
+.TH ngram-class 1 "$Date: 2007/12/20 19:13:52 $" "SRILM Tools"
 .SH NAME
 ngram-class \- induce word classes from N-gram statistics
 .SH SYNOPSIS
-.B ngram-class
-[\c
-.BR \-help ]
-.I option 
-\&...
+.nf
+\fBngram-class\fP [ \fB\-help\fP ] \fIoption\fP ...
+.fi
 .SH DESCRIPTION
 .B ngram-class
 induces word classes from distributional statistics,
@@ -141,6 +139,13 @@ This is convenient for producing sets of classes at different granularities
 during the same run.
 .IR S =0
 (the default) suppresses the saving actions.
+.TP
+.BI \-save-maxclasses " K"
+Modifies the action of
+.B \-save
+so as to only start saving once the number of classes reaches
+.IR K .
+(The iteration numbers embedded in filenames will start at 0 from that point.)
 .SH "SEE ALSO"
 ngram-count(1), ngram(1).
 .br
@@ -152,4 +157,4 @@ Classes are optimized only for bigram models at present.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1999\-2004 SRI International
+Copyright 1999\-2007 SRI International

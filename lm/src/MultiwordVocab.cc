@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2001,2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.cc,v 1.4 2006/01/06 19:23:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2001-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordVocab.cc,v 1.5 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -33,7 +33,7 @@ MultiwordVocab::~MultiwordVocab()
     /*
      * free expansion strings
      */
-    while (expansion = iter.next(word)) {
+    while ((expansion = iter.next(word))) {
 	delete [] *expansion;
     }
 }
@@ -88,7 +88,7 @@ MultiwordVocab::addWord(VocabString name)
 	    }
 
 	    numWords ++;
-	} while (cp = strtok((char *)0, multiChar));
+	} while ((cp = strtok((char *)0, multiChar)));
 
 	widString[numWords] = Vocab_None;
 

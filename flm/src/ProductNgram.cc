@@ -7,10 +7,8 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2004, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/ProductNgram.cc,v 1.7 2004/12/03 00:52:51 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/ProductNgram.cc,v 1.10 2007/12/04 18:09:49 stolcke Exp $";
 #endif
-
-#ifndef EXCLUDE_CONTRIB
 
 #include "ProductNgram.h"
 
@@ -157,12 +155,9 @@ ProductNgram::contextID(VocabIndex word, const VocabIndex *context,
     }
 
     // truncate context to used length and compute a hash code
-    VocabIndex saved = context[length];
-    ((VocabIndex *)context)[length] = Vocab_None; 	// override const
+    TruncatedContext usedContext(context, length);
 
-    unsigned hash = LHash_hashKey(context, 30);
-
-    ((VocabIndex *)context)[length] = saved;
+    unsigned long hash = LHash_hashKey(usedContext, 30);
 
     return (void *)hash;
 }
@@ -199,6 +194,4 @@ ProductNgram::wordProbSum(const VocabIndex *context)
     running(wasRunning);
     return total;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

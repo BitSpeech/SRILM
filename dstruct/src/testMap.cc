@@ -1,7 +1,12 @@
 
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
@@ -94,6 +99,10 @@ main(int argc, char **argv)
     if (argc > 2) {
 	delsize = atoi(argv[2]);
     }
+
+    fprintf(stderr, "sizeof(long) = %lu\n", (unsigned long)sizeof(long));
+    fprintf(stderr, "long nokey value = %lx\n", LongNokeyValue);
+    fprintf(stderr, "unsigned long nokey value = %lx\n", ULongNokeyValue);
 
     cout << "sizeof(_Map) = " << sizeof(_Map) << endl;
     cout << "sizeof(myarray) = " << sizeof(myarray) << endl;

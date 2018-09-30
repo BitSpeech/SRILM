@@ -9,11 +9,11 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc,v 1.13 2003/02/21 22:30:00 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.machine.sparc,v 1.14 2008/05/21 22:54:18 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -V2.8.1 -Wreturn-type -Wimplicit
+   GCC_FLAGS = -Wreturn-type -Wimplicit
    CC = gcc $(GCC_FLAGS)
    CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 

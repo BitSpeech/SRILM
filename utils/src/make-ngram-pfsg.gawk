@@ -3,9 +3,9 @@
 # make-ngram-pfsg --
 #	Create a Decipher PFSG from an N-gram language model
 #
-# usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] backoff-lm > pfsg
+# usage: make-ngram-pfsg [debug=1] [check_bows=1] [maxorder=N] [no_empty_bo=1] backoff-lm > pfsg
 #
-# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.28 2004/11/01 22:25:42 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/make-ngram-pfsg.gawk,v 1.30 2006/10/05 19:38:56 stolcke Exp $
 #
 
 #########################################
@@ -21,6 +21,7 @@ BEGIN {
 	null = "NULL";
 	version = 0;
 	top_level_name = "";
+	no_empty_bo = 0;
 
 	if ("pid" in PROCINFO) {
 	    pid = PROCINFO["pid"];
@@ -130,7 +131,9 @@ function end_grammar(name) {
 }
 
 function add_trans(from, to, prob) {
-#print "add_trans " from " -> " to " " prob >> "/dev/stderr";
+	if (debug) {
+	    print "add_trans " from " -> " to " " prob >> "/dev/stderr";
+	}
 	num_trans ++;
 	print node_index(from), node_index(to), scale_log(prob) > tmpfile;
 }
@@ -143,7 +146,8 @@ function add_trans(from, to, prob) {
 BEGIN {
 	maxorder = 0;
 	grammar_name = "PFSG";
-	bo_name = "BO";
+	bo_name = "__BACKOFF__";
+	start_bo_name = bo_name " __FROM_START__";
 	check_bows = 0;
 	epsilon = 1e-5;		# tolerance for lowprob detection
 }
@@ -256,14 +260,23 @@ currorder <= order {
 	    # remember all LM contexts for creation of N-gram transitions
 	    bows[ngram] = bow;
 
+	    # To avoid empty paths through backoff, we reroute transitions
+	    # out of the start node to a special backoff node that does not
+	    # connect directly to the end node.
+	    if (no_empty_bo && ngram == start_tag) {
+		this_bo_name = start_bo_name;
+	    } else {
+		this_bo_name = bo_name;
+	    }
+
 	    # insert backoff transitions
 	    if (read_contexts ? (ngram in is_context) : \
 		                (currorder < order - 1)) \
 	    {
-		add_trans(bo_name " " ngram, bo_name " " ngram_suffix, bow);
-		add_trans(ngram, bo_name " " ngram, 0);
+		add_trans(this_bo_name " " ngram, this_bo_name " " ngram_suffix, bow);
+		add_trans(ngram, this_bo_name " " ngram, 0);
 	    } else {
-		add_trans(ngram, bo_name " " ngram_suffix, bow);
+		add_trans(ngram, this_bo_name " " ngram_suffix, bow);
 	    }
 
 	    if (write_contexts) {
@@ -298,6 +311,15 @@ currorder <= order {
 				 (currorder < order))) \
 	    {
 		add_trans(bo_name " " ngram_prefix, target, prob);
+
+		# Duplicate transitions out of unigram backoff for the 
+		# start-backoff-node
+		if (no_empty_bo && \
+		    node_exists(start_bo_name " " ngram_prefix) && \
+		    target != end_tag)
+		{
+		    add_trans(start_bo_name " " ngram_prefix, target, prob);
+		}
 	    } else {
 		add_trans(ngram_prefix, target, prob);
 	    }

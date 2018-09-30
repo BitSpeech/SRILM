@@ -5,17 +5,22 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2005 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LoglinearMix.cc,v 1.2 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2005-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/LoglinearMix.cc,v 1.7 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 
 #include "LoglinearMix.h"
 
+#include "Array.cc"
 #include "Trie.cc"
 
 /*
@@ -24,12 +29,25 @@ using namespace std;
 #define DEBUG_NGRAM_HITS 2
 
 LoglinearMix::LoglinearMix(Vocab &vocab, LM &lm1, LM &lm2, Prob prior)
-    : LM(vocab), lm1(lm1), lm2(lm2), prior(prior)
+    : LM(vocab)
 {
     if (prior < 0.0 || prior > 1.0) {
 	cerr << "warning: mixture prior out of range: " << prior << endl;
 	prior = 0.5;
     }
+
+    numLMs = 2;
+    subLMs[0] = &lm1;
+    subLMs[1] = &lm2;
+
+    priors[0] = prior;
+    priors[1] = 1.0 - prior;
+}
+
+LoglinearMix::LoglinearMix(Vocab &vocab, Array<LM *> &subLMs,
+							Array<Prob> &priors)
+    : LM(vocab), numLMs(subLMs.size()), priors(priors), subLMs(subLMs)
+{
 }
 
 LogP
@@ -41,16 +59,19 @@ LoglinearMix::wordProb(VocabIndex word, const VocabIndex *context)
      */
     unsigned usedContextLength;
     contextID(Vocab_None, context, usedContextLength);
-    VocabIndex saved = context[usedContextLength];
-    ((VocabIndex *)context)[usedContextLength] = Vocab_None;
 
-    LogP prob1 = lm1.wordProb(word, context);
-    LogP prob2 = lm2.wordProb(word, context);
+    TruncatedContext usedContext(context, usedContextLength);
 
-    LogP numerator = prior * prob1 + (1.0 - prior) * prob2;
+    LogP numerator = 0;
+    for (int i = 0; i < numLMs; i++) {
+	numerator += priors[i] * subLMs[i]->wordProb(word, context);
+	if (numerator == LogP_Zero) {
+	    break;
+	}
+    }
 
     Boolean foundp;
-    LogP *denominator = denomProbs.insert(context, foundp);
+    LogP *denominator = denomProbs.insert(usedContext, foundp);
 
     /*
      * *denominator will be 0 for lower-order N-grams that have been created
@@ -66,8 +87,11 @@ LoglinearMix::wordProb(VocabIndex word, const VocabIndex *context)
 	/*
 	 * interrupt sequential processing mode
 	 */
-	Boolean wasRunning1 = lm1.running(false);
-	Boolean wasRunning2 = lm2.running(false);
+	makeArray(Boolean, wasRunning, numLMs);
+
+	for (int i = 0; i < numLMs; i++) {
+	    wasRunning[i] = subLMs[i]->running(false);
+	}
 
 	/*
 	 * Compute denominator by summing over all words in context
@@ -78,15 +102,18 @@ LoglinearMix::wordProb(VocabIndex word, const VocabIndex *context)
 	VocabIndex wid;
 
 	while (iter.next(wid)) {
-	    if (!lm1.isNonWord(wid)) {
+	    if (!isNonWord(wid)) {
 		/*
 		 * Use wordProbRecompute() here since the context stays
 		 * the same and it might save work.
 		 */
-		LogP prob1 = lm1.wordProbRecompute(wid, context);
-		LogP prob2 = lm2.wordProbRecompute(wid, context);
+		LogP probSum = 0;
+		for (int i = 0; i < numLMs; i++) {
+		    probSum += priors[i] *
+				subLMs[i]->wordProbRecompute(wid, context);
+		}
 
-		sum += LogPtoProb(prior * prob1 + (1.0 - prior) * prob2);
+		sum += LogPtoProb(probSum);
 	    }
 	}
 
@@ -96,11 +123,10 @@ LoglinearMix::wordProb(VocabIndex word, const VocabIndex *context)
 
 	*denominator = ProbToLogP(sum);
 
-	lm1.running(wasRunning1);
-	lm2.running(wasRunning2);
+	for (int i = 0; i < numLMs; i++) {
+	    subLMs[i]->running(wasRunning[i]);
+	}
     }
-
-    ((VocabIndex *)context)[usedContextLength] = saved;
 
     return numerator - *denominator;
 }
@@ -114,18 +140,20 @@ LoglinearMix::contextID(VocabIndex word, const VocabIndex *context,
      * context. We must use longest context regardless of predicted word
      * because mixture models don't support contextBOW().
      */
-    unsigned len1, len2;
+    unsigned maxLength = 0;
+    void *maxCid = 0;
 
-    void *cid1 = lm1.contextID(context, len1);
-    void *cid2 = lm2.contextID(context, len2);
-
-    if (len2 > len1) {
-	length = len2;
-	return cid2;
-    } else {
-	length = len1;
-	return cid1;
+    for (int i = 0; i < numLMs; i++) {
+	unsigned len;
+	void *cid = subLMs[i]->contextID(context, len);
+	if (len > maxLength) {
+	    maxLength = len;
+	    maxCid = cid;
+	}
     }
+
+    length = maxLength;
+    return maxCid;
 }
 
 Boolean
@@ -136,7 +164,12 @@ LoglinearMix::isNonWord(VocabIndex word)
      * This ensures that state names, hidden vocabulary, etc. are not
      * treated as regular words in the respectively other component.
      */
-    return lm1.isNonWord(word) || lm2.isNonWord(word);
+    for (int i = 0; i < numLMs; i++) {
+	if (subLMs[i]->isNonWord(word)) {
+	    return true;
+	}
+    }
+    return false;
 }
 
 void
@@ -145,7 +178,47 @@ LoglinearMix::setState(const char *state)
     /*
      * Global state changes are propagated to the component models
      */
-    lm1.setState(state);
-    lm2.setState(state);
+    for (int i = 0; i < numLMs; i++) {
+	subLMs[i]->setState(state);
+    }
+}
+
+Boolean
+LoglinearMix::running(Boolean newstate)
+{
+    /*
+     * Propagate changes to running state to component models
+     */
+    Boolean old = _running;
+    _running = newstate;
+    for (int i = 0; i < numLMs; i++) {
+	subLMs[i]->running(newstate);
+    }
+
+    return old;
+};
+
+void
+LoglinearMix::debugme(unsigned level) {
+    /*
+     * Propagate changes to Debug state to component models
+     */
+    for (int i = 0; i < numLMs; i++) {
+	subLMs[i]->debugme(level);
+    }
+
+    Debug::debugme(level);
+}
+
+ostream &
+LoglinearMix::dout(ostream &stream) {
+    /*
+     * Propagate dout changes to sub-lms
+     */
+    for (int i = 0; i < numLMs; i++) {
+	subLMs[i]->dout(stream);
+    }
+
+    return Debug::dout(stream);
 }
 

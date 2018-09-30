@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.22 2006/01/05 08:44:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1.26 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <math.h>
@@ -22,6 +22,29 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.cc,v 1
 INSTANTIATE_ARRAY(double);
 #endif
 
+/*
+ * Determine the true vocab size, i.e., the number of true event
+ * tokens, by enumeration. Used in various smoothing methods.
+ */
+unsigned
+Discount::vocabSize(Vocab &vocab)
+{
+    VocabIter viter(vocab);
+    VocabIndex wid;
+
+    unsigned total = 0;
+    while (viter.next(wid)) {
+	if (!vocab.isNonEvent(wid)) {
+	    total ++;
+	}
+    }
+
+    return total;
+}
+
+/*
+ * Good-Turing discounting
+ */
 GoodTuring::GoodTuring(unsigned mincount, unsigned maxcount)
    : minCount(mincount), maxCount(maxcount), discountCoeffs(0)
 {
@@ -73,8 +96,8 @@ GoodTuring::nodiscount()
 void
 GoodTuring::write(File &file)
 {
-    fprintf(file, "mincount %d\n", minCount);
-    fprintf(file, "maxcount %d\n", maxCount);
+    fprintf(file, "mincount %ld\n", minCount);
+    fprintf(file, "maxcount %ld\n", maxCount);
 
     for (unsigned i = 1; !file.error() && i <= maxCount; i++) {
 	fprintf(file , "discount %u %lf\n", i, discountCoeffs[i]);
@@ -89,22 +112,26 @@ GoodTuring::read(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
+	char buffer[100];
 	unsigned count;
 	double coeff;
 	
-	if (sscanf(line, "mincount %u", &minCount) == 1) {
+	if (sscanf(line, "mincount %99s", buffer) == 1 &&
+	    stringToCount(buffer, minCount))
+	{
 	    continue;
-	} else if (sscanf(line, "maxcount %u", &maxCount) == 1) {
+	} else if (sscanf(line, "maxcount %99s", buffer) == 1 &&
+	    stringToCount(buffer, maxCount))
+	{
 	    /*
 	     * Zero all old discount coeffs
 	     */
 	    for (Count n = 0; n <= maxCount; n++) {
 		discountCoeffs[n] = 0.0;
 	    }
-	    continue;
 	} else if (sscanf(line, "discount %u %lf", &count, &coeff) == 2) {
-	    discountCoeffs[(Count)count] = coeff;
+	    discountCoeffs[count] = coeff;
 	} else {
 	    file.position() << "unrecognized parameter\n";
 	    return false;
@@ -147,7 +174,7 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
 	countOfCounts[i]  = 0;
     }
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (counts.vocab.isNonEvent(wids[order - 1])) {
 	    continue;
 	} else if (counts.vocab.isMetaTag(wids[order - 1])) {
@@ -212,6 +239,7 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
     return true;
 }
 
+
 /*
  * Eric Ristad's Natural Law of Succession --
  *	The discount factor d is identical for all counts,
@@ -232,7 +260,7 @@ NaturalDiscount::discount(Count count, Count totalCount, Count observedVocab)
 
     if (count < _mincount) {
 	return 0.0;
-    } else if (q == vocabSize) {
+    } else if (q == _vocabSize) {
 	return 1.0;
     } else {
 	return (n * (n+1) + q * (1 - q)) / (n * (n + 1) + 2 * q);
@@ -242,21 +270,7 @@ NaturalDiscount::discount(Count count, Count totalCount, Count observedVocab)
 Boolean
 NaturalDiscount::estimate(NgramStats &counts, unsigned order)
 {
-    /*
-     * Determine the true vocab size, i.e., the number of true event
-     * tokens, by enumeration.
-     */
-    VocabIter viter(counts.vocab);
-    VocabIndex wid;
-
-    unsigned total = 0;
-    while (viter.next(wid)) {
-	if (!counts.vocab.isNonEvent(wid)) {
-	    total ++;
-	}
-    }
-
-    vocabSize = total;
+    _vocabSize = vocabSize(counts.vocab);
     return true;
 }
 
@@ -286,7 +300,7 @@ KneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 KneserNey::write(File &file)
 {
-    fprintf(file, "mincount %d\n", minCount);
+    fprintf(file, "mincount %ld\n", minCount);
     fprintf(file, "discount1 %lf\n", discount1);
 }
 
@@ -295,11 +309,14 @@ KneserNey::read(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
+	char buffer[100];
 	unsigned count;
 	double coeff;
 	
-	if (sscanf(line, "mincount %u", &minCount) == 1) {
+	if (sscanf(line, "mincount %99s", buffer) == 1 &&
+	    stringToCount(buffer, minCount))
+	{
 	    continue;
 	} else if (sscanf(line, "discount1 %lf", &discount1) == 1) {
 	    continue;
@@ -328,7 +345,7 @@ KneserNey::estimate(NgramStats &counts, unsigned order)
     NgramsIter iter(counts, wids, order);
     NgramCount *count;
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (counts.vocab.isNonEvent(wids[order - 1])) {
 	    continue;
 	} else if (counts.vocab.isMetaTag(wids[order - 1])) {
@@ -403,7 +420,7 @@ KneserNey::prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
 	NgramCountsIter<NgramCount> iter(counts, ngram, order);
 	NgramCount *count;
 
-	while (count = iter.next()) {
+	while ((count = iter.next())) {
 	    if (!counts.vocab.isNonEvent(ngram[0])) {
 		*count = 0;
 	    }
@@ -417,7 +434,7 @@ KneserNey::prepareCounts(NgramCounts<NgramCount> &counts, unsigned order,
 	NgramCountsIter<NgramCount> iter(counts, ngram, order + 1);
 	NgramCount *count;
 
-	while (count = iter.next()) {
+	while ((count = iter.next())) {
 	    if (*count > 0 && !counts.vocab.isNonEvent(ngram[1])) {
 		NgramCount *loCount = counts.findCount(&ngram[1]);
 
@@ -466,7 +483,7 @@ ModKneserNey::lowerOrderWeight(Count totalCount, Count observedVocab,
 void
 ModKneserNey::write(File &file)
 {
-    fprintf(file, "mincount %d\n", minCount);
+    fprintf(file, "mincount %ld\n", minCount);
     fprintf(file, "discount1 %lf\n", discount1);
     fprintf(file, "discount2 %lf\n", discount2);
     fprintf(file, "discount3+ %lf\n", discount3plus);
@@ -477,11 +494,14 @@ ModKneserNey::read(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
+	char buffer[100];
 	unsigned count;
 	double coeff;
 	
-	if (sscanf(line, "mincount %u", &minCount) == 1) {
+	if (sscanf(line, "mincount %s", buffer) == 1 &&
+	    stringToCount(buffer, minCount))
+	{
 	    continue;
 	} else if (sscanf(line, "discount1 %lf", &discount1) == 1) {
 	    continue;
@@ -516,7 +536,7 @@ ModKneserNey::estimate(NgramStats &counts, unsigned order)
     NgramsIter iter(counts, wids, order);
     NgramCount *count;
 
-    while (count = iter.next()) {
+    while ((count = iter.next())) {
 	if (counts.vocab.isNonEvent(wids[order - 1])) {
 	    continue;
 	} else if (counts.vocab.isMetaTag(wids[order - 1])) {

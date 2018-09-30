@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/lattice/src/RCS/Makefile,v 1.24 2006/01/09 22:47:54 stolcke Exp $
+#    $Header: /home/srilm/devel/lattice/src/RCS/Makefile,v 1.28 2008/04/30 01:55:47 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -30,7 +30,10 @@ include $(SRILM)/common/Makefile.common.variables
 COMPACT_FLAGS += -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Flags for generating "short" data structures
-SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
+
+# Flags for generating "long long" data structures
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS
 
 # Define variables.
 
@@ -41,18 +44,21 @@ EXTERNAL_LIB_HEADERS =			\
 	$(SRCDIR)/HTKLattice.h		\
 	$(SRCDIR)/LatticeLM.h
 
-INTERNAL_LIB_HEADERS = 
+INTERNAL_LIB_HEADERS =  \
+	$(SRCDIR)/LatticeNBest.h
 
 # Example Library source files.
 LIB_SOURCES = 				\
 	$(SRCDIR)/Lattice.cc		\
 	$(SRCDIR)/LatticeAlign.cc	\
 	$(SRCDIR)/LatticeExpand.cc	\
+	$(SRCDIR)/LatticeIndex.cc	\
 	$(SRCDIR)/LatticeNBest.cc	\
 	$(SRCDIR)/LatticeNgrams.cc	\
 	$(SRCDIR)/LatticeReduce.cc	\
 	$(SRCDIR)/HTKLattice.cc		\
-	$(SRCDIR)/LatticeLM.cc
+	$(SRCDIR)/LatticeLM.cc		\
+	$(SRCDIR)/LatticeDecode.cc
 
 # Example Library object files.
 LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\

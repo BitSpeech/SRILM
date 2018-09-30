@@ -1,6 +1,17 @@
+//
+// Testi for Array datastructure
+//
+// Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+//
+// $Header: /home/srilm/devel/dstruct/src/RCS/testArray.cc,v 1.13 2010/06/02 04:52:43 stolcke Exp $
+//
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #define ZERO_INITIALIZE
 #include "Array.cc"
@@ -24,7 +35,7 @@ main()
     Array<float> array4;
     Array<double> array5;
     Array<char> array6;
-    int i;
+    unsigned i;
 
     for (i = BASE+1; i <= 20; i++) {
 	myarray[i] = i * i;

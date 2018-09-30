@@ -1,6 +1,6 @@
 #!/usr/local/bin/gawk -f
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.6 2000/10/11 01:03:37 stolcke Exp $
+# $Header: /home/srilm/devel/man/scripts/RCS/man2html.gawk,v 1.9 2007/12/20 20:29:10 stolcke Exp $
 #
 
 function getargs() {
@@ -41,7 +41,16 @@ function finishlist() {
 	finishitem();
 	if (inlist) {
 		print "</DL>";
-		inlist = 0;
+		inlist -= 1;
+	}
+}
+function makelinks() {
+	for (i = 1; i <= NF; i ++) {
+		if ($i ~ /^http:/) {
+			url = $i;
+			sub("[,;.]$", "", url);
+			$i = "<a href=\"" url "\">" $i "</a>";
+		}
 	}
 }
 function printline() {
@@ -107,20 +116,38 @@ $0 ~ /^\.br/ {
 $0 ~ /^\.TP/ {
 	if (!inlist) {
 		print "<DL>";
-		inlist = 1;
+		inlist += 1;
 	}
 	inlabel = 1;
 	next;
 }
+# labeled list item
+$0 ~ /^\.IP/ {
+	getargs();
+	print "<DT>";
+	print allargs;
+	print "<DD>";
+	next;
+}
+# nested lists
+$0 ~ /^\.RS/ {
+	print "<DL>";
+	inlist += 1;
+	next;
+}
+$0 ~ /^\.RE/ {
+	finishlist();
+	next;
+}
 $0 ~ /^\.BR/ {
 	getargs();
-	text = "<B>" args[1] "</B>" args[2] "<B>" args[3] "</B>";
+	text = "<B>" args[1] "</B>" args[2] "<B>" args[3] "</B>" args[4] "<B>" args[5] "</B>" args[6] "<B>" args[7] "</B>";
 	printline();
 	next;
 }
 $0 ~ /^\.BI/ {
 	getargs();
-	text = "<B>" args[1] "</B><I>" args[2] "</I><B>" args[3] "</B>";
+	text = "<B>" args[1] "</B><I>" args[2] "</I><B>" args[3] "</B><I>" args[4] "</I><B>" args[5] "</B><I>" args[6] "</I><B>" args[7] "</B>";
 	printline();
 	next;
 }
@@ -136,13 +163,13 @@ $0 ~ /^\.B/ {
 }
 $0 ~ /^\.IR/ {
 	getargs();
-	text = "<I>" args[1] "</I>" args[2] "<I>" args[3] "</I>";
+	text = "<I>" args[1] "</I>" args[2] "<I>" args[3] "</I>" args[4] "<I>" args[5] "</I>" args[6] "<I>" args[7] "</I>";
 	printline();
 	next;
 }
 $0 ~ /^\.IB/ {
 	getargs();
-	text = "<I>" args[1] "</I><B>" args[2] "</B><I>" args[3] "</I>";
+	text = "<I>" args[1] "</I><B>" args[2] "</B><I>" args[3] "</I><B>" args[4] "</B><I>" args[5] "</I><B>" args[6] "</B><I>" args[7] "</I>";
 	printline();
 	next;
 }
@@ -163,14 +190,22 @@ $0 ~ /^\.P/ {
 }
 $0 ~ /^\.RB/ {
 	getargs();
-	text = args[1] "<B>" args[2] "</B>" args[3];
+	text = args[1] "<B>" args[2] "</B>" args[3] "<B>" args[4] "</B>" args[5] "<B>" args[6] "</B>" args[7];
 	printline();
 	next;
 }
 $0 ~ /^\.RI/ {
 	getargs();
-	text = args[1] "<I>" args[2] "</I>" args[3];
+	text = args[1] "<I>" args[2] "</I>" args[3] "<I>" args[4] "</I>" args[5] "<I>" args[6] "</I>" args[7];
 	printline();
+	next;
+}
+$0 ~ /^\.nf/ {
+	print "<PRE>";
+	next;
+}
+$0 ~ /^\.fi/ {
+	print "</PRE>";
 	next;
 }
 $0 ~ /^\.[A-Za-z]/ {
@@ -178,6 +213,7 @@ $0 ~ /^\.[A-Za-z]/ {
 	next;
 }
 {
+	makelinks();
 	text = $0;
 	printline();
 	next;

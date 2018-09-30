@@ -12,7 +12,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.26 2006/01/11 06:27:53 stolcke Exp $
+#    $Header: /home/srilm/devel/common/RCS/Makefile.common.targets,v 1.33 2009/10/05 18:31:14 stolcke Exp $
 #
 
 
@@ -84,7 +84,7 @@ $(OBJDIR_STAMP) $(BINDIR_STAMP):
 $(OBJDIR)/%$(OBJ_SUFFIX):	$(SRCDIR)/%.c
 	$(COMPILE.c) $(OPTION_FLAGS) $(OUTPUT_OPTION) $<
 
-# Support for C++ compulation
+# Support for C++ compilation
 %:	%.cc
 %$(OBJ_SUFFIX):	%.cc
 
@@ -92,15 +92,22 @@ $(OBJDIR)/%$(OBJ_SUFFIX):	$(SRCDIR)/%.c
 $(OBJDIR)/%$(OBJ_SUFFIX):	$(SRCDIR)/%.cc
 	$(COMPILE.cc) $(OPTION_FLAGS) $(OUTPUT_OPTION) $<
 
+# Hack to compile certain sources without optimization
+# (workaround for compiler bugs)
+NO_OPT_PATTERN = -O%
+$(patsubst %,$(OBJDIR)/%$(OBJ_SUFFIX),$(NO_OPT_SOURCES)):
+	$(MAKE) NO_OPT_SOURCES= OPTION_FLAGS="$(filter-out $(NO_OPT_PATTERN), $(OPTION_FLAGS))" $@
+
 # Program linking
 # The heuristic here is that if any C++ source is present at all
 # we use the C++ driver to link the whole thing, otherwise the C driver
-$(BINDIR)/%$(EXE_SUFFIX): $(OBJDIR)/%$(OBJ_SUFFIX) $(LIBRARY)
+$(BINDIR)/%$(EXE_SUFFIX): $(OBJDIR)/%$(OBJ_SUFFIX) $(filter-out -%, $(LIBRARIES))
 ifeq ($(filter %.cc,$(ALL_SOURCES)), )
 	$(LINK.c) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
 else
 	$(LINK.cc) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
 endif
+	$(POST_LINK)
 
 # revised release targets and dependencies:
 
@@ -111,7 +118,7 @@ RELEASED_HEADERS = $(EXPORTED_HEADERS:$(SRCDIR)/%=$(SRILM_INCDIR)/%)
 release-headers:	$(RELEASED_HEADERS)
 
 $(SRILM_INCDIR)/%: $(SRCDIR)/%
-	-$(INSTALL) 0444 $^ $(SRILM_INCDIR)
+	-$(INSTALL) -p 0444 $^ $(SRILM_INCDIR)
 
 RELEASED_LIBRARIES = $(EXPORTED_LIBRARIES:$(OBJDIR)/%$(LIB_SUFFIX)=$(SRILM_LIBDIR)/%$(LIB_SUFFIX))
 
@@ -127,6 +134,7 @@ release-libraries:	$(RELEASED_LIBRARIES)
 
 $(SRILM_LIBDIR)/%$(LIB_SUFFIX):	$(OBJDIR)/%$(LIB_SUFFIX)
 	-$(INSTALL) 0644 $^ $(SRILM_LIBDIR)
+	$(RANLIB) $@ $(DEMANGLE_FILTER)
 
 RELEASED_PROGRAMS = $(EXPORTED_PROGRAMS:$(BINDIR)/%=$(SRILM_BINDIR)/%)
 
@@ -141,7 +149,6 @@ release-scripts:	$(RELEASED_SCRIPTS)
 
 $(SRILM_BIN)/%:	%
 	-$(INSTALL) 0555 $^ $(SRILM_BIN)
-
 
 # Dependency tracing target
 depend:

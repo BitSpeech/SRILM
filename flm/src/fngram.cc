@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: fngram.cc,v 1.72 2006/01/09 18:33:31 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: fngram.cc,v 1.75 2009/09/30 04:57:28 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -20,11 +24,11 @@ using namespace std;
 #endif
 #include <time.h>
 
-#ifndef EXCLUDE_CONTRIB
-
+#ifdef NEED_RAND48
 extern "C" {
-    void srand48(long);           /* might be missing from math.h or stdlib.h */
+    void srand48(long);
 }
+#endif
 
 #include "option.h"
 #include "version.h"
@@ -319,15 +323,4 @@ main(int argc, char **argv)
 
     exit(0);
 }
-
-#else /* EXCLUDE_CONTRIB_END */
-
-int
-main(int argc, char **argv)
-{
-    cerr << "Third-party FLM support not included.\n";
-    exit(1);
-}
-
-#endif /* INCLUDE_CONTRIB */
 

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2005 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.cc,v 1.3 2005/09/30 17:45:29 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/TextStats.cc,v 1.4 2009/09/25 23:15:25 stolcke Exp $";
 #endif
 
 #include "TextStats.h"
@@ -40,7 +40,7 @@ operator<< (ostream &stream, const TextStats &stats)
 	stream << stats.zeroProbs << " zeroprobs, "
 	       << "logprob= " << stats.prob;
 
-	int denom = stats.numWords - stats.numOOVs - stats.zeroProbs
+	double denom = stats.numWords - stats.numOOVs - stats.zeroProbs
 							+ stats.numSentences;
 
 	if (denom > 0) {

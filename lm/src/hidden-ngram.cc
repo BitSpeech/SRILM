@@ -6,12 +6,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: hidden-ngram.cc,v 1.45 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: hidden-ngram.cc,v 1.56 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -23,6 +27,7 @@ using namespace std;
 #include "Vocab.h"
 #include "VocabMap.h"
 #include "SubVocab.h"
+#include "LMClient.h"
 #include "NullLM.h"
 #include "Ngram.h"
 #include "ClassNgram.h"
@@ -45,6 +50,8 @@ static unsigned numNbest = 1;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *lmFile = 0;
+static char *useServer = 0;
+static int cacheServedNgrams = 0;
 static char *classesFile = 0;
 static int simpleClasses = 0;
 static int factored = 0;
@@ -57,6 +64,8 @@ static char *mixFile6 = 0;
 static char *mixFile7 = 0;
 static char *mixFile8 = 0;
 static char *mixFile9 = 0;
+static int bayesLength = 0;
+static double bayesScale = 1.0;
 static double mixLambda = 0.5;
 static double mixLambda2 = 0.0;
 static double mixLambda3 = 0.0;
@@ -67,6 +76,9 @@ static double mixLambda7 = 0.0;
 static double mixLambda8 = 0.0;
 static double mixLambda9 = 0.0;
 static char *hiddenVocabFile = 0;
+static char *vocabFile = 0;
+static char *vocabAliasFile = 0;
+static int limitVocab = 0;
 static char *textFile = 0;
 static char *textMapFile = 0;
 static char *escape = 0;
@@ -96,9 +108,13 @@ VocabIndex noEventIndex;
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
+    { OPT_STRING, "use-server", &useServer, "port@host to use as LM server" },
+    { OPT_TRUE, "cache-served-ngrams", &cacheServedNgrams, "enable client side caching" },
     { OPT_STRING, "classes", &classesFile, "class definitions" },
     { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
     { OPT_TRUE, "factored", &factored, "use a factored LM" },
+    { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
+    { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
     { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
     { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
     { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
@@ -119,7 +135,10 @@ static Option options[] = {
     { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
     { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
+    { OPT_STRING, "vocab", &vocabFile, "vocab file" },
+    { OPT_STRING, "vocab-aliases", &vocabAliasFile, "vocab alias file" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "hidden vocabulary" },
+    { OPT_TRUE, "limit-vocab", &limitVocab, "limit LM reading to specified vocabulary" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
     { OPT_FALSE, "nonull", &keepnull, "remove <NULL> in factored LM" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
@@ -592,7 +611,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids[],
 	    LHashIter<VocabIndex,LogP2> symbolIter(symbolProbs);
 	    LogP2 *symbolProb;
 	    VocabIndex symbol;
-	    while (symbolProb = symbolIter.next(symbol)) {
+	    while ((symbolProb = symbolIter.next(symbol))) {
 		if (bestSymbol == Vocab_None || *symbolProb > maxPosterior) {
 		    bestSymbol = symbol;
 		    maxPosterior = *symbolProb;
@@ -619,7 +638,7 @@ disambiguateSentence(VocabIndex *wids, VocabIndex *hiddenWids[],
 		 */
 		VocabIter symbolIter(map.vocab2, true);
 		VocabString symbolName;
-		while (symbolName = symbolIter.next(symbol)) {
+		while ((symbolName = symbolIter.next(symbol))) {
 		    LogP2 *symbolProb = symbolProbs.find(symbol);
 		    if (symbolProb != 0) {
 			LogP2 posterior = *symbolProb - totalPosterior;
@@ -697,7 +716,7 @@ disambiguateFile(File &file, SubVocab &hiddenVocab, LM &lm,
     VocabString sentence[maxWordsPerLine];
     unsigned escapeLen = escape ? strlen(escape) : 0;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 
 	/*
 	 * Pass escaped lines through unprocessed
@@ -774,7 +793,7 @@ disambiguateFileContinuous(File &file, SubVocab &hiddenVocab, LM &lm,
 			    // current line's data
 
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	/*
 	 * Pass escaped lines through unprocessed
 	 * (although this is pretty useless in continuous mode)
@@ -855,7 +874,7 @@ disambiguateTextMap(File &file, SubVocab &hiddenVocab, LM &lm,
 
     unsigned escapeLen = escape ? strlen(escape) : 0;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 
 	/*
 	 * Hack alert! We pass the map entries associated with the word
@@ -976,33 +995,43 @@ LM *
 makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
 		    unsigned order, LM *oldLM, double lambda1, double lambda2)
 {
-    File file(filename, "r");
+    LM *lm;
 
-    /*
-     * create class-ngram if -classes were specified, otherwise a regular ngram
-     */
-    Ngram *lm = factored ? 
-		  new ProductNgram((ProductVocab &)vocab, order) :
-		  (classVocab != 0) ?
-		    (simpleClasses ?
-			new SimpleClassNgram(vocab, *classVocab, order) :
-		        new ClassNgram(vocab, *classVocab, order)) :
-		    new Ngram(vocab, order);
-    assert(lm != 0);
+    if (useServer && strchr(filename, '@') && !strchr(filename, '/')) {
+	/*
+	 * Filename looks like a network LM spec -- create LMClient object
+	 */
+	lm = new LMClient(vocab, filename, order,
+					    cacheServedNgrams ? order : 0);
+	assert(lm != 0);
+    } else {
+	File file(filename, "r");
 
-    lm->debugme(debug);
+	/*
+	 * create class-ngram if -classes were specified, otherwise a regular
+	 * ngram
+	 */
+	lm = factored ? 
+		      new ProductNgram((ProductVocab &)vocab, order) :
+		      (classVocab != 0) ?
+			(simpleClasses ?
+			    new SimpleClassNgram(vocab, *classVocab, order) :
+			    new ClassNgram(vocab, *classVocab, order)) :
+			new Ngram(vocab, order);
+	assert(lm != 0);
 
-    if (!lm->read(file)) {
-	cerr << "format error in mix-lm file " << filename << endl;
-	exit(1);
-    }
+	if (!lm->read(file, limitVocab)) {
+	    cerr << "format error in mix-lm file " << filename << endl;
+	    exit(1);
+	}
 
-    /*
-     * Each class LM needs to read the class definitions
-     */
-    if (classesFile != 0) {
-	File file(classesFile, "r");
-	((ClassNgram *)lm)->readClasses(file);
+	/*
+	 * Each class LM needs to read the class definitions
+	 */
+	if (classesFile != 0) {
+	    File file(classesFile, "r");
+	    ((ClassNgram *)lm)->readClasses(file);
+	}
     }
 
     if (oldLM) {
@@ -1011,10 +1040,9 @@ makeMixLM(const char *filename, Vocab &vocab, SubVocab *classVocab,
 	 */
 	Prob lambda = (lambda1 == 0.0) ? 0.0 : lambda1/lambda2;
 
-	LM *newLM = new BayesMix(vocab, *lm, *oldLM, 0, lambda);
+	LM *newLM = new BayesMix(vocab, *lm, *oldLM,
+					bayesLength, lambda, bayesScale);
 	assert(newLM != 0);
-
-	newLM->debugme(debug);
 
 	return newLM;
     } else {
@@ -1040,12 +1068,19 @@ main(int argc, char **argv)
 	exit(2);
     }
 
+    if (lmFile && useServer) {
+	cerr << "-lm and -use-server are mutually exclusive\n";
+	exit(2);
+    }
+
     if (numNbest <= 0) numNbest = 1;		  
 				// Silent fix.  Ought to say something here.
 
     /*
      * Construct language model
      */
+    LM::initialDebugLevel = debug;
+
     Vocab *vocab;
 
     vocab = factored ? new ProductVocab : new Vocab;
@@ -1054,17 +1089,41 @@ main(int argc, char **argv)
     vocab->unkIsWord() = keepUnk ? true : false;
     vocab->toLower() = toLower ? true : false;
 
+    if (vocabFile) {
+	File file(vocabFile, "r");
+	vocab->read(file);
+    }
+
+    if (vocabAliasFile) {
+	File file(vocabAliasFile, "r");
+	vocab->readAliases(file);
+    }
+
     if (factored) {
 	((ProductVocab *)vocab)->nullIsWord() = keepnull ? true : false;
     }
 
     SubVocab hiddenVocab(*vocab);
+
+    /*
+     * Read event vocabulary
+     */
+    if (hiddenVocabFile) {
+	File file(hiddenVocabFile, "r");
+
+	hiddenVocab.read(file);
+    }
+
     SubVocab *classVocab = 0;
 
-    LM    *hiddenLM = 0;
+    LM *hiddenLM = 0;
     NgramCounts<NgramFractCount> *hiddenCounts = 0;
 
-    if (lmFile) {
+    if (useServer) {
+    	hiddenLM = new LMClient(*vocab, useServer, order,
+						cacheServedNgrams ? order : 0);
+	assert(hiddenLM != 0);
+    } else if (lmFile) {
 	File file(lmFile, "r");
 
 	/*
@@ -1075,6 +1134,17 @@ main(int argc, char **argv)
 	} else if (classesFile) {
 	    classVocab = new SubVocab(*vocab);
 	    assert(classVocab != 0);
+
+	    /*
+	     * limitVocab on class N-grams only works if the classes are
+	     * in the vocabulary at read time.  We ensure this by reading
+	     * the class names (the first column of the class definitions)
+	     * into the vocabulary.
+	     */
+	    if (limitVocab) {
+		File file(classesFile, "r");
+		classVocab->read(file);
+	    }
 
 	    if (simpleClasses) {
 		hiddenLM = new SimpleClassNgram(*vocab, *classVocab, order);
@@ -1087,8 +1157,7 @@ main(int argc, char **argv)
 	}
 	assert(hiddenLM != 0);
 
-	hiddenLM->debugme(debug);
-	hiddenLM->read(file);
+	hiddenLM->read(file, limitVocab);
 
 	if (classesFile) {
 	    File file(classesFile, "r");
@@ -1097,7 +1166,6 @@ main(int argc, char **argv)
     } else {
 	hiddenLM = new NullLM(*vocab);
 	assert(hiddenLM != 0);
-	hiddenLM->debugme(debug);
     }
 
     /*
@@ -1148,30 +1216,30 @@ main(int argc, char **argv)
 				mixLambda6);
 	}
 	if (mixFile7) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile7, *vocab, classVocab, order, useLM,
 				mixLambda7,
 				mixLambda + mixLambda1 + mixLambda2 +
 				mixLambda3 + mixLambda4 + mixLambda5 +
 				mixLambda6 + mixLambda7);
 	}
 	if (mixFile8) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile8, *vocab, classVocab, order, useLM,
 				mixLambda8,
 				mixLambda + mixLambda1 + mixLambda2 +
 				mixLambda3 + mixLambda4 + mixLambda5 +
 				mixLambda6 + mixLambda7 + mixLambda8);
 	}
 	if (mixFile9) {
-	    useLM = makeMixLM(mixFile6, *vocab, classVocab, order, useLM,
+	    useLM = makeMixLM(mixFile9, *vocab, classVocab, order, useLM,
 				mixLambda9, 1.0);
 	}
     }
 
     /*
-     * Make sure noevent token is not used in LM
+     * Make sure noevent token is not used already
      */
     if (hiddenVocab.getIndex(noHiddenEvent) != Vocab_None) {
-	cerr << "LM must not contain " << noHiddenEvent << endl;
+	cerr << "vocabulary must not contain " << noHiddenEvent << endl;
 	exit(1);
     }
 
@@ -1182,15 +1250,6 @@ main(int argc, char **argv)
 	hiddenCounts = new NgramCounts<NgramFractCount>(*vocab, order);
 	assert(hiddenCounts);
 	hiddenCounts->debugme(debug);
-    }
-
-    /*
-     * Read event vocabulary
-     */
-    if (hiddenVocabFile) {
-	File file(hiddenVocabFile, "r");
-
-	hiddenVocab.read(file);
     }
 
     if (forceEvent) {

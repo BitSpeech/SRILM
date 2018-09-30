@@ -6,19 +6,18 @@
  *       but based on some code from NgramLM.cc and Ngram.h (we therefore
  *       retain the Copyright)
  *
- * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgram.h,v 1.7 2006/01/09 18:26:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/flm/src/RCS/FNgram.h,v 1.10 2009/09/24 23:17:51 stolcke Exp $
  *
  */
 
 #ifndef _FNgram_h_
 #define _FNgram_h_
 
-#ifndef EXCLUDE_CONTRIB
-
 #include <stdio.h>
 
+#include "LM.h"
 #include "FNgramStats.h"
 #include "FNgramSpecs.h"
 #include "SubVocab.h"
@@ -243,8 +242,8 @@ public:
     	{ return false; };
     virtual void write();
     virtual void write(unsigned int specNum, File &file);
-    virtual void write(File &file)
-        { assert(0); };		// TODO
+    virtual Boolean write(File &file)
+        { return false; };		// TODO
 
     Boolean virtualBeginSentence;
     Boolean virtualEndSentence;
@@ -369,7 +368,5 @@ protected:
 
     Boolean wordProbSum();
 };
-
-#endif /* EXCLUDE_CONTRIB_END */
 
 #endif /* _FNgram_h_ */

@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: disambig.cc,v 1.40 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: disambig.cc,v 1.51 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -20,8 +24,12 @@ using namespace std;
 #include "File.h"
 #include "Vocab.h"
 #include "VocabMap.h"
+#include "LMClient.h"
 #include "NullLM.h"
 #include "Ngram.h"
+#include "NgramCountLM.h"
+#include "ProductNgram.h"
+#include "BayesMix.h"
 #include "Trellis.cc"
 #include "LHash.cc"
 #include "Array.cc"
@@ -38,8 +46,33 @@ static unsigned order = 2;
 static unsigned debug = 0;
 static int scale = 0;
 static char *lmFile = 0;
+static char *useServer = 0;
+static int cacheServedNgrams = 0;
+static int useCountLM = 0;
+static int factored = 0;
+static char *mixFile  = 0;
+static char *mixFile2 = 0;
+static char *mixFile3 = 0;
+static char *mixFile4 = 0;
+static char *mixFile5 = 0;
+static char *mixFile6 = 0;
+static char *mixFile7 = 0;
+static char *mixFile8 = 0;
+static char *mixFile9 = 0;
+static int bayesLength = 0;
+static double bayesScale = 1.0;
+static double mixLambda = 0.5;
+static double mixLambda2 = 0.0;
+static double mixLambda3 = 0.0;
+static double mixLambda4 = 0.0;
+static double mixLambda5 = 0.0;
+static double mixLambda6 = 0.0;
+static double mixLambda7 = 0.0;
+static double mixLambda8 = 0.0;
+static double mixLambda9 = 0.0;
 static char *vocab1File = 0;
 static char *vocab2File = 0;
+static char *vocab2AliasFile = 0;
 static char *mapFile = 0;
 static char *classesFile = 0;
 static char *mapWriteFile = 0;
@@ -47,6 +80,7 @@ static char *textFile = 0;
 static char *textMapFile = 0;
 static char *countsFile = 0;
 static int keepUnk = 0;
+static int keepnull = 1;
 static int tolower1 = 0;
 static int tolower2 = 0;
 static double lmw = 1.0;
@@ -58,12 +92,38 @@ static int totals = 0;
 static int logMap = 0;
 static int noEOS = 0;
 static int continuous = 0;
+static char *escape = 0;
 
 const LogP LogP_PseudoZero = -100;
 
 static Option options[] = {
     { OPT_TRUE, "version", &version, "print version information" },
     { OPT_STRING, "lm", &lmFile, "hidden token sequence model" },
+    { OPT_STRING, "use-server", &useServer, "port@host to use as LM server" },
+    { OPT_TRUE, "cache-served-ngrams", &cacheServedNgrams, "enable client side caching" },
+    { OPT_TRUE, "count-lm", &useCountLM, "use a count-based LM" },
+    { OPT_TRUE, "factored", &factored, "use a factored LM" },
+    { OPT_UINT, "bayes", &bayesLength, "context length for Bayes mixture LM" },
+    { OPT_FLOAT, "bayes-scale", &bayesScale, "log likelihood scale for -bayes" },
+    { OPT_STRING, "mix-lm", &mixFile, "LM to mix in" },
+    { OPT_FLOAT, "lambda", &mixLambda, "mixture weight for -lm" },
+    { OPT_STRING, "mix-lm2", &mixFile2, "second LM to mix in" },
+    { OPT_FLOAT, "mix-lambda2", &mixLambda2, "mixture weight for -mix-lm2" },
+    { OPT_STRING, "mix-lm3", &mixFile3, "third LM to mix in" },
+    { OPT_FLOAT, "mix-lambda3", &mixLambda3, "mixture weight for -mix-lm3" },
+    { OPT_STRING, "mix-lm4", &mixFile4, "fourth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda4", &mixLambda4, "mixture weight for -mix-lm4" },
+    { OPT_STRING, "mix-lm5", &mixFile5, "fifth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda5", &mixLambda5, "mixture weight for -mix-lm5" },
+    { OPT_STRING, "mix-lm6", &mixFile6, "sixth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda6", &mixLambda6, "mixture weight for -mix-lm6" },
+    { OPT_STRING, "mix-lm7", &mixFile7, "seventh LM to mix in" },
+    { OPT_FLOAT, "mix-lambda7", &mixLambda7, "mixture weight for -mix-lm7" },
+    { OPT_STRING, "mix-lm8", &mixFile8, "eighth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda8", &mixLambda8, "mixture weight for -mix-lm8" },
+    { OPT_STRING, "mix-lm9", &mixFile9, "ninth LM to mix in" },
+    { OPT_FLOAT, "mix-lambda9", &mixLambda9, "mixture weight for -mix-lm9" },
+    { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "nbest", &numNbest, "number of nbest hypotheses to generate in Viterbi search" },
     { OPT_UINT, "order", &order, "ngram order to use for lm" },
     { OPT_STRING, "write-vocab1", &vocab1File, "output observable vocabulary" },
@@ -71,12 +131,15 @@ static Option options[] = {
     { OPT_STRING, "map", &mapFile, "mapping from observable to hidden tokens" },
     { OPT_STRING, "classes", &classesFile, "mapping in class expansion format" },
     { OPT_TRUE, "logmap", &logMap, "map file contains log probabilities" },
+    { OPT_STRING, "escape", &escape, "escape prefix to pass data through to output" },
     { OPT_STRING, "write-map", &mapWriteFile, "output map file (for validation)" },
     { OPT_STRING, "write-counts", &countsFile, "output substitution counts" },
     { OPT_TRUE, "scale", &scale, "scale map probabilities by unigram probs" },
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown words" },
+    { OPT_FALSE, "nonull", &keepnull, "remove <NULL> in factored LM" },
     { OPT_TRUE, "tolower1", &tolower1, "map observable vocabulary to lowercase" },
     { OPT_TRUE, "tolower2", &tolower2, "map hidden vocabulary to lowercase" },
+    { OPT_STRING, "vocab-aliases", &vocab2AliasFile, "hidden vocab alias file" },
     { OPT_STRING, "text", &textFile, "text file to disambiguate" },
     { OPT_STRING, "text-map", &textMapFile, "text+map file to disambiguate" },
     { OPT_FLOAT, "lmw", &lmw, "language model weight" },
@@ -422,7 +485,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 	    LHashIter<VocabIndex,LogP2> symbolIter(symbolProbs);
 	    LogP2 *symbolProb;
 	    VocabIndex symbol;
-	    while (symbolProb = symbolIter.next(symbol)) {
+	    while ((symbolProb = symbolIter.next(symbol))) {
 		if (bestSymbol == Vocab_None || *symbolProb > maxPosterior) {
 		    bestSymbol = symbol;
 		    maxPosterior = *symbolProb;
@@ -445,7 +508,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 		cout << vocab.getWord(wids[pos]) << "\t";
 
 		symbolIter.init();
-		while (symbolProb = symbolIter.next(symbol)) {
+		while ((symbolProb = symbolIter.next(symbol))) {
 		    LogP2 posterior = *symbolProb - totalPosterior;
 
 		    cout << " " << map.vocab2.getWord(symbol)
@@ -459,7 +522,7 @@ disambiguateSentence(Vocab &vocab, VocabIndex *wids, VocabIndex *hiddenWids[],
 	     */
 	    if (counts) {
 		symbolIter.init();
-		while (symbolProb = symbolIter.next(symbol)) {
+		while ((symbolProb = symbolIter.next(symbol))) {
 		    LogP2 posterior = *symbolProb - totalPosterior;
 
 		    counts->put(wids[pos], symbol,
@@ -488,19 +551,35 @@ disambiguateFile(File &file, VocabMap &map, LM &lm, VocabMap *counts)
     char *line;
     VocabString sentence[maxWordsPerLine];
 
-    while (line = file.getline()) {
+    unsigned escapeLen = escape ? strlen(escape) : 0;
+
+    while ((line = file.getline())) {
+	/*
+	 * Pass escaped lines through unprocessed
+	 */
+        if (escape && strncmp(line, escape, escapeLen) == 0) {
+	    cout << line;
+	    continue;
+	}
 
 	unsigned numWords = Vocab::parseWords(line, sentence, maxWordsPerLine);
 	if (numWords == maxWordsPerLine) {
 	    file.position() << "too many words per sentence\n";
 	} else {
 	    VocabIndex wids[maxWordsPerLine + 2];
+	    unsigned startPos;
 
 	    map.vocab1.getIndices(sentence, &wids[1], maxWordsPerLine,
 						    map.vocab1.unkIndex());
-	    wids[0] = map.vocab1.ssIndex();
 
-	    if (noEOS) {
+	    if (wids[1] == map.vocab1.ssIndex()) {
+		startPos = 1;
+	    } else {
+		wids[0] = map.vocab1.ssIndex();
+		startPos = 0;
+	    }
+
+	    if (noEOS || wids[numWords] == map.vocab1.seIndex()) {
 		wids[numWords + 1] = Vocab_None;
 	    } else {
 		wids[numWords + 1] = map.vocab1.seIndex();
@@ -516,7 +595,7 @@ disambiguateFile(File &file, VocabMap &map, LM &lm, VocabMap *counts)
 
 	    makeArray(LogP, totalProb, numNbest);
 	    unsigned numHyps =
-			disambiguateSentence(map.vocab1, wids, hiddenWids,
+		disambiguateSentence(map.vocab1, &wids[startPos], hiddenWids,
 					totalProb, map, lm, counts, numNbest);
 	    if (!numHyps) {
 		file.position() << "Disambiguation failed\n";
@@ -568,10 +647,20 @@ disambiguateFileContinuous(File &file, VocabMap &map, LM &lm,
     char *line;
     Array<VocabIndex> wids;
 
+    unsigned escapeLen = escape ? strlen(escape) : 0;
     unsigned lineStart = 0; // index into the above to mark the offset for the 
 			    // current line's data
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
+	/*
+	 * Pass escaped lines through unprocessed
+	 * (although this is pretty useless in continuous mode)
+	 */
+        if (escape && strncmp(line, escape, escapeLen) == 0) {
+	    cout << line;
+	    continue;
+	}
+
 	VocabString words[maxWordsPerLine];
 	unsigned numWords =
 		Vocab::parseWords(line, words, maxWordsPerLine);
@@ -639,7 +728,9 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
 {
     char *line;
 
-    while (line = file.getline()) {
+    unsigned escapeLen = escape ? strlen(escape) : 0;
+
+    while ((line = file.getline())) {
 	/*
 	 * Hack alert! We pass the map entries associated with the word
 	 * instances in a VocabMap, but we encode the word position (not
@@ -653,7 +744,20 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
 	/*
 	 * Process one sentence
 	 */
+	Boolean haveEscape = false;
+
 	do {
+	    /*
+	     * Pass escaped lines through unprocessed
+	     * We also terminate an "sentence" whenever an escape line is found,
+	     * but printing the escaped line has to be deferred until we're
+	     * done processing the sentence.
+	     */
+	    if (escape && strncmp(line, escape, escapeLen) == 0) {
+		haveEscape = true;
+		break;
+	    }
+
 	    /*
 	     * Read map line
 	     */
@@ -730,6 +834,53 @@ disambiguateTextMap(File &file, Vocab &vocab, LM &lm, VocabMap *counts)
 		delete [] hiddenWids[n];
 	    }
 	}
+
+	if (haveEscape) {
+	    cout << line;
+	}
+    }
+}
+
+LM *
+makeMixLM(const char *filename, Vocab &vocab,
+		    unsigned order, LM *oldLM, double lambda1, double lambda2)
+{
+    LM *lm;
+
+    if (useServer && strchr(filename, '@') && !strchr(filename, '/')) {
+	/*
+	 * Filename looks like a network LM spec -- create LMClient object
+	 */
+	lm = new LMClient(vocab, filename, order,
+					    cacheServedNgrams ? order : 0);
+	assert(lm != 0);
+    } else {
+	File file(filename, "r");
+
+	lm = factored ? 
+		      new ProductNgram((ProductVocab &)vocab, order) :
+			new Ngram(vocab, order);
+	assert(lm != 0);
+
+	if (!lm->read(file, !textMapFile)) {
+	    cerr << "format error in mix-lm file " << filename << endl;
+	    exit(1);
+	}
+    }
+
+    if (oldLM) {
+	/*
+	 * Compute mixture lambda (make sure 0/0 = 0)
+	 */
+	Prob lambda = (lambda1 == 0.0) ? 0.0 : lambda1/lambda2;
+
+	LM *newLM = new BayesMix(vocab, *lm, *oldLM,
+					bayesLength, lambda, bayesScale);
+	assert(newLM != 0);
+
+	return newLM;
+    } else {
+	return lm;
     }
 }
 
@@ -749,15 +900,39 @@ main(int argc, char **argv)
     /*
      * Construct language model
      */
-    Vocab hiddenVocab;
+    LM::initialDebugLevel = debug;
+
+    Vocab *hiddenVocab;
     Vocab vocab;
     LM    *hiddenLM;
 
-    VocabMap map(vocab, hiddenVocab, logMap);
+    if (useCountLM + factored > 1) {
+	cerr << "NgramCountLM and factored LMs are mutually exclusive\n";
+	exit(2);
+    }
+
+    if (lmFile && useServer) {
+	cerr << "-lm and -use-server are mutually exclusive\n";
+	exit(2);
+    }
+
+    hiddenVocab = factored ? new ProductVocab : new Vocab;
+    assert(hiddenVocab != 0);
+
+    VocabMap map(vocab, *hiddenVocab, logMap);
 
     vocab.toLower() = tolower1? true : false;
-    hiddenVocab.toLower() = tolower2 ? true : false;
-    hiddenVocab.unkIsWord() = keepUnk ? true : false;
+    hiddenVocab->toLower() = tolower2 ? true : false;
+    hiddenVocab->unkIsWord() = keepUnk ? true : false;
+
+    if (vocab2AliasFile) {
+	File file(vocab2AliasFile, "r");
+	hiddenVocab->readAliases(file);
+    }
+
+    if (factored) {
+	((ProductVocab *)hiddenVocab)->nullIsWord() = keepnull ? true : false;
+    }
 
     if (mapFile) {
 	File file(mapFile, "r");
@@ -777,28 +952,107 @@ main(int argc, char **argv)
 	}
     }
 
-    if (lmFile) {
+    if (useServer) {
+    	hiddenLM = new LMClient(*hiddenVocab, useServer, order,
+						cacheServedNgrams ? order : 0);
+	assert(hiddenLM != 0);
+    } else if (lmFile) {
 	File file(lmFile, "r");
 
-	hiddenLM = new Ngram(hiddenVocab, order);
+	if (factored) {
+	    hiddenLM = new ProductNgram(*(ProductVocab *)hiddenVocab, order);
+	} else if (useCountLM) {
+	    hiddenLM = new NgramCountLM(*hiddenVocab, order);
+	} else {
+	    hiddenLM = new Ngram(*hiddenVocab, order);
+	}
 	assert(hiddenLM != 0);
 
-	hiddenLM->debugme(debug);
-	hiddenLM->read(file);
+	/*
+	 * Limit LM reading to the words found in the map file if 
+	 * -text-map is NOT used
+	 */
+	hiddenLM->read(file, !textMapFile);
     } else {
-	hiddenLM = new NullLM(hiddenVocab);
+	hiddenLM = new NullLM(*hiddenVocab);
 	assert(hiddenLM != 0);
-	hiddenLM->debugme(debug);
+    }
+
+    /*
+     * Build the full LM used for hidden event decoding
+     */
+    LM *useLM = hiddenLM;
+
+    if (mixFile) {
+	/*
+	 * create a Bayes mixture LM 
+	 */
+	double mixLambda1 = 1.0 - mixLambda - mixLambda2 - mixLambda3 -
+				mixLambda4 - mixLambda5 - mixLambda6 -
+				mixLambda7 - mixLambda8 - mixLambda9;
+
+	useLM = makeMixLM(mixFile, *hiddenVocab, order, useLM,
+				mixLambda1,
+				mixLambda + mixLambda1);
+
+	if (mixFile2) {
+	    useLM = makeMixLM(mixFile2, *hiddenVocab, order, useLM,
+				mixLambda2,
+				mixLambda + mixLambda1 + mixLambda2);
+	}
+	if (mixFile3) {
+	    useLM = makeMixLM(mixFile3, *hiddenVocab, order, useLM,
+				mixLambda3,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3);
+	}
+	if (mixFile4) {
+	    useLM = makeMixLM(mixFile4, *hiddenVocab, order, useLM,
+				mixLambda4,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4);
+	}
+	if (mixFile5) {
+	    useLM = makeMixLM(mixFile5, *hiddenVocab, order, useLM,
+				mixLambda5,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5);
+	}
+	if (mixFile6) {
+	    useLM = makeMixLM(mixFile6, *hiddenVocab, order, useLM,
+				mixLambda6,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6);
+	}
+	if (mixFile7) {
+	    useLM = makeMixLM(mixFile7, *hiddenVocab, order, useLM,
+				mixLambda7,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7);
+	}
+	if (mixFile8) {
+	    useLM = makeMixLM(mixFile8, *hiddenVocab, order, useLM,
+				mixLambda8,
+				mixLambda + mixLambda1 + mixLambda2 +
+				mixLambda3 + mixLambda4 + mixLambda5 +
+				mixLambda6 + mixLambda7 + mixLambda8);
+	}
+	if (mixFile9) {
+	    useLM = makeMixLM(mixFile9, *hiddenVocab, order, useLM,
+				mixLambda9, 1.0);
+	}
     }
 
     VocabMap *counts;
     if (countsFile) {
-	counts = new VocabMap(vocab, hiddenVocab);
+	counts = new VocabMap(vocab, *hiddenVocab);
 	assert(counts != 0);
 
-	counts->remove(vocab.ssIndex(), hiddenVocab.ssIndex());
-	counts->remove(vocab.seIndex(), hiddenVocab.seIndex());
-	counts->remove(vocab.unkIndex(), hiddenVocab.unkIndex());
+	counts->remove(vocab.ssIndex(), hiddenVocab->ssIndex());
+	counts->remove(vocab.seIndex(), hiddenVocab->seIndex());
+	counts->remove(vocab.unkIndex(), hiddenVocab->unkIndex());
     } else {
 	counts = 0;
     }
@@ -807,16 +1061,16 @@ main(int argc, char **argv)
 	File file(textFile, "r");
 
 	if (continuous) {
-	    disambiguateFileContinuous(file, map, *hiddenLM, counts);
+	    disambiguateFileContinuous(file, map, *useLM, counts);
 	} else {
-	    disambiguateFile(file, map, *hiddenLM, counts);
+	    disambiguateFile(file, map, *useLM, counts);
 	}
     }
 
     if (textMapFile) {
 	File file(textMapFile, "r");
 
-	disambiguateTextMap(file, vocab, *hiddenLM, counts);
+	disambiguateTextMap(file, vocab, *useLM, counts);
     }
 
     if (countsFile) {
@@ -832,7 +1086,7 @@ main(int argc, char **argv)
 
     if (vocab1File) {
 	File file(vocab1File, "w");
-	hiddenVocab.write(file);
+	hiddenVocab->write(file);
     }
     if (vocab2File) {
 	File file(vocab2File, "w");
@@ -841,6 +1095,7 @@ main(int argc, char **argv)
 
 #ifdef DEBUG
     delete hiddenLM;
+    delete hiddenVocab;
     return 0;
 #endif /* DEBUG */
 

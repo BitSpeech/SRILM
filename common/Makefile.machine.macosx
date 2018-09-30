@@ -44,14 +44,17 @@
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = 
 
-   # Tcl support
-   # This assumes that you have installed tcltk and tcltk-dev using 
-   # 'fink' as in:
+   # Tcl support (as per Chuck Wooters):
+   # As of OS X 10.4, MacOS includes Tcl and you can use 
+   TCL_INCLUDE = -I/usr/include
+   TCL_LIBRARY = -L/usr/lib -ltcl
+   # However, older OS versions might require that you install tcltk and
+   # tcltk-dev using 'fink' as in:
    #    fink install tcltk
    #    fink install tcltk-dev
-   # fink puts stuff in /sw
-   TCL_INCLUDE = -I/sw/include
-   TCL_LIBRARY = -L/sw/lib -ltcl
+   # and then use
+   #TCL_INCLUDE = -I/sw/include
+   #TCL_LIBRARY = -L/sw/lib -ltcl
 
    SYMBOL_PREFIX = _
 

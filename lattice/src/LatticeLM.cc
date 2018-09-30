@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeLM.cc,v 1.7 2006/01/05 08:45:54 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeLM.cc,v 1.9 2010/06/02 05:54:08 stolcke Exp $";
 #endif
 
 #include <stdlib.h>
@@ -36,10 +36,11 @@ LatticeLM::read(File &file, Boolean limitVocab)
     return lat.readPFSG(file);
 }
 
-void
+Boolean
 LatticeLM::write(File &file)
 {
     lat.writeCompactPFSG(file);
+    return true;
 }
 
 /*
@@ -195,7 +196,7 @@ LatticeLM::prefixProb(VocabIndex word, const VocabIndex *context,
 	    NodeIndex followState;
 	    LogP weight;
 
-	    while (followNode = followIter.next(followState, weight)) {
+	    while ((followNode = followIter.next(followState, weight))) {
 		if (followNode->word == currWord) {
 		    if (debug(DEBUG_TRANSITIONS)) {
 			cerr << "POSITION = " << pos

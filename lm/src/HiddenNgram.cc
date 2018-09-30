@@ -4,12 +4,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.cc,v 1.21 2010/06/02 06:19:09 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "option.h"
@@ -30,7 +34,7 @@ const VocabString noHiddenEvent = "*noevent*";
  * as keys into the trellis.  Define the necessary support functions.
  */
 
-static inline unsigned
+static inline unsigned long
 LHash_hashKey(const HiddenNgramState &key, unsigned maxBits)
 {
     return (LHash_hashKey(key.context, maxBits) + key.repeatFrom + key.event)
@@ -98,8 +102,9 @@ operator<< (ostream &stream, const HiddenNgramState &state)
 
 HiddenNgram::HiddenNgram(Vocab &vocab, SubVocab &hiddenVocab, unsigned order,
 							    Boolean notHidden)
-    : Ngram(vocab, order), hiddenVocab(hiddenVocab),
-      trellis(maxWordsPerLine + 2 + 1), notHidden(notHidden), savedLength(0)
+    : Ngram(vocab, order),
+      trellis(maxWordsPerLine + 2 + 1), savedLength(0),
+      hiddenVocab(hiddenVocab), notHidden(notHidden)
 {
     /*
      * Make sure the hidden events are subset of base vocabulary 
@@ -207,7 +212,7 @@ HiddenNgram::read(File &file, Boolean limitVocab)
 	 */
 	char *line;
 
-	while (line = file.getline()) {
+	while ((line = file.getline())) {
 	    VocabString argv[maxWordsPerLine + 1];
 
 	    unsigned argc = Vocab::parseWords(line, argv, maxWordsPerLine + 1);
@@ -278,10 +283,13 @@ HiddenNgram::read(File &file, Boolean limitVocab)
     }
 }
 
-void
+Boolean
 HiddenNgram::write(File &file)
 {
-    Ngram::write(file);
+    if (!Ngram::write(file)) {
+	return false;
+    }
+
     fprintf(file, "\n");
 
     LHashIter<VocabIndex, HiddenVocabProps> iter(vocabProps);
@@ -289,7 +297,7 @@ HiddenNgram::write(File &file)
     HiddenVocabProps *props;
     VocabIndex word;
 
-    while (props = iter.next(word)) {
+    while ((props = iter.next(word))) {
 	fprintf(file, "%s", vocab.getWord(word));
 
 	if (props->deleteWords) {
@@ -310,6 +318,8 @@ HiddenNgram::write(File &file)
 	}
 	fprintf(file, "\n");
     }
+
+    return true;
 }
 
 /*
@@ -480,7 +490,7 @@ HiddenNgram::prefixProb(VocabIndex word, const VocabIndex *context,
             VocabIndex currEvent;
 	    HiddenVocabProps *currEventProps;
 
-            while (currEventProps = eventIter.next(currEvent)) {
+            while ((currEventProps = eventIter.next(currEvent))) {
 		/*
 		 * Observable events are dealt with as regular words in 
 		 * the input string

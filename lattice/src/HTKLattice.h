@@ -2,18 +2,22 @@
  * HTKLattice.h --
  *	Information associated with HTK Standard Lattice Format
  *
- * Copyright (c) 2003-2006, SRI International.  All Rights Reserved.
+ * Copyright (c) 2003-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.h,v 1.15 2006/01/06 21:17:06 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.h,v 1.19 2010/06/02 07:06:23 stolcke Exp $
  *
  */
 
 #ifndef _HTKLattice_h_
 #define _HTKLattice_h_
 
-#include <math.h>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
+#include <math.h>
 
 #include "Prob.h"
 #include "Vocab.h"
@@ -22,6 +26,8 @@ const float HTK_undef_float = HUGE_VAL;
 const unsigned HTK_undef_uint = (unsigned)-1;
 
 extern const char *HTK_null_word;
+
+extern double HTK_LogP_Zero;
 
 /*
  * Options for score mapping
@@ -56,6 +62,7 @@ public:
     double wdpenalty;
     double prscale;
     double duscale;
+    double amscale;
     double x1scale;
     double x2scale;
     double x3scale;
@@ -65,12 +72,11 @@ public:
     double x7scale;
     double x8scale;
     double x9scale;
-    double amscale;
 
     char *vocab;
-    char *hmms;
     char *lmname;
     char *ngname;
+    char *hmms;
 
     Boolean wordsOnNodes;
     Boolean scoresOnNodes;
@@ -90,6 +96,7 @@ public:
 
     float time;				// start or end, depending on direction
     VocabIndex word;			// word ID
+    VocabString wordLabel;		// word label string for OOVs
     unsigned var;			// pronunciation variant
     char *div;				// segmentation info
     char *states;			// state alignment

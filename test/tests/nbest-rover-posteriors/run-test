@@ -1,6 +1,0 @@
-#!/bin/sh
-
-nbest-rover - ../nbest-rover/rover.control posteriors.out > hyps.out
-cat posteriors.out
-rm -f hyps.out posteriors.out
-

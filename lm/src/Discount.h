@@ -2,9 +2,9 @@
  * Discount.h --
  *	Discounting schemes
  *
- * Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.19 2003/08/03 23:15:54 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Discount.h,v 1.21 2010/06/02 06:22:48 stolcke Exp $
  *
  */
 
@@ -83,6 +83,9 @@ public:
 	{ return; };
 
     Boolean interpolate;
+    
+protected:
+    static unsigned vocabSize(Vocab &vocab);	/* compute effective vocabulary size */
 };
 
 
@@ -150,7 +153,6 @@ protected:
     double _mincount;		    /* minimum count to retain */
 };
 
-
 /*
  * NaturalDiscount --
  *	Ristad's natural law of succession
@@ -159,7 +161,7 @@ class NaturalDiscount: public Discount
 {
 public:
     NaturalDiscount(unsigned mincount = 0)
-	: vocabSize(0), _mincount(mincount) {};
+	: _vocabSize(0), _mincount(mincount) {};
 
     double discount(Count count, Count totalCount, Count observedVocab);
     Boolean nodiscount() { return false; };
@@ -169,8 +171,50 @@ public:
        { return false; };
 
 protected:
-    unsigned vocabSize;		    /* vocabulary size */
+    unsigned _vocabSize;	    /* vocabulary size */
     double _mincount;		    /* minimum count to retain */
+};
+
+/*
+ * AddSmooth --
+ *	Lidstone-Johnson-Jeffrey's smoothing: add a constant delta to the
+ *	occurrence count of each vocabulary item.
+ *
+ *		p = (c + delta) / (T + N * delta) 
+ *
+ *	where c is the item count, T is the total count, and N is the
+ *	vocabulary size. This is equivalent to a discounting factor of
+ *
+ *		d = (1 + delta/c) / (1 + N * delta / T)
+ */
+class AddSmooth: public Discount
+{
+public:
+    AddSmooth(double delta = 1.0, unsigned mincount = 0)
+	: _delta(delta < 0.0 ? 0.0 : delta),
+	  _mincount(mincount) {};
+
+    double discount(Count count, Count totalCount, Count observedVocab)
+      { return (count <= 0) ? 1.0 : (count < _mincount) ? 0.0 : 
+					(1.0 + _delta/count) /
+					(1.0 + _vocabSize*_delta/totalCount); }
+    double discount(FloatCount count, FloatCount totalCount,
+							Count observedVocab)
+      { return (count <= 0.0) ? 1.0 : (count < _mincount) ? 0.0 : 
+					(1.0 + _delta/count) /
+					(1.0 + _vocabSize*_delta/totalCount); }
+
+    Boolean nodiscount() { return _mincount <= 1.0 && _delta == 0.0; } ;
+
+    Boolean estimate(NgramStats &counts, unsigned order)
+      { _vocabSize = vocabSize(counts.vocab); return true; }
+    Boolean estimate(NgramCounts<FloatCount> &counts, unsigned order)
+      { _vocabSize = vocabSize(counts.vocab); return true; }
+
+protected:
+    double _delta;		    /* the additive constant */
+    double _mincount;		    /* minimum count to retain */
+    unsigned _vocabSize;	    /* vocabulary size */
 };
 
 /*
@@ -218,8 +262,8 @@ public:
     KneserNey(unsigned mincount = 0, 
 	      Boolean countsAreModified = false,
 	      Boolean prepareCountsAtEnd = false)
-      : minCount(mincount), countsAreModified(countsAreModified),
-	discount1(0.0),
+      : minCount(mincount), discount1(0.0),
+	countsAreModified(countsAreModified),
 	prepareCountsAtEnd(prepareCountsAtEnd) {};
 
     virtual double discount(Count count, Count totalCount, Count observedVocab);

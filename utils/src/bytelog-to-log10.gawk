@@ -3,7 +3,7 @@
 # bytelog-to-log10 --
 #	convert bytelog scores to log-base-10
 #
-# $Header: /home/srilm/devel/utils/src/RCS/bytelog-to-log10.gawk,v 1.1 1997/04/22 20:20:41 stolcke Exp stolcke $
+# $Header: /home/srilm/devel/utils/src/RCS/bytelog-to-log10.gawk,v 1.2 2002/05/15 04:47:13 stolcke Exp $
 #
 BEGIN {
 	logscale = 2.30258509299404568402 * 10000.5 / 1024.0;

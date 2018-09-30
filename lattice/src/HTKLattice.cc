@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.cc,v 1.40 2006/01/16 19:34:15 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice.cc,v 1.48 2010/06/02 05:54:08 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -23,7 +23,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/HTKLattice
 #include "LHash.cc"
 #include "Lattice.h"
 #include "MultiwordVocab.h"
-#include "NBest.h"		// for phoneSeparator defn
+#include "NBest.h"		// for phoneSeparator and frameLength defn
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_ARRAY(HTKWordInfo);
@@ -49,6 +49,8 @@ const float HTK_def_wdpenalty = 0.0;
 const float HTK_def_prscale = 1.0;
 const float HTK_def_duscale = 0.0;
 const float HTK_def_xscale = 0.0;
+
+double HTK_LogP_Zero = LogP_Zero;
 
 HTKHeader::HTKHeader()
     : logbase(10), tscale(HTK_def_tscale), acscale(HTK_def_acscale),
@@ -147,8 +149,8 @@ HTKHeader::operator= (const HTKHeader &other)
 
 
 HTKWordInfo::HTKWordInfo()
-    : time(HTK_undef_float), word(Vocab_None), var(HTK_undef_uint),
-      div(0), states(0),
+    : time(HTK_undef_float), word(Vocab_None), wordLabel(0),
+      var(HTK_undef_uint), div(0), states(0),
       acoustic(HTK_undef_float), ngram(HTK_undef_float),
       language(HTK_undef_float), pron(HTK_undef_float),
       duration(HTK_undef_float), xscore1(HTK_undef_float),
@@ -161,13 +163,14 @@ HTKWordInfo::HTKWordInfo()
 }
 
 HTKWordInfo::HTKWordInfo(const HTKWordInfo &other)
-    : div(0), states(0)
+    : wordLabel(0), div(0), states(0)
 {
     *this = other;
 }
 
 HTKWordInfo::~HTKWordInfo()
 {
+    if (wordLabel) free((char *)wordLabel);
     if (div) free(div);
     if (states) free(states);
 }
@@ -179,11 +182,18 @@ HTKWordInfo::operator= (const HTKWordInfo &other)
 	return *this;
     }
 
+    if (wordLabel) free((char *)wordLabel);
     if (div) free(div);
     if (states) free(states);
 
     time = other.time;
     word = other.word;
+    if (other.wordLabel == 0) {
+	wordLabel = 0;
+    } else {
+	wordLabel = strdup(other.wordLabel);
+	assert(wordLabel != 0);
+    }
     var = other.var;
     if (other.div == 0) {
 	div = 0;
@@ -400,14 +410,23 @@ getHTKscore(const char *value, double logbase, File &file)
     if (logbase > 0.0) {
 	LogP score;
 	if (parseLogP(value, score)) {
-	    return score * ProbToLogP(logbase);
+	    if (score == LogP_Zero) {
+		return HTK_LogP_Zero;
+	    } else {
+		return score * ProbToLogP(logbase);
+	    }
 	} else {
 	    file.position() << "warning: malformed HTK log score "
 			    << value << endl;
-	    return LogP_Zero;
+	    return HTK_LogP_Zero;
 	}
     } else {
-	return ProbToLogP(atof(value));
+	Prob score = atof(value);
+	if (score == 0.0) {
+	    return HTK_LogP_Zero;
+	} else {
+	    return ProbToLogP(score);
+	}
     }
 }
 
@@ -424,9 +443,9 @@ printQuoted(FILE *f, const char *name, Boolean useQuotes)
     } else {
 	for (const char *cp = name; *cp != '\0'; cp ++) {
 	    if (*cp == ' ' || *cp == HTK_escape_quote ||
-		cp == name &&
-		    (*cp == HTK_single_quote || *cp == HTK_double_quote) ||
-		octalPrinted && isdigit(*cp))
+		(cp == name &&
+		    (*cp == HTK_single_quote || *cp == HTK_double_quote)) ||
+		(octalPrinted && isdigit(*cp)))
 	    {
 		/*
 		 * This character needs to be quoted
@@ -581,7 +600,7 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 	 * enforced, and incomplete lattices may result if the input file
 	 * contains things out of order.
 	 */
-	while (key = getHTKField(line, value, htkheader.useQuotes)) {
+	while ((key = getHTKField(line, value, htkheader.useQuotes))) {
 #define keyis(x)	(strcmp(key, (x)) == 0)
 	    /*
 	     * Link fields
@@ -600,7 +619,7 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		unsigned HTKstartnode, HTKendnode;
 		NodeIndex startIndex = NoNode, endIndex = NoNode;
 
-		while (key = getHTKField(line, value, htkheader.useQuotes)) {
+		while ((key = getHTKField(line, value, htkheader.useQuotes))) {
 		    if (keyis("S") || keyis("START")) {
 			HTKstartnode = atoi(value);
 			Boolean found;
@@ -626,11 +645,27 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		    } else if (keyis("W") || keyis("WORD")) {
 			if (strcmp(value, HTK_null_word) == 0) {
 			    linkinfo->word = Vocab_None;
-			} else if (useUnk) {
+			} else if (useUnk || keepUnk) {
 			    linkinfo->word =
 					vocab.getIndex(value, vocab.unkIndex());
+			    if (keepUnk && linkinfo->word == vocab.unkIndex()) {
+				linkinfo->wordLabel = strdup(value);
+				assert(linkinfo->wordLabel != 0);
+			    }
 			} else {
 			    linkinfo->word = vocab.addWord(value);
+			}
+			if (linkinfo->word == vocab.ssIndex()) {
+			    if (debug(DebugPrintFunctionality)) {
+				dout()  << "Lattice::readHTK: discarding explicit start-of-sentence tag\n";
+			    }
+			    linkinfo->word = Vocab_None;
+			}
+			if (linkinfo->word == vocab.seIndex()) {
+			    if (debug(DebugPrintFunctionality)) {
+				dout()  << "Lattice::readHTK: discarding explicit end-of-sentence tag\n";
+			    }
+			    linkinfo->word = Vocab_None;
 			}
 		    } else if (keyis("v") || keyis("var")) {
 			linkinfo->var = atoi(value);
@@ -708,6 +743,10 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		    if (linkinfo->word == Vocab_None) {
 			linkinfo->word = nodeinfo->word;
 		    }
+		    if (linkinfo->wordLabel == 0 && nodeinfo->wordLabel != 0) {
+			linkinfo->wordLabel = strdup(nodeinfo->wordLabel);
+			assert(linkinfo->wordLabel != 0);
+		    }
 		    if (linkinfo->var == HTK_undef_uint) {
 			linkinfo->var = nodeinfo->var;
 		    }
@@ -769,49 +808,78 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		LogP weight = LogP_One;
 
 		if (linkinfo->acoustic != HTK_undef_float) {
-		    weight += htkheader.acscale * linkinfo->acoustic;
+		    if (htkheader.acscale != 0.0) {
+			weight += htkheader.acscale * linkinfo->acoustic;
+		    }
 		}
 		if (linkinfo->ngram != HTK_undef_float) {
-		    weight += htkheader.ngscale * linkinfo->ngram;
+		    if (htkheader.ngscale != 0.0) {
+			weight += htkheader.ngscale * linkinfo->ngram;
+		    }
 		}
 		if (linkinfo->language != HTK_undef_float) {
-		    weight += htkheader.lmscale * linkinfo->language;
+		    // if lmscale == 0 we ignore even -infinity lm scores
+		    if (htkheader.lmscale != 0.0) {
+			weight += htkheader.lmscale * linkinfo->language;
+		    }
 		}
 		if (linkinfo->pron != HTK_undef_float) {
-		    weight += htkheader.prscale * linkinfo->pron;
+		    if (htkheader.prscale != 0.0) {
+			weight += htkheader.prscale * linkinfo->pron;
+		    }
 		}
 		if (linkinfo->duration != HTK_undef_float) {
-		    weight += htkheader.duscale * linkinfo->duration;
+		    if (htkheader.duscale != 0.0) {
+			weight += htkheader.duscale * linkinfo->duration;
+		    }
 		}
 		if (!ignoreWord(linkinfo->word)) {
 		    weight += htkheader.wdpenalty;
 		}
 		if (linkinfo->xscore1 != HTK_undef_float) {
-		    weight += htkheader.x1scale * linkinfo->xscore1;
+		    if (htkheader.x1scale != 0.0) {
+			weight += htkheader.x1scale * linkinfo->xscore1;
+		    }
 		}
 		if (linkinfo->xscore2 != HTK_undef_float) {
-		    weight += htkheader.x2scale * linkinfo->xscore2;
+		    if (htkheader.x2scale != 0.0) {
+			weight += htkheader.x2scale * linkinfo->xscore2;
+		    }
 		}
 		if (linkinfo->xscore3 != HTK_undef_float) {
-		    weight += htkheader.x3scale * linkinfo->xscore3;
+		    if (htkheader.x3scale != 0.0) {
+			weight += htkheader.x3scale * linkinfo->xscore3;
+		    }
 		}
 		if (linkinfo->xscore4 != HTK_undef_float) {
-		    weight += htkheader.x4scale * linkinfo->xscore4;
+		    if (htkheader.x4scale != 0.0) {
+			weight += htkheader.x4scale * linkinfo->xscore4;
+		    }
 		}
 		if (linkinfo->xscore5 != HTK_undef_float) {
-		    weight += htkheader.x5scale * linkinfo->xscore5;
+		    if (htkheader.x5scale != 0.0) {
+			weight += htkheader.x5scale * linkinfo->xscore5;
+		    }
 		}
 		if (linkinfo->xscore6 != HTK_undef_float) {
-		    weight += htkheader.x6scale * linkinfo->xscore6;
+		    if (htkheader.x6scale != 0.0) {
+			weight += htkheader.x6scale * linkinfo->xscore6;
+		    }
 		}
 		if (linkinfo->xscore7 != HTK_undef_float) {
-		    weight += htkheader.x7scale * linkinfo->xscore7;
+		    if (htkheader.x7scale != 0.0) {
+			weight += htkheader.x7scale * linkinfo->xscore7;
+		    }
 		}
 		if (linkinfo->xscore8 != HTK_undef_float) {
-		    weight += htkheader.x8scale * linkinfo->xscore8;
+		    if (htkheader.x8scale != 0.0) {
+			weight += htkheader.x8scale * linkinfo->xscore8;
+		    }
 		}
 		if (linkinfo->xscore9 != HTK_undef_float) {
-		    weight += htkheader.x9scale * linkinfo->xscore9;
+		    if (htkheader.x9scale != 0.0) {
+			weight += htkheader.x9scale * linkinfo->xscore9;
+		    }
 		}
 
 		/*
@@ -843,17 +911,33 @@ Lattice::readHTK(File &file, HTKHeader *header, Boolean useNullNodes)
 		/*
 		 * parse node fields
 		 */
-		while (key = getHTKField(line, value, htkheader.useQuotes)) {
+		while ((key = getHTKField(line, value, htkheader.useQuotes))) {
 		    if (keyis("t") || keyis("time")) {
 			nodeinfo.time = atof(value);
 		    } else if (keyis("W") || keyis("WORD")) {
 			if (strcmp(value, HTK_null_word) == 0) {
 			    nodeinfo.word = Vocab_None;
-			} else if (useUnk) {
+			} else if (useUnk || keepUnk) {
 			    nodeinfo.word =
 					vocab.getIndex(value, vocab.unkIndex());
+			    if (keepUnk && nodeinfo.word == vocab.unkIndex()) {
+				nodeinfo.wordLabel = strdup(value);
+				assert(nodeinfo.wordLabel != 0);
+			    }
 			} else {
 			    nodeinfo.word = vocab.addWord(value);
+			}
+			if (nodeinfo.word == vocab.ssIndex()) {
+			    if (debug(DebugPrintFunctionality)) {
+				dout()  << "Lattice::readHTK: discarding explicit start-of-sentence tag\n";
+			    }
+			    nodeinfo.word = Vocab_None;
+			}
+			if (nodeinfo.word == vocab.seIndex()) {
+			    if (debug(DebugPrintFunctionality)) {
+				dout()  << "Lattice::readHTK: discarding explicit end-of-sentence tag\n";
+			    }
+			    nodeinfo.word = Vocab_None;
 			}
 		    } else if (keyis("v") || keyis("var")) {
 			nodeinfo.var = atoi(value);
@@ -1432,7 +1516,7 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
     // count number of nodes and transitions
     nodeIter.init();
     while (LatticeNode *node = nodeIter.next(nodeIndex)) {
-	if(treatNodeAsTrans.find(nodeIndex)) {
+	if (treatNodeAsTrans.find(nodeIndex)) {
 	    numTransitions ++;
 	} else {
 	    *nodeMap.insert(nodeIndex) = numNodes ++;
@@ -1443,7 +1527,7 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	    while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
 		// only count transitions here when the destination node
 		// is not being treated as a transition
-		if(!treatNodeAsTrans.find(toNodeIndex)) {
+		if (!treatNodeAsTrans.find(toNodeIndex)) {
 		    numTransitions ++;
 		}
 	    }
@@ -1474,10 +1558,15 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 
  	if (htkheader.wordsOnNodes) {
 	    fprintf(file, "\tW=");
-	    printQuoted(file, (node->word == vocab.ssIndex() ||
-			       node->word == vocab.seIndex() ||
+	    printQuoted(file, ((!printSentTags &&
+				    node->word == vocab.ssIndex()) ||
+			       (!printSentTags &&
+				    node->word == vocab.seIndex()) ||
 			       node->word == Vocab_None) ?
-				    HTK_null_word : vocab.getWord(node->word),
+				    HTK_null_word :
+				    (node->htkinfo && node->htkinfo->wordLabel ?
+					node->htkinfo->wordLabel :
+					vocab.getWord(node->word)),
 			htkheader.useQuotes);
 	}
 
@@ -1534,10 +1623,15 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 	
 	if (!htkheader.wordsOnNodes) {
 	    fprintf(file, "\tW=");
-	    printQuoted(file, (node->word == vocab.ssIndex() ||
-			       node->word == vocab.seIndex() ||
+	    printQuoted(file, ((!printSentTags &&
+				    node->word == vocab.ssIndex()) ||
+			       (!printSentTags &&
+				    node->word == vocab.seIndex()) ||
 			       node->word == Vocab_None) ?
-			HTK_null_word : vocab.getWord(node->word),
+			HTK_null_word :
+			    (node->htkinfo && node->htkinfo->wordLabel ?
+				node->htkinfo->wordLabel :
+				vocab.getWord(node->word)),
 			htkheader.useQuotes);
 	}
 	
@@ -1612,10 +1706,15 @@ Lattice::writeHTK(File &file, HTKScoreMapping scoreMapping,
 
 	    if (!htkheader.wordsOnNodes) {
 		fprintf(file, "\tW=");
-		printQuoted(file, (toNode->word == vocab.ssIndex() ||
-				   toNode->word == vocab.seIndex() ||
+		printQuoted(file, ((!printSentTags &&
+					toNode->word == vocab.ssIndex()) ||
+				   (!printSentTags &&
+					toNode->word == vocab.seIndex()) ||
 				   toNode->word == Vocab_None) ?
-				   HTK_null_word : vocab.getWord(toNode->word),
+				   HTK_null_word :
+				    (node->htkinfo && node->htkinfo->wordLabel ?
+					node->htkinfo->wordLabel :
+					vocab.getWord(toNode->word)),
 			    htkheader.useQuotes);
 	    }
 
@@ -1740,6 +1839,542 @@ Lattice::scorePronunciations(VocabMultiMap &dictionary, Boolean intlogs)
 		    }
 		}
 	    }
+	}
+    }
+
+    return true;
+}
+
+/*
+ * Take recognizer phones and split into two arrays
+ *  one has each phone as an element, the other
+ *  has each phone duration as an element
+ */
+static int
+splitPhones(const char *phoneString, Array<char *> &phones,
+					Array<NBestTimestamp> &phoneDurs)
+{
+    unsigned numPhones = HTK_undef_uint;
+
+    if (phoneString != 0) {
+	const char *index = phoneString;
+	unsigned phoneLen = strlen(phoneString);
+
+	while (index[0] != '\0') {
+	    makeArray(char, tmp, phoneLen+1);
+	    unsigned tmpIndex;
+
+	    if (index[0] == *phoneSeparator) {
+		// phone divider
+		if (numPhones != HTK_undef_uint) {
+		    numPhones++;
+		} else {
+		    numPhones = 0;
+		}
+		index += 1;
+	    } else if (index[0] == ',') {
+		// phone duration
+		index += 1; // skip the ','
+		tmpIndex = 0;
+		while (index[0] != *phoneSeparator) { // read in phone duration
+		    tmp[tmpIndex++] = index[0];
+		    index += 1;
+		}
+		tmp[tmpIndex] = '\0';
+		phoneDurs[numPhones] = atof(tmp) / frameLength;
+	    } else {
+		// should be start of phone
+		if (index[0] == '-' && index[1] == ',') {
+		    // process '-'
+		    // (know it's a pause if comma directly follows dash)
+		    tmpIndex = 0;
+		    tmp[tmpIndex++] = index[0];
+		    tmp[tmpIndex] = '\0';
+		    index += 1;
+		} else {
+		    // process other phones
+		    const char *startPhone = index;
+		    while (index[0] != '[' && index[0] != ',') {
+			index += 1;
+		    }
+		    if (index[0] == ',') {
+			// didn't find the phone in brackets like expected 
+			tmpIndex = 0;
+			for (const char *i = startPhone; i < index; i ++) {
+			    tmp[tmpIndex++] = *i;
+			}
+			tmp[tmpIndex] = '\0';
+			if (strcmp(tmp,"rej") != 0) {
+			    // Force phones that are not 'rej' to be treated
+			    // like a rej if their format is bad
+			    // change this to just a warning
+			    cerr << "splitPhones: Unexpected phone format: " 
+				 << tmp << endl;
+			}
+		    } else {
+			// normal case 
+			index += 1; // skip the '['
+			tmpIndex = 0;
+			while (index[0] != ']') { // read in phone
+			    tmp[tmpIndex++] = index[0];
+			    index += 1;
+			}
+			tmp[tmpIndex] = '\0';
+		    }
+		}
+		phones[numPhones] = strdup(tmp);
+		assert(phones[numPhones] != 0);
+		// advance to phone duration
+		while (index[0] != ',') {
+		    index += 1;
+		}
+	    }
+	}
+    }
+    return (numPhones);
+}
+
+/*
+ * Split multiwords
+ * (different than normal because phones are distributed across new nodes
+ */
+void
+Lattice::splitHTKMultiwordNodes(MultiwordVocab &vocab,
+		LHash<const char *, Array< Array<char *> * > > &multiwordDict)
+{
+    VocabIndex emptyContext[1];
+    emptyContext[0] = Vocab_None;
+
+    if (debug(DebugPrintFunctionality)) {
+	dout() << "Lattice::splitHTKMultiwordNodes:"
+	       << " splitting multiword nodes\n";
+    }
+
+    unsigned numNodes = getNumNodes(); 
+
+    NodeIndex *sortedNodes = new NodeIndex[numNodes];
+    assert(sortedNodes != 0);
+    unsigned numReachable = sortNodes(sortedNodes);
+
+    for (unsigned i = 0; i < numReachable; i++) {
+	NodeIndex nodeIndex = sortedNodes[i];
+	LatticeNode *node = findNode(nodeIndex); 
+	assert(node != 0);
+
+	Boolean foundSplit = true;
+
+	VocabIndex oneWord[2];
+	oneWord[0] = node->word;
+	oneWord[1] = Vocab_None;
+
+	NBestTimestamp origTime = HTK_undef_float;
+	char *origPron = 0;
+	VocabIndex origWord = node->word;
+	VocabIndex expanded[maxWordsPerLine + 1];
+
+	unsigned expandedLength =
+		  vocab.expandMultiwords(oneWord, expanded, maxWordsPerLine);
+
+	if (expandedLength > 1) {
+	    NodeIndex prevNodeIndex = nodeIndex;
+	    NodeIndex firstNewIndex = HTK_undef_uint;
+	    NodeIndex firstNullIndex = HTK_undef_uint;
+
+	    TRANSITER_T<NodeIndex,LatticeTransition>
+	    				transIterIn(node->inTransitions);
+
+	    NodeIndex fromNodeIndex;
+	    if (transIterIn.next(fromNodeIndex) == 0) {
+		dout() << "Lattice::splitHTKMultiwordNodes:"
+		       << " no predecessor for multiword node "
+		       << getWord(origWord) << endl;
+		continue;
+	    }
+	    	
+	    LatticeNode *fromNode = nodes.find(fromNodeIndex);
+	    assert(fromNode != 0);
+
+	    // we just take the first node, because all incoming nodes have
+	    // the same end time, which is what we are looking to grab
+	    // (there should only be one, the !NULL node that we came from)
+
+	    if (fromNode->htkinfo == 0) {
+		dout() << "Lattice::splitHTKMultiwordNodes:"
+		       << " no HTK info on multiword node "
+		       << getWord(origWord) << endl;
+		continue;
+	    }
+
+	    HTKWordInfo *myHtk = node->htkinfo;
+	    origTime = myHtk->time;
+	    origPron = myHtk->div;
+
+	    if (origPron == 0) {
+		dout() << "Lattice::splitHTKMultiwordNodes:"
+		       << " no pronunciation on multiword node "
+		       << getWord(origWord) << endl;
+		continue;
+	    }
+
+	    NBestTimestamp multiStart = fromNode->htkinfo->time;
+
+	    unsigned divLen = strlen(myHtk->div);
+	    makeArray(char, prePhone, divLen+1);
+	    makeArray(char, postPhone, divLen+1);
+
+	    Array<char *> phones;
+	    Array<NBestTimestamp> phoneDurs;
+	    splitPhones(myHtk->div, phones, phoneDurs);
+
+	    // split the multiword into individual words
+	    
+	    Array< Array<char *> * > *pronunciations =
+				    multiwordDict.find(getWord(origWord));
+	    
+	    if (pronunciations == 0) {
+		dout() << "Lattice::splitHTKMultiwordNodes:"
+		       << " no multiword pronunciations for "
+		       << getWord(origWord) << endl;
+		continue;
+	    }
+
+	    Array<NBestTimestamp> *thisPhonePtr;
+	    
+	    // go through the possible pronunciations of this word
+	    for (unsigned n = 0; n < pronunciations->size(); n ++) {
+		Array<char *> *pronunciation = (*pronunciations)[n];
+		Array<unsigned> wordBoundaries;
+		Array<NBestTimestamp> wordTimes;
+
+		unsigned l = 0;
+		for (unsigned m = 0; m < phones.size(); m ++) {
+		    char *thisPhone = phones[m];
+
+		    if (l < pronunciation->size() &&
+			strcmp((*pronunciation)[l], thisPhone) == 0)
+		    {
+			// right phone
+			l ++;
+			
+			// look for multiword boundary
+			if (l < pronunciation->size() &&
+			    strcmp((*pronunciation)[l], "|") == 0)
+			{
+			    wordBoundaries[wordBoundaries.size()] = m;
+			    l ++;		    
+			}
+			
+			// quit if we've found a complete match
+			if (m + 1 == phones.size()) {
+			    // add final boundary
+			    wordBoundaries[wordBoundaries.size()] = m;
+			    n = pronunciations->size();		
+
+			    if (wordBoundaries.size() < expandedLength) {
+				cerr << "Lattice::splitHTKMultiwordNodes: "
+				     << " found more words than existed in"
+				     << " multiword split, dropping word "
+				     << wordBoundaries.size()
+				     << " " << expandedLength << endl;
+				expandedLength = wordBoundaries.size();
+			    }
+
+			    // change info and add nodes
+			    unsigned i;
+			    for (i = 0; i < expandedLength; i ++) {
+				if (i == 0) {
+				    // don't need a new node,
+				    // just change info
+				    node->word = myHtk->word = expanded[i];
+
+				    // get the preceding phone
+				    int n = 0;
+				    char *index = myHtk->div;
+				    Array<char> tmp;
+				    unsigned tmpIndex;
+				    while (index[0] != '\0' && index[0] !='[')
+				    {
+					prePhone[n++] = index[0];
+					index++;
+				    }
+				    prePhone[n] = '\0';
+
+				    // get the transition phone
+				    // to next word
+				    n = 0;
+				    index = strrchr(myHtk->div,']') + 1;
+				    while (index[0] != ',') {
+					postPhone[n++] = index[0];
+					index++;
+				    }
+				    postPhone[n] = '\0';
+
+				    assert(i < wordBoundaries.size());
+
+				    // build new phone string for
+				    // split multiword
+				    char tmpDiv[512];	
+				    unsigned c;
+
+				    for (unsigned k = 0;
+					 k <= wordBoundaries[i];
+					 k ++)
+				    {
+					if (k == 0) {
+					    // use prePhone to start
+					    c = sprintf(tmpDiv,
+						  "%s[%s]%s,%01.2f:",
+						  (char *)prePhone,
+						  (char *)phones[k],
+						  (char *)phones[k+1],
+						  phoneDurs[k] * frameLength);
+					    assert(c < sizeof(tmpDiv));
+					    wordTimes[i] =
+						  multiStart +
+						  phoneDurs[k] * frameLength;
+					}
+					else if (k > 0) {
+					    c = sprintf(tmpDiv,
+						  "%s%s[%s]%s,%01.2f:",
+						  tmpDiv,
+						  (char *)phones[k-1],
+						  (char *)phones[k],
+						  (char *)phones[k+1],
+						  phoneDurs[k] * frameLength);
+					    assert(c < sizeof(tmpDiv));
+					    wordTimes[i] +=
+						  phoneDurs[k] * frameLength;
+					}
+				    }
+				    
+				    myHtk->div = strdup(tmpDiv);
+				    assert(myHtk->div != 0);
+				    myHtk->time = wordTimes[i];
+				} else {
+				    // add node and attach info
+			    
+				    // create new nodes for all
+				    // subsequent word components, and
+				    // string them together with zero
+				    // weight transitions
+				    HTKWordInfo *newinfo = 0;	
+				    newinfo = new HTKWordInfo;
+				    assert(newinfo != 0);
+				      
+				    htkinfos[htkinfos.size()] = newinfo;
+				    newinfo->word = expanded[i];	
+
+				    // build new phone string for
+				    // split multiword
+				    char tmpDiv[512];	
+				    unsigned c;
+				    sprintf(tmpDiv,":");
+
+				    for (unsigned k =
+						wordBoundaries[i-1]+1;
+					 k <= wordBoundaries[i];
+					 k ++)
+				    {
+					if (k == phones.size()-1) {
+					    // use post phone to finish
+					    c = sprintf(tmpDiv,
+						  "%s%s[%s]%s,%01.2f:",
+						  tmpDiv,
+						  (char *)phones[k-1],
+						  (char *)phones[k],
+						  (char *)postPhone,
+						  phoneDurs[k] * frameLength);
+					    assert(c < sizeof(tmpDiv));
+					} else {
+					    c = sprintf(tmpDiv,
+						  "%s%s[%s]%s,%01.2f:",
+						  tmpDiv,
+						  (char *)phones[k-1],
+						  (char *)phones[k],
+						  (char *)phones[k+1],
+						  phoneDurs[k] * frameLength);
+					    assert(c < sizeof(tmpDiv));
+					}
+
+					if (k == wordBoundaries[i-1]+1) {
+					    wordTimes[i] =
+						wordTimes[i-1] +
+						phoneDurs[k] * frameLength;
+					} else {
+					    wordTimes[i] +=
+						phoneDurs[k] * frameLength;
+					}
+				    }
+				    newinfo->div = strdup(tmpDiv);
+				    assert(newinfo->div != 0);
+				    
+				    // update the time with start
+				    // of intermediate word
+				    newinfo->time = wordTimes[i];
+						    // need to add difference
+
+				    // scores of all subsequent
+				    // components are 0 since the first
+				    // component carries the full scores
+				    if (myHtk->acoustic != HTK_undef_float) {
+					newinfo->acoustic = LogP_One;
+				    }
+				    if (myHtk->language != HTK_undef_float) {
+					newinfo->language = LogP_One;
+				    }
+				    if (myHtk->ngram != HTK_undef_float) {
+					newinfo->ngram = LogP_One;
+				    }
+				    if (myHtk->pron != HTK_undef_float) {
+					newinfo->pron = LogP_One;
+				    }
+				   
+				    NodeIndex newNodeIndex =
+					      dupNode(expanded[i], 0, newinfo);
+
+				    // We have null nodes between each
+				    // word with times on them, so
+				    // insert a new null node here
+				    NodeIndex NullIndex = HTK_undef_uint;
+				    HTKWordInfo *NullNode = new HTKWordInfo;
+				    htkinfos[htkinfos.size()] = NullNode;
+
+				    // NullNode should have the time
+				    // from the previous node
+				    assert(i > 0);
+				    NullNode->time = wordTimes[i-1];
+				    NullIndex = dupNode(Vocab_None,
+							0, NullNode);
+
+				    // delay inserting the first new
+				    // transition to not interfere
+				    // with removal of old links below
+				    if (prevNodeIndex == nodeIndex) {
+					firstNewIndex = NullIndex;
+					LatticeTransition trans;
+					insertTrans(NullIndex,
+						    newNodeIndex,
+						    trans);
+				    } else {
+					LatticeTransition trans;
+					insertTrans(prevNodeIndex,
+						    NullIndex,
+						    trans);
+					insertTrans(NullIndex,
+						    newNodeIndex,
+						    trans);
+				    }
+				    prevNodeIndex = newNodeIndex;
+				}
+			    }
+			    if (i != wordBoundaries.size()) {
+				if (debug(DebugPrintFunctionality)) {
+				    dout() << "Lattice::splitHTKMultiwordNodes:"
+				    	   << " found different number of"
+				    	   << " boundaries than expected words"
+					   << endl;
+				}
+			    }
+			}
+		    } else {
+			// phone doesn't match
+			if (n + 1 == pronunciations->size()) {
+			    dout() << "Lattice::splitHTKMultiwordNodes:"
+				   << " no multiword pronunciation for "
+				   << getWord(origWord) << " " << origPron
+				   << endl;
+			    foundSplit = false;
+			}
+			// don't explore this path because it already
+			// doesn't match
+			m = phones.size(); 
+		    }
+		}
+	    }
+
+	    for (unsigned i = 0; i < phones.size(); i ++) {
+		free(phones[i]);
+	    }
+
+	    // Don't change anything if we didn't find a split
+	    if (foundSplit == false) {
+	    	// restore node information already changed
+	    	node->word = myHtk->word = origWord;
+	    	myHtk->time = origTime;
+	    	myHtk->div = origPron;
+	    	continue;
+	    }
+
+	    free(origPron);
+
+	    // node may have moved since others were added!!!
+	    node = findNode(nodeIndex); 
+	    assert(node != 0);
+	    
+	    // copy original outgoing transitions onto final new node
+	    TRANSITER_T<NodeIndex,LatticeTransition>
+	    				transIter(node->outTransitions);
+	    NodeIndex toNodeIndex;
+	    while (LatticeTransition *trans = transIter.next(toNodeIndex)) {
+		// prevNodeIndex still has the last of the newly created nodes
+		insertTrans(prevNodeIndex, toNodeIndex, *trans);
+	    }
+	    
+	    // now insert new transition out of original node
+	    LatticeTransition trans;
+	    assert(firstNewIndex != HTK_undef_uint);
+	    insertTrans(nodeIndex, firstNewIndex, trans);
+	    removeTrans(nodeIndex,toNodeIndex);
+	}
+    }
+    
+    delete [] sortedNodes;
+}
+
+Boolean
+Lattice::readMultiwordDict(File &file,
+		LHash<const char *, Array< Array<char *> * > > &multiwordDict)
+{
+    while (char *line = file.getline()) {
+	char *index = line;
+
+	// first read in the phone name
+	Array<char> tmp;
+	unsigned tmpIndex = 0;
+	while (*index != '\0' && !isspace(*index)) {
+	    tmp[tmpIndex++] = *index;
+	    index++;
+	}
+	tmp[tmpIndex] = '\0';	// tmp now hold current word string
+
+	Array<char *> *thisWordPtr = new Array<char *>;
+						// array to store pron. data
+	Array< Array<char *> *> *thisWordProns = multiwordDict.insert(tmp);
+
+	if (thisWordProns != 0) {
+	    // already exists, so add this pron. to the next slot in the array
+	    (*thisWordProns)[thisWordProns->size()] = thisWordPtr;
+	} else {
+	    // doesn't exist, so put this pron. in the first slot of the array
+	    (*thisWordProns)[0] = thisWordPtr;
+	}
+
+	while (isspace(*index)) index++; // skip spaces
+
+	// read in the following pronunciation data
+	while (*index != '\0') {
+	    tmpIndex = 0;
+	    while (*index != '\0' && !isspace(*index)) {
+		tmp[tmpIndex++] = *index;
+		index++;
+	    }
+	    tmp[tmpIndex] = '\0';
+	    char *phone = strdup(tmp);
+	    assert(phone != 0);
+
+	    (*thisWordPtr)[thisWordPtr->size()] = phone;
+
+	    while (isspace(*index)) index++; // skip spaces
 	}
     }
 

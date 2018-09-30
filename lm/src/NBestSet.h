@@ -2,17 +2,21 @@
  * NBestSet.h --
  *	Sets of N-best lists
  *
- * Copyright (c) 1998,2002 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2008 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.6 2006/01/05 20:21:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/NBestSet.h,v 1.9 2010/06/02 07:53:34 stolcke Exp $
  *
  */
 
 #ifndef _NBestSet_h_
 #define _NBestSet_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 
 #include "Boolean.h"
@@ -38,7 +42,9 @@ class NBestSet: public Debug
 public:
     NBestSet(Vocab &vocab, RefList &refs, unsigned maxNbest = 0,
 		    Boolean incremental = false, Boolean multiwords = false);
-    ~NBestSet();
+    NBestSet(Vocab &vocab, RefList &refs, unsigned maxNbest,
+		    Boolean incremental, const char *multiChar);
+    virtual ~NBestSet();
 
     Boolean read(File &file);
     unsigned numElements() { return lists.numEntries(); };
@@ -49,7 +55,7 @@ public:
 private:
     unsigned maxNbest;
     Boolean incremental;
-    Boolean multiwords;
+    const char *multiChar;
     RefList &refs;
 
     LHash<RefString,NBestSetElement> lists;

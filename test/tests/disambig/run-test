@@ -1,8 +1,0 @@
-#!/bin/sh
-
-disambig -debug 1 \
-	-keep-unk \
-	-map Spanish.diacmap \
-	-lm Spanish-8k.2bo.gz \
-	-text newdevtest.ascii
-

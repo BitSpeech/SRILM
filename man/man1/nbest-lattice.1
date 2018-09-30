@@ -1,13 +1,11 @@
-.\" $Id: nbest-lattice.1,v 1.38 2004/12/03 17:59:01 stolcke Exp $
-.TH nbest-lattice 1 "$Date: 2004/12/03 17:59:01 $" "SRILM Tools"
+.\" $Id: nbest-lattice.1,v 1.42 2010/07/11 17:29:36 stolcke Exp $
+.TH nbest-lattice 1 "$Date: 2010/07/11 17:29:36 $" "SRILM Tools"
 .SH NAME
 nbest-lattice \- rescore N-best lists and lattices
 .SH SYNOPSIS
-.B nbest-lattice
-[\c
-.BR \-help ]
-option
-\&...
+.nf
+\fBnbest-lattice\fP [ \fB\-help\fP ] \fIoption\fP ...
+.fi
 .SH DESCRIPTION
 .B nbest-lattice
 rescores N-best lists or optimizes word-level recognition scores
@@ -223,12 +221,28 @@ Read the N-best list vocabulary from
 This option is mostly redundant since words found in the N-best input
 are implicitly added to the vocabulary.
 .TP
+.BI \-vocab-aliases " file"
+Reads vocabulary alias definitions from
+.IR file ,
+consisting of lines of the form
+.nf
+	\fIalias\fP \fIword\fP
+.fi
+This causes all tokens
+.I alias
+to be mapped to
+.IR word .
+.TP
 .B \-tolower
 Map vocabulary to lowercase, eliminating case distinctions.
 .TP
 .B \-multiwords
 Split multiwords (words joined by '_') into their components when reading
 N-best lists.
+.TP
+.BI \-multi-char " C"
+Character used to delimit component words in multiwords
+(an underscore character by default).
 .TP
 .BI \-noise " noise-tag"
 Designate
@@ -351,6 +365,10 @@ but uses the reference words for priming.
 Build a lattice from the N-best hypotheses without merging edges
 (string/lattice alignment).  This creates a lattice with one disjoint path
 per hypothesis, and is useful mainly for debugging purposes.
+This option has no effect with
+.B \-use-mesh
+since word meshes can represent only one word type per
+alignment position.
 .TP
 .B \-lattice-error 
 Compute the lattice error (minimum word error) of the lattice read with
@@ -409,9 +427,9 @@ It is a common mistake (not a bug) to use the default LM weight with
 N-best lists directly from Decipher.
 Decipher N-best lists have the recognizer's LM weight already
 built in, so they should be processed with
-.br
+.nf
 	nbest-lattice -rescore-lmw 1 -posterior-scale \fILMW\fP
-.br
+.fi
 where
 .I LMW
 is the LM weight during recognition.
@@ -420,4 +438,4 @@ This is not an issue if the N-best lists have been rescored with
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1996\-2004 SRI International
+Copyright 1996\-2010 SRI International

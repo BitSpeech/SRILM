@@ -2,13 +2,13 @@
  * DynamicLM.h
  *	Dynamically loaded language model
  *
- * This model interpret global state change request to load new LMs
+ * This model interprets global state change requests to load new LMs
  * on demand.  It can be used to implement simple adaptation schemes.
  * (Currently only ngram models are supported.)
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /export/d/stolcke/project/srilm/src/RCS/DynamicLM.h,v 1.1 1995/08/24 01:28:09 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/DynamicLM.h,v 1.2 2007/11/25 18:15:30 stolcke Exp $
  *
  */
 

@@ -1,94 +1,37 @@
-.\" $Id: training-scripts.1,v 1.12 2003/08/16 20:36:14 stolcke Exp $
-.TH training-scripts 1 "$Date: 2003/08/16 20:36:14 $" "SRILM Tools"
+.\" $Id: training-scripts.1,v 1.24 2008/12/22 00:42:44 stolcke Exp $
+.TH training-scripts 1 "$Date: 2008/12/22 00:42:44 $" "SRILM Tools"
 .SH NAME
-training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-gt-discounts, make-kn-counts, make-kn-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, reverse-text, uniform-classes, vp2text \- miscellaneous conveniences for language model training
+training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-google-ngrams, make-gt-discounts, make-kn-counts, make-kn-discounts, merge-batch-counts, replace-words-with-classes, reverse-ngram-counts, split-tagged-ngrams, reverse-text, tolower-ngram-counts, uniform-classes, uniq-ngram-counts, vp2text \- miscellaneous conveniences for language model training
 .SH SYNOPSIS
-.B get-gt-counts
-.BI max= K
-.BI out= name
-.RI [ counts ...]
-.br
-.B make-abs-discount
-.I gtcounts
-.br
-.B make-gt-discounts
-.BI min= min
-.BI max= max
-.I gtcounts
-.br
-.B make-kn-counts
-.BI order= N
-.BI max_per_file= M
-.BI output= file
-[
-.B no_max_order=1
-]
-.br
-.B make-kn-discounts
-.BI min= min
-.I gtcounts
-.br
-.B make-batch-counts
-.I file-list
-.RI [ batch-size
-.RI [ filter
-.RI [ count-dir
-.RI [ options ...]]]]
-.br
-.B merge-batch-counts
-.I count-dir
-.RI [ file-list |\c
-.IR start-iter ]
-.br
-.B continuous-ngram-count
-[
-.BI order= N
-]
-.RI [ textfile ...]
-.br
-.B reverse-ngram-counts
-.RI [ counts-file ...]
-.br
-.B reverse-text
-.RI [ textfile ...]
-.br
-.B make-big-lm
-.B \-name
-.I name
-.B \-read
-.I counts
-[
-.B \-trust-totals
-.BR \-max-per-file " M"
-]
-.B \-lm
-.I new-model
-.RI [ options ...]
-.br
-.B replace-words-with-classes
-.BI classes= classes
-[\c
-.BI outfile= counts
-.BR normalize= 0|1
-.BI addone= K
-.B have_counts=1
-.B partial=1
-]
-.RI [ textfile ...]
-.br
-.B uniform-classes
-.I classes 
-.BI > new-classes
-.br
-.B make-diacritic-map
-.I vocab
-.br
-.B vp2text
-.RI [ textfile ...]
-.br
-.B compute-oov-rate
-.I vocab
-.RI [ counts ...]
+.nf
+\fBget-gt-counts\fP \fBmax=\fP\fIK\fP \fBout=\fP\fIname\fP [ \fIcounts\fP ... ] \fB>\fP \fIgtcounts\fP
+\fBmake-abs-discount\fP \fIgtcounts\fP
+\fBmake-gt-discounts\fP \fBmin=\fP\fImin\fP \fBmax=\fP\fImax\fP \fIgtcounts\fP
+\fBmake-kn-counts\fP \fBorder=\fP\fIN\fP \fBmax_per_file=\fP\fIM\fP \fBoutput=\fP\fIfile\fP \\
+	[ \fBno_max_order=1\fP ] \fB>\fP \fIcounts\fP
+\fBmake-kn-discounts\fP \fBmin=\fP\fImin\fP \fIgtcounts\fP
+\fBmake-batch-counts\fP \fIfile-list\fP \\
+	[ \fIbatch-size\fP [ \fIfilter\fP [ \fIcount-dir\fP [ \fIoptions\fP ... ] ] ] ]
+\fBmerge-batch-counts\fP [ \fB\-float-counts\fP ] [ \fB\-l\fP \fIN\fP ] \fIcount-dir\fP [ \fIfile-list\fP|\fIstart-iter\fP ]
+\fBmake-google-ngrams\fP [ \fBdir=\fP\fIDIR\fP ] [ \fBper_file=\fP\fIN\fP ] [ \fBgzip=0\fP ] \\
+	[ \fByahoo=1\fP ] [ \fIcounts-file\fP ... ]
+\fBcontinuous-ngram-count\fP [ \fBorder=\fP\fIN\fP ] [ \fItextfile\fP ... ]
+\fBtolower-ngram-counts\fP [ \fIcounts-file\fP ... ]
+\fBuniq-ngram-counts\fP [ \fIcounts-file\fP ... ]
+\fBreverse-ngram-counts\fP [ \fIcounts-file\fP ... ]
+\fBreverse-text\fP [ \fItextfile\fP ... ]
+\fBsplit-tagged-ngrams\fP [ \fBseparator=\fP\fIS\fP ] [ \fIcounts-file\fP ... ]
+\fBmake-big-lm\fP \fB\-name\fP \fIname\fP \fB\-read\fP \fIcounts\fP \fB\-lm\fP \fInew-model\fP \\
+	[ \fB\-trust-totals\fP ] [ \fB\-max-per-file\fP \fIM\fP ] [ \fB\-ngram-filter\fP \fIfilter\fP ] \\
+	[ \fB\-text \fIfile\fP ] [ \fIngram-options\fP ... ]
+\fBreplace-words-with-classes\fP \fBclasses=\fP\fIclasses\fP [ \fBoutfile=\fP\fIcounts\fP ] \\
+	[ \fBnormalize=0\fP|\fB1\fP ] [ \fBaddone=\fP\fIK\fP ] [ \fBhave_counts=1\fP ] [ \fBpartial=1\fP ] \\
+	[ \fItextfile\fP ... ]
+\fBuniform-classes\fP \fIclasses\fP \fB>\fP \fInew-classes\fP
+\fBmake-diacritic-map\fP \fIvocab\fP
+\fBvp2text\fP [ \fItextfile\fP ... ]
+\fBcompute-oov-rate\fP \fIvocab\fP [ \fIcounts\fP ... ]
+.fi
 .SH DESCRIPTION
 These scripts perform convenience tasks associated with the training of
 language models.
@@ -206,20 +149,68 @@ A number as second argument restarts the merging process at iteration
 .IR start-iter .
 This is convenient if merging fails to complete for some reason
 (e.g., for temporary lack of disk space).
+The 
+.B \-float-counts
+option should be specific if the counts are real-valued.
+The
+.B \-l
+option specifies the number of files to merge in each iteration;
+the default is 2.
+.PP
+.B make-google-ngrams
+takes a sorted count file as input and creates an indexed directory
+structure, in a format developed by Google to store very large N-gram
+collections.
+The resulting directory can then be used with the
+.BR ngram-count (1)
+.B \-read-google
+option.
+Optional arguments specify the output directory
+.I dir
+and the size
+.I N
+of individual N-gram files
+(default is 10 million N-grams per file).
+The 
+.B gzip=0 
+option writes plain, as opposed to compressed, files.
+The 
+.B yahoo=1
+option may be used to read N-gram count files in Yahoo-GALE format.
+Note that the count files have to first be sorted lexicographically
+in a separate invocation of sort.
 .PP
 .B continuous-ngram-count
 generates N-grams that span line breaks (which are usually taken to
 be sentence boundaries).
 To count N-grams across line breaks use
-.br
+.nf
 	continuous-ngram-count \fItextfile\fP | ngram-count -read -
-.br
+.fi
 The argument
 .I N
 controls the order of N-grams counted (default 3), and
 should match  the argument of 
 .B ngram-count
 .BR \-order .
+.PP
+.B tolower-ngram-counts
+maps an N-gram counts file to all-lowercase.
+No merging of N-grams that become identical in the process is done.
+.PP
+.B uniq-ngram-counts
+combines successive counts that pertain to the same N-gram into a single
+line.
+This only affects repeated N-grams that appear on successive lines, so a prior
+sort command is typically used, e.g.,
+.br
+	tolower-ngram-counts \fIINPUT\fP | sort | uniq-ngram-counts > \fiOUTPUT\fP
+.br
+would do much of the same thing as
+.br
+	ngram-counts -read \fIINPUT\fP -tolower -sort -write \fIOUTPUT\fP
+.br 
+but in a more memory-efficient manner (without reading all counts into memory).
 .PP
 .B reverse-ngram-counts
 reverses the word order of N-grams in a counts file or stream.
@@ -243,6 +234,14 @@ for LMs that are meant to be used with the
 .B ngram
 .BR \-reverse
 option.
+.PP
+.B split-tagged-ngrams
+expands N-gram count of word/tag pairs into mixed N-grams 
+of words and tags.
+The optional 
+.BI separator= S
+argument allows the delimiting character, which defaults to "/",
+to be modified.
 .PP
 .B make-big-lm
 constructs large N-gram models in a more memory-efficient way than
@@ -269,6 +268,12 @@ counts corresponding to the
 sums of higher-order counts, then the
 .B \-trust-totals 
 options may be given for efficiency.
+The
+.B \-text 
+option specifies a test set to which the LM is to be applied, and 
+builds the LM in such a way that only N-gram context occurring in the
+test data are included in the model, this saving space at the expense of
+generality.
 All other
 .I options
 are passed to 
@@ -285,6 +290,10 @@ command, and the
 .B \-max-per-file
 option controls how many counts are to be stored per batch, and 
 should be chosen so that these batches fit in real memory.
+The 
+.B \-ngram-filter 
+option allows specification of a command through which the input N-gram
+counts are piped, e.g., to convert from some non-standard format.
 .PP
 .B make-kn-counts
 computes the modified lower-order counts used by the KN smoothing method.
@@ -296,9 +305,9 @@ replaces expansions of word classes with the corresponding class labels.
 .I classes
 specifies class expansions in 
 .BR classes-format (5).
-Ambiguities are resolved in favor of the longest matching word strings.
-Ties are broken in favor of the expansion listed first in 
-.IR classes.
+Substitutions are performed at each word position in left to right order,
+with the longest matching right-hand-side of any class expansion.
+If several classes match a pseudo-random choice is made.
 Optionally, the file
 .I counts
 will receive the expansion counts resulting from the replacements.
@@ -356,7 +365,10 @@ ngram-count(1), ngram(1), classes-format(5), disambig(1), select-vocab(1).
 .SH BUGS
 Some of the tools could be generalized and/or made more robust to
 misuse.
+.br
+Several of these tools are gawk scripts and depending on prevailing locale
+settings might require an LC_NUMERIC=C environment variable.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995-2002 SRI International
+Copyright 1995-2008 SRI International

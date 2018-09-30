@@ -4,12 +4,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testParseFloat.cc,v 1.5 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testParseFloat.cc,v 1.7 2010/08/03 05:06:43 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -53,6 +57,10 @@ main(int argc, char **argv)
     		oldParseLogP(floatString, x);
 	}
     }
+
+    cerr << "x = " << x << endl;
+    cerr << "intlog(x) = " << LogPtoIntlog(x) << endl;
+    cerr << "bytelog(x) = " << LogPtoBytelog(x) << endl;
 
     exit(0);
 }

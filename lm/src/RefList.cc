@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998-2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.9 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/RefList.cc,v 1.12 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -31,7 +35,7 @@ INSTANTIATE_ARRAY(VocabIndex *);
  * List of known filename suffixes that can be stripped to infer 
  * utterance ids.
  */
-static char *suffixes[] = {
+static const char *suffixes[] = {
     ".Z", ".gz", ".score", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", 0
 };
 
@@ -89,7 +93,7 @@ RefList::read(File &file, Boolean addWords)
 {
     char *line;
     
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine + 2];
 	unsigned nWords = Vocab::parseWords(line, words, maxWordsPerLine + 2);
 
@@ -133,7 +137,7 @@ RefList::write(File &file)
 	RefString id;
 	VocabIndex **wids;
 
-	while (wids = iter.next(id)) {
+	while ((wids = iter.next(id))) {
 	    VocabString words[maxWordsPerLine + 1];
 	    vocab.getWords(*wids, words, maxWordsPerLine + 1);
 

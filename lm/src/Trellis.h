@@ -2,24 +2,33 @@
  * Trellis.h --
  *	Trellises for dynamic programming finite state models
  *
- * Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.17 2004/06/21 20:27:16 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.h,v 1.20 2010/09/15 21:41:10 stolcke Exp $
  *
  */
 
 #ifndef _Trellis_h_
 #define _Trellis_h_
 
-#include <iostream>
-#include <iomanip>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+# include <iomanip.h>
+#else
+# include <iostream>
+# include <iomanip>
+using namespace std;
+#endif
 
-#include "Array.h"
 #include "LHash.h"
 
 #include "Boolean.h"
 #include "Prob.h"
 #include "MemStats.h"
+
+#ifdef max
+#undef max	// avoid conflict with some system headers
+#endif
 
 /*
  * Forward declarations

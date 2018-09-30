@@ -4,12 +4,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.26 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.cc,v 1.32 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "ClassNgram.h"
@@ -30,7 +34,7 @@ using namespace std;
  * as keys into the trellis.  Define the necessary support functions.
  */
 
-static inline unsigned
+static inline unsigned long
 LHash_hashKey(const ClassNgramState &key, unsigned maxBits)
 {
     return (LHash_hashKey(key.classContext, maxBits) +
@@ -112,8 +116,9 @@ operator<< (ostream &stream, const ClassNgramState &state)
  */
 
 ClassNgram::ClassNgram(Vocab &vocab, SubVocab &classVocab, unsigned order)
-    : Ngram(vocab, order), classVocab(classVocab),
-      trellis(maxWordsPerLine + 2 + 1, 0), savedLength(0), simpleNgram(false)
+    : Ngram(vocab, order),
+      trellis(maxWordsPerLine + 2 + 1, 0), savedLength(0),
+      classVocab(classVocab), simpleNgram(false)
 {
     /*
      * Make sure the classes are subset of base vocabulary 
@@ -162,7 +167,7 @@ ClassNgram::isNonWord(VocabIndex word)
      * classes are not words: duh!
      */
     return Ngram::isNonWord(word) || 
-	    !simpleNgram && classVocab.getWord(word) != 0;
+	    (!simpleNgram && classVocab.getWord(word) != 0);
 }
 
 /*
@@ -426,7 +431,7 @@ ClassNgram::prefixProb(VocabIndex word, const VocabIndex *context,
 		Prob *expansionProb;
 		ClassExpansion classAndExpansion;
 
-		while (expansionProb = expandIter.next(classAndExpansion)) {
+		while ((expansionProb = expandIter.next(classAndExpansion))) {
 
 		    VocabIndex clasz = classAndExpansion[0]; 
 
@@ -541,7 +546,12 @@ ClassNgram::wordProb(VocabIndex word, const VocabIndex *context)
 	LogP cProb;
 	TextStats stats;
 	LogP pProb = prefixProb(word, context, cProb, stats);
-	return pProb - cProb;
+
+	if (cProb == LogP_Zero && pProb == LogP_Zero) {
+	    return LogP_Zero;
+	} else {
+	    return pProb - cProb;
+	}
     }
 }
 
@@ -554,7 +564,12 @@ ClassNgram::wordProbRecompute(VocabIndex word, const VocabIndex *context)
 	LogP cProb;
 	TextStats stats;
 	LogP pProb = prefixProb(word, 0, cProb, stats);
-	return pProb - cProb;
+
+	if (cProb == LogP_Zero && pProb == LogP_Zero) {
+	    return LogP_Zero;
+	} else {
+	    return pProb - cProb;
+	}
     }
 }
 
@@ -620,13 +635,15 @@ ClassNgram::read(File &file, Boolean limitVocab)
     return readClasses(file);
 }
 
-void
+Boolean
 ClassNgram::write(File &file)
 {
     /*
      * First write out the Ngram parameters in the usual format
      */
-    Ngram::write(file);
+    if (!Ngram::write(file)) {
+	return false;
+    }
     
     fprintf(file, "\n");
 
@@ -636,6 +653,8 @@ ClassNgram::write(File &file)
     writeClasses(file);
 
     fprintf(file, "\n");
+
+    return true;
 }
 
 void
@@ -654,7 +673,7 @@ ClassNgram::readClasses(File &file)
     char *line;
     Boolean classesCleared = false;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	VocabString words[maxWordsPerLine];
 
 	/*
@@ -728,7 +747,7 @@ ClassNgram::writeClasses(File &file)
 	ClassExpansion expansion;
 	Prob *prob;
 
-	while (prob = iter.next(expansion)) {
+	while ((prob = iter.next(expansion))) {
 	    fprintf(file, "%s %lf", vocab.getWord(clasz), *prob);
 
 	    for (unsigned i = 0; expansion[i] != Vocab_None; i ++) {
@@ -774,7 +793,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	BOnode *node;
 	NgramBOsIter iter(*this, context, i);
 
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    LogP jointContextProb = contextProb(context);
 
 	    /*
@@ -790,7 +809,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	    VocabIndex clasz;
 	    LogP *ngramProb;
 
-	    while (ngramProb = piter.next(clasz)) {
+	    while ((ngramProb = piter.next(clasz))) {
 		context[i] = clasz;
 		context[i+1] = Vocab_None;
 
@@ -869,7 +888,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	/*
 	 * This enumerates all i-grams.
 	 */
-	while (oldProb = ngramIter.next()) {
+	while ((oldProb = ngramIter.next())) {
 	    /*
 	     * destructively extract context portion of ngram
 	     */
@@ -905,7 +924,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
     VocabIndex wordIndex;
     VocabString wordString;
 
-    while (wordString = viter.next(wordIndex)) {
+    while ((wordString = viter.next(wordIndex))) {
 	if (!classVocab.getWord(wordIndex)) {
 	    newVocab->addWord(wordString);
 	} else {
@@ -961,7 +980,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 	/*
 	 * This enumerates all contexts, i.e., i-grams.
 	 */
-	while (contextProb = contextIter.next()) {
+	while ((contextProb = contextIter.next())) {
 	    /*
 	     * The probability of <s> is -Inf in the model, but it should be
 	     * P(</s>) for purposes of normalization when computing the
@@ -986,7 +1005,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 		 * Exact conditional probability for expanded ngram:
 		 * Run the forward algorithm (by way of wordProb).
 		 */
-		while (ngramProb = followIter.next()) {
+		while ((ngramProb = followIter.next())) {
 		    LogP lprob = wordProb(word[0], wordNgram);
 
 		    if (lprob > LogP_One) {
@@ -1012,7 +1031,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 		 */
 		LogP probSum = LogP_Zero;
 
-		while (ngramProb = followIter.next()) {
+		while ((ngramProb = followIter.next())) {
 		    probSum = AddLogP(probSum, *ngramProb);
 		}
 
@@ -1041,7 +1060,7 @@ ClassNgram::expand(unsigned newOrder, unsigned expandExact)
 		 */
 		followIter.init();
 
-		while (ngramProb = followIter.next()) {
+		while ((ngramProb = followIter.next())) {
 		    LogP lprob = *ngramProb - *contextProb;
 
 		    if (debug(DEBUG_ESTIMATES)) {

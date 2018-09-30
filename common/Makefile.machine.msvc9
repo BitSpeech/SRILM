@@ -1,0 +1,20 @@
+# Makefile to augment Makefile.machine.msvc for Visual Studio 2008.
+# Please first set up your environment for Visual Studio 2008 by running
+# the Microsoft .bat setup file:
+# "c:\Program Files\Microsoft Visual Studio 9.0\Common7\Tools\vsvars32.bat"
+#
+# This Makefile is essentially equivalent to running:
+#  make MACHINE_TYPE=msvc MSVCDIR=$VCINSTALLDIR
+# or
+#  make MACHINE_TYPE=msvc MSVCDIR="C:\\Program Files\\Microsoft Visual Studio 9.0\\VC"
+# *EXCEPT* will create binaries in "msvc9*" directories instead of "msvc*".
+#
+# Among others, the following two environment variables should be set:
+#  VCINSTALLDIR
+#  WINDOWSSDKDIR (used to locate mt.exe)
+
+# Use this default location unless overridden on command line
+MSVCDIR ?= C:\\Program Files\\Microsoft Visual Studio 9.0\\VC
+
+include $(SRILM)/common/Makefile.machine.msvc
+

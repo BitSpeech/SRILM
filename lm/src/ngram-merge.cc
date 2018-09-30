@@ -5,13 +5,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-merge.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-merge.cc,v 1.19 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
@@ -148,7 +153,7 @@ merge_counts(unsigned int nfiles, File *files, File &out)
     /*
      * Get input from all files
      */
-    for (int i = 0; i < nfiles; i++) {
+    for (unsigned i = 0; i < nfiles; i++) {
 	perfile[i].isNext = true;
     }
 
@@ -192,8 +197,10 @@ main(int argc, char **argv)
 	new (&files[i]) File(argv[i + 1], "r");
     }
 
-    File outfile(outName, "w");
-    merge_counts(nfiles, files, outfile);
+    {
+	File outfile(outName, "w");
+	merge_counts(nfiles, files, outfile);
+    }
 
     delete [] files;
 

@@ -1,9 +1,11 @@
-.\" $Id: LM.3,v 1.3 2005/04/26 03:33:56 stolcke Exp $
-.TH LM 3 "$Date: 2005/04/26 03:33:56 $" SRILM
+.\" $Id: LM.3,v 1.5 2007/12/19 22:01:46 stolcke Exp $
+.TH LM 3 "$Date: 2007/12/19 22:01:46 $" SRILM
 .SH NAME
 LM \- Generic language model
 .SH SYNOPSIS
+.nf
 .B "#include <LM.h>"
+.fi
 .SH DESCRIPTION
 The
 .B LM
@@ -29,7 +31,7 @@ of reading an LM from a file.
 .B "LogP wordProb(VocabString \fIword\fP, const VocabString *\fIcontext\fP)"
 Returns the conditional log probability of \fIword\fP given a history.
 The history is given in reversed order (most recent word first) in 
-\fIcontext\fP, and terminated by \fBVocab_Null\fP.
+\fIcontext\fP, and terminated by \fBVocab_None\fP.
 Word or history can be specified either by strings or indices.
 All functional LM subclasses have to implement at least the first version.
 .TP

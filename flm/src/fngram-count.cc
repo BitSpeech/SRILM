@@ -9,17 +9,19 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2004 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: fngram-count.cc,v 1.53 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: fngram-count.cc,v 1.56 2009/06/11 05:34:22 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <locale.h>
 #include <assert.h>
-
-#ifndef EXCLUDE_CONTRIB
 
 #include "option.h"
 #include "version.h"
@@ -50,6 +52,7 @@ static char *filetag = 0;
 static unsigned order = 3;
 static unsigned debug = 0;
 static char *textFile = 0;
+static int textFileHasWeights = 0;
 static int readCounts = 0;
 
 static int knCountsModified = 0;
@@ -93,6 +96,7 @@ static Option options[] = {
     { OPT_UINT, "debug", &debug, "debugging level for LM" },
     { OPT_TRUE, "sort", &sortNgrams, "sort ngrams output" },
     { OPT_STRING, "text", &textFile, "text file to read" },
+    { OPT_TRUE, "text-has-weights", &textFileHasWeights, "text file contains count weights" },
     { OPT_TRUE, "read-counts", &readCounts, "try to read counts first" },
     { OPT_TRUE, "write-counts", &writeCounts, "write counts to file(s)" },
     { OPT_TRUE, "write-counts-after-lm-train", &writeCountsAfterLM, "write counts to file(s) after LM training" },
@@ -200,7 +204,7 @@ main(int argc, char **argv)
 
     if (textFile) {
 	File file(textFile, "r");
-	factoredStats->countFile(file);
+	factoredStats->countFile(file, textFileHasWeights);
     }
 
     if (writeCounts) {
@@ -246,15 +250,4 @@ main(int argc, char **argv)
 
     exit(0);
 }
-
-#else /* EXCLUDE_CONTRIB_END */
-
-int
-main(int argc, char **argv)
-{
-    cerr << "Third-party FLM support not included.\n";
-    exit(1);
-}
-
-#endif /* INCLUDE_CONTRIB */
 

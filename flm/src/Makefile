@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/devel/flm/src/RCS/Makefile,v 1.9 2006/01/09 22:47:54 stolcke Exp $
+#    $Header: /home/srilm/devel/flm/src/RCS/Makefile,v 1.11 2006/07/31 17:38:29 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -31,7 +31,10 @@ include $(SRILM)/common/Makefile.common.variables
 COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Flags for generating "short" data structures
-SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
+
+# Flags for generating "long long" data structures
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
 
 # Define variables.
 

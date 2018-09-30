@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.5 2006/01/05 08:44:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testLattice.cc,v 1.6 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -31,7 +31,7 @@ main (int argc, char *argv[])
 	File input(stdin);
 	unsigned num = 0;
 
-	while (line = input.getline()) {
+	while ((line = input.getline())) {
 	    VocabString sentence[maxWordsPerLine + 1];
 	    VocabIndex words[maxWordsPerLine + 1];
 

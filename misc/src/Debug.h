@@ -5,17 +5,21 @@
  * Debug is a Mix-in class that provides some simple, but consistent
  * debugging output handling.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/misc/src/RCS/Debug.h,v 1.4 2006/01/05 19:32:42 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/misc/src/RCS/Debug.h,v 1.6 2010/06/02 04:44:21 stolcke Exp $
  *
  */
 
 #ifndef _Debug_h_
 #define _Debug_h_
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 
 #include <Boolean.h>
 
@@ -47,7 +51,7 @@ class Debug
 {
 public:
     Debug(unsigned level = 0)
-      : debugLevel(level), debugStream(&cerr), nodebug(false) {};
+      : nodebug(false), debugLevel(level), debugStream(&cerr) {};
 
     Boolean debug(unsigned level)   /* true if debugging */
 	{ return (!nodebug && (debugAll >= level || debugLevel >= level)); };

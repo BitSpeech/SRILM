@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.cc,v 1.9 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/DecipherNgram.cc,v 1.11 2007/12/04 18:05:43 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 
 #include "DecipherNgram.h"
@@ -41,26 +45,23 @@ LogP
 DecipherNgram::wordProbBO(VocabIndex word, const VocabIndex *context, unsigned int clen)
 {
     LogP result;
-    /*
-     * To use the context array for lookup we truncate it to the
-     * indicated length, restoring the mangled item on exit.
-     */
-    VocabIndex saved = context[clen];
-    ((VocabIndex *)context)[clen] = Vocab_None;	/* discard const */
 
-    LogP *prob = findProb(word, context);
+    TruncatedContext usedContext(context, clen);
+
+    LogP *prob = findProb(word, usedContext);
     LogP boProb = LogP_Zero;
 
     /*
      * Compute the backed-off probability always
      */
     if (clen > 0) {
-	LogP *bow = findBOW(context);
+	LogP *bow = findBOW(usedContext);
 
 	if (bow) {
-	   boProb = RoundToBytelog(*bow) + wordProbBO(word, context, clen - 1);
+	   boProb = RoundToBytelog(*bow) +
+			wordProbBO(word, usedContext, clen - 1);
 	} else {
-	   boProb = wordProbBO(word, context, clen - 1);
+	   boProb = wordProbBO(word, usedContext, clen - 1);
 	}
     }
     
@@ -81,7 +82,7 @@ DecipherNgram::wordProbBO(VocabIndex word, const VocabIndex *context, unsigned i
     } else {
 	result = boProb;
     }
-    ((VocabIndex *)context)[clen] = saved;	/* discard const */
+
     return result;
 }
 

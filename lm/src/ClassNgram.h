@@ -2,9 +2,9 @@
  * ClassNgram.h --
  *	N-gram model over word classes
  *
- * Copyright (c) 1999-2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.h,v 1.11 2003/02/15 06:56:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/ClassNgram.h,v 1.13 2010/06/02 05:49:58 stolcke Exp $
  *
  */
 
@@ -62,7 +62,7 @@ public:
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
     Boolean read(File &file, Boolean limitVocab = false);
-    void write(File &file);
+    Boolean write(File &file);
 
     /*
      * I/O of class definitions
@@ -120,8 +120,8 @@ private:
     const VocabIndex *classes;			/* input string */
     VocabIndex *buffer;				/* expanded result string */
 
-    int firstClassPos;				/* position of first class */
-    int firstClassLen;				/* length of first expansion */
+    unsigned firstClassPos;			/* position of first class */
+    unsigned firstClassLen;			/* length of first expansion */
     Map2Iter2<VocabIndex,ClassExpansion,Prob> *expandIter;
 						/* expansions of first class */
     LogP prob1;					/* their log probability */

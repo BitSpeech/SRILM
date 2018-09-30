@@ -8,25 +8,47 @@
 #define _NgramStats_cc_
 
 #ifndef lint
-static char NgramStats_Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.cc,v 1.32 2006/01/05 20:21:27 stolcke Exp $";
+static char NgramStats_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramStats.cc,v 1.61 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
+#include <stdio.h>
+#include <errno.h>
 
 const unsigned maxLineLength = 10000;
+#ifdef INSTANTIATE_TEMPLATES
+static
+#endif
+const char *NgramStats_BinaryFormatString = "SRILM_BINARY_COUNTS_001\n";
 
 #include "NgramStats.h"
 
 #include "Trie.cc"
 #include "LHash.cc"
 #include "Array.cc"
+#include "SArray.h"	// for SArray_compareKey()
+#include "zio.h"
+
+#if defined(sgi) || defined(_MSC_VER) || defined(WIN32) || defined(linux) && defined(__INTEL_COMPILER) && __INTEL_COMPILER<=700
+#define fseeko fseek
+#define ftello ftell
+#endif
 
 #define INSTANTIATE_NGRAMCOUNTS(CountT) \
 	INSTANTIATE_TRIE(VocabIndex,CountT); \
 	template class NgramCounts<CountT>
+
+/*
+ * Debug levels used
+ */
+#define DEBUG_READ_GOOGLE	1
 
 template <class CountT>
 void
@@ -47,8 +69,24 @@ NgramCounts<CountT>::memStats(MemStats &stats)
 
 template <class CountT>
 NgramCounts<CountT>::NgramCounts(Vocab &vocab, unsigned int maxOrder)
-    : LMStats(vocab), order(maxOrder)
+    : LMStats(vocab), intersect(false), order(maxOrder)
 {
+}
+
+template <class CountT>
+unsigned int
+NgramCounts<CountT>::countSentence(const VocabString *words, const char *factor)
+{
+    CountT factorCount;
+
+    /*
+     * Parse the weight string as a count
+     */
+    if (!stringToCount(factor, factorCount)) {
+	return 0;
+    }
+
+    return countSentence(words, factorCount);
 }
 
 template <class CountT>
@@ -88,13 +126,14 @@ NgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
      */
     VocabIndex *start;
     
-    if (wids[1] == vocab.ssIndex()) {
-	start = wids + 1;
-    } else {
+    if (addSentStart && wids[1] != vocab.ssIndex()) {
 	wids[0] = vocab.ssIndex();
 	start = wids;
+    } else {
+	start = wids + 1;
     }
-    if (wids[howmany] != vocab.seIndex()) {
+
+    if (addSentEnd && wids[howmany] != vocab.seIndex()) {
 	wids[howmany + 1] = vocab.seIndex();
 	wids[howmany + 2] = Vocab_None;
     }
@@ -112,7 +151,7 @@ NgramCounts<CountT>::incrementCounts(const VocabIndex *words,
 {
     NgramNode *node = &counts;
 
-    for (int i = 0; i < order; i++) {
+    for (unsigned i = 0; i < order; i++) {
 	VocabIndex wid = words[i];
 
 	/*
@@ -153,84 +192,6 @@ NgramCounts<CountT>::countSentence(const VocabIndex *words, CountT factor)
     stats.numSentences ++;
 
     return start;
-}
-
-/*
- * Type-dependent count <--> string conversions
- */
-#ifdef INSTANTIATE_TEMPLATES
-static
-#endif
-char ctsBuffer[100];
-
-template <class CountT>
-static inline const char *
-countToString(CountT count)
-{
-    sprintf(ctsBuffer, "%lg", (double)count);
-    return ctsBuffer;
-}
-
-static inline const char *
-countToString(unsigned count)
-{
-    sprintf(ctsBuffer, "%u", count);
-    return ctsBuffer;
-}
-
-static inline const char *
-countToString(int count)
-{
-    sprintf(ctsBuffer, "%d", count);
-    return ctsBuffer;
-}
-
-template <class CountT>
-static inline Boolean
-stringToCount(const char *str, CountT &count)
-{
-    double x;
-    if (sscanf(str, "%lf", &x) == 1) {
-	count = x;
-	return true;
-    } else {
-	return false;
-    }
-}
-static inline Boolean
-stringToCount(const char *str, unsigned int &count)
-{
-    /*
-     * scanf("%u") doesn't check for a positive sign, so we have to ourselves.
-     */
-    return (*str != '-' && sscanf(str, "%u", &count) == 1);
-}
-
-static inline Boolean
-stringToCount(const char *str, unsigned short &count)
-{
-    /*
-     * scanf("%u") doesn't check for a positive sign, so we have to ourselves.
-     */
-    return (*str != '-' && sscanf(str, "%hu", &count) == 1);
-}
-
-static inline Boolean
-stringToCount(const char *str, XCount &count)
-{
-    unsigned x;
-    if (stringToCount(str, x)) {
-    	count = x;
-	return true;
-    } else {
-    	return false;
-    }
-}
-
-static inline Boolean
-stringToCount(const char *str, int &count)
-{
-    return (sscanf(str, "%d", &count) == 1);
 }
 
 template <class CountT>
@@ -288,14 +249,30 @@ NgramCounts<CountT>::readNgram(File &file,
 
 template <class CountT>
 Boolean
-NgramCounts<CountT>::read(File &file, unsigned int order)
+NgramCounts<CountT>::read(File &file, unsigned int order, Boolean limitVocab)
 {
     VocabString words[maxNgramOrder + 1];
     VocabIndex wids[maxNgramOrder + 1];
     CountT count;
     unsigned int howmany;
 
-    while (howmany = readNgram(file, words, maxNgramOrder + 1, count)) {
+    /*
+     * Check for binary format
+     */
+    char *firstLine = file.getline();
+
+    if (!firstLine) {
+    	return true;
+    } else {
+	if (strcmp(firstLine, NgramStats_BinaryFormatString) == 0) {
+	    File binaryFile(file.name, "rb");
+	    return readBinary(binaryFile, order, limitVocab);
+	} else {
+	    file.ungetline();
+	}
+    }
+
+    while ((howmany = readNgram(file, words, maxNgramOrder + 1, count))) {
 	/*
 	 * Skip this entry if the length of the ngram exceeds our 
 	 * maximum order
@@ -306,7 +283,14 @@ NgramCounts<CountT>::read(File &file, unsigned int order)
 	/* 
 	 * Map words to indices
 	 */
-	if (openVocab) {
+	if (limitVocab) {
+	    /*
+	     * skip ngram if not in-vocabulary
+	     */
+	    if (!vocab.checkWords(words, wids, maxNgramOrder)) {
+	    	continue;
+	    }
+	} else if (openVocab) {
 	    vocab.addWords(words, wids, maxNgramOrder);
 	} else {
 	    vocab.getIndices(words, wids, maxNgramOrder, vocab.unkIndex());
@@ -315,12 +299,321 @@ NgramCounts<CountT>::read(File &file, unsigned int order)
 	/*
 	 *  Update the count
 	 */
-	*counts.insert(wids) += count;
+        CountT *cnt = intersect ?
+			counts.find(wids) :
+			counts.insert(wids);
+	
+	if (cnt) {
+	    *cnt += count;
+	}
     }
     /*
      * XXX: always return true for now, should return false if there was
      * a format error in the input file.
      */
+    return true;
+}
+
+/*
+ * Binary count format:
+
+ 	magic string \n
+	"maxorder" N \n
+	index1 word1 \n
+	index2 word2 \n
+	...
+	indexN wordN \n
+	"." \n
+	binary-count-trie
+ */
+template <class CountT>
+Boolean
+NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
+{
+    char *firstLine = file.getline();
+
+    if (!firstLine || strcmp(firstLine, NgramStats_BinaryFormatString) != 0) {
+	file.position() << "bad binary format\n";
+	return false;
+    }
+
+    /*
+     * Maximal count order
+     */
+    unsigned maxOrder;
+    if (fscanf(file, "maxorder %u", &maxOrder) != 1) {
+    	file.position() << "could not read ngram order\n";
+	return false;
+    }
+
+    /*
+     * Vocabulary map
+     */
+    Array<VocabIndex> vocabMap;  
+    
+    if (!vocab.readIndexMap(file, vocabMap, limitVocab)) {
+	return false;
+    }
+
+    long long offset = ftello(file);
+
+    // detect if file is not seekable
+    if (offset < 0) {
+	file.position() << strerror(errno) << endl;
+	return false;
+    }
+
+    /* 
+     * Count data
+     */
+    return readBinaryNode(counts, order, maxOrder, file, offset, limitVocab, vocabMap);
+}
+
+/*
+ * Binary count-trie format:
+
+	length-of-binary-trie (unsigned long long)
+	word1
+	count1
+	[subtrie1]
+	word2
+	count2
+	[subtrie2]
+	...
+ */
+template <class CountT>
+Boolean
+NgramCounts<CountT>::readBinaryNode(NgramNode &node,
+					unsigned order, unsigned maxOrder,
+					File &file, long long &offset,
+					Boolean limitVocab,
+					Array<VocabIndex> &vocabMap)
+{
+    if (maxOrder == 0) {
+    	return true;
+    } else {
+	long long endOffset;
+	unsigned long long trieLength;
+	unsigned nbytes;
+
+	nbytes = readBinaryCount(file, trieLength);
+	if (!nbytes) {
+	    return false;
+	}
+	endOffset = offset + trieLength;
+	offset += nbytes;
+
+
+	if (order == 0) {
+	    if (fseeko(file, endOffset, SEEK_SET) < 0) {
+		file.offset() << strerror(errno) << endl;
+		return false;
+	    }
+	    offset = endOffset;
+	} else {
+	    while (offset < endOffset) {
+		VocabIndex oldWid;
+
+		nbytes = readBinaryCount(file, oldWid);
+		if (!nbytes) {
+		    return false;
+		}
+		offset += nbytes;
+
+		if (oldWid >= vocabMap.size()) {
+		    file.offset() << "word index " << oldWid
+		                  << " out of range\n";
+		    return false;
+		}
+		VocabIndex wid = vocabMap[oldWid];
+		NgramNode *child = 0;
+
+		if (wid != Vocab_None) {
+		    child = intersect ?
+				node.findTrie(wid) :
+				node.insertTrie(wid);
+		}
+
+		if (child == 0) {
+		    // skip count value and subtrie
+		    CountT dummy;
+		    nbytes = readBinaryCount(file, dummy);
+		    if (!nbytes) {
+		    	return false;
+		    }
+		    offset += nbytes;
+
+		    if (!readBinaryNode(node, 0, maxOrder-1, file, offset,
+							limitVocab, vocabMap)) {
+			return false;
+		    }
+		} else {
+		    // read count value and subtrie
+		    CountT count;
+		    nbytes = readBinaryCount(file, count);
+		    if (!nbytes) {
+			return false;
+		    }
+		    child->value() += count;
+		    offset += nbytes;
+
+		    if (!readBinaryNode(*child, order-1, maxOrder-1,
+					file, offset, limitVocab, vocabMap)) {
+			return false;
+		    }
+		}
+	    }
+
+	    if (offset != endOffset) {
+	    	file.offset() << "data misaligned\n";
+		return false;
+	    }
+	}
+
+	return true;
+    }
+}
+
+/*
+ * Read counts stored in an indexed directory structure as proposed by 
+ * Thorsten Brandts at Google.  From the documentation:
+ *
+ * a) top-level directory
+ *    doc: documentation
+ *    data: data [this is the directory passed as argument]
+ *    (the top-level structure is required by LDC)
+ * b) data directory
+ *    one sub-directory per n-gram order: 1gms, 2gms, 3gms, 4gms, 5gms
+ *    (separating the orders makes it easier for people to use smaller orders)
+ * c) contents of sub-directory 1gms
+ *    - file 'vocab.gz' contains the vocabulary sorted by word in unix
+ *      sort-order. Each word is on its own line:
+ *      WORD <tab> COUNT
+ *    - file 'vocab_cs.gz' contains the same data as 'vocab.gz' but
+ *      sorted by count.
+ *    (need to be 8+3 file names)
+ * d) contents of sub-directories 2gms, 3gms, 4gms, 5gms:
+ *    - files 'Ngm-KKKK.gz' where N is the order of the n-grams
+ *      and KKKK is the zero-padded number of the file. Each file contains
+ *      10 million n-gram entries. N-grams are unix-sorted. Each
+ *      n-gram occupies one line:
+ *      WORD1 <space> WORD2 <space> ... WORDN <tab> COUNT
+ *    - file 'Ngm.idx' where N is the order of the n-grams, with one line for
+ *      each n-gram file:
+ *      FILENAME <tab> FIRST_NGRAM_IN_FILE
+ */
+template <class CountT>
+Boolean
+NgramCounts<CountT>::readGoogle(const char *dir, unsigned order,
+							Boolean limitVocab)
+{
+    makeArray(char, filename, strlen(dir) + 20);
+
+    {
+	sprintf(filename, "%s/1gms/vocab%s", dir, GZIP_SUFFIX);
+
+	File countFile(filename, "r", 0);
+
+	if (countFile.error() && sizeof(GZIP_SUFFIX) > 1) {
+	    // also try uncompressed vocab file
+	    sprintf(filename, "%s/1gms/vocab", dir);
+
+	    countFile.reopen(filename, "r");
+	}
+
+	if (countFile.error()) {
+	    perror(filename);
+	    return false;
+	}
+
+	if (debug(DEBUG_READ_GOOGLE)) {
+	    dout() << "reading " << filename << endl;
+	}
+
+	if (!read(countFile, 1, limitVocab)) {
+	    return false;
+	}
+    }
+
+    for (unsigned i = 2; i <= order; i ++) {
+
+	/*
+	 * Read index file
+	 */
+
+	sprintf(filename, "%s/%dgms/%dgm.idx", dir, i, i);
+    	File indexFile(filename, "r", 0);
+	if (indexFile.error()) {
+	    perror(filename);
+	    return false;
+	}
+
+	unsigned numEntries = 0;
+	Array<VocabString *> indexEntries;
+
+	while (char *line = indexFile.getline()) {
+	    char *savedLine = strdup(line);
+	    assert(savedLine != 0);
+
+	    VocabString *indexEntry = new VocabString[i + 3];
+	    assert(indexEntry != 0);
+
+	    indexEntry[0] = savedLine;
+	    unsigned howmany =
+	    		Vocab::parseWords(savedLine, &indexEntry[1], i + 2);
+
+	    if (howmany != i + 1) {
+		indexFile.position() << "malformed index entry\n";
+		return false;
+	    }
+	    indexEntries[numEntries++] = indexEntry;
+	}
+
+	if (indexFile.error()) {
+	    perror(filename);
+	    return false;
+	}
+
+	/*
+	 * Read N-gram counts selectively
+	 */
+
+	for (unsigned k = 0; k < numEntries; k ++) {
+	    sprintf(filename, "%s/%dgms/%s", dir, i, indexEntries[k][1]);
+
+	    File countFile(filename, "r", 0);
+	    if (countFile.error()) {
+		perror(filename);
+		return false;
+	    }
+
+	    /*
+	     * If limitVocab is in effect check if any in-vocabulary ngrams
+	     * are in this count file
+	     */
+	    if (!limitVocab ||
+	        vocab.ngramsInRange(&indexEntries[k][2],
+			k == numEntries - 1 ? 0 : &indexEntries[k+1][2]))
+	    {
+		if (debug(DEBUG_READ_GOOGLE)) {
+		    dout() << "reading " << filename << endl;
+		}
+
+		if (!read(countFile, i, limitVocab)) {
+		    return false;
+		}
+	    }
+
+	    if (countFile.error()) {
+		perror(filename);
+		return false;
+	    }
+
+	    free((char *)indexEntries[k][0]);
+	    delete [] indexEntries[k];
+	}
+    }
+
     return true;
 }
 
@@ -333,13 +626,17 @@ void
 NgramCounts<CountT>::addCounts(const VocabIndex *prefix,
 				const LHash<VocabIndex, CountT> &set)
 {
-    NgramNode *node = counts.insertTrie(prefix);
+    NgramNode *node = intersect ?
+			counts.findTrie(prefix) :
+			counts.insertTrie(prefix);
 
-    LHashIter<VocabIndex, CountT> setIter(set);
-    VocabIndex word;
-    CountT *count;
-    while (count = setIter.next(word)) {
-	*node->insert(word) += *count;
+    if (node) {
+	LHashIter<VocabIndex, CountT> setIter(set);
+	VocabIndex word;
+	CountT *count;
+	while ((count = setIter.next(word))) {
+	    *node->insert(word) += *count;
+	}
     }
 }
 
@@ -351,8 +648,24 @@ NgramCounts<CountT>::addCounts(const VocabIndex *prefix,
 template <class CountT>
 Boolean
 NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
-						unsigned *minCounts)
+					Count *minCounts, Boolean limitVocab)
 {
+    /*
+     * Check for binary format
+     */
+    char *firstLine = file.getline();
+
+    if (!firstLine) {
+    	return true;
+    } else {
+	if (strcmp(firstLine, NgramStats_BinaryFormatString) == 0) {
+	    cerr << "binary format not yet support in readMinCounts\n";
+	    return false;
+	} else {
+	    file.ungetline();
+	}
+    }
+
     VocabString words[maxNgramOrder + 1];
     VocabIndex prefix[maxNgramOrder + 1];
 
@@ -378,7 +691,7 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
     CountT count;
     unsigned int howmany;
 
-    while (howmany = readNgram(file, words, maxNgramOrder + 1, count)) {
+    while ((howmany = readNgram(file, words, maxNgramOrder + 1, count))) {
 	/*
 	 * Skip this entry if the length of the ngram exceeds our 
 	 * maximum order
@@ -411,7 +724,14 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 	/* 
 	 * Map words to indices (includes both N-gram prefix and last word)
 	 */
-	if (openVocab) {
+	if (limitVocab) {
+	    /*
+	     * skip ngram if not in-vocabulary
+	     */
+	    if (!vocab.checkWords(words, prefix, maxNgramOrder)) {
+	    	continue;
+	    }
+	} else if (openVocab) {
 	    vocab.addWords(words, prefix, maxNgramOrder);
 	} else {
 	    vocab.getIndices(words, prefix, maxNgramOrder, vocab.unkIndex());
@@ -446,7 +766,12 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 	if (metaTag != Vocab_None) {
 	    *metaCounts[howmany-1].insert(metaTag) += 1;
 	} else {
-	    *insertCount(prefix, lastWord) += count;
+	    CountT *cnt = intersect ?
+				findCount(prefix, lastWord) :
+				insertCount(prefix, lastWord);
+	    if (cnt) {
+		*cnt += count;
+	    }
 	    haveCounts[howmany-1] = true;
 	}
     }
@@ -500,7 +825,7 @@ NgramCounts<CountT>::writeNgram(File &file,
 template <class CountT>
 void
 NgramCounts<CountT>::writeNode(
-    NgramNode *node,		/* the trie node we're at */
+    NgramNode &node,		/* the trie node we're at */
     File &file,			/* output file */
     char *buffer,		/* output buffer */
     char *bptr,			/* pointer into output buffer */
@@ -511,7 +836,7 @@ NgramCounts<CountT>::writeNode(
     NgramNode *child;
     VocabIndex wid;
 
-    TrieIter<VocabIndex,CountT> iter(*node, sorted ? vocab.compareIndex() : 0);
+    TrieIter<VocabIndex,CountT> iter(node, sorted ? vocab.compareIndex() : 0);
 
     /*
      * Iterate over the child nodes at the current level,
@@ -546,7 +871,7 @@ NgramCounts<CountT>::writeNode(
 	
 	if (order == 0 || level < order) {
 	   *(bptr + wordLen) = ' ';
-	   writeNode(child, file, buffer, bptr + wordLen + 1, level + 1,
+	   writeNode(*child, file, buffer, bptr + wordLen + 1, level + 1,
 			order, sorted);
 	}
     }
@@ -557,12 +882,143 @@ void
 NgramCounts<CountT>::write(File &file, unsigned int order, Boolean sorted)
 {
     static char buffer[maxLineLength];
-    writeNode(&counts, file, buffer, buffer, 1, order, sorted);
+    writeNode(counts, file, buffer, buffer, 1, order, sorted);
+}
+
+template <class CountT>
+Boolean
+NgramCounts<CountT>::writeBinary(File &file, unsigned int order)
+{
+    /*
+     * Magic string
+     */
+    fprintf(file, "%s", NgramStats_BinaryFormatString);
+
+    /*
+     * Maximal count order
+     */
+    fprintf(file, "maxorder %u\n", order > 0 ? order : this->order);
+
+    /*
+     * Vocabulary index
+     */
+    vocab.writeIndexMap(file);
+
+    long long offset = ftello(file);
+
+    // detect if file is not seekable
+    if (offset < 0) {
+	file.position() << strerror(errno) << endl;
+	return false;
+    }
+
+    /*
+     * Count data 
+     */
+    return writeBinaryNode(counts, 1, order, file, offset);
+}
+
+template <class CountT>
+Boolean
+NgramCounts<CountT>::writeBinaryNode(NgramNode &node,
+					unsigned level, unsigned order,
+					File &file, long long &offset)
+{
+    unsigned effectiveOrder = order > 0 ? order : this->order;
+
+    if (level > effectiveOrder) {
+    	// when reaching the maximal order don't write an offset to save space
+    	return true;
+    } else {
+	// guess number of bytes needed for storing subtrie rooted at node
+	// based on its depth (if we guess wrong we need to redo the whole
+	// subtrie later)
+	unsigned subtrieDepth = effectiveOrder - level;
+        unsigned offsetBytes = subtrieDepth == 0 ? 2 :
+				subtrieDepth <= 3 ? 4 : 8;
+
+	long long startOffset = offset;	// remember start offset
+
+retry:
+	// write placeholder value
+	unsigned nbytes = writeBinaryCount(file, (unsigned long long)0,
+								offsetBytes);
+	if (!nbytes) return false;
+	offset += nbytes;
+
+	if (order == 0 || level <= order) {
+	    NgramNode *child;
+	    // write subtries -- always in index-sorted order to ensure fast
+	    // reading regardless of data structure used
+#ifdef USE_SARRAY_TRIE
+	    TrieIter<VocabIndex,CountT> iter(node);
+#else
+	    TrieIter<VocabIndex,CountT> iter(node, SArray_compareKey);
+#endif
+	    VocabIndex wid;
+
+	    while ((child = iter.next(wid))) {
+		nbytes = writeBinaryCount(file, wid);
+		if (!nbytes) return false;
+		offset += nbytes;
+
+		if (order > 0 && level < order) {
+		    nbytes = writeBinaryCount(file, (CountT)0);
+		} else {
+		    nbytes = writeBinaryCount(file, child->value());
+		}
+		if (!nbytes) return false;
+		offset += nbytes;
+
+		if (!writeBinaryNode(*child, level + 1, order, file, offset)) {
+		    return false;
+		}
+	    }
+	}
+
+	long long endOffset = offset;
+
+	if (fseeko(file, startOffset, SEEK_SET) < 0) {
+	    file.offset() << strerror(errno) << endl;
+	    return false;
+	}
+
+	// don't update offset since we're skipping back in file
+	nbytes = writeBinaryCount(file,
+				  (unsigned long long)(endOffset-startOffset),
+				  offsetBytes);
+	if (!nbytes) return false;
+
+	// now check that the number of bytes used for offset was actually ok
+	if (nbytes > offsetBytes) {
+	    file.offset() << "increasing offset bytes from " << offsetBytes
+	                  << " to " << nbytes
+			  << " (order " << effectiveOrder << ","
+			  << " level " << level << ")\n";
+
+	    offsetBytes = nbytes;
+
+	    if (fseeko(file, startOffset, SEEK_SET) < 0) {
+		file.offset() << strerror(errno) << endl;
+		return false;
+	    }
+	    offset = startOffset;
+
+	    goto retry;
+	}
+
+	if (fseeko(file, endOffset, SEEK_SET) < 0) {
+	    file.offset() << strerror(errno) << endl;
+	    return false;
+	}
+
+	return true;
+    }
 }
 
 template <class CountT>
 CountT
-NgramCounts<CountT>::sumNode(NgramNode *node, unsigned int level, unsigned int order)
+NgramCounts<CountT>::sumNode(NgramNode &node, unsigned level, unsigned order)
 {
     /*
      * For leaf nodes, or nodes beyond the maximum level we are summing,
@@ -570,20 +1026,20 @@ NgramCounts<CountT>::sumNode(NgramNode *node, unsigned int level, unsigned int o
      * For nodes closer to the root, replace their counts with the
      * the sum of the counts of all the children.
      */
-    if (level > order || node->numEntries() == 0) {
-	return node->value();
+    if (level > order || node.numEntries() == 0) {
+	return node.value();
     } else {
 	NgramNode *child;
-	TrieIter<VocabIndex,CountT> iter(*node);
+	TrieIter<VocabIndex,CountT> iter(node);
 	VocabIndex wid;
 
 	CountT sum = 0;
 
-	while (child = iter.next(wid)) {
-	    sum += sumNode(child, level + 1, order);
+	while ((child = iter.next(wid))) {
+	    sum += sumNode(*child, level + 1, order);
 	}
 
-	node->value() = sum;
+	node.value() = sum;
 
 	return sum;
     }
@@ -593,7 +1049,7 @@ template <class CountT>
 CountT
 NgramCounts<CountT>::sumCounts(unsigned int order)
 {
-    return sumNode(&counts, 1, order);
+    return sumNode(counts, 1, order);
 }
 
 /*
@@ -613,7 +1069,7 @@ NgramCounts<CountT>::pruneCounts(CountT minCount)
 	/*
 	 * This enumerates all ngrams
 	 */
-	while (count = countIter.next()) {
+	while ((count = countIter.next())) {
 	    if (*count < minCount) {
 		removeCount(ngram);
 		npruned ++;
@@ -621,6 +1077,28 @@ NgramCounts<CountT>::pruneCounts(CountT minCount)
 	}
     }
     return npruned;
+}
+
+/*
+ * Set ngram counts to constant value (default zero)
+ */
+template <class CountT>
+void
+NgramCounts<CountT>::setCounts(CountT value)
+{
+    makeArray(VocabIndex, ngram, order + 1);
+
+    for (unsigned i = 1; i <= order; i++) {
+	CountT *count;
+	NgramCountsIter<CountT> countIter(*this, ngram, i);
+
+	/*
+	 * This enumerates all ngrams
+	 */
+	while ((count = countIter.next())) {
+	    *count = value;
+	}
+    }
 }
 
 #endif /* _NgramStats_cc_ */

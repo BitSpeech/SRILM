@@ -5,19 +5,39 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramLM.cc,v 1.92 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/NgramLM.cc,v 1.121 2010/09/28 20:17:24 stolcke Exp $";
 #endif
 
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
+#include <errno.h>
+#if !defined(_MSC_VER) && !defined(WIN32)
+#include <sys/param.h>
+#endif
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 1024
+#endif
 
 #include "Ngram.h"
 #include "File.h"
+#include "zio.h"
 #include "Array.cc"
+#include "SArray.h"	// for SArray_compareKey()
+
+#if defined(sgi) || defined(_MSC_VER) || defined(WIN32) || defined(linux) && defined(__INTEL_COMPILER) && __INTEL_COMPILER<=700
+#define fseeko fseek
+#define ftello ftell
+#endif
 
 #ifdef USE_SARRAY
 
@@ -61,6 +81,16 @@ INSTANTIATE_TRIE(VocabIndex,BOnode);
 
 const LogP LogP_PseudoZero = -99.0;	/* non-inf value used for log 0 */
 
+const char NgramBinaryIOWildcard = '*';
+
+/*
+ * Constant for binary format
+ */
+const char *Ngram_BinaryV1FormatString = "SRILM_BINARY_NGRAM_001\n";
+const char *Ngram_BinaryFormatString = "SRILM_BINARY_NGRAM_002\n";
+const long long Ngram_BinaryMagicLonglong = 0x0123456789abcdefLL;
+const LogP Ngram_BinaryMagicFloat = (LogP)9.8765432e10;
+
 /*
  * Low level methods to access context (BOW) nodes and probs
  */
@@ -77,11 +107,11 @@ Ngram::memStats(MemStats &stats)
      */
     makeArray(VocabIndex, context, order + 1);
 
-    for (int i = 1; i <= order; i++) {
+    for (unsigned i = 1; i <= order; i++) {
 	NgramBOsIter iter(*this, context, i - 1);
 	BOnode *node;
 
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    stats.total -= sizeof(node->probs);
 	    node->probs.memStats(stats);
 	}
@@ -89,7 +119,8 @@ Ngram::memStats(MemStats &stats)
 }
 
 Ngram::Ngram(Vocab &vocab, unsigned neworder)
-    : LM(vocab), order(neworder), _skipOOVs(false), _trustTotals(false)
+    : LM(vocab), contexts(vocab.numWords()),
+      order(neworder), _skipOOVs(false), _trustTotals(false)
 {
     if (order < 1) {
 	order = 1;
@@ -171,8 +202,9 @@ Ngram::insertProb(VocabIndex word, const VocabIndex *context)
     if (!found) {
 	/*
 	 * initialize the index in the BOnode
+	 * We know we need at least one entry!
 	 */
-	new (&bonode->probs) PROB_INDEX_T<VocabIndex,LogP>(0);
+	new (&bonode->probs) PROB_INDEX_T<VocabIndex,LogP>(1);
     }
     return bonode->probs.insert(word);
 }
@@ -216,7 +248,7 @@ Ngram::clear()
 	BOnode *node;
 	NgramBOsIter iter(*this, context, i - 1);
 	
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    node->probs.clear(0);
 	}
     }
@@ -224,10 +256,12 @@ Ngram::clear()
     /*
      * Remove all unigram context tries
      * (since it won't work to delete at the root)
+     * This also has the advantage of preserving the allocated space in
+     * the root node, chosen to match the vocabulary.
      */
     NgramBOsIter iter(*this, context, 1);
 
-    while (node = iter.next()) {
+    while ((node = iter.next())) {
 	removeBOW(context);
     }
 }
@@ -246,7 +280,7 @@ Ngram::contextID(VocabIndex word, const VocabIndex *context, unsigned &length)
 {
     BOtrie *trieNode = &contexts;
 
-    int i = 0;
+    unsigned i = 0;
     while (i < order - 1 && context[i] != Vocab_None) {
 	BOtrie *next = trieNode->findTrie(context[i]);
 	if (next && (word == Vocab_None || next->value().probs.find(word))) {
@@ -270,7 +304,7 @@ Ngram::contextBOW(const VocabIndex *context, unsigned length)
     BOtrie *trieNode = &contexts;
     LogP bow = LogP_One;
 
-    int i = 0;
+    unsigned i = 0;
     while (i < order - 1 && context[i] != Vocab_None) {
 	BOtrie *next = trieNode->findTrie(context[i]);
 	if (next) {
@@ -301,7 +335,7 @@ Ngram::wordProbBO(VocabIndex word, const VocabIndex *context, unsigned int clen)
     unsigned found = 0;
 
     BOtrie *trieNode = &contexts;
-    int i = 0;
+    unsigned i = 0;
 
     do {
 	LogP *prob = trieNode->value().probs.find(word);
@@ -358,8 +392,8 @@ Ngram::wordProb(VocabIndex word, const VocabIndex *context)
 	 * word.
 	 */
 	if (word == vocab.unkIndex() ||
-	    order > 1 && context[0] == vocab.unkIndex() ||
-	    order > 2 && context[1] == vocab.unkIndex())
+	    (order > 1 && context[0] == vocab.unkIndex()) ||
+	    (order > 2 && clen > 0 && context[1] == vocab.unkIndex()))
 	{
 	    return LogP_Zero;
 	}
@@ -388,7 +422,7 @@ Ngram::read(File &file, Boolean limitVocab)
 				 * 1 - unigrams, 2 - bigrams, ... */
     Boolean warnedAboutUnk = false; /* at most one warning about <unk> */
 
-    for (int i = 0; i <= maxNgramOrder; i++) {
+    for (unsigned i = 0; i <= maxNgramOrder; i++) {
 	numNgrams[i] = 0;
 	numRead[i] = 0;
     }
@@ -404,13 +438,49 @@ Ngram::read(File &file, Boolean limitVocab)
     nullContext[0] = Vocab_None;
     *insertBOW(nullContext) = LogP_Zero;
 
-    while (line = file.getline()) {
+    long long startOffset = ftello(file);
+
+    while ((line = file.getline())) {
 	
 	Boolean backslash = (line[0] == '\\');
 
 	switch (state) {
 
 	case -1: 	/* looking for start of header */
+
+            if (strcmp(line, Ngram_BinaryFormatString) == 0) {
+		// reopen file in binary mode
+		File binaryFile(file.name, "rb");
+
+		// start reading binary file from same offset as before
+		if (startOffset != -1) {
+		    fseeko(binaryFile, startOffset, SEEK_SET);
+		}
+
+		if (debug(DEBUG_READ_STATS)) {
+		    dout() << "reading " << file.name << " in binary format\n";
+		}
+
+		Boolean success = readBinary(binaryFile, limitVocab);
+
+		// move the original file stream to after the LM just read
+		// so calling functions can continue reading as expected.
+		if (success) {
+		    long long endOffset = ftello(binaryFile);
+		    if (endOffset != -1) {
+			fseeko(file, endOffset, SEEK_SET);
+		    }
+		}
+		return success;
+	    } else if (strcmp(line, Ngram_BinaryV1FormatString) == 0) {
+		if (debug(DEBUG_READ_STATS)) {
+		    dout() << "reading " << file.name
+		    	   << " in old binary format\n";
+		}
+
+		return readBinaryV1(file, limitVocab);
+            }
+            
 	    if (backslash && strncmp(line, "\\data\\", 6) == 0) {
 		state = 0;
 		continue;
@@ -428,13 +498,13 @@ Ngram::read(File &file, Boolean limitVocab)
 		/*
 		 * start reading n-grams
 		 */
-		if (state < 1 || state > maxOrder) {
+		if (state < 1 || (unsigned)state > maxOrder) {
 		    file.position() << "invalid ngram order " << state << "\n";
 		    return false;
 		}
 
 	        if (debug(DEBUG_READ_STATS)) {
-		    dout() << (state <= order ? "reading " : "skipping ")
+		    dout() << ((unsigned)state <= order ? "reading " : "skipping ")
 			   << numNgrams[state] << " "
 			   << state << "-grams\n";
 		}
@@ -479,13 +549,13 @@ Ngram::read(File &file, Boolean limitVocab)
 	    }
 
 	    if (backslash && sscanf(line, "\\%d-grams", &state) == 1) {
-		if (state < 1 || state > maxOrder) {
+		if (state < 1 || (unsigned)state > maxOrder) {
 		    file.position() << "invalid ngram order " << state << "\n";
 		    return false;
 		}
 
 	        if (debug(DEBUG_READ_STATS)) {
-		    dout() << (state <= order ? "reading " : "skipping ")
+		    dout() << ((unsigned)state <= order ? "reading " : "skipping ")
 			   << numNgrams[state] << " "
 			   << state << "-grams\n";
 		}
@@ -499,7 +569,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		 * Check that the total number of ngrams read matches
 		 * that found in the header
 		 */
-		for (int i = 0; i <= maxOrder && i <= order; i++) {
+		for (unsigned i = 0; i <= maxOrder && i <= order; i++) {
 		    if (numNgrams[i] != numRead[i]) {
 			file.position() << "warning: " << numRead[i] << " "
 			                << i << "-grams read, expected "
@@ -508,7 +578,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		}
 
 		return true;
-	    } else if (state > order) {
+	    } else if ((unsigned)state > order) {
 		/*
 		 * Save time and memory by skipping ngrams outside
 		 * the order range of this model
@@ -529,7 +599,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		 */
 		unsigned howmany = Vocab::parseWords(line, words, state + 3);
 
-		if (howmany < state + 1 || howmany > state + 2) {
+		if (howmany < (unsigned)state + 1 || howmany > (unsigned)state + 2) {
 		    file.position() << "ngram line has " << howmany
 				    << " fields (" << state + 2
 				    << " expected)\n";
@@ -555,7 +625,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		/* 
 		 * Parse bow, if any
 		 */
-		if (howmany == state + 2) {
+		if (howmany == (unsigned)state + 2) {
 		    /*
 		     * Parsing floats strings is the most time-consuming
 		     * part of reading in backoff models.  We therefore
@@ -564,13 +634,13 @@ Ngram::read(File &file, Boolean limitVocab)
 		     * model uses.  We also do a quick sanity check to
 		     * warn about non-zero bows in that position.
 		     */
-		    if (state == maxOrder) {
+		    if ((unsigned)state == maxOrder) {
 			if (words[state + 1][0] != '0') {
 			    file.position() << "ignoring non-zero bow \""
 					    << words[state + 1]
 					    << "\" for maximal ngram\n";
 			}
-		    } else if (state == order) {
+		    } else if ((unsigned)state == order) {
 			/*
 			 * save time and memory by skipping bows that will
 			 * never be used as a result of higher-order ngram
@@ -606,16 +676,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		     * Skip N-gram if it contains OOV word.
 		     * Do NOT add new words to the vocabulary.
 		     */
-		    vocab.getIndices(&words[1], wids, maxNgramOrder);
-
-		    Boolean haveOOV = false;
-		    for (unsigned j = 0; j < state; j ++) {
-			if (wids[j] == Vocab_None) {
-			    haveOOV = true;
-			    break;
-			}
-		    }
-		    if (haveOOV) {
+		    if (!vocab.checkWords(&words[1], wids, maxNgramOrder)) {
 			numOOVs ++;
 			/* skip rest of processing and go to next ngram */
 			continue;
@@ -628,7 +689,7 @@ Ngram::read(File &file, Boolean limitVocab)
 		/*
 		 * Store bow, if any
 		 */
-		if (howmany == state + 2 && state < order) {
+		if (howmany == (unsigned)state + 2 && (unsigned)state < order) {
 		    *insertBOW(wids) = bow;
 		}
 
@@ -671,7 +732,17 @@ Ngram::read(File &file, Boolean limitVocab)
     return false;
 }
 
-void
+Boolean
+Ngram::write(File &file)
+{
+    if (writeInBinary) {
+	return writeBinaryNgram(file);
+    } else {
+	return writeWithOrder(file, order);
+    }
+};
+
+Boolean
 Ngram::writeWithOrder(File &file, unsigned order)
 {
     unsigned i;
@@ -701,7 +772,7 @@ Ngram::writeWithOrder(File &file, unsigned order)
 	NgramBOsIter iter(*this, context + 1, i - 1, vocab.compareIndex());
 	BOnode *node;
 
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 
 	    vocab.getWords(context + 1, scontext, maxNgramOrder + 1);
 	    Vocab::reverse(scontext);
@@ -710,9 +781,9 @@ Ngram::writeWithOrder(File &file, unsigned order)
 	    VocabIndex pword;
 	    LogP *prob;
 
-	    while (prob = piter.next(pword)) {
+	    while ((prob = piter.next(pword))) {
 		if (file.error()) {
-		    return;
+		    return false;
 		}
 
 		fprintf(file, "%.*lg\t", LogP_Precision,
@@ -738,6 +809,626 @@ Ngram::writeWithOrder(File &file, unsigned order)
     }
 
     fprintf(file, "\n\\end\\\n");
+
+    return true;
+}
+
+/* 
+ * New binary format:
+	magic string \n
+	max order \n
+	vocabulary index map
+	probs-and-bow-trie (binary)
+ */
+Boolean
+Ngram::writeBinaryNgram(File &file)
+{
+    /*
+     * Magic string
+     */
+    fprintf(file, "%s", Ngram_BinaryFormatString);
+
+    /*
+     * Maximal count order
+     */
+    fprintf(file, "maxorder %u\n", order);
+
+    /*
+     * Vocabulary index
+     */
+    vocab.writeIndexMap(file);
+
+    long long offset = ftello(file);
+
+    // detect if file is not seekable
+    if (offset < 0) {
+	file.position() << strerror(errno) << endl;
+	return false;
+    }
+
+    /*
+     * Context trie data 
+     */
+    return writeBinaryNode(contexts, 1, file, offset);
+}
+
+/*
+ * Binary format for context trie:
+	length-of-subtrie
+	back-off-weight
+	number-of-probs
+  	word1
+	prob1
+ 	word2
+	prob2
+	...
+	word1
+	subtrie1
+	word2
+	subtrie2
+	...
+ */
+Boolean
+Ngram::writeBinaryNode(BOtrie &node, unsigned level, File &file,
+							long long &offset)
+{
+    BOnode &bo = node.value();
+
+    // guess number of bytes needed for storing subtrie rooted at node
+    // based on its depth (if we guess wrong we need to redo the whole
+    // subtrie later)
+    unsigned subtrieDepth = order - level;
+    unsigned offsetBytes = subtrieDepth == 0 ? 2 :
+			    subtrieDepth <= 3 ? 4 : 8;
+
+    long long startOffset = offset;	// remember start offset
+
+retry:
+    // write placeholder value
+    unsigned nbytes = writeBinaryCount(file, (unsigned long long)0,
+							    offsetBytes);
+    if (!nbytes) return false;
+    offset += nbytes;
+
+    // write backoff weight
+    nbytes = writeBinaryCount(file, bo.bow);
+    if (!nbytes) return false;
+    offset += nbytes;
+
+    // write probs
+    unsigned numProbs = bo.probs.numEntries();
+
+    nbytes = writeBinaryCount(file, numProbs);
+    if (!nbytes) return false;
+    offset += nbytes;
+
+    VocabIndex word;
+    LogP *pprob;
+
+    // write probabilties -- always in index-sorted order to ensure fast
+    // reading regardless of data structure used
+#ifdef USE_SARRAY_TRIE
+    PROB_ITER_T<VocabIndex,LogP> piter(bo.probs);
+#else
+    PROB_ITER_T<VocabIndex,LogP> piter(bo.probs, SArray_compareKey);
+#endif
+
+    while ((pprob = piter.next(word))) {
+	nbytes = writeBinaryCount(file, word);
+	if (!nbytes) return false;
+	offset += nbytes;
+
+	nbytes = writeBinaryCount(file, *pprob);
+	if (!nbytes) return false;
+	offset += nbytes;
+    }
+
+    // write subtries
+#ifdef USE_SARRAY_TRIE
+    TrieIter<VocabIndex,BOnode> iter(node);
+#else
+    TrieIter<VocabIndex,BOnode> iter(node, SArray_compareKey);
+#endif
+
+    BOtrie *sub;
+    while ((sub = iter.next(word))) {
+	nbytes = writeBinaryCount(file, word);
+	if (!nbytes) return false;
+	offset += nbytes;
+
+	if (!writeBinaryNode(*sub, level + 1, file, offset)) {
+	    return false;
+	}
+    }
+
+    long long endOffset = offset;
+
+    if (fseeko(file, startOffset, SEEK_SET) < 0) {
+	file.offset() << strerror(errno) << endl;
+	return false;
+    }
+
+    // don't update offset since we're skipping back in file
+    nbytes = writeBinaryCount(file,
+			      (unsigned long long)(endOffset-startOffset),
+			      offsetBytes);
+    if (!nbytes) return false;
+
+    // now check that the number of bytes used for offset was actually ok
+    if (nbytes > offsetBytes) {
+	file.offset() << "increasing offset bytes from " << offsetBytes
+		      << " to " << nbytes
+		      << " (order " << order << ","
+		      << " level " << level << ")\n";
+
+	offsetBytes = nbytes;
+
+	if (fseeko(file, startOffset, SEEK_SET) < 0) {
+	    file.offset() << strerror(errno) << endl;
+	    return false;
+	}
+	offset = startOffset;
+
+	goto retry;
+    }
+
+    if (fseeko(file, endOffset, SEEK_SET) < 0) {
+	file.offset() << strerror(errno) << endl;
+	return false;
+    }
+
+    return true;
+}
+
+/*
+ * old, machine-dependent binary format output -- no longer used 
+ */
+Boolean
+Ngram::writeBinaryV1(File &file)
+{
+    const char *lmName;
+    
+    if (!file.name || stdio_filename_p(file.name)) {
+    	lmName = "NGRAM";
+    } else {
+    	lmName = file.name;
+    }
+
+    char indexFile[MAXPATHLEN], dataFile[MAXPATHLEN];
+
+    sprintf(indexFile, "%.1010s.idx%s", lmName, GZIP_SUFFIX);
+    sprintf(dataFile, "%.1020s.dat", lmName);
+
+    // open files in binary mode, except when using compression
+    File idx(indexFile, (GZIP_SUFFIX)[0] ? "w" : "wb"), dat(dataFile, "wb");
+
+    fprintf(file, "%s", Ngram_BinaryFormatString);
+    if (file.name && !stdio_filename_p(file.name)) {
+    	// use wildcard notation since data files use same prefix as top-level 
+	fprintf(file, "index: %c.idx%s\n", NgramBinaryIOWildcard, GZIP_SUFFIX);
+	fprintf(file, "data: %c.dat\n", NgramBinaryIOWildcard);  
+    } else {
+	fprintf(file, "index: %s\n", indexFile);
+	fprintf(file, "data: %s\n", dataFile);  
+    }
+
+    vocab.writeIndexMap(file);
+
+    long long offset = ftello(dat);
+
+    // detect if dat file is not seekable
+    if (offset < 0) {
+	dat.position() << strerror(errno) << endl;
+	return false;
+    }
+
+    // write magic numbers
+    if (fwrite(&Ngram_BinaryMagicLonglong, sizeof(Ngram_BinaryMagicLonglong), 1, idx) != 1) {
+    	idx.offset() << "write failure: " << strerror(errno) << endl;
+	return false;
+    }
+
+    if (fwrite(&Ngram_BinaryMagicFloat, sizeof(Ngram_BinaryMagicFloat), 1, dat) != 1) {
+    	dat.offset() << "write failure: " << strerror(errno) << endl;
+    	return false;
+    }
+    
+    return writeBinaryV1Node(contexts, idx, dat, offset, 1);  
+}
+
+Boolean
+Ngram::writeBinaryV1Node(BOtrie &trie, File &idx, File &dat, long long &offset,
+							      unsigned myOrder)
+{
+    BOnode &bo = trie.value();
+    
+    // data
+    unsigned num = bo.probs.numEntries();
+    if (fwrite(&num, sizeof(unsigned), 1, dat) != 1 ||
+        fwrite(&bo.bow, sizeof(LogP), 1, dat) != 1)
+    {
+    	dat.offset() << "write failure: " << strerror(errno) << endl;
+	return false;
+    }
+
+    VocabIndex word;
+    LogP *pprob;
+
+    PROB_ITER_T<VocabIndex,LogP> piter(bo.probs);
+    while ((pprob = piter.next(word))) {
+    	if (fwrite(&word, sizeof(VocabIndex), 1, dat) != 1 ||
+	    fwrite(pprob, sizeof(LogP), 1, dat) != 1)
+	{
+	    dat.offset() << "write failure: " << strerror(errno) << endl;
+	    return false;
+	}
+    }
+    
+    // move the cursor
+    offset = ftello(dat);
+    if (offset < 0) {
+	dat.offset() << strerror(errno) << endl;
+    	return false;
+    }
+    TrieIter<VocabIndex,BOnode> iter(trie);
+
+    BOtrie *sub;
+    while ((sub = iter.next(word))) {
+	if (fwrite(&myOrder, sizeof(unsigned), 1, idx) != 1 ||
+	    fwrite(&word, sizeof(VocabIndex), 1, idx) != 1 ||
+	    fwrite(&offset, sizeof(long long), 1, idx) != 1)
+	{
+	    idx.offset() << "write failure: " << strerror(errno) << endl;
+	    return false;
+	}
+	if (!writeBinaryV1Node(*sub, idx, dat, offset, myOrder + 1)) {
+	    return false;
+	}
+    }
+    
+    long long tmpo = -1;
+    VocabIndex tmpw = Vocab_None;
+
+    if (fwrite(&myOrder, sizeof(unsigned), 1, idx) != 1 ||
+        fwrite(&tmpw, sizeof(VocabIndex), 1, idx) != 1 ||
+	fwrite(&tmpo, sizeof(long long), 1, idx) != 1)
+    {
+	idx.offset() << "write failure: " << strerror(errno) << endl;
+    	return false;
+    }
+
+    return true;
+}
+
+/*
+ * Machine-independent binary format
+ */
+Boolean 
+Ngram::readBinary(File &file, Boolean limitVocab)
+{
+    char *firstLine = file.getline();
+
+    if (!firstLine || strcmp(firstLine, Ngram_BinaryFormatString) != 0) {
+	file.position() << "bad binary format\n";
+	return false;
+    }
+
+    /*
+     * Maximal count order
+     */
+    unsigned maxOrder;
+    if (fscanf(file, "maxorder %u", &maxOrder) != 1) {
+    	file.position() << "could not read ngram order\n";
+	return false;
+    }
+
+    /*
+     * Vocabulary map
+     */
+    Array<VocabIndex> vocabMap;  
+    
+    if (!vocab.readIndexMap(file, vocabMap, limitVocab)) {
+	return false;
+    }
+
+    long long offset = ftello(file);
+
+    // detect if file is not seekable
+    if (offset < 0) {
+	file.position() << strerror(errno) << endl;
+	return false;
+    }
+
+    clear();
+
+    /* 
+     * LM data
+     */
+    return readBinaryNode(contexts, this->order, maxOrder, file, offset,
+							limitVocab, vocabMap);
+}
+
+Boolean
+Ngram::readBinaryNode(BOtrie &node, unsigned order, unsigned maxOrder,
+					File &file, long long &offset,
+					Boolean limitVocab,
+					Array<VocabIndex> &vocabMap)
+{
+    if (maxOrder == 0) {
+    	return true;
+    } else {
+	long long endOffset;
+	unsigned long long trieLength;
+	unsigned nbytes;
+
+	nbytes = readBinaryCount(file, trieLength);
+	if (!nbytes) {
+	    return false;
+	}
+	endOffset = offset + trieLength;
+	offset += nbytes;
+
+	if (order == 0) {
+	    if (fseeko(file, endOffset, SEEK_SET) < 0) {
+		file.offset() << strerror(errno) << endl;
+		return false;
+	    }
+	    offset = endOffset;
+	} else {
+	    BOnode &bo = node.value();
+
+	    // read backoff weight
+	    nbytes = readBinaryCount(file, bo.bow);
+	    if (!nbytes) return false;
+	    offset += nbytes;
+	   
+	    // read probs
+	    unsigned numProbs;
+	    nbytes = readBinaryCount(file, numProbs);
+	    if (!nbytes) return false;
+	    offset += nbytes;
+
+	    for (unsigned i = 0; i < numProbs; i ++) {
+		VocabIndex oldWid;
+
+		nbytes = readBinaryCount(file, oldWid);
+		if (!nbytes) return false;
+		offset += nbytes;
+
+		if (oldWid >= vocabMap.size()) {
+		    file.offset() << "word index " << oldWid
+		                  << " out of range\n";
+		    return false;
+		}
+		VocabIndex wid = vocabMap[oldWid];
+
+		LogP prob;
+
+		nbytes = readBinaryCount(file, prob);
+		if (!nbytes) return false;
+		offset += nbytes;
+
+		if (wid != Vocab_None) {
+		    *bo.probs.insert(wid) = prob;
+		}
+	    }
+
+	    // read subtries
+	    while (offset < endOffset) {
+		VocabIndex oldWid;
+
+		nbytes = readBinaryCount(file, oldWid);
+		if (!nbytes) return false;
+		offset += nbytes;
+
+		if (oldWid >= vocabMap.size()) {
+		    file.offset() << "word index " << oldWid
+		                  << " out of range\n";
+		    return false;
+		}
+		VocabIndex wid = vocabMap[oldWid];
+
+		if (wid == Vocab_None) {
+		    // skip subtrie
+		    if (!readBinaryNode(node, 0, maxOrder-1, file, offset,
+							limitVocab, vocabMap)) {
+			return false;
+		    }
+		} else {
+		    // create subtrie and read it
+		    BOtrie *child = node.insertTrie(wid);
+
+		    if (!readBinaryNode(*child, order-1, maxOrder-1,
+					file, offset, limitVocab, vocabMap)) {
+			return false;
+		    }
+		}
+	    }
+
+	    if (offset != endOffset) {
+	    	file.offset() << "data misaligned\n";
+		return false;
+	    }
+	}
+
+	return true;
+    }
+}
+
+
+/* 
+ * Old, machine-dependent binary format
+ * 	(supported temporarily for backward compatibility)
+ */
+Boolean 
+Ngram::readBinaryV1(File &file, Boolean limitVocab)
+{
+    char datFile[MAXPATHLEN], idxFile[MAXPATHLEN];
+    char *line;
+
+    if (!(line = file.getline()) ||
+	sscanf(line, "index: %1023s", idxFile) != 1 ||
+	!(line = file.getline()) ||
+	sscanf(line, "data: %1023s", datFile) != 1) {
+
+	file.position() << "invalid binary LM format!" << endl;
+	return false;
+    }
+
+    if (file.name && idxFile[0] == NgramBinaryIOWildcard) {
+	makeArray(char, buffer, strlen(file.name) + strlen(idxFile));
+    	sprintf(buffer, "%s%s", file.name, &idxFile[1]);
+	sprintf(idxFile, "%.1023s", (char *)buffer);
+    }
+    if (file.name && datFile[0] == NgramBinaryIOWildcard) {
+	makeArray(char, buffer, strlen(file.name) + strlen(datFile));
+    	sprintf(buffer, "%s%s", file.name, &datFile[1]);
+	sprintf(datFile, "%.1023s", (char *)buffer);
+    }
+
+    Array<VocabIndex> vocabMap;  
+    
+    if (!vocab.readIndexMap(file, vocabMap, limitVocab)) {
+	return false;
+    }
+    
+    // open files in binary mode, except when using compression
+    File idx(idxFile, (GZIP_SUFFIX)[0] ? "r" : "rb"), dat(datFile, "rb");
+
+    long long tmpll;
+    LogP tmpf;
+    if (fread(&tmpll, sizeof(tmpll), 1, idx) != 1 ||
+	tmpll != Ngram_BinaryMagicLonglong)
+    {
+	idx.offset() << "incompatible binary format" << endl;
+	return false;
+    }
+
+    if (fread(&tmpf, sizeof(tmpf), 1, dat) != 1 ||
+	tmpf != Ngram_BinaryMagicFloat)
+    {
+	dat.offset() << "incompatible binary format" << endl;
+	return false;
+    }
+	
+    clear();
+
+    return readBinaryV1Node(contexts, idx, dat, limitVocab, vocabMap, 1);
+}
+
+Boolean
+Ngram::readBinaryV1Node(BOtrie &trie, File &idx, File &dat, Boolean limitVocab,
+			    Array<VocabIndex> &vocabMap, unsigned myOrder)
+{
+    BOnode &bo = trie.value();
+    
+    LogP bow, prob;
+    unsigned nw;
+    VocabIndex word, nwid;
+    VocabIndex *map = vocabMap.data();
+    VocabIndex vmax = vocabMap.size();
+    long long offset;
+
+    if (myOrder > order) {
+	return skipToNextTrie(idx, myOrder);
+    }
+
+    unsigned num;
+
+    if (fread(&num, sizeof(unsigned), 1, dat) != 1 ||
+	fread(&bow, sizeof(LogP), 1, dat) != 1)
+    {
+      dat.offset() << "failed to read from data file" << endl;
+      return false;
+    }
+
+    bo.bow = bow;
+
+    if (!limitVocab) {
+    	// make probs table just as large as needed
+    	bo.probs.clear(num);
+    }
+    
+    PROB_INDEX_T<VocabIndex, LogP> & probs = bo.probs;
+    
+    unsigned i = 0;
+    for (i = 0; i < num; i ++) {
+	if (fread(&word, sizeof(VocabIndex), 1, dat) != 1 ||
+	    fread(&prob, sizeof(LogP), 1, dat) != 1)
+	{
+	    dat.offset() << "failed to read from data file" << endl;
+	    return false;
+	}
+
+	if (word >= vmax) {
+	    idx.offset() << "index (" << word << ") out of range" << endl;
+	    return false;
+	}
+	nwid = map[word];
+
+	if (nwid == Vocab_None) continue; // skip if out of vocab
+	
+	// insert data 
+	*bo.probs.insert(nwid) = prob;
+    }
+
+    unsigned l;
+
+    while (fread(&l, sizeof(unsigned), 1, idx) == 1 &&
+	   fread(&word, sizeof(VocabIndex), 1, idx) == 1 &&
+	   fread(&offset, sizeof(long long), 1, idx) == 1)
+    {
+	assert (l == myOrder);
+      
+	if (offset == -1 && word == Vocab_None) {
+	    // this is the end of the trie
+	    return true;
+	}
+
+	if (word >= vmax) {
+	    idx.offset() << "index (" << word << ") out of range" << endl;
+	    return false;
+	}
+	
+	nwid = map[word];
+	if (nwid == Vocab_None) {
+	    skipToNextTrie(idx, l + 1);
+	    continue;  // skip this word if not in vocab;     
+	}
+
+	BOtrie *sub = trie.insertTrie(nwid);
+	
+	if (fseeko(dat, offset, SEEK_SET) < 0) {
+	    dat.offset() << strerror(errno) << endl;
+	    return false;
+	}
+	
+	if (!readBinaryV1Node(*sub, idx, dat, limitVocab, vocabMap, l + 1)) {
+	    return false;
+	}
+    }
+
+    return true;
+}
+
+Boolean
+Ngram::skipToNextTrie(File &idx, unsigned myOrder)
+{
+    unsigned o;
+    VocabIndex w;
+    long long t;
+
+    while (fread(&o, sizeof(unsigned), 1, idx) == 1 &&
+	   fread(&w, sizeof(VocabIndex), 1, idx) == 1 &&
+	   fread(&t, sizeof(long long), 1, idx) == 1)
+    {
+	if (o == myOrder && w == Vocab_None && t == -1) return true;
+
+	if (o < myOrder) break;
+    }
+
+    idx.offset() << "skipToNextTrie failed for order " << myOrder << endl;
+    return false;
 }
 
 unsigned int
@@ -753,7 +1444,7 @@ Ngram::numNgrams(unsigned int order)
 	NgramBOsIter iter(*this, context, order - 1);
 	BOnode *node;
 
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    howmany += node->probs.numEntries();
 	}
 
@@ -766,7 +1457,7 @@ Ngram::numNgrams(unsigned int order)
  */
 
 Boolean
-Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
+Ngram::estimate(NgramStats &stats, Count *mincounts, Count *maxcounts)
 {
     /*
      * If no discount method was specified we do the default, standard
@@ -778,7 +1469,7 @@ Ngram::estimate(NgramStats &stats, unsigned *mincounts, unsigned *maxcounts)
     unsigned i;
     Boolean error = false;
 
-    for (i = 1; !error & i <= order; i++) {
+    for (i = 1; !error && i <= order; i++) {
 	discounts[i-1] =
 		new GoodTuring(mincounts ? mincounts[i-1] : GT_defaultMinCount,
 			       maxcounts ? maxcounts[i-1] : GT_defaultMaxCount);
@@ -848,9 +1539,18 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
     unsigned vocabSize = Ngram::vocabSize();
 
     /*
-     * Remove all old contexts
+     * Remove all old contexts ...
      */
     clear();
+
+    /*
+     * ... but save time by allocating unigram probabilities for all words in
+     * the vocabulary.
+     */
+    {
+	VocabIndex emptyContext = Vocab_None;
+	contexts.find(&emptyContext)->probs.setsize(vocab.numWords());
+    }
 
     /*
      * Ensure <s> unigram exists (being a non-event, it is not inserted
@@ -874,11 +1574,6 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 			(discounts[i-1] == 0) ||
 			discounts[i-1]->nodiscount();
 
-	Boolean interpolate =
-			(discounts != 0) &&
-			(discounts[i-1] != 0) &&
-			discounts[i-1]->interpolate;
-
 	/*
 	 * modify counts are required by discounting method
 	 */
@@ -892,7 +1587,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	CountType *contextCount;
 	NgramCountsIter<CountType> contextIter(stats, context, i-1);
 
-	while (contextCount = contextIter.next()) {
+	while ((contextCount = contextIter.next())) {
 	    /*
 	     * Skip contexts ending in </s>.  This typically only occurs
 	     * with the doubling of </s> to generate trigrams from
@@ -900,13 +1595,22 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	     * If <unk> is not real word, also skip context that contain
 	     * it.
 	     */
-	    if (i > 1 && context[i-2] == vocab.seIndex() ||
-	        vocab.isNonEvent(vocab.unkIndex()) &&
-				 vocab.contains(context, vocab.unkIndex()))
+	    if ((i > 1 && context[i-2] == vocab.seIndex()) ||
+	        (vocab.isNonEvent(vocab.unkIndex()) &&
+				 vocab.contains(context, vocab.unkIndex())))
 	    {
 		noneventContexts ++;
 		continue;
 	    }
+
+	    /*
+	     * Re-determine if interpolated discounting is in effect.
+	     * (This might be modified in the retry loop below.)
+	     */
+	    Boolean interpolate =
+			(discounts != 0) &&
+			(discounts[i-1] != 0) &&
+			discounts[i-1]->interpolate;
 
 	    VocabIndex word[2];	/* the follow word */
 	    NgramCountsIter<CountType> followIter(stats, context, word, 1);
@@ -921,10 +1625,10 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	     */
 	    CountType totalCount = 0;
 	    Count observedVocab = 0, min2Vocab = 0, min3Vocab = 0;
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		if (vocab.isNonEvent(word[0]) ||
 		    ngramCount == 0 ||
-		    i == 1 && vocab.isMetaTag(word[0]))
+		    (i == 1 && vocab.isMetaTag(word[0])))
 		{
 		    continue;
 		}
@@ -990,7 +1694,7 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	    followIter.init();
 	    Prob totalProb = 0.0;
 
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		LogP lprob;
 		double discount;
 
@@ -1102,21 +1806,35 @@ Ngram::estimate2(NgramCounts<CountType> &stats, Discount **discounts)
 	     * his CMU tools).  It may happen that no probability mass
 	     * is left after totalling all the explicit probs, typically
 	     * because the discount coefficients were out of range and
-	     * forced to 1.0.  To arrive at some non-zero backoff mass
+	     * forced to 1.0.  Unless we have seen all vocabulary words in
+	     * this context, to arrive at some non-zero backoff mass,
 	     * we try incrementing the denominator in the estimator by 1.
+	     * Another hack: If the discounting method uses interpolation 
+	     * we first try disabling that because interpolation removes
+	     * probability mass.
 	     */
 	    if (!noDiscount && totalCount > 0 &&
+		observedVocab < vocabSize &&
 		totalProb > 1.0 - Prob_Epsilon)
 	    {
-		totalCount += 1;
-
 		if (debug(DEBUG_ESTIMATE_WARNINGS)) {
 		    cerr << "warning: " << (1.0 - totalProb)
 			 << " backoff probability mass left for \""
 			 << (vocab.use(), context)
-			 << "\" -- incrementing denominator"
-			 << endl;
+			 << "\" -- ";
+		    if (interpolate) {
+			 cerr << "disabling interpolation\n";
+		    } else {
+			 cerr << "incrementing denominator\n";
+		    }
 		}
+
+		if (interpolate) {
+		    interpolate = false;
+		} else {
+		    totalCount += 1;
+		}
+
 		goto retry;
 	    }
 
@@ -1194,12 +1912,12 @@ Ngram::mixProbs(Ngram &lm2, double lambda)
 	 * First, find all explicit ngram probs in *this, and mix them
 	 * with the corresponding probs of lm2 (explicit or backed-off).
 	 */
-	while (node = iter1.next()) {
+	while ((node = iter1.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob1;
 
-	    while (prob1 = piter.next(word)) {
+	    while ((prob1 = piter.next(word))) {
 		*prob1 =
 		    MixLogP(*prob1, lm2.wordProbBO(word, context, i), lambda);
 	    }
@@ -1212,12 +1930,12 @@ Ngram::mixProbs(Ngram &lm2, double lambda)
 	 */
 	NgramBOsIter iter2(lm2, context, i);
 
-	while (node = iter2.next()) {
+	while ((node = iter2.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob2;
 
-	    while (prob2 = piter.next(word)) {
+	    while ((prob2 = piter.next(word))) {
 		if (!findProb(word, context)) {
 		    LogP mixProb =
 			MixLogP(wordProbBO(word, context, i), *prob2, lambda);
@@ -1243,12 +1961,12 @@ Ngram::mixProbs(Ngram &lm1, Ngram &lm2, double lambda)
 	 * First, find all explicit ngram probs in lm1, and mix them
 	 * with the corresponding probs of lm2 (explicit or backed-off).
 	 */
-	while (node = iter1.next()) {
+	while ((node = iter1.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob1;
 
-	    while (prob1 = piter.next(word)) {
+	    while ((prob1 = piter.next(word))) {
 		*insertProb(word, context) =
 		    MixLogP(*prob1, lm2.wordProbBO(word, context, i), lambda);
 	    }
@@ -1261,12 +1979,12 @@ Ngram::mixProbs(Ngram &lm1, Ngram &lm2, double lambda)
 	 */
 	NgramBOsIter iter2(lm2, context, i);
 
-	while (node = iter2.next()) {
+	while ((node = iter2.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob2;
 
-	    while (prob2 = piter.next(word)) {
+	    while ((prob2 = piter.next(word))) {
 		if (!lm1.findProb(word, context)) {
 		    *insertProb(word, context) =
 		      MixLogP(lm1.wordProbBO(word, context, i), *prob2, lambda);
@@ -1303,7 +2021,7 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
     numerator = 1.0;
     denominator = 1.0;
 
-    while (prob = piter.next(word)) {
+    while ((prob = piter.next(word))) {
 	numerator -= LogPtoProb(*prob);
 	if (clen > 0) {
 	    denominator -=
@@ -1333,7 +2051,7 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 	LogP scale = - ProbToLogP(1 - numerator);
 
 	piter.init();
-	while (prob = piter.next(word)) {
+	while ((prob = piter.next(word))) {
 	    *prob += scale;
 	}
 
@@ -1380,7 +2098,7 @@ Ngram::computeBOWs(unsigned order)
 
     NgramBOsIter iter1(*this, context, order);
     
-    while (node = iter1.next()) {
+    while ((node = iter1.next())) {
 	NgramProbsIter piter(*node);
 
 	double numerator, denominator;
@@ -1442,7 +2160,7 @@ Ngram::recomputeBOWs()
  * The minorder parameter limits pruning to ngrams of that length and above.
  */
 void
-Ngram::pruneProbs(double threshold, unsigned minorder)
+Ngram::pruneProbs(double threshold, unsigned minorder, LM *historyLM)
 {
     /*
      * Hack alert: allocate the context buffer for NgramBOsIter, but leave
@@ -1457,7 +2175,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 	BOnode *node;
 	NgramBOsIter iter1(*this, context, i);
 	
-	while (node = iter1.next()) {
+	while ((node = iter1.next())) {
 	    LogP bow = node->bow;	/* old backoff weight, BOW(h) */
 	    double numerator, denominator;
 
@@ -1472,8 +2190,12 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 
 	    /*
 	     * Compute the marginal probability of the context, P(h)
+	     * If a historyLM was given (e.g., for KN smoothed LMs), use it,
+	     * otherwise use the LM to be pruned.
 	     */
-	    LogP cProb = contextProb(context, i);
+	    LogP cProb = historyLM == 0 ?
+				contextProb(context, i) :
+				historyLM->contextProb(context, i);
 
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
@@ -1481,7 +2203,7 @@ Ngram::pruneProbs(double threshold, unsigned minorder)
 
 	    Boolean allPruned = true;
 
-	    while (ngramProb = piter.next(word)) {
+	    while ((ngramProb = piter.next(word))) {
 		/*
 		 * lower-order estimate for ngramProb, P(w|h')
 		 */
@@ -1605,14 +2327,14 @@ Ngram::pruneLowProbs(unsigned minorder)
 	    BOnode *node;
 	    NgramBOsIter iter1(*this, context, i);
 	    
-	    while (node = iter1.next()) {
+	    while ((node = iter1.next())) {
 		LogP bow = node->bow;	/* old backoff weight, BOW(h) */
 
 		NgramProbsIter piter(*node);
 		VocabIndex word;
 		LogP *ngramProb;
 
-		while (ngramProb = piter.next(word)) {
+		while ((ngramProb = piter.next(word))) {
 		    /*
 		     * lower-order estimate for ngramProb, P(w|h')
 		     */
@@ -1665,12 +2387,12 @@ Ngram::rescoreProbs(LM &lm)
 	 * Enumerate all explicit ngram probs in *this, and recompute their
 	 * probs using the supplied LM.
 	 */
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    NgramProbsIter piter(*node);
 	    VocabIndex word;
 	    LogP *prob;
 
-	    while (prob = piter.next(word)) {
+	    while ((prob = piter.next(word))) {
 		*prob = lm.wordProb(word, context);
 	    }
 	}
@@ -1743,7 +2465,7 @@ Ngram::fixupProbs()
 	TrieIter2<VocabIndex,NgramCount> iter(contextsToAdd, context, i);
 	
 
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    if (node->value()) {
 		numFakes ++;
 

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.32 2006/01/05 08:44:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/WordLattice.cc,v 1.36 2010/06/02 06:22:48 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -45,7 +45,7 @@ operator<<(ostream &str, NodePair &key)
     return str << "(" << key.node1 << "->" << key.node2 << ")";
 }
 
-static inline unsigned
+static inline unsigned long
 LHash_hashKey(NodePair &key, unsigned maxBits)
 {
     return LHash_hashKey(key.node1 + 10 * key.node2, maxBits);
@@ -108,7 +108,7 @@ WordLattice::~WordLattice()
 }
 
 WordLatticeNode::WordLatticeNode()
-    : word(Vocab_None), score(0.0), numSuccs(0), align(NO_ALIGN)
+    : word(Vocab_None), score(0.0), align(NO_ALIGN), numSuccs(0)
 {
 }
 
@@ -213,7 +213,7 @@ WordLattice::read1(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	unsigned arg1;
 	char arg2[100];
 	double arg3;
@@ -266,7 +266,7 @@ WordLattice::read(File &file)
 {
     char *line;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	unsigned arg1;
 	char arg2[100];
 	double arg3;
@@ -527,7 +527,8 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
 
     unsigned numReachable = sortAlignedNodes(sortedNodes);
     if (numReachable != numNodes) {
-	cerr << "WARNING: alignWords called with unreachable nodes\n";
+	cerr << "WARNING: " << getName()
+	     << ": alignWords called with unreachable nodes\n";
     }
 
     /*
@@ -787,7 +788,7 @@ WordLattice::alignWords(const VocabIndex *words, Prob score, Prob *wordScores,
     LHashIter<VocabIndex, Array<unsigned> > nodeWordIter(nodeWordMap);
     VocabIndex word;
     Array<unsigned> *nodeList;
-    while (nodeList = nodeWordIter.next(word)) {
+    while ((nodeList = nodeWordIter.next(word))) {
 	nodeList->~Array();
     }
 
@@ -830,7 +831,8 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
     unsigned numReachable = sortAlignedNodes(sortedNodes.data());
 
     if (numReachable != numNodes) {
-	cerr << "WARNING: bestPath2 called with unreachable nodes\n";
+	cerr << "WARNING: " << getName()
+	     << ": minimizeWordError called with unreachable nodes\n";
     }
     assert(sortedNodes[numReachable - 1] == final);
 
@@ -1024,7 +1026,8 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
      */
 
     if (chart[final].pred == NO_PRED) {
-	cerr << "WARNING: minimizeWordError: final node not reachable\n";
+	cerr << "WARNING: " << getName()
+	     << ": minimizeWordError: final node not reachable\n";
 
 	if (length > 0) {
 	    words[0] = Vocab_None;
@@ -1050,7 +1053,8 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 	}
 
 	if (curr != NO_PRED) {
-	    cerr << "WARNING: minimizeWordError: word buffer too short\n";
+	    cerr << "WARNING: " << getName()
+		 << ": minimizeWordError: word buffer too short\n";
 	}
 
 	Vocab::reverse(words);
@@ -1079,7 +1083,8 @@ WordLattice::wordError(const VocabIndex *words,
 
     unsigned numReachable = sortNodes(sortedNodes);
     if (numReachable != numNodes) {
-	cerr << "WARNING: alignWords called with unreachable nodes\n";
+	cerr << "WARNING: " << getName()
+	     << ": alignWords called with unreachable nodes\n";
     }
 
     /*

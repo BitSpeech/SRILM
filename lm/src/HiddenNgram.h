@@ -2,9 +2,9 @@
  * HiddenNgram.h --
  *	N-gram model with hidden between-word events
  *
- * Copyright (c) 1999-2003 SRI International.  All Rights Reserved.
+ * Copyright (c) 1999-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.9 2003/02/15 06:56:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/HiddenNgram.h,v 1.10 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 
@@ -70,7 +70,7 @@ public:
     LogP sentenceProb(const VocabIndex *sentence, TextStats &stats);
 
     Boolean read(File &file, Boolean limitVocab = false);
-    void write(File &file);
+    Boolean write(File &file);
 
     const HiddenVocabProps &getProps(VocabIndex word);
 

@@ -6,11 +6,15 @@
 
 #ifndef lint
 static char TaggedNgramStats_Copyright[] = "Copyright (c) 1996-2006 SRI International.  All Rights Reserved.";
-static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.6 2006/01/05 20:21:27 stolcke Exp $";
+static char TaggedNgramStats_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/StopNgramStats.cc,v 1.7 2006/08/12 06:46:11 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 
 #include "StopNgramStats.h"

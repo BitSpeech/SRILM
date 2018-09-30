@@ -7,15 +7,18 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramLM.cc,v 1.14 2006/01/09 19:01:44 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FNgramLM.cc,v 1.19 2010/06/02 06:33:08 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <new>
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <new.h>
+# include <iostream.h>
+#else
+# include <new>
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -74,9 +77,9 @@ FNgram::memStats(MemStats &stats)
 }
 
 FNgram::FNgram(FactoredVocab &vocab, FNgramSpecsType& _fngs)
-  : LM(vocab), fngs(_fngs), skipOOVs(false), trustTotals(false),
-    combineLMScores(true),
-    virtualBeginSentence(true), virtualEndSentence(true), noScoreSentenceBoundaryMarks(false)
+  : LM(vocab), fngs(_fngs),
+    virtualBeginSentence(true), virtualEndSentence(true), noScoreSentenceBoundaryMarks(false),
+    skipOOVs(false), trustTotals(false), combineLMScores(true)
 {
   // we could pre-allocate the fngrams arrays here
   // but Array objects do not export alloc.
@@ -241,13 +244,13 @@ FNgram::ParentSubset::findTrieNodeSubCtx(const VocabIndex *context,
   // the tree leaf level. Therefore, this routine indexes lm tries
   // in ascending context array order.
 
-  const int wlen = Vocab::length(context);
+  const unsigned wlen = Vocab::length(context);
   assert (FNgramSpecsType::numBitsSet(bits) <= wlen);
 
   BOtrie* boTrie = &contexts;
   VocabIndex word[2];
   word[1] = Vocab_None;
-  for (int i=0; i<wlen && bits;i++) {
+  for (unsigned i = 0; i < wlen && bits; i++) {
     if (bits & 0x1) {
       word[0] = context[i];
       if ((boTrie = boTrie->findTrie(word)) == NULL)
@@ -314,13 +317,13 @@ FNgram::ParentSubset::insertTrieNodeSubCtx(const VocabIndex *context,
 					   Boolean& foundP)
 {
   // same as findTrieNodeSubCtx except we do inserts rather than finds.
-  const int wlen = Vocab::length(context);
+  const unsigned wlen = Vocab::length(context);
   assert (FNgramSpecsType::numBitsSet(bits) <= wlen);
 
   BOtrie* boTrie = &contexts;
   VocabIndex word[2];
   word[1] = Vocab_None;
-  for (int i=0; i<wlen && bits;i++) {
+  for (unsigned i = 0; i < wlen && bits; i++) {
     if (bits & 0x1) {
       word[0] = context[i];
       if ((boTrie = boTrie->insertTrie(word,foundP)) == NULL)
@@ -389,12 +392,12 @@ FNgram::ParentSubset::removeBOWSubCtx(const VocabIndex *context,
   // doesn't need to be as fast as the others.
 
 
-  const int wlen = Vocab::length(context);
+  const unsigned wlen = Vocab::length(context);
   assert (FNgramSpecsType::numBitsSet(bits) <= wlen);
   VocabIndex words[maxNumParentsPerChild+2];
 
-  unsigned j=0;
-  for (int i=0; i<wlen && bits;i++) {
+  unsigned j = 0;
+  for (unsigned i = 0; i < wlen && bits; i++) {
     if (bits & 0x1) {
       words[j] = context[i];
     }
@@ -411,12 +414,12 @@ FNgram::ParentSubset::removeProbSubCtx(VocabIndex word1,
 				       const VocabIndex *context,
 				       unsigned int bits)
 {
-  const int wlen = Vocab::length(context);
+  const unsigned wlen = Vocab::length(context);
   assert (FNgramSpecsType::numBitsSet(bits) <= wlen);
   VocabIndex words[maxNumParentsPerChild+2];
 
-  unsigned j=0;
-  for (int i=0; i<wlen && bits;i++) {
+  unsigned j = 0;
+  for (unsigned i = 0; i < wlen && bits; i++) {
     if (bits & 0x1) {
       words[j] = context[i];
     }
@@ -448,10 +451,10 @@ FNgram::clear(unsigned int specNum)
     /*
      * Remove a ngram probabilities
      */
-    for (unsigned i=0;i<fNgrams[specNum].parentSubsetsSize;i++) {
+    for (unsigned i = 0; i < fNgrams[specNum].parentSubsetsSize; i++) {
       BOnode *node;
       BOsIter iter(*this,specNum,i,context);
-      while (node = iter.next()) {
+      while ((node = iter.next())) {
 	node->probs.clear(0);
       }
     }
@@ -463,34 +466,6 @@ FNgram::clear()
   for (unsigned i=0;i<fNgramsSize;i++)
     clear(i);
 }
-
-
-
-// for printing binary strings
-static char *
-intToBinStr(unsigned i)
-{
-  // good for 64 bit ints
-  const int len = 64+3;
-  static char local_buff[len];
-  local_buff[len-1] = 0;
-  int pos = len-1;
-  if (i == 0)
-    local_buff[--pos] = '0';
-  else {
-    do {
-      if (i&0x1)
-	local_buff[--pos] = '1';
-      else 
-	local_buff[--pos] = '0';
-      i >>= 1;
-    } while (i);
-  }
-  local_buff[--pos] = 'b';
-  local_buff[--pos] = '0';
-  return &local_buff[pos];
-}
-
 
 // TODO: but this and other bit routines in one
 // separate pair of .cc .h files.
@@ -544,8 +519,8 @@ FNgram::boNode(const VocabIndex word,
     citer(numParents,node,fngs.fnSpecArray[specNum].parentSubsets[node].backoffConstraint);
 
   unsigned bg_child; // backoff-graph child
-  unsigned chosen_bg_child = ~0x0;
-  unsigned a_bg_child = ~0x0; // arbitrary child, if everything fails, we use this.
+  unsigned chosen_bg_child = ~0x0U;
+  unsigned a_bg_child = ~0x0U; // arbitrary child, if everything fails, we use this.
   const Boolean domax =  // do min if domax == false.
     (fngs.fnSpecArray[specNum].parentSubsets[node].backoffCombine == MaxBgChild);
   const double initScore = domax ? -1e220 : 1e220;
@@ -568,27 +543,27 @@ FNgram::boNode(const VocabIndex word,
 			   
     if (score == -1e200) // TODO: change this to NaN or Inf, and a #define (also see below)
       continue; // continue presumably because of a NULL counts object
-    if (a_bg_child == ~0x0)
+    if (a_bg_child == ~0x0U)
       a_bg_child = bg_child;
 
 
-    if (domax && (score > bestScore) || !domax && (score < bestScore)) {
+    if ((domax && score > bestScore) || (!domax && score < bestScore)) {
       chosen_bg_child = bg_child;
       bestScore = score;
     }
   }
 
   // make sure that we have at least one valid child
-  assert (a_bg_child != ~0x0);
+  assert (a_bg_child != ~0x0U);
 
   // if we only have one child, or if we have two children and have
   // not found a best child, just return an arbitrary child node.
   if ((fngs.fnSpecArray[specNum].parentSubsets[node].numBGChildren == 1)
-      || (chosen_bg_child == ~0x0 && nbitsSet == 2))
+      || (chosen_bg_child == ~0x0U && nbitsSet == 2))
     return a_bg_child;
 
 
-  if (chosen_bg_child == ~0x0) {
+  if (chosen_bg_child == ~0x0U) {
     // Then we did not found any BG-child with a score for this
     // context. We back off to the child that has the best
     // combined schore of its children. We keep
@@ -616,7 +591,7 @@ FNgram::boNode(const VocabIndex word,
 				   specNum,
 				   bg_grandchild);
 	    // compute local max min of offspring
-	    if (domax && (tmp > score) || !domax && (tmp < score)) {
+	    if ((domax && tmp > score) || (!domax && tmp < score)) {
 	      score = tmp;
 	    }
 	  }
@@ -634,7 +609,7 @@ FNgram::boNode(const VocabIndex word,
 				   *this,
 				   specNum,
 				   bg_grandchild);
-	    if (domax && (tmp > score) || !domax && (tmp < score)) {
+	    if ((domax && tmp > score) || (!domax && tmp < score)) {
 	      score = tmp;
 	    }
 	  }
@@ -642,18 +617,18 @@ FNgram::boNode(const VocabIndex word,
 
 	if (score == -1e200)  // TODO: change this to NaN or Inf, and a #define (also see above)
 	  continue; // presumably because of a NULL counts objects
-	if (domax && (score > bestScore) || !domax && (score < bestScore)) {
+	if ((domax && score > bestScore) || (!domax && score < bestScore)) {
 	  chosen_bg_child = bg_child;
 	  bestScore = score;
 	}
       }
-      if (chosen_bg_child != ~0x0)
+      if (chosen_bg_child != ~0x0U)
 	break;
 
     }
 
     // still not found, chose an arbitrary child
-    if (chosen_bg_child == ~0x0)
+    if (chosen_bg_child == ~0x0U)
       chosen_bg_child = a_bg_child;
   }
   return chosen_bg_child;
@@ -909,9 +884,9 @@ FNgram::read(const unsigned int specNum, File &file)
     Boolean warnedAboutUnk = false; /* at most one warning about <unk> */
 
     const unsigned int numParents = fngs.fnSpecArray[specNum].numParents;
-    const int numSubSets = fngs.fnSpecArray[specNum].numSubSets;
+    const unsigned int numSubSets = fngs.fnSpecArray[specNum].numSubSets;
 
-    for (int i = 0; i < numSubSets; i++) {
+    for (unsigned i = 0; i < numSubSets; i++) {
 	numGrams[i] = 0;
 	numRead[i] = 0;
     }
@@ -930,7 +905,7 @@ FNgram::read(const unsigned int specNum, File &file)
     *fNgrams[specNum].parentSubsets[0].insertBOW(nullContext) = LogP_Zero;
 
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	
 	Boolean backslash = (line[0] == '\\');
 
@@ -956,7 +931,7 @@ FNgram::read(const unsigned int specNum, File &file)
 		/*
 		 * start reading grams
 		 */
-		if (state >= numSubSets) {
+		if ((unsigned)state >= numSubSets) {
 		  file.position() << "invalid ngram order " << HEX << state << "\n" << DEC;
 		  return false;
 		}
@@ -997,7 +972,7 @@ FNgram::read(const unsigned int specNum, File &file)
 	default:	/* reading n-grams, where n == state */
 
 	    if (backslash && sscanf(line, "\\%i-grams", &state) == 1) {
-		if (state >= numSubSets) {
+		if ((unsigned)state >= numSubSets) {
 		  file.position() << "invalid ngram order " << HEX << state << "\n" << DEC;
 		  return false;
 		}
@@ -1019,7 +994,7 @@ FNgram::read(const unsigned int specNum, File &file)
 		 * Check that the total number of ngrams read matches
 		 * that found in the header
 		 */
-		for (int i = 0; i <= max_state ; i++) {
+		for (unsigned i = 0; i <= max_state ; i++) {
 		    if (numGrams[i] != numRead[i]) {
 		      file.position() << "warning: " << numRead[i] << " " << HEX
 				      << i << "-grams read, expected "
@@ -1028,7 +1003,7 @@ FNgram::read(const unsigned int specNum, File &file)
 		}
 
 		return true;
-	    } else if (state > numSubSets) {
+	    } else if ((unsigned)state > numSubSets) {
 		/*
 		 * Save time and memory by skipping ngrams outside
 		 * the order range of this model. This is moot
@@ -1103,7 +1078,7 @@ FNgram::read(const unsigned int specNum, File &file)
 		if (have_cnt) {
 		  char *endptr = (char *)words[state_order+1];
 		  gram_cnt = (unsigned)strtol(words[state_order+1],&endptr,0);
-		  if (endptr == words[state_order+1] || gram_cnt == ~0x0) {
+		  if (endptr == words[state_order+1] || gram_cnt == ~0x0U) {
 		    file.position() << "warning: invalid backoff graph location\""
 				    << words[state_order+1] << "\"\n";
 		  }
@@ -1250,7 +1225,7 @@ FNgram::write(unsigned int specNum,File &file)
 
     const unsigned numParents = fngs.fnSpecArray[specNum].numParents;
     // starting with the unigram, and moving up to the all LM-parents case.
-    for (int level=0;level<=numParents;level ++) {
+    for (unsigned level = 0; level <= numParents; level ++) {
       FNgramSpecsType::FNgramSpec::LevelIter liter(numParents,level);
       unsigned int node;
       while (liter.next(node)) {
@@ -1259,7 +1234,7 @@ FNgram::write(unsigned int specNum,File &file)
       }
     }
 
-    for (int level=0;level<=numParents;level++) {
+    for (unsigned level = 0; level <= numParents; level++) {
       FNgramSpecsType::FNgramSpec::LevelIter liter(numParents,level);
       unsigned int node;
       while (liter.next(node)) {
@@ -1278,7 +1253,7 @@ FNgram::write(unsigned int specNum,File &file)
 	BOnode *tr_node;
 
 
-	while (tr_node = citer.next()) {
+	while ((tr_node = citer.next())) {
 
 	  // TODO: write out BOWs that have contexts but no words
 	  // since for gen BW, spent time computing them.
@@ -1292,7 +1267,7 @@ FNgram::write(unsigned int specNum,File &file)
 	    unsigned*cnt;
 	    
 	    Boolean first_word = true;
-	    while (prob = piter.next(pword,cnt)) {
+	    while ((prob = piter.next(pword,cnt))) {
 		if (file.error()) {
 		    return;
 		}
@@ -1303,7 +1278,7 @@ FNgram::write(unsigned int specNum,File &file)
 		Vocab::write(file, scontext);
 		fprintf(file, "%s%s", (node != 0 ? " " : ""), vocab.getWord(pword));
 
-		// if (node > 0 && *cnt != ~0x0)
+		// if (node > 0 && *cnt != ~0x0U)
 		// fprintf(file, "\t0x%X", *cnt);
 
 		if (first_word && level > 0) {
@@ -1342,7 +1317,7 @@ FNgram::numFNgrams(const unsigned int specNum,const unsigned int node)
   BOsIter iter(*this,specNum,node,context);
   BOnode *bo_node;
 
-  while (bo_node = iter.next()) {
+  while ((bo_node = iter.next())) {
     howmany += bo_node->probs.numEntries();
   }
   return howmany;
@@ -1427,7 +1402,7 @@ FNgram::estimate(const unsigned int specNum)
     // We learn the LM by doing a reverse BG level level-iterator,
     // starting with the unigram, and moving up to the all LM-parents case.
     const unsigned numParents = fngs.fnSpecArray[specNum].numParents;
-    for (int level=0;level<=numParents;level++) {
+    for (unsigned level = 0; level <= numParents; level++) {
       FNgramSpecsType::FNgramSpec::LevelIter iter(numParents,level);
       unsigned int node;
       while (iter.next(node)) {
@@ -1469,7 +1444,7 @@ FNgram::estimate(const unsigned int specNum)
 	  contextIter(fngs.fnSpecArray[specNum].parentSubsets[node],
 		      context,
 		      fngs.fnSpecArray[specNum].parentSubsets[node].order-1);
-	while (contextCount = contextIter.next()) {
+	while ((contextCount = contextIter.next())) {
 	    /*
 	     * If <unk> is not real word, skip contexts that contain
 	     * it. Note that original code checked for </s> here in
@@ -1511,10 +1486,10 @@ FNgram::estimate(const unsigned int specNum)
 	     */
 	    FNgramCount totalCount = 0;
 	    Count observedVocab = 0, min2Vocab = 0, min3Vocab = 0;
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		if (vocab.isNonEvent(word[0]) ||
 		    ngramCount == 0 ||
-		    node == 0 && vocab.isMetaTag(word[0]))
+		    (node == 0 && vocab.isMetaTag(word[0])))
 		{
 		    continue;
 		}
@@ -1640,7 +1615,7 @@ FNgram::estimate(const unsigned int specNum)
 	    followIter.init();
 	    Prob totalProb = 0.0;
 
-	    while (ngramCount = followIter.next()) {
+	    while ((ngramCount = followIter.next())) {
 		LogP lprob;
 		double discountCoeff;
 
@@ -1869,7 +1844,7 @@ FNgram::computeBOW1child(BOnode *bo_node,  // back off node
     denominator = 1.0;
     ProbsIter piter(*bo_node);
     VocabIndex word;
-    while (prob = piter.next(word)) {
+    while ((prob = piter.next(word))) {
       numerator -= LogPtoProb(*prob);
       if (node != 0)
 	denominator -= LogPtoProb(bgChildProbBO(word,context,nWrtwCip,specNum,node));
@@ -2043,11 +2018,12 @@ FNgram::computeBOWs(unsigned int specNum, unsigned int node)
     }
 
     unsigned iter = 0;
-    while (bo_node = iter1.next()) {
+    while ((bo_node = iter1.next())) {
 
       if (debug(DEBUG_BOWS) && fngs.fnSpecArray[specNum].parentSubsets[node].numBGChildren > 1)
-	fprintf(stderr,"in computeBOWs, bo_node = 0x%X, specNum=%d, node = 0x%X, context = 0x%X, *context = %d, iter = %d, cword = %s, nc = %d\n",
-		bo_node,specNum, node, context, *context,iter,vocab.getWord(*context),
+	fprintf(stderr,"in computeBOWs, bo_node = 0x%lX, specNum=%d, node = 0x%X, context = 0x%lX, *context = %d, iter = %d, cword = %s, nc = %d\n",
+		(unsigned long)bo_node, specNum, node,
+		(unsigned long)context, *context, iter, vocab.getWord(*context),
 		fngs.fnSpecArray[specNum].parentSubsets[node].numBGChildren);
 
       double numerator, denominator;
@@ -2127,12 +2103,12 @@ FNgram::storeBOcounts(unsigned int specNum, unsigned int node)
   VocabIndex context[maxNumParentsPerChild + 2];
   BOsIter iter1(*this, specNum, node, context);
   BOnode *bo_node;
-  while (bo_node = iter1.next()) {
+  while ((bo_node = iter1.next())) {
     ProbsIter piter(*bo_node);
     VocabIndex word;
     unsigned int* cnt;
     LogP *prob;
-    while (prob = piter.next(word,cnt)) {
+    while ((prob = piter.next(word,cnt))) {
       // get count and store it
       // *cnt = count for this node.
     }
@@ -2156,7 +2132,7 @@ FNgram::recomputeBOWs()
      */
   for (unsigned specNum=0;specNum<fNgramsSize;specNum++) {
     const unsigned numParents = fngs.fnSpecArray[specNum].numParents;
-    for (int level=0;level<=numParents;level++) {
+    for (unsigned level = 0; level <= numParents; level++) {
       FNgramSpecsType::FNgramSpec::LevelIter iter(numParents,level);
       unsigned int node;
       while (iter.next(node)) {
@@ -2292,8 +2268,8 @@ FNgram::wordProb(unsigned int specNum,
   // construct context in increasing order. I.e., if we have mode
   // W : P1 P2 P3
   // then wids[0] = P1, wids[1] = P2, wids[2] = P3
-  int wid_index = 0;
-  for (int p=0;p<fngs.fnSpecArray[specNum].numParents;p++) {
+  unsigned wid_index = 0;
+  for (unsigned p = 0; p < fngs.fnSpecArray[specNum].numParents; p++) {
     const int parent_time_loc = fngs.fnSpecArray[specNum].parentOffsets[p] + (int)childPos;
     if ((int)parent_time_loc < (int)0) {
       // load with something that will never occur so will cause
@@ -2323,7 +2299,7 @@ FNgram::wordProb(unsigned int specNum,
 
   if (debug(DEBUG_PRINT_WORD_PROBS)) {
     dout() << "\tp( " << vocab.getWord(child) << " | ";
-    for (int p=0;p<fngs.fnSpecArray[specNum].numParents;p++) {
+    for (unsigned p = 0; p < fngs.fnSpecArray[specNum].numParents; p++) {
       dout() << vocab.getWord(wids[p]) << 
 	((p+1)<fngs.fnSpecArray[specNum].numParents?",":"");
     }      
@@ -2423,7 +2399,7 @@ FNgram::sentenceProb(unsigned int specNum,
   // TODO: move this stuff to specs.
   Boolean allParentsFromPast = true;
   Boolean allParentsFromFuture = true;
-  for (int p=0;p<fngs.fnSpecArray[specNum].numParents;p++) {
+  for (unsigned p = 0; p < fngs.fnSpecArray[specNum].numParents; p++) {
     const int parent_time_offset = fngs.fnSpecArray[specNum].parentOffsets[p];
     if (parent_time_offset > 0)
       allParentsFromPast = false;
@@ -2434,9 +2410,8 @@ FNgram::sentenceProb(unsigned int specNum,
   // TODO: assume that position 0 is word position, i.e., FNGRAM_WORD_TAG_POS
   // which for now is defined in FNgramSpecs.cc but should be placed
   // in FactoredVocab.h
-  const int numSubSets = fngs.fnSpecArray[specNum].numSubSets;
+  const unsigned int numSubSets = fngs.fnSpecArray[specNum].numSubSets;
   const unsigned int context_bits = numSubSets-1;
-  int i;
   // skip initial word which is assumed to contain a <s>
   unsigned realStart;
   unsigned realEnd;
@@ -2457,8 +2432,7 @@ FNgram::sentenceProb(unsigned int specNum,
     realEnd = end-1;
   }
 
-  for (i=realStart; i <= realEnd ; i++) {
-  // for (i=start+1; wm[i][0] != Vocab_None; i++) {
+  for (unsigned i = realStart; i <= realEnd ; i++) {
     Boolean unk_detected = false;
 
     const VocabIndex child = wm[i][fngs.fnSpecArray[specNum].childPosition];
@@ -2472,8 +2446,8 @@ FNgram::sentenceProb(unsigned int specNum,
     // construct context in increasing order. I.e., if we have mode
     // W : P1 P2 P3
     // then wids[0] = P1, wids[1] = P2, wids[2] = P3
-    int wid_index = 0;
-    for (int p=0;p<fngs.fnSpecArray[specNum].numParents;p++) {
+    unsigned wid_index = 0;
+    for (unsigned p = 0; p < fngs.fnSpecArray[specNum].numParents; p++) {
       const int parent_time_loc = fngs.fnSpecArray[specNum].parentOffsets[p] + (int)i;
       if ((int)parent_time_loc < (int)start) {
 	// load with something that will never occur so will cause
@@ -2503,7 +2477,7 @@ FNgram::sentenceProb(unsigned int specNum,
 
     if (debug(DEBUG_PRINT_WORD_PROBS)) {
       dout() << "\tp( " << vocab.getWord(child) << " | ";
-      for (int p=0;p<fngs.fnSpecArray[specNum].numParents;p++) {
+      for (unsigned p = 0; p < fngs.fnSpecArray[specNum].numParents; p++) {
 	dout() << vocab.getWord(wids[p]) << 
 	  ((p+1)<fngs.fnSpecArray[specNum].numParents?",":"");
       }      
@@ -2558,7 +2532,7 @@ FNgram::sentenceProb(WordMatrix& wordMatrix,
   static WidMatrix widMatrix;
 
   ::memset(widMatrix[0],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
-  for (int i=0;i<howmany;i++) {
+  for (unsigned i = 0; i < howmany; i++) {
     ::memset(widMatrix[i+1],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
     if (addWords) 
       vocab.addWords(wordMatrix[i],widMatrix[i+1],maxNumParentsPerChild+1);
@@ -2648,7 +2622,7 @@ FNgram::pplFile(File &file, TextStats &stats, const char *escapeString)
       fngs.fnSpecArray[specNum].stats.reset();
     }
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 
 	if (escapeString && strncmp(line, escapeString, escapeLen) == 0) {
 	    dout() << line;
@@ -2732,7 +2706,7 @@ FNgram::rescoreFile(File &file, double lmScale, double wtScale,
     fngs.fnSpecArray[i].stats.reset();
   }
 
-  while (line = file.getline()) {
+  while ((line = file.getline())) {
     LogP acousticScore;
     LogP languageScore;
     unsigned numWords; // number of words field (3rd col) in file
@@ -2937,7 +2911,7 @@ FNgram::wordProbSum()
 		      fngs.fnSpecArray[specNum].parentSubsets[node].order-1);
 	FNgramCount *contextCount;
 	fprintf(stderr,"   Checking node 0x%X:",node);
-	while (contextCount = contextIter.next()) {
+	while ((contextCount = contextIter.next())) {
 	  double sum = wordProbSum(context,node,specNum,node);
 	  if (fabs(sum - 1.0) > 1e-3) {
 	    fprintf(stderr,"WARNING: child in context summed to %f, node = 0x%X, lm = %d\n",
@@ -2955,6 +2929,4 @@ FNgram::wordProbSum()
   fprintf(stderr,"Done checking that LM sums to unity for all training contexts\n");
   return rc;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

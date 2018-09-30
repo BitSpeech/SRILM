@@ -9,22 +9,24 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.cc,v 1.11 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/flm/src/RCS/FactoredVocab.cc,v 1.16 2010/06/02 05:51:57 stolcke Exp $";
 #endif
 
-#ifndef EXCLUDE_CONTRIB
-
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
 
 #include "File.h"
-#include "FactoredVocab.h"
-#include "FNgramSpecs.h"
 #include "FNgramStats.h"
+#include "FNgramSpecs.h"
+#include "FactoredVocab.h"
 
 #include "LHash.cc"
 #include "Array.cc"
@@ -33,7 +35,6 @@ FactoredVocab::FactoredVocab(VocabIndex start,VocabIndex end)
   : Vocab(start,end) 
 {
   curTagVocab = ~0x0;
-  tagVocabs = NULL;
   _nullIsWord = true;
   nullIndex = Vocab::addWord(Vocab_NULL);
   emptySlot = Vocab::addWord(Empty_Slot);
@@ -41,7 +42,6 @@ FactoredVocab::FactoredVocab(VocabIndex start,VocabIndex end)
 
 FactoredVocab::~FactoredVocab()
 {
-  delete [] tagVocabs;
 }
 
 
@@ -87,13 +87,15 @@ FactoredVocab::createTagSubVocabs(LHash<VocabString,unsigned>& _tagPosition)
 {
   LHashIter<VocabString,unsigned> tags(_tagPosition);
   VocabString tag;
-  unsigned *pos;
+  unsigned *pos, maxPos = 0;
 
-  if (tagVocabs == NULL) {
-    tagVocabs = new TagVocab[_tagPosition.numEntries()];
+  // find the maximal position used in _tagPosition
+  while ((pos = tags.next(tag))) {
+    if (*pos > maxPos) maxPos = *pos;
   }
 
   // do a hash table copy.
+  tags.init();
   while ((pos = tags.next(tag)) != NULL) {
     Boolean found;
     unsigned *u = tagPosition.insert(tag,found);
@@ -105,6 +107,7 @@ FactoredVocab::createTagSubVocabs(LHash<VocabString,unsigned>& _tagPosition)
       fprintf(stderr, "Error: FactoredVocab::createTagSubVocabs: incompatible tag position\n");
       exit(1);
     }
+
     // add tag to table
     if (_nullIsWord && *pos != FNGRAM_WORD_TAG_POS)
       tagVocabs[*pos].tagMap.insert(nullIndex);
@@ -116,7 +119,6 @@ FactoredVocab::createTagSubVocabs(LHash<VocabString,unsigned>& _tagPosition)
     // they should stay non events.
     tagVocabs[*pos].tagMap.insert(ssIndex());
   }
-
 }
 
 Boolean
@@ -130,7 +132,7 @@ FactoredVocab::isNonEvent(VocabIndex word) const
   
   Boolean tmp =
     Vocab::isNonEvent(word) ||
-    ((curTagVocab != ~0x0) &&
+    ((curTagVocab != ~0x0U) &&
      (tagVocabs[curTagVocab].tagMap.find(word) == 0)) ||
     (!_nullIsWord && (word == nullIndex));
 
@@ -374,8 +376,8 @@ FactoredVocab::loadWordFactor(const VocabString word,
     }
   }
   // store any nulls
-  int j;
-  for (j=0;j<tagPosition.numEntries();j++) {
+  unsigned j;
+  for (j = 0; j < tagPosition.numEntries(); j++) {
     if (word_factors[j] == 0) {
       word_factors[j] = tagNulls[j];
     }
@@ -391,7 +393,7 @@ FactoredVocab::read(File &file)
     char *line;
     unsigned int howmany = 0;
 
-    while (line = file.getline()) {
+    while ((line = file.getline())) {
 	/*
 	 * getline() returns only non-empty lines, so strtok()
 	 * will find at least one word.  Any further ones on that
@@ -409,6 +411,4 @@ FactoredVocab::read(File &file)
     }
     return howmany;
 }
-
-#endif /* EXCLUDE_CONTRIB_END */
 

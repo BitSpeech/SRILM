@@ -1,0 +1,32 @@
+#!/bin/sh
+
+dir=../ngram-count-gt
+
+if [ -f $dir/swbd.3grams.gz ]; then
+	gz=.gz
+else
+	gz=
+fi
+
+text=$dir/eval97.text
+order=4
+
+# count in a single batch
+
+ngram-count -order $order -text $text -sort -write all.ngrams$gz
+
+# count in multiple batches and merge
+
+mkdir -p splits
+
+split -50 $text splits/text.
+
+find splits -type f -print | sort > split.files
+
+make-batch-counts split.files 5 cat mycounts -order $order
+
+merge-batch-counts -l 3 mycounts
+
+(set -x; zdiff mycounts/merge-*.ngrams* all.ngrams$gz) | wc -l 
+
+rm -rf splits split.files mycounts all.ngrams$gz

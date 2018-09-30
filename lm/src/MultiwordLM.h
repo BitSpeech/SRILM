@@ -11,7 +11,7 @@
  *
  * Copyright (c) 2001,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.h,v 1.4 2003/07/13 17:24:19 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/MultiwordLM.h,v 1.6 2007/12/05 00:31:04 stolcke Exp $
  *
  */
 
@@ -37,6 +37,8 @@ public:
 
     virtual Boolean isNonWord(VocabIndex word);
     virtual void setState(const char *state);
+
+    virtual Boolean addUnkWords() { return true; };
 
     /*
      * Propagate changes to running state to wrapped models

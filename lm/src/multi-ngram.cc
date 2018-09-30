@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: multi-ngram.cc,v 1.10 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: multi-ngram.cc,v 1.12 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +70,7 @@ assignMultiProbs(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
         makeArray(VocabIndex, context, order + 1);
 	NgramBOsIter iter(multiLM, context, i);
 	
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    /*
 	     * buffer holding expanded context, with room to prepend expanded
 	     * word
@@ -100,7 +104,7 @@ assignMultiProbs(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 	    VocabIndex word;
 	    LogP *multiProb;
 		
-	    while (multiProb = piter.next(word)) {
+	    while ((multiProb = piter.next(word))) {
 
 		VocabIndex multiWord[2];
 		multiWord[0] = word;
@@ -233,7 +237,7 @@ populateMultiNgrams(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 	makeArray(VocabIndex, context, order + 1);
 	NgramBOsIter iter(ngramLM, context, i);
 	
-	while (node = iter.next()) {
+	while ((node = iter.next())) {
 	    /*
 	     * copy BOW to multi ngram
 	     */
@@ -246,7 +250,7 @@ populateMultiNgrams(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 	    VocabIndex word;
 	    LogP *prob;
 
-	    while (prob = piter.next(word)) {
+	    while ((prob = piter.next(word))) {
 		*multiLM.insertProb(word, context) = *prob;
 
 		Array<VocabIndex> *startIndex = startMultiwords.find(word);
@@ -282,7 +286,7 @@ populateMultiNgrams(MultiwordVocab &vocab, Ngram &multiLM, Ngram &ngramLM)
 		    VocabIndex word;
 		    LogP *prob;
 
-		    while (prob = piter.next(word)) {
+		    while ((prob = piter.next(word))) {
 			*multiLM.insertProb(word, context) = *prob;
 
 			Array<VocabIndex> *startIndex =

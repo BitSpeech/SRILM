@@ -9,12 +9,16 @@
 #define _Trellis_cc_
 
 #ifndef lint
-static char Trellis_Copyright[] = "Copyright (c) 1995,1997,2001 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.21 2006/01/05 20:21:27 stolcke Exp $";
+static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/Trellis.cc,v 1.23 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -374,9 +378,10 @@ operator<<(ostream& os, const TrellisSlice<StateT>& slice)
     TrellisNode<StateT>* node;
     StateT state;
 
-    while (node = iter.next(state))
-    os << "  State: [" << state << "],\t" << node->nbestSize() << "-Best = "
-       << *node << endl;
+    while ((node = iter.next(state))) {
+	os << "  State: [" << state << "],\t" << node->nbestSize() << "-Best = "
+	   << *node << endl;
+    }
     return os;
 }
 
@@ -406,7 +411,7 @@ TrellisSlice<StateT>::init()
      * Unfortunately gcc 2.8.1 has a bug that prevents us from calling 
      * ~TrellisNode(), so we make do with clear().
      */
-    while (node = iter.next(state)) {
+    while ((node = iter.next(state))) {
 #if __GNUC__ == 2 && __GNUC_MINOR__ <= 8
 	node->clear();
 #else
@@ -435,7 +440,7 @@ TrellisSlice<StateT>::sum()
     StateT state;
     LogP2 logSum = LogP_Zero;
 
-    while (node = iter.next(state)) {
+    while ((node = iter.next(state))) {
 	logSum = AddLogP(logSum, node->lprob);
     }
     return logSum;
@@ -455,9 +460,9 @@ TrellisSlice<StateT>::max()
     LogP maxProb = LogP_Zero;
 
     Map_noKey(maxState);
-    while (node = iter.next(state)) {
+    while ((node = iter.next(state))) {
 	if (Map_noKeyP(maxState) ||
-	    node->nbestSize() > 0 && node->nbest[0].score > maxProb)
+	    (node->nbestSize() > 0 && node->nbest[0].score > maxProb))
 	{
 	    maxProb = node->nbest[0].score;
 	    maxState = state;
@@ -490,7 +495,7 @@ TrellisSlice<StateT>::nbest(unsigned numNbest)
     TrellisNode<StateT> *node;
     StateT state;
 
-    while (node = iter.next(state)) {
+    while ((node = iter.next(state))) {
 	for (unsigned n = 0; n < node->nbestSize(); n++) {
 	    globalNbest.insert(Hyp<StateT>(node->nbest[n].score, state, n));
 	}

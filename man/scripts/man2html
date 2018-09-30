@@ -3,7 +3,7 @@
 # man2html --
 #	Translates nroff -man source to html
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html,v 1.1 1996/07/10 07:18:17 stolcke Exp stolcke $
+# $Header: /home/srilm/devel/man/scripts/RCS/man2html,v 1.1 1996/07/10 07:18:17 stolcke Exp $
 #
 
 sed -f $0.sed "$@" | \

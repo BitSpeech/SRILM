@@ -1,6 +1,6 @@
 #!/bin/sed -f
 #
-# $Header: /home/srilm/devel/man/scripts/RCS/man2html.sed,v 1.4 2000/01/20 02:05:11 stolcke Exp $
+# $Header: /home/srilm/devel/man/scripts/RCS/man2html.sed,v 1.6 2008/02/06 18:18:44 stolcke Exp $
 #
 
 s,\\-,-,g
@@ -19,6 +19,6 @@ s,\\fI\([^\\]*\)\\fP,<I>\1</I>,g
 s,/BS/,\\,g
 
 # crossrefs
-s,\([A-Za-z][^ ]*\)([1-8]),<A HREF="\1.html">&</A>,g
-s,^\.BR  *\([A-Za-z][^ ]*\)  *\(([1-8])\),<A HREF="\1.html">\1\2</A>,g
+s,\([A-Za-z][^ ]*\)(\([1-8]\)),<A HREF="\1.\2.html">&</A>,g
+s,^\.BR  *\([A-Za-z][^ ]*\)  *(\([1-8]\)),<A HREF="\1.\2.html">\1(\2)</A>,g
 

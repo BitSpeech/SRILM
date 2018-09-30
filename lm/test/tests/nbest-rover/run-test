@@ -1,0 +1,11 @@
+#!/bin/sh
+
+mkdir -p tmpdir
+
+TMPDIR=tmpdir
+export TMPDIR
+
+nbest-rover - rover.control
+
+rm -rf tmpdir
+

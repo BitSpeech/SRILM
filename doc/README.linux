@@ -1,4 +1,15 @@
 
+The default Linux Makefile (common/Makefile.machine.i686) uses /usr/bin/gawk
+as the gawk interpreter.  To ensure correct working in UTF-8 locales run
+/usr/bin/gawk --version and make sure it is at least version 3.1.5.
+If not, it is recommended to install the latest version of gawk in
+/usr/local/bin and update the GAWK variable accordingly.
+
+As noted in INSTALL, the C-shell is required, which is not installed by default
+with some Linux distributions (such as Ubuntu).  Make sure /bin/csh exists
+on your system.
+
+-----------------------------------------------------------------------------
 From:    Alex Franz <alex@google.com>
 Date:    Fri, 06 Oct 2000 16:14:03 PDT
 

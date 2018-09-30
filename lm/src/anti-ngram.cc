@@ -4,12 +4,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: anti-ngram.cc,v 1.16 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: anti-ngram.cc,v 1.19 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
@@ -24,10 +28,11 @@ using namespace std;
 #include "NgramStats.h"
 #include "Ngram.h"
 #include "ClassNgram.h"
+#include "MultiwordVocab.h"	// for MultiwordSeparator
 #include "Array.cc"
 
 static int version = 0;
-static int order = 3;
+static unsigned order = 3;
 static char *vocabFile = 0;
 static char *lmFile = 0;
 static char *classesFile = 0;
@@ -37,6 +42,7 @@ static double posteriorScale = 0.0;
 
 static int toLower = 0;
 static int multiwords = 0;
+static const char *multiChar = MultiwordSeparator;
 
 static char *refFile = 0;
 static char *nbestFiles = 0;
@@ -60,6 +66,7 @@ static Option options[] = {
     { OPT_STRING, "classes", &classesFile, "class definitions" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords in N-best hyps" },
+    { OPT_STRING, "multi-char", &multiChar, "multiword component delimiter" },
     { OPT_FLOAT, "rescore-lmw", &rescoreLMW, "rescoring LM weight" },
     { OPT_FLOAT, "rescore-wtw", &rescoreWTW, "rescoring word transition weight" },
     { OPT_FLOAT, "posterior-scale", &posteriorScale, "divisor for log posterior estimates" },
@@ -89,7 +96,7 @@ addStats(NgramCounts<DiscNgramCount> &stats,
 	/*
 	 * This enumerates all ngrams
 	 */
-	while (count = countIter.next()) {
+	while ((count = countIter.next())) {
 	    if (!exclude.findCount(ngram)) {
 		*stats.insertCount(ngram) += *count;
 	    }
@@ -209,7 +216,7 @@ main(int argc, char **argv)
 
     RefList refs(vocab);
 
-    NBestSet trainSet(vocab, refs, maxNbest, true, multiwords);
+    NBestSet trainSet(vocab, refs, maxNbest, true, multiwords ? multiChar : 0);
     trainSet.debugme(debug);
     trainSet.warn = false;
 
@@ -278,7 +285,7 @@ main(int argc, char **argv)
 
     RefString id;
     NBestList *nbest;
-    while (nbest = iter.next(id)) {
+    while ((nbest = iter.next(id))) {
 	VocabIndex *ref = refs.findRef(id);
 
 	if (!ref && !allNgrams) {

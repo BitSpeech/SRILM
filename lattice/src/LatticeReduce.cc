@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeReduce.cc,v 1.4 2006/01/06 05:35:36 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lattice/src/RCS/LatticeReduce.cc,v 1.5 2010/06/02 05:54:08 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -339,7 +339,7 @@ Lattice::simplePackBigramLattice(unsigned iters, Boolean maxAdd)
 
 Boolean 
 Lattice::approxMatchInTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			     int overlap)
+			     unsigned overlap)
 {
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::approxMatchInTrans: "
@@ -602,7 +602,7 @@ Lattice::approxRedNodeF(NodeIndex nodeIndex, NodeQueue &nodeQueue,
 
 Boolean 
 Lattice::approxMatchOutTrans(NodeIndex nodeIndexI, NodeIndex nodeIndexJ,
-			     int overlap)
+			     unsigned overlap)
 {
     if (debug(DebugPrintOutLoop)) {
       dout() << "Lattice::approxMatchOutTrans: "

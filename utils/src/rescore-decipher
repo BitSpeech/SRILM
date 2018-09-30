@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.32 2004/08/01 01:56:31 stolcke Exp $
+# $Header: /home/srilm/devel/utils/src/RCS/rescore-decipher,v 1.37 2010/08/20 00:17:18 stolcke Exp $
 #
 
 bytelog=0
@@ -16,11 +16,13 @@ lm_only=0
 pretty_file=
 filter_command=
 limit_vocab=0
+vocab_aliases=
 fast_rescore=
 ngram_tool=ngram
 ngram_options=
 count_oovs=0
 rescore_option=-rescore
+multichar=_
 
 while [ $# -gt 0 ]
 do
@@ -34,6 +36,10 @@ do
     -multiwords)
 	    multiwords=1
 	    mw_option=-multiwords
+	    smw_option=-split-multiwords
+	    ;;
+    -multi-char)
+    	    multichar="$2"; shift
 	    ;;
     -norescore)
 	    norescore=1
@@ -57,6 +63,9 @@ do
     -limit-vocab)
 	    limit_vocab=1
 	    ;;
+    -vocab-aliases)
+	    vocab_aliases="$2"; shift
+	    ;;
     -fast)
     	    fast_rescore=1
 	    ;;
@@ -71,17 +80,20 @@ done
 
 if [ $# -lt 3  ]; then
     {
-	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-norescore] [-lm-only] [-count-oovs] [-pretty map] [-ngram-tool pgm] [-filter command] [-fast] nbest-file-list score-dir lm-options ..." >&2
+	echo "usage: $0 [-bytelog] [-nodecipherlm] [-multiwords] [-multi-char C] [-norescore] [-lm-only] [-count-oovs] [-pretty map] [-ngram-tool pgm] [-filter command] [-limit-vocab] [-vocab-aliases map] [-fast] nbest-file-list score-dir lm-options ..." >&2
 	echo "where"
 	echo "	-bytelog	produces bytelog scaled scores"
 	echo "	-nodecipherlm	avoids Decipher LM score computation"
 	echo "	-multiwords	expand multiwords into constituent words"
+	echo "	-multi-char C	redefine multiword separator character"
 	echo "	-norescore	don't rescore LM, just extract scores"
 	echo "	-lm-only	output no N-best lists, only LM scores"
 	echo "	-count-oovs	output number of OOV and zeroprob words"
 	echo "	-pretty map	word mapping file"
 	echo "	-ngram-tool pgm use pgm for LM evaluation"
 	echo "	-filter command	text filter to apply to N-best hyps"
+	echo "	-limit-vocab	limit LM loading to used vocabulary"
+	echo "	-vocab-aliases map	map vocabulary in LM evaluation"
 	echo "	-fast		fast rescoring mode, no text filtering allowed"
     } >&2
     exit 1
@@ -123,11 +135,37 @@ if [ $norescore -eq 0 -a $limit_vocab -gt 0 ]; then
     trap "rm -f $nbestvocab; exit" 0 1 2 15
 
     # generate nbest vocabulary
-    nbest-lattice -no-rescore -no-reorder $mw_option -nbest-files "$filelist" \
-		-write-vocab $nbestvocab
+    if [ -z "$filter_command" ]; then 
+	nbest-lattice -no-rescore -no-reorder \
+		$mw_option -multi-char "$multichar" \
+		-nbest-files "$filelist" -write-vocab $nbestvocab
+    else
+	cat "$filelist" | xargs gzip -dcf | \
+	eval "$filter_command" | \
+	ngram -rescore - -null -no-reorder \
+			$smw_options -multi-char "$multichar" \
+			-write-vocab $nbestvocab >/dev/null
+    fi
 
     # tell ngram to use this vocab
     ngram_options="-limit-vocab -vocab $nbestvocab"
+
+fi
+
+if [ $norescore -eq 0 -a -n "$vocab_aliases" ]; then
+    if [ $limit_vocab -gt 0 ]; then
+	nbestvocabalias=/tmp/$$nbest.vocabalias
+	trap "rm -f $nbestvocab $nbestvocabalias; exit" 0 1 2 15
+
+	sort -k 2,2 $vocab_aliases | \
+	join -1 2 -o 1.1,1.2 - $nbestvocab > $nbestvocabalias
+
+	# tell ngram to use these vocab-aliases
+	ngram_options="$ngram_options -vocab-aliases $nbestvocabalias"
+    else
+	# tell ngram to use this vocab-alias
+	ngram_options="-vocab-aliases $vocab_aliases"
+    fi
 fi
 
 if [ -n "$fast_rescore" ]; then
@@ -157,7 +195,7 @@ if [ -n "$fast_rescore" ]; then
 			mw_option=-split-multiwords
 		fi
 		$ngram_tool \
-			-no-reorder $mw_option \
+			-no-reorder $mw_option -multi-char "$multichar" \
 			-nbest-files "$filelist" \
 			-write-nbest-dir "$scoredir" \
 			-rescore-lmw 1 -rescore-wtw 1 \
@@ -184,7 +222,7 @@ while read filename rest; do
 	"<LMstate>")	echo $filename $rest
 			continue ;;
 	esac
-	gunzip -cf $filename | \
+	gzip -dcf $filename | \
 gawk '
 BEGIN {
 	filename = "";
@@ -230,7 +268,7 @@ function pretty_up(start) {
 	    if ($i in pretty_map) {
 		$i = pretty_map[$i];
 	    }
-	    if (multiwords) gsub("_", " ", $i);
+	    if (multiwords) gsub(multichar, " ", $i);
 	}
 }
 
@@ -344,7 +382,8 @@ END {
 	}
 }
 ' filename=$filename escape="$escape" count_oovs=$count_oovs \
-  nodecipherlm=$nodecipherlm multiwords=$multiwords pretty_file="$pretty_file" \
+  nodecipherlm=$nodecipherlm multiwords=$multiwords \
+  multichar="$multichar" pretty_file="$pretty_file" \
   norescore=$norescore decipher_lmw=$decipher_lmw decipher_wtw=$decipher_wtw 
 done
 ) | \

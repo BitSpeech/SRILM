@@ -5,12 +5,16 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/CacheLM.cc,v 1.7 2006/01/05 20:21:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/CacheLM.cc,v 1.9 2010/06/02 05:49:58 stolcke Exp $";
 #endif
 
-#include <iostream>
+#ifdef PRE_ISO_CXX
+# include <iostream.h>
+#else
+# include <iostream>
 using namespace std;
+#endif
 #include <stdlib.h>
 #include <math.h>
 
@@ -60,7 +64,7 @@ CacheLM::flushCache()
     VocabIndex word;
     double *wordCount;
 
-    while (wordCount = wordIter.next(word)) {
+    while ((wordCount = wordIter.next(word))) {
 	*wordCount = 0.0;
     }
 }

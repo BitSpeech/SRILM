@@ -6,9 +6,9 @@
  * labels, e.g., "boat/N" .
  * This class provides support for encoding/decoding tagged vocab items.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.5 2005/09/23 19:27:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/TaggedVocab.h,v 1.7 2010/06/02 05:49:58 stolcke Exp $
  *
  */
 
@@ -26,15 +26,13 @@
  * index for the word and the shifted tag index.
  */
 
-#ifdef USE_SHORT_VOCAB
-const unsigned TagShift = 10;		/* leaves 6 bits for tag */
-#else
-const unsigned TagShift = 18;		/* leaves 14 bits for tag */
-#endif
-const unsigned maxTaggedIndex = (1<<TagShift)-2;
-const unsigned maxTagIndex = (1<<(sizeof(VocabIndex)*8 - TagShift))-1;
+const unsigned TagShift = 5 * sizeof(VocabIndex);
+				/* 5/8 of the bits are used to encode words;
+				 * 3/8 are used to encode tags */
+const unsigned maxTaggedIndex = (1U<<TagShift)-2;
+const unsigned maxTagIndex = (1U<<(sizeof(VocabIndex)*8 - TagShift))-1;
 
-const unsigned Tagged_None = (1<<TagShift)-1;
+const unsigned Tagged_None = (1U<<TagShift)-1;
 const unsigned Tag_None = 0;		/* the tag of an untagged word */
 
 class TaggedVocab: public Vocab
@@ -62,10 +60,10 @@ public:
 	return index >> TagShift;
     };
     static inline VocabIndex unTag(VocabIndex index) {
-	return index & ((1<<TagShift) - 1);
+	return index & ((1U<<TagShift) - 1);
     };
     static VocabIndex tagWord(VocabIndex word, VocabIndex tag) {
-	return (tag << TagShift) | (word & ((1<<TagShift) - 1));
+	return (tag << TagShift) | (word & ((1U<<TagShift) - 1));
     };
     static Boolean isTag(VocabIndex index) {
 	return unTag(index) == Tagged_None;

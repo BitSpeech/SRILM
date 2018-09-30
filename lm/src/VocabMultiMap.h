@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2000 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.h,v 1.2 2001/05/21 17:13:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/VocabMultiMap.h,v 1.4 2011/01/12 20:10:59 stolcke Exp $
  *
  */
 
@@ -23,12 +23,13 @@ class VocabMultiMap
 
 public:
     VocabMultiMap(Vocab &v1, Vocab &v2, Boolean logmap = false);
+    virtual ~VocabMultiMap() {};
     
     Prob get(VocabIndex w1, const VocabIndex *w2);
     void put(VocabIndex w1, const VocabIndex *w2, Prob prob);
     void remove(VocabIndex w1, const VocabIndex *w2);
 
-    virtual Boolean read(File &file);
+    virtual Boolean read(File &file, Boolean limitVocab = false);
     virtual Boolean write(File &file);
     
     Vocab &vocab1;

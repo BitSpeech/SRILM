@@ -5,19 +5,16 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995,2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testMix.cc,v 1.6 2006/01/09 18:08:21 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/devel/lm/src/RCS/testMix.cc,v 1.7 2008/01/21 22:53:51 stolcke Exp $";
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #ifndef _MSC_VER
 #include <unistd.h>
 #endif
 
 #include "Prob.h"
-
-extern "C" {
-    extern void exit(int);
-}
 
 int
 main (int argc, char *argv[])

@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995-2004 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.41 2005/07/17 22:50:07 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/Ngram.h,v 1.49 2010/09/28 20:17:24 stolcke Exp $
  *
  */
 
@@ -63,8 +63,9 @@ public:
     virtual LogP contextBOW(const VocabIndex *context, unsigned length);
 
     virtual Boolean read(File &file, Boolean limitVocab = false);
-    virtual void write(File &file) { writeWithOrder(file, order); };
-    virtual void writeWithOrder(File &file, unsigned int order);
+    virtual Boolean write(File &file);
+    virtual Boolean writeWithOrder(File &file, unsigned int order);
+    Boolean writeBinaryV1(File &file);
 
     virtual Boolean &skipOOVs() { return _skipOOVs; };	
 				/* backward compatiability: return
@@ -76,15 +77,16 @@ public:
      * Estimation
      */
     virtual Boolean estimate(NgramStats &stats,
-			unsigned *mincount = 0,
-			unsigned *maxcounts = 0);
+			Count *mincount = 0,
+			Count *maxcounts = 0);
     virtual Boolean estimate(NgramStats &stats, Discount **discounts);
     virtual Boolean estimate(NgramCounts<FloatCount> &stats,
 							Discount **discounts);
     virtual void mixProbs(Ngram &lm2, double lambda);
     virtual void mixProbs(Ngram &lm1, Ngram &lm2, double lambda);
     virtual void recomputeBOWs();
-    virtual void pruneProbs(double threshold, unsigned minorder = 2);
+    virtual void pruneProbs(double threshold, unsigned minorder = 2,
+							LM *historyLM = 0);
     virtual void pruneLowProbs(unsigned minorder = 2);
     virtual void rescoreProbs(LM &lm);
 
@@ -126,6 +128,25 @@ protected:
     virtual Boolean computeBOW(BOnode *node, const VocabIndex *context, 
 			    unsigned clen, Prob &numerator, Prob &denominator);
     virtual Boolean computeBOWs(unsigned order);
+
+    /*
+     * Binary format support 
+     */
+    Boolean writeBinaryNgram(File &file);
+    Boolean writeBinaryNode(BOtrie &node, unsigned level, File &file,
+							long long &offset);
+    Boolean writeBinaryV1Node(BOtrie &trie, File &idx, File &dat,
+    			      long long &offset, unsigned myOrder);
+    Boolean readBinary(File &file, Boolean limitVocab);
+    Boolean readBinaryNode(BOtrie &node, unsigned order, unsigned maxOrder,
+					File &file, long long &offset,
+					Boolean limitVocab,
+					Array<VocabIndex> &vocabMap);
+    Boolean readBinaryV1(File &file, Boolean limitVocab);
+    Boolean readBinaryV1Node(BOtrie &trie, File &idx, File &dat,
+			     Boolean limitVocab, Array<VocabIndex> & vocabMap,
+			     unsigned myOrder);
+    Boolean skipToNextTrie(File &idx, unsigned myOrder);
 };
 
 /*

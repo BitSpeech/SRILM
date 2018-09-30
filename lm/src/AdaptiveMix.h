@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2003 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.h,v 1.6 2003/02/15 06:56:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/devel/lm/src/RCS/AdaptiveMix.h,v 1.7 2007/01/24 19:47:10 stolcke Exp $
  *
  */
 
@@ -33,7 +33,7 @@ public:
     virtual void setState(const char *state);
 
     virtual Boolean read(File &file, Boolean limitVocab = false);
-    virtual void write(File &file);
+    virtual Boolean write(File &file);
 
     /*
      * Propagate changes to running state to component models
