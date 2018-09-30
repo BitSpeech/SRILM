@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.h,v 1.21 2010/06/02 04:57:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.h,v 1.22 2012/04/05 00:17:14 stolcke Exp $
  *
  */
 
@@ -89,7 +89,7 @@ public:
  * gcc and icc allow this as part of the language, but many other C++ compilers
  * don't (Sun Studio, MS Visual C).
  */
-#if !defined(DEBUG) && defined(__GNUC__) && (!defined(__INTEL_COMPILER) || __INTEL_COMPILER >=900)
+#if !defined(DEBUG) && defined(__GNUC__) && !defined(__clang__) && (!defined(__INTEL_COMPILER) || __INTEL_COMPILER >=900)
 # define makeArray(T, A, n)		T A[n]
 #else
 # define makeArray(T, A, n)		StaticArray<T> A(n)

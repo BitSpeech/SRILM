@@ -15,12 +15,8 @@ static	char sccsid[] = "@(#)qsort.c 1.1 91/11/13 SMI"; /* from UCB 4.2 83/03/0
 #define		THRESH		4		/* threshold for insertion */
 #define		MTHRESH		6		/* threshold for median */
 
-static  int		(*qcmp)();		/* the comparison routine */
-static  int		qsz;			/* size of each record */
-static  int		thresh;			/* THRESHold in chars */
-static  int		mthresh;		/* MTHRESHold in chars */
-
-static  void		qst();
+static void qst(char *base, char *max, int (*qcmp)(void*, void*),
+					int qsz, int thresh, int mthresh);
 
 /*
  * qsort:
@@ -29,21 +25,19 @@ static  void		qst();
  * It's not...
  */
 void
-qsort(char *base, int n, int size, int (*compar)())
+qsort(void *base, int n, int size, int (*compar)(void *, void *))
 {
 	register char c, *i, *j, *lo, *hi;
 	char *min, *max;
+	int thresh = size * THRESH;		/* THRESHold in chars */
+	int mthresh = size * MTHRESH;		/* MTHRESHold in chars */
 
 	if (n <= 1)
 		return;
-	qsz = size;
-	qcmp = compar;
-	thresh = qsz * THRESH;
-	mthresh = qsz * MTHRESH;
-	max = base + n * qsz;
+	max = (char *)base + n * size;
 	if (n >= THRESH) {
-		qst(base, max);
-		hi = base + thresh;
+		qst(base, max, compar, size, thresh, mthresh);
+		hi = (char *)base + thresh;
 	} else {
 		hi = max;
 	}
@@ -53,12 +47,12 @@ qsort(char *base, int n, int size, int (*compar)())
 	 * the first THRESH elements (or the first n if n < THRESH), finding
 	 * the min, and swapping it into the first position.
 	 */
-	for (j = lo = base; (lo += qsz) < hi; )
-		if (qcmp(j, lo) > 0)
+	for (j = lo = base; (lo += size) < hi; )
+		if (compar(j, lo) > 0)
 			j = lo;
 	if (j != base) {
 		/* swap j into place */
-		for (i = base, hi = base + qsz; i < hi; ) {
+		for (i = (char *)base, hi = (char *)base + size; i < hi; ) {
 			c = *j;
 			*j++ = *i;
 			*i++ = c;
@@ -71,13 +65,13 @@ qsort(char *base, int n, int size, int (*compar)())
 	 * Then, do the standard insertion sort shift on a character at a time
 	 * basis for each element in the frob.
 	 */
-	for (min = base; (hi = min += qsz) < max; ) {
-		while (qcmp(hi -= qsz, min) > 0)
+	for (min = base; (hi = min += size) < max; ) {
+		while (compar(hi -= size, min) > 0)
 			/* void */;
-		if ((hi += qsz) != min) {
-			for (lo = min + qsz; --lo >= min; ) {
+		if ((hi += size) != min) {
+			for (lo = min + size; --lo >= min; ) {
 				c = *lo;
-				for (i = j = lo; (j -= qsz) >= hi; i = j)
+				for (i = j = lo; (j -= size) >= hi; i = j)
 					*i = *j;
 				*i = c;
 			}
@@ -102,7 +96,7 @@ n
  */
 
 static void
-qst(char *base, char *max)
+qst(char *base, char *max, int (*qcmp)(void*, void*), int qsz, int thresh, int mthresh)
 {
 	register char c, *i, *j, *jj;
 	register int ii;
@@ -188,12 +182,12 @@ qst(char *base, char *max)
 		i = (j = mid) + qsz;
 		if ((lo = j - base) <= (hi = max - i)) {
 			if (lo >= thresh)
-				qst(base, j);
+				qst(base, j, qcmp, qsz, thresh, mthresh);
 			base = i;
 			lo = hi;
 		} else {
 			if (hi >= thresh)
-				qst(i, max);
+				qst(i, max, qcmp, qsz, thresh, mthresh);
 			max = j;
 		}
 	} while (lo >= thresh);

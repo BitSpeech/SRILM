@@ -79,7 +79,7 @@ printmap(MAP_T &myarray)
 }
 
 int sortem(KEY_T k1, KEY_T k2) {
-	return k1 - k2;
+	return k2 - k1;
 }
 
 int
@@ -145,7 +145,7 @@ main(int argc, char **argv)
     srandom(0);
     for (i = 1; i <= delsize; i++) {
 	key = random();
-	myarray.remove(key, found);
+	found = myarray.remove(key);
 	assert(found);
     }
 
@@ -198,6 +198,9 @@ main(int argc, char **argv)
 	MAP_T *another_map;
 	another_map = new ((void *)mapspace) MAP_T(11);
 
+	MemStats stats;
+	another_map->memStats(stats);
+
         cerr << "*** testing copy constructor ***\n";
 	MAP_T yet_another_map(myarray);
         yet_another_map.remove(1);
@@ -210,11 +213,34 @@ main(int argc, char **argv)
     }
 
     /*
+     * Nested iteration
+     */
+    cerr << "*** testing iteration ***\n";
+
+    //ITER_T myiter(myarray);
+    ITER_T myiter(myarray, sortem);
+
+    DATA_T *value;
+    i = 0;
+    while ((value = myiter.next(key))) {
+
+        cerr << " " << key << "," << *value;
+
+	ITER_T myiter2(myiter);
+	KEY_T key2;
+
+        while ((value = myiter2.next(key2))) {
+	     cerr << " " << key2 << "," << *value;
+	}
+	cerr << endl;
+    }
+
+    /*
      * Delete all using iterator
      */
-    ITER_T myiter(myarray);
-    //ITER_T myiter(myarray, sortem);
+    cerr << "*** testing deletion ***\n";
     
+    myiter.init();
     i = 0;
     while (myiter.next(key)) {
 	myarray.remove(key);

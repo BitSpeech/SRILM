@@ -2,9 +2,9 @@
  * XCount.h --
  *	Sparse integer counts stored in 2 bytes.
  *
- * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.h,v 1.12 2006/11/17 11:33:55 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.h,v 1.14 2012/10/29 17:25:06 mcintyre Exp $
  *
  */
 
@@ -59,6 +59,8 @@ public:
     operator XCountValue() const;
 
     void write(ostream &str) const;
+
+    static void freeThread();
 	
 private:
     XCountIndex count:XCount_Maxbits;
@@ -66,10 +68,6 @@ private:
 
     static void freeXCountTableIndex(XCountIndex);
     static XCountIndex getXCountTableIndex();
-
-    static XCountValue xcountTable[XCount_TableSize];
-    static unsigned refCounts[XCount_TableSize];
-    static XCountIndex freeList;
 };
 
 ostream &operator<<(ostream &str, const XCount &count);

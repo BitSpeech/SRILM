@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2008 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.amd64-solaris,v 1.4 2011/07/19 16:38:17 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.amd64-solaris,v 1.7 2012/10/18 20:55:17 mcintyre Exp $
 #
 
 ifeq ($(USE_CC), )
@@ -60,11 +60,12 @@ endif
    ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+   SYS_LIBRARIES = -lsocket -lnsl -ldl -lpthread
 
-   # Tcl support for 64bit linking
-   TCL_INCLUDE = -I/usr/local/include
-   TCL_LIBRARY = -L/usr/local/lib64 -ltcl8.4 -R/usr/local/lib64
+   # no 64bit Tcl libraries
+   NO_TCL = X
+   TCL_INCLUDE =
+   TCL_LIBRARY = 
 
    # run-time linker path flag
    RLD_FLAG = -R

@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgram.h,v 1.10 2009/09/24 23:17:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgram.h,v 1.12 2012/10/29 17:24:59 mcintyre Exp $
  *
  */
 
@@ -110,7 +110,7 @@ public:
 
     BOnode* insertTrieNodeSubCtx(const VocabIndex *context,
 				 unsigned int bits,
-				 Boolean &foundP = _Map::foundP);
+				 Boolean &foundP);
     LogP *insertBOWSubCtx(const VocabIndex *context,
 			  const unsigned bits = ~0x0);
     LogP *insertProbSubCtx(VocabIndex word, const VocabIndex *context,
@@ -128,6 +128,8 @@ public:
     ParentSubset* parentSubsets;
     unsigned int parentSubsetsSize;
   };
+
+  static void freeThread();
 
 private:
 

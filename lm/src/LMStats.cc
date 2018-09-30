@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char LMStats_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.cc,v 1.15 2010/06/02 05:49:58 stolcke Exp $";
+static char LMStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.cc,v 1.17 2012/10/29 17:25:04 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -22,6 +22,7 @@ using namespace std;
 
 #include "LHash.cc"
 #include "Trie.cc"
+#include "TLSWrapper.h"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_LHASH(VocabIndex, unsigned int);
@@ -44,13 +45,14 @@ LMStats::~LMStats()
 {
 }
 
+static TLSW_ARRAY(VocabString, countStringWords, maxWordsPerLine + 1);
 // parse strings into words and update stats
 // (weighted == true indicates each line begins with a count weight)
 unsigned int
 LMStats::countString(char *sentence, Boolean weighted)
 {
-    static VocabString words[maxWordsPerLine + 1];
     unsigned int howmany;
+    VocabString *words = TLSW_GET_ARRAY(countStringWords);
     
     howmany = vocab.parseWords(sentence, words, maxWordsPerLine + 1);
 
@@ -63,6 +65,12 @@ LMStats::countString(char *sentence, Boolean weighted)
 	    return countSentence(words);
 	}
     }
+}
+
+void
+LMStats::freeThread() 
+{
+    TLSW_FREE(countStringWords);
 }
 
 // parse file into sentences and update stats

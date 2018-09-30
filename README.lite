@@ -1,0 +1,5 @@
+
+This is the stripped-down "SRILM-lite" version of SRILM,
+containing only the ngram-count and disambig tools.
+Library classes not required for these tools have also been omitted.
+

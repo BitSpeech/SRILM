@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramLM.cc,v 1.19 2010/06/02 06:33:08 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramLM.cc,v 1.24 2012/10/29 17:24:59 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -30,6 +30,7 @@ using namespace std;
 #include "Array.cc"
 #include "Trie.cc"
 #include "hexdec.h"
+#include "TLSWrapper.h"
 
 #ifdef INSTANTIATE_TEMPLATES
 INSTANTIATE_TRIE(VocabIndex,FNgram::BOnode);
@@ -2021,9 +2022,9 @@ FNgram::computeBOWs(unsigned int specNum, unsigned int node)
     while ((bo_node = iter1.next())) {
 
       if (debug(DEBUG_BOWS) && fngs.fnSpecArray[specNum].parentSubsets[node].numBGChildren > 1)
-	fprintf(stderr,"in computeBOWs, bo_node = 0x%lX, specNum=%d, node = 0x%X, context = 0x%lX, *context = %d, iter = %d, cword = %s, nc = %d\n",
-		(unsigned long)bo_node, specNum, node,
-		(unsigned long)context, *context, iter, vocab.getWord(*context),
+	fprintf(stderr,"in computeBOWs, bo_node = 0x%llX, specNum=%d, node = 0x%X, context = 0x%llX, *context = %d, iter = %d, cword = %s, nc = %d\n",
+		(unsigned long long)(size_t)bo_node, specNum, node,
+		(unsigned long long)(size_t)context, *context, iter, vocab.getWord(*context),
 		fngs.fnSpecArray[specNum].parentSubsets[node].numBGChildren);
 
       double numerator, denominator;
@@ -2522,6 +2523,7 @@ FNgram::sentenceProb(unsigned int specNum,
   return totalProb;
 }
 
+static TLSWC(WidMatrix, widMatrixTLS);
 
 LogP
 FNgram::sentenceProb(WordMatrix& wordMatrix,
@@ -2529,7 +2531,7 @@ FNgram::sentenceProb(WordMatrix& wordMatrix,
 		     const Boolean addWords,
 		     LogP* parr)
 {
-  static WidMatrix widMatrix;
+  WidMatrix &widMatrix = TLSW_GET(widMatrixTLS);
 
   ::memset(widMatrix[0],0,(maxNumParentsPerChild+1)*sizeof(VocabIndex));
   for (unsigned i = 0; i < howmany; i++) {
@@ -2604,6 +2606,7 @@ FNgram::sentenceProb(WordMatrix& wordMatrix,
  *	pplFile(), but also need to pass other information to downstream
  *	processing.
  */
+static TLSWC(WordMatrix, pplFileWordMatrixTLS);
 unsigned int
 FNgram::pplFile(File &file, TextStats &stats, const char *escapeString)
 {
@@ -2613,10 +2616,8 @@ FNgram::pplFile(File &file, TextStats &stats, const char *escapeString)
     VocabString sentence[maxWordsPerLine + 1];
     unsigned totalWords = 0;
     unsigned sentNo = 0;
-    static WordMatrix wordMatrix;
-    static WidMatrix widMatrix;
     unsigned int howmany;
-
+    WordMatrix &wordMatrix = TLSW_GET(pplFileWordMatrixTLS);
 
     for (unsigned specNum=0;specNum<fngs.fnSpecArray.size();specNum++) {
       fngs.fnSpecArray[specNum].stats.reset();
@@ -2688,6 +2689,11 @@ FNgram::pplPrint(ostream &stream, char *fileName)
 // this routine ONLY supports n-best files of type 3 (i.e., it does
 // not support the old decipher file formats)
 // TODO: support more than 1 file format for n-best rescoring .
+static const unsigned maxFieldsPerLine = maxWordsPerLine + 4;
+static TLSWC(WordMatrix, rescoreFileWordMatrixTLS);
+static TLSW_ARRAY(VocabString, rescoreFileWstrings, maxFieldsPerLine);
+static TLSW_ARRAY(VocabString, rescoreFileWstringsCopy, maxFieldsPerLine);
+
 unsigned int
 FNgram::rescoreFile(File &file, double lmScale, double wtScale,
 		    LM &oldLM, double oldLmScale, double oldWtScale,
@@ -2699,8 +2705,10 @@ FNgram::rescoreFile(File &file, double lmScale, double wtScale,
   unsigned sentNo = 0;
   LogP* parr = new LogP[fngs.fnSpecArray.size()];
   assert (parr);
-  static WordMatrix wordMatrix;
-  static WidMatrix widMatrix;
+
+  WordMatrix   wordMatrix   = TLSW_GET(rescoreFileWordMatrixTLS);
+  VocabString *wstrings     = TLSW_GET_ARRAY(rescoreFileWstrings);
+  VocabString *wstringsCopy = TLSW_GET_ARRAY(rescoreFileWstringsCopy);
 
   for (unsigned i=0;i<fngs.fnSpecArray.size();i++) {    
     fngs.fnSpecArray[i].stats.reset();
@@ -2731,9 +2739,7 @@ FNgram::rescoreFile(File &file, double lmScale, double wtScale,
 
     sentNo ++;
 	
-    const unsigned maxFieldsPerLine = maxWordsPerLine + 4;
 
-    static VocabString wstrings[maxFieldsPerLine];
 
     // make copy to print out better error messages
     makeArray(char, lineCopy, strlen(line)+1);
@@ -2776,7 +2782,7 @@ FNgram::rescoreFile(File &file, double lmScale, double wtScale,
       }
 
     actualNumWords = 
-      fngs.loadWordFactors(&wstrings[3],wordMatrix,maxWordsPerLine+1);
+      fngs.loadWordFactors(wstrings+3,wordMatrix,maxWordsPerLine+1);
 
     languageScore = lmScale*sentenceProb(wordMatrix,
 					 actualNumWords,
@@ -2785,7 +2791,6 @@ FNgram::rescoreFile(File &file, double lmScale, double wtScale,
 
 
     // extra fields for error messages.
-    static VocabString wstringsCopy[maxFieldsPerLine];
     Vocab::parseWords(lineCopy, wstringsCopy, maxFieldsPerLine);    
     Boolean errPrintHyp = false;
     for (unsigned i=0;i<fngs.fnSpecArray.size();i++) {    
@@ -2930,3 +2935,12 @@ FNgram::wordProbSum()
   return rc;
 }
 
+void
+FNgram::freeThread()
+{
+    TLSW_FREE(widMatrixTLS);
+    TLSW_FREE(pplFileWordMatrixTLS);
+    TLSW_FREE(rescoreFileWordMatrixTLS);
+    TLSW_FREE(rescoreFileWstrings);
+    TLSW_FREE(rescoreFileWstringsCopy);
+}

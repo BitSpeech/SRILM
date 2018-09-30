@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.4 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2010 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.5 2012/07/04 23:47:07 stolcke Exp $";
 #endif
 
 #include "VocabDistance.h"
@@ -195,5 +195,36 @@ DictionaryAbsDistance::distance(VocabIndex w1, VocabIndex w2)
 	*dist = minDistance;
 	return minDistance;
     }
+}
+
+/*
+ * Word distances defined by a matrix
+ */
+
+const VocabString deleteWord = "*DELETE*"; 
+
+MatrixDistance::MatrixDistance(Vocab &vocab, VocabMap &map)
+    : map(map)
+{
+    deleteIndex = vocab.addWord(deleteWord);
+}
+
+double
+MatrixDistance::penalty(VocabIndex w1)
+{
+     return distance(w1, deleteIndex);
+}
+
+double
+MatrixDistance::distance(VocabIndex w1, VocabIndex w2)
+{
+     Prob d = map.get(w1, w2);
+     if (d == 0.0) {
+	Prob d2 = map.get(w2, w1);
+	if (d2 > 0.0) {
+	    return d2;
+	}
+     }
+     return d;
 }
 

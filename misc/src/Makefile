@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.28 2011/04/01 17:47:18 victor Exp $
+#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.34 2012/10/18 23:05:39 mcintyre Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -36,9 +36,13 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Debug.h		\
 	$(SRCDIR)/File.h		\
 	$(SRCDIR)/MStringTokUtil.h	\
+	$(SRCDIR)/tls.h                 \
+	$(SRCDIR)/TLSWrapper.h          \
+	$(SRCDIR)/tserror.h             \
 	$(SRCDIR)/version.h
 
-INTERNAL_LIB_HEADERS = 
+INTERNAL_LIB_HEADERS =  \
+	$(SRCDIR)/srilm_iconv.h	
 
 # Example Library source files.
 LIB_SOURCES = 				\
@@ -49,10 +53,17 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/Debug.cc		\
 	$(SRCDIR)/File.cc		\
 	$(SRCDIR)/MStringTokUtil.cc	\
+	$(SRCDIR)/tls.cc        	\
+	$(SRCDIR)/tserror.cc        	\
 	$(SRCDIR)/version.c
 
 ifeq ($(NO_TCL), )
 LIB_SOURCES +=	$(SRCDIR)/tclmain.cc
+endif
+
+ifneq ($(NO_ICONV), )
+  CFLAGS += -DNO_ICONV
+  CXXFLAGS += -DNO_ICONV
 endif
 
 # Example Library object files.

@@ -15,9 +15,9 @@
 #       to describe your new module.  Do not forget to use the proper
 #       RCS keywords!
 #
-#    Copyright (c) 1993-2011, SRI International.  All Rights Reserved.
+#    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/lm/src/Makefile,v 1.89 2011/01/14 01:01:56 stolcke Exp $
+#    $Header: /home/srilm/lite/lm/src/RCS/Makefile,v 1.3 2012/12/25 13:51:34 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -31,10 +31,7 @@ include $(SRILM)/common/Makefile.common.variables
 COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
 
 # Flags for generating "short" data structures
-SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
-
-# Flags for generating "long long" data structures
-LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_SHORT_COUNTS
 
 # Define variables.
 
@@ -67,39 +64,23 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/NgramStats.h \
 	$(SRCDIR)/NgramCountLM.h \
 	$(SRCDIR)/Discount.h \
-	$(SRCDIR)/ClassNgram.h \
-	$(SRCDIR)/SimpleClassNgram.h \
-	$(SRCDIR)/DFNgram.h \
-	$(SRCDIR)/SkipNgram.h \
-	$(SRCDIR)/HiddenNgram.h \
-	$(SRCDIR)/HiddenSNgram.h \
 	$(SRCDIR)/VarNgram.h \
-	$(SRCDIR)/DecipherNgram.h \
 	$(SRCDIR)/TaggedVocab.h \
 	$(SRCDIR)/TaggedNgram.h \
 	$(SRCDIR)/TaggedNgramStats.h \
+	$(SRCDIR)/SkipNgram.h \
 	$(SRCDIR)/StopNgram.h \
 	$(SRCDIR)/StopNgramStats.h \
 	$(SRCDIR)/NullLM.h \
 	$(SRCDIR)/MultiwordLM.h \
-	$(SRCDIR)/NonzeroLM.h \
 	$(SRCDIR)/BayesMix.h \
-	$(SRCDIR)/LoglinearMix.h \
-	$(SRCDIR)/AdaptiveMix.h \
-	$(SRCDIR)/AdaptiveMarginals.h \
-	$(SRCDIR)/CacheLM.h \
-	$(SRCDIR)/DynamicLM.h \
-	$(SRCDIR)/HMMofNgrams.h \
-	$(SRCDIR)/Trellis.h \
-	$(SRCDIR)/WordAlign.h \
 	$(SRCDIR)/MultiAlign.h \
-	$(SRCDIR)/WordLattice.h \
-	$(SRCDIR)/WordMesh.h \
+	$(SRCDIR)/WordAlign.h \
+	$(SRCDIR)/Trellis.h \
+	$(SRCDIR)/LMThreads.h \
 	$(TEMPLATE_SOURCES)
 
 INTERNAL_LIB_HEADERS = 
-
-
 
 # Example Library source files.
 LIB_SOURCES = 				\
@@ -131,32 +112,19 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/NgramStatsXCount.cc \
 	$(SRCDIR)/NgramCountLM.cc \
 	$(SRCDIR)/Discount.cc \
-	$(SRCDIR)/ClassNgram.cc \
-	$(SRCDIR)/SimpleClassNgram.cc \
-	$(SRCDIR)/DFNgram.cc \
-	$(SRCDIR)/SkipNgram.cc \
-	$(SRCDIR)/HiddenNgram.cc \
-	$(SRCDIR)/HiddenSNgram.cc \
 	$(SRCDIR)/VarNgram.cc \
-	$(SRCDIR)/DecipherNgram.cc \
 	$(SRCDIR)/TaggedVocab.cc \
 	$(SRCDIR)/TaggedNgram.cc \
 	$(SRCDIR)/TaggedNgramStats.cc \
+	$(SRCDIR)/SkipNgram.cc \
 	$(SRCDIR)/StopNgram.cc \
 	$(SRCDIR)/StopNgramStats.cc \
 	$(SRCDIR)/MultiwordLM.cc \
-	$(SRCDIR)/NonzeroLM.cc \
 	$(SRCDIR)/BayesMix.cc \
-	$(SRCDIR)/LoglinearMix.cc \
-	$(SRCDIR)/AdaptiveMix.cc \
-	$(SRCDIR)/AdaptiveMarginals.cc \
-	$(SRCDIR)/CacheLM.cc \
-	$(SRCDIR)/DynamicLM.cc \
-	$(SRCDIR)/HMMofNgrams.cc \
 	$(SRCDIR)/WordAlign.cc \
-	$(SRCDIR)/WordLattice.cc \
 	$(SRCDIR)/WordMesh.cc \
 	$(SRCDIR)/simpleTrigram.cc \
+	$(SRCDIR)/LMThreads.cc \
 	$(TEMPLATE_SOURCES)
 
 # Example Library object files.
@@ -176,48 +144,17 @@ ADDITIONAL_LIBRARIES += \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)flm$(LIB_SUFFIX) \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)dstruct$(LIB_SUFFIX) \
 	$(SRILM_LIBDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX) \
+	$(OTHER_LIBRARIES) \
 	$(TCL_LIBRARY) \
 	$(MATH_LIBRARY)
 
 # Example programs.
 
-TEST_PROGRAM_NAMES = \
-	testBinaryCounts \
-	testHash \
-	testProb \
-	testXCount \
-	testParseFloat \
-	testVocabDistance \
-	testNgram \
-	testNgramAlloc \
-	testMultiReadLM \
-	hoeffding \
-	tolower \
-	testLattice \
-	testError \
-	testNBest \
-	testMix
-ifeq ($(NO_TCL), )
-TEST_PROGRAM_NAMES += \
-	testTaggedVocab \
-	testVocab 
-endif
+TEST_PROGRAM_NAMES = 
 
 REAL_PROGRAM_NAMES = \
-	ngram \
 	ngram-count \
-	ngram-merge \
-	ngram-class \
-	disambig \
-	anti-ngram \
-	nbest-lattice \
-	nbest-mix \
-	nbest-optimize \
-	nbest-pron-score \
-	segment \
-	segment-nbest \
-	hidden-ngram \
-	multi-ngram
+	disambig
 
 PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \

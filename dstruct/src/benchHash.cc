@@ -1,11 +1,12 @@
 //
 // Benchmarking for Hash and Trie datastructures
 //
-// $Header: /home/srilm/CVS/srilm/dstruct/src/benchHash.cc,v 1.6 2006/01/09 17:45:45 stolcke Exp $
+// $Header: /home/srilm/CVS/srilm/dstruct/src/benchHash.cc,v 1.7 2012-07-09 18:59:49 stolcke Exp $
 //
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #ifndef _MSC_VER
 #include <unistd.h>
 #endif
@@ -183,7 +184,7 @@ main(int argc, char **argv)
 	}
 	memuse.print();
     }
-    system("TERM=dumb top -d1 4");
+    if (system("TERM=dumb top -d1 4") < 0) perror("system");
 
     exit(0);
 }

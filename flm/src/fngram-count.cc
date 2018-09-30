@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2009 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: fngram-count.cc,v 1.56 2009/06/11 05:34:22 stolcke Exp $";
+static char RcsId[] = "@(#)$Id: fngram-count.cc,v 1.57 2012/05/17 06:46:49 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -127,8 +127,6 @@ main(int argc, char **argv)
     setlocale(LC_CTYPE, "");
     setlocale(LC_COLLATE, "");
 
-    Boolean written = false;
-
     // print 0x in front of hex numbers.
     SHOWBASE(cout);
     SHOWBASE(cerr);
@@ -236,7 +234,6 @@ main(int argc, char **argv)
     if (writeVocab) {
 	File file(writeVocab, "w");
 	vocab->write(file);
-	written = true;
     }
 
 #ifdef DEBUG

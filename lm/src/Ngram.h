@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.49 2010/09/28 20:17:24 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.50 2012/07/06 06:31:45 stolcke Exp $
  *
  */
 
@@ -73,6 +73,9 @@ public:
     virtual Boolean &trustTotals() { return _trustTotals; }
 				/* use lower-order counts for ngram totals */
 
+    virtual void useCodebook(PQCodebook &cb)
+	{ codebook = &cb; };	/* start using VQ codebook */
+
     /*
      * Estimation
      */
@@ -114,6 +117,8 @@ protected:
 
     Boolean _skipOOVs;
     Boolean _trustTotals;
+
+    PQCodebook *codebook;			/* optional VQ codebook */
 
     /*
      * Helper functions

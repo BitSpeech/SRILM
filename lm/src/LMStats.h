@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.h,v 1.10 2009/09/24 23:09:30 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.h,v 1.11 2012/10/29 17:25:04 mcintyre Exp $
  *
  */
 
@@ -36,6 +36,7 @@ public:
     virtual void write(File &file) = 0;
 
     virtual void memStats(MemStats &stats) = 0;
+    static void freeThread();
 					/* compute memory stats */
     Vocab &vocab;			/* vocabulary */
     Boolean openVocab;			/* whether to add words as needed */

@@ -1,4 +1,19 @@
 
+======================================
+   Installation Tidbits for Mac OSX   
+======================================
+
+
+I created a 3-step tutorial on how to install SRILM on Mac OSX (10.7.4). You 
+can find the tutorial here:
+
+   http://www.icsi.berkeley.edu/~wooters/SRILM
+
+Chuck Wooters
+July 9, 2012
+
+------------------------------------
+
 I've added two new MacOSX targets and Makefiles in SRILM/common:
 
      Makefile.machine.macosx-m32 (MACHINE_TYPE=macosx-m32)
@@ -17,3 +32,5 @@ create 64-bit binaries.
 
 Victor Abrash
 May 24, 2011
+
+------------------------------------

@@ -1,10 +1,10 @@
 #
-# Top-level Makefile for SRILM
+# Top-level Makefile for SRILM-lite
 #
-# $Header: /home/srilm/CVS/srilm/Makefile,v 1.64 2011/12/08 19:40:24 stolcke Exp $
+# $Header: /home/srilm/lite/RCS/Makefile,v 1.7 2012/12/25 14:21:44 stolcke Exp $
 #
 
-# SRILM = /home/speech/stolcke/project/srilm/devel
+SRILM = /home/srilm/lite
 MACHINE_TYPE := $(shell $(SRILM)/sbin/machine-type)
 
 RELEASE := $(shell cat RELEASE)
@@ -14,41 +14,21 @@ include $(SRILM)/common/Makefile.common.variables
 
 PACKAGE_DIR = ..
 
-INFO = \
-	CHANGES \
-	RELEASE \
-	README \
-	doc \
-	Copyright \
-	License
-
 MODULES = \
 	misc \
 	dstruct \
 	lm \
-	flm \
-	lattice \
-	utils
+	flm
 
 EXCLUDE = \
-	me \
-	htk \
-	contrib \
-	lm/src/test \
-	flm/src/test \
-	lattice/src/test \
-	dstruct/src/test \
-	utils/src/fsmtest \
-	common/COMPILE-HOSTS
-
-VERSION_HEADER = \
-	SRILMversion.h
+	common/COMPILE-HOSTS \
+	misc/src/SRILMversion.h \
+	EXCLUDE
 
 MAKE_VARS = \
 	SRILM=$(SRILM) \
 	MACHINE_TYPE=$(MACHINE_TYPE) \
-	OPTION=$(OPTION) \
-	MAKE_PIC=$(MAKE_PIC)
+	OPTION=$(OPTION)
 
 World:	dirs
 	$(MAKE) init
@@ -58,59 +38,26 @@ World:	dirs
 	$(MAKE) release-programs
 	$(MAKE) release-scripts
 
-# build central include directory and scripts only
-msvc:	dirs
-	$(MAKE) init
-	$(MAKE) release-headers
-	$(MAKE) release-scripts
-	cd utils/src; $(MAKE) $(MAKE_VARS) release
-
-
 depend-all:	dirs release-headers
-	@gawk '!/^#/ { print $$1, $$2, $$3 }' common/COMPILE-HOSTS | sort -u | \
+	gawk '{ print $$1, $$2, $$3 }' common/COMPILE-HOSTS | sort -u | \
 	while read prog host type; do \
-		rm -f DONE; (set -x; \
-		$$prog $$host "cd $(SRILM); $(MAKE) $(MFLAGS) SRILM=$(SRILM) MACHINE_TYPE=$$type OPTION=$(OPTION) init depend && touch DONE" < /dev/null); \
-		[ -f DONE ] || exit 1; \
-	done; rm -f DONE
+		set -x; $$prog $$host "cd $(SRILM); $(MAKE) DECIPHER=$(DECIPHER) MACHINE_TYPE=$$type OPTION=$$option init depend" < /dev/null; \
+	done
 
 compile-all:	dirs
-	@gawk '!/^#/' common/COMPILE-HOSTS | \
+	cat common/COMPILE-HOSTS | \
 	while read prog host type option; do \
-		rm -f DONE; (set -x; \
-		$$prog $$host "cd $(SRILM); $(MAKE) $(MFLAGS) SRILM=$(SRILM) MACHINE_TYPE=$$type OPTION=$$option init release-libraries release-programs && touch DONE" < /dev/null); \
-		[ -f DONE ] || exit 1; \
-	done; rm -f DONE
-
-clean-all:	dirs
-	@gawk '!/^#/' common/COMPILE-HOSTS | \
-	while read prog host type option; do \
-		rm -f DONE; (set -x; \
-		$$prog $$host "cd $(SRILM); $(MAKE) $(MFLAGS) SRILM=$(SRILM) MACHINE_TYPE=$$type OPTION=$$option cleanest && touch DONE" < /dev/null); \
-		[ -f DONE ] || exit 1; \
-	done; rm -f DONE
+		set -x; $$prog $$host "cd $(SRILM); $(MAKE) DECIPHER=$(DECIPHER) MACHINE_TYPE=$$type OPTION=$$option init release-libraries release-programs" < /dev/null; \
+	done
 
 dirs:
-	-mkdir -p include lib bin
+	-mkdir include lib bin
 
-remove-dirs:
-	-$(RMDIR) $(SRILM_BINDIR)
-	-$(RMDIR) $(SRILM_LIBDIR)
-	-$(RMDIR) $(SRILM_BIN)
-	-$(RMDIR) $(SRILM_LIB)
-	-$(RMDIR) $(SRILM_INCDIR)
-
-init depend all programs release clean cleaner cleanest superclean sanitize desanitize \
+init depend all programs release clean cleaner cleanest sanitize desanitize \
 release-headers release-libraries release-programs release-scripts:
 	for subdir in $(MODULES); do \
 		(cd $$subdir/src; $(MAKE) $(MAKE_VARS) $@) || exit 1; \
 	done
-
-pristine:
-	for subdir in $(MODULES); do \
-		(cd $$subdir/src; $(MAKE) $(MAKE_VARS) $@) || exit 1; \
-	done
-	$(MAKE) $(MAKE_VARS) remove-dirs
 
 test try gzip:
 	for subdir in $(MODULES); do \
@@ -124,18 +71,18 @@ WWW_DIR = /home/spftp/www/DocumentRoot/projects/srilm
 
 www:	$(WWW_DOCS)
 	ginstall -m 444 $(WWW_DOCS) $(WWW_DIR)/docs
-	ginstall -m 444 man/html/*.[1-9].html $(WWW_DIR)/manpages
+	ginstall -m 444 man/html/* $(WWW_DIR)/manpages
 
 TAR = /usr/local/gnu/bin/tar
 
 package:	$(PACKAGE_DIR)/EXCLUDE
 	(cd misc/src; $(MAKE) $(MAKE_VARS) $(VERSION_HEADER))
-	$(TAR) cvzXf $(PACKAGE_DIR)/EXCLUDE $(PACKAGE_DIR)/srilm-$(RELEASE).tar.gz .
+	$(TAR) cvhzXf $(PACKAGE_DIR)/EXCLUDE $(PACKAGE_DIR)/srilm-$(RELEASE).tar.gz .
 	rm $(PACKAGE_DIR)/EXCLUDE
 
 package_notest:	$(PACKAGE_DIR)/EXCLUDE
 	echo test >> $(PACKAGE_DIR)/EXCLUDE
-	$(TAR) cvzXf $(PACKAGE_DIR)/EXCLUDE $(PACKAGE_DIR)/srilm-$(RELEASE)-notest.tar.gz .
+	$(TAR) cvhzXf $(PACKAGE_DIR)/EXCLUDE $(PACKAGE_DIR)/srilm-$(RELEASE)-notest.tar.gz .
 	rm $(PACKAGE_DIR)/EXCLUDE
 
 package_bin:	$(PACKAGE_DIR)/EXCLUDE-$(MACHINE_TYPE)
@@ -149,9 +96,9 @@ package_x:
 
 $(PACKAGE_DIR)/EXCLUDE:	force
 	rm -f DONE
-	(find bin/* lib/* */bin/* */obj/* */src/test */test/output */test/logs -type d -print -prune ; \
+	(find bin/* lib/* */bin/* */obj/* */test/output -follow -type d -print -prune ; \
 	find $(EXCLUDE) include bin -print; \
-	find . \( -name Makefile.site.\* -o -name "*.~[0-9]*" -o -name ".#*" -o -name Dependencies.\* -o -name core -o -name "core.[0-9]*" -o -name \*.3rdparty -o -name .gdb_history -o -name out.\* -o -name "*[._]pure[._]*" -o -type l -o -name RCS -o -name CVS -o -name .cvsignore -o -name GZ.files \) -print) | \
+	find . -follow \( -name Makefile.site.\* -o -name "*.~[0-9]*" -o -name ".#*" -o -name Dependencies.\* -o -name core -o -name "core.[0-9]*" -o -name \*.3rdparty -o -name .gdb_history -o -name out.\* -o -name "*[._]pure[._]*" -o -type l -o -name RCS -o -name CVS -o -name .cvsignore -o -name GZ.files \) -print) | \
 	sed 's,^\./,,' > $@
 
 $(PACKAGE_DIR)/EXCLUDE-$(MACHINE_TYPE):	$(PACKAGE_DIR)/EXCLUDE

@@ -8,8 +8,8 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.54 2011/07/19 16:44:38 stolcke Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.59 2012/10/18 20:55:19 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -23,20 +23,17 @@ using namespace std;
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <algorithm>
 
 #include "LHash.h"
 #include "BlockMalloc.h"
 
 #undef INSTANTIATE_LHASH
 #define INSTANTIATE_LHASH(KeyT, DataT) \
-	template <> DataT *LHash< KeyT, DataT >::removedData = 0; \
 	template class LHash< KeyT, DataT >; \
 	template class LHashIter< KeyT, DataT >
 
-#ifndef __GNUG__
-template <class KeyT, class DataT>
-DataT *LHash<KeyT,DataT>::removedData = 0;
-#endif /* __GNUG__ */
+template <class KeyT, class DataT> KeyT LHash< KeyT, DataT >::zeroKey = KeyT();
 
 #ifdef DEBUG
 template <class KeyT, class DataT>
@@ -298,8 +295,8 @@ LHash<KeyT,DataT>::locate(KeyT key, unsigned &index) const
 	    /*
 	     * Do a hashed search
 	     */
-	    unsigned hash = LHash_hashKey(key, maxBits);
-	    unsigned i;
+	    size_t hash = LHash_hashKey(key, maxBits);
+	    size_t i;
 
 	    for (i = hash; ; i = (i + 1) & hashMask(maxBits))
 	    {
@@ -320,6 +317,7 @@ LHash<KeyT,DataT>::locate(KeyT key, unsigned &index) const
     }
 }
 
+
 template <class KeyT, class DataT>
 DataT *
 LHash<KeyT,DataT>::find(KeyT key, Boolean &foundP) const
@@ -338,7 +336,6 @@ KeyT
 LHash<KeyT,DataT>::getInternalKey(KeyT key, Boolean &foundP) const
 {
     unsigned index;
-    static KeyT zeroKey;
 
     if ((foundP = locate(key, index))) {
 	return BODY(body)->data[index].key;
@@ -431,25 +428,17 @@ LHash<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 }
 
 template <class KeyT, class DataT>
-DataT *
-LHash<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
+Boolean 
+LHash<KeyT,DataT>::remove(KeyT key, DataT *removedData)
 {
     unsigned index;
 
-    /*
-     * Allocate pseudo-static memory for removed objects (returned by
-     * remove()). We cannot make this static because otherwise 
-     * the destructor for DataT would be called on it at program exit.
-     */
-    if (removedData == 0) {
-	removedData = (DataT *)malloc(sizeof(DataT));
-	assert(removedData != 0);
-    }
-
-    if ((foundP = locate(key, index))) {
+    if ((locate(key, index))) {
 	Map_freeKey(BODY(body)->data[index].key);
 	Map_noKey(BODY(body)->data[index].key);
-	memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));
+
+        if (removedData != 0)
+	    memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));
 
 	if (BODY(body)->maxBits < minHashBits) {
 	    /*
@@ -498,21 +487,11 @@ LHash<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
 	    }
 	}
 	BODY(body)->nEntries--;
-	return removedData;
+	return true;
     } else {
-	return 0;
+	return false;
     }
 }
-
-#ifdef __GNUG__
-static
-#endif
-int (*LHash_thisKeyCompare)();		/* used by LHashIter() to communicate
-					 * with compareIndex() */
-#ifdef __GNUG__
-static
-#endif
-void *LHash_thisBody;			/* ditto */
 
 template <class KeyT, class DataT>
 void
@@ -527,23 +506,15 @@ LHashIter<KeyT,DataT>::sortKeys()
     assert(sortedIndex != 0);
 
     unsigned i;
-
     unsigned j = 0;
     for (i = 0; i < maxEntries; i++) {
 	if (!Map_noKeyP(myLHashBody->data[i].key)) {
-	    sortedIndex[j++] = i;
+            sortedIndex[j++] = i;
 	}
     }
     assert(j == numEntries);
 
-    /*
-     * Due to the limitations of the qsort interface we have to 
-     * pass extra information to compareIndex in these global
-     * variables - yuck. 
-     */
-    LHash_thisKeyCompare = (int(*)())sortFunction;
-    LHash_thisBody = myLHashBody;
-    qsort(sortedIndex, numEntries, sizeof(*sortedIndex), compareIndex);
+    sort(sortedIndex, sortedIndex + numEntries, *this);
 
     /*
      * Save the keys for enumeration.  The reason we save the keys,
@@ -554,7 +525,7 @@ LHashIter<KeyT,DataT>::sortKeys()
     assert(sortedKeys != 0);
 
     for (i = 0; i < numEntries; i++) {
-	sortedKeys[i] = myLHashBody->data[sortedIndex[i]].key;
+        sortedKeys[i] = myLHashBody->data[sortedIndex[i]].key;
     }
 
     delete [] sortedIndex;
@@ -564,7 +535,7 @@ template <class KeyT, class DataT>
 LHashIter<KeyT,DataT>::LHashIter(const LHash<KeyT,DataT> &lhash,
 				    int (*keyCompare)(KeyT, KeyT))
     : myLHashBody(BODY(lhash.body)), current(0),
-      numEntries(lhash.numEntries()), sortFunction(keyCompare)
+      numEntries(lhash.numEntries()), sortFunction(keyCompare), sortedKeys(0)
 {
     /*
      * Note: we access the underlying LHash through the body pointer,
@@ -576,30 +547,52 @@ LHashIter<KeyT,DataT>::LHashIter(const LHash<KeyT,DataT> &lhash,
      */
     if (sortFunction && myLHashBody) {
 	sortKeys();
-    } else {
-	sortedKeys = 0;
     }
 }
 
+
 /*
- * This is the callback function passed to qsort for comparing array
+ * Copy an existing iterator including its current position.
+ * Thus, iteration in the new iterator will start at the position
+ * following the current one in the old iterator.
+ */
+template <class KeyT, class DataT>
+LHashIter<KeyT,DataT>::LHashIter(const LHashIter<KeyT,DataT> &iter)
+    : myLHashBody(iter.myLHashBody), current(iter.current),
+      numEntries(iter.numEntries), sortFunction(iter.sortFunction),
+      sortedKeys(0)
+{
+    if (iter.sortedKeys) {
+	sortedKeys = new KeyT[numEntries];
+	assert(sortedKeys != 0);
+
+	for (unsigned i = 0; i < numEntries; i++) {
+	    sortedKeys[i] = iter.sortedKeys[i];
+	}
+    }
+}
+
+
+/*
+ * This is the callback function passed to sort for comparing array
  * entries. It is passed the indices into the data array, which are
  * compared according to the user-supplied function applied to the 
  * keys found at those locations.
  */
 template <class KeyT, class DataT>
-int
-LHashIter<KeyT,DataT>::compareIndex(const void *idx1, const void *idx2)
+bool
+LHashIter<KeyT,DataT>::operator()(const unsigned idx1, const unsigned idx2)
 {
-    return (*(compFnType)LHash_thisKeyCompare)
-		    (BODY(LHash_thisBody)->data[*(unsigned *)idx1].key,
-		     BODY(LHash_thisBody)->data[*(unsigned *)idx2].key);
+    return (*(compFnType)sortFunction)
+                  (BODY(myLHashBody)->data[idx1].key,
+                   BODY(myLHashBody)->data[idx2].key) < 0;
 }
 
 template <class KeyT, class DataT>
 LHashIter<KeyT,DataT>::~LHashIter()
 {
     delete [] sortedKeys;
+    sortedKeys = 0;
 }
 
 
@@ -608,6 +601,7 @@ void
 LHashIter<KeyT,DataT>::init()
 {
     delete [] sortedKeys;
+    sortedKeys = 0;
 
     current = 0;
 

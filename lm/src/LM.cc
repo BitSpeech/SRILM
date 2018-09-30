@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char LM_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.77 2011/11/21 08:36:49 stolcke Exp $";
+static char LM_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.92 2012/12/04 20:58:45 frandsen Exp $";
 #endif
 
 #include <string.h>
@@ -14,6 +14,8 @@ static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.77
 #include <math.h>
 #include <ctype.h>
 #include <assert.h>
+#include "TLSWrapper.h"
+#include "tserror.h"
 
 #if !defined(_MSC_VER) && !defined(WIN32)
 #include <unistd.h>
@@ -24,6 +26,13 @@ static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.77
 #include <errno.h>
 #include <sys/wait.h>
 
+#define SOCKET_ERROR_STRING	srilm_ts_strerror(errno)
+
+#define closesocket(s)	close(s)	// MS compatibility
+#define INVALID_SOCKET	-1
+#define SOCKET_ERROR	-1
+typedef int	SOCKET;
+
 #if __INTEL_COMPILER == 700
 // old Intel compiler cannot deal with optimized byteswapping functions
 #undef htons
@@ -33,6 +42,40 @@ static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.77
 #ifdef NEED_SOCKLEN_T
 typedef int	socklen_t;
 #endif
+
+#else /* native MSWindows */
+
+#include <winsock.h>
+
+#ifdef _MSC_VER
+#pragma comment(lib, "wsock32.lib")
+#endif
+
+typedef int socklen_t;
+
+WSADATA wsaData;
+int wsaInitialized = 0;
+
+/* 
+ * Windows equivalent of strerror()
+ */
+const char *
+WSA_strerror(int errCode)
+{
+    char *errMsg;
+
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM, 0,
+			   errCode, 0, (LPSTR)&errMsg, 0, 0) == 0)
+    {
+	return "unknown error";
+    } else {
+	// This leaks some memory, but we don't care since code typically exits after error
+	return errMsg;
+    }
+}
+
+#define SOCKET_ERROR_STRING	WSA_strerror(WSAGetLastError())
+
 #endif /* !_MSC_VER && !WIN32 */
 
 #ifdef NEED_RAND48
@@ -54,6 +97,7 @@ extern "C" {
 #define DEBUG_PRINT_SENT_PROBS		1
 #define DEBUG_PRINT_WORD_PROBS		2
 #define DEBUG_PRINT_PROB_SUMS		3
+#define DEBUG_PRINT_PROB_RANKS		4
 
 const char *defaultStateTag = "<LMstate>";
 
@@ -139,6 +183,62 @@ LM::isNonWord(VocabIndex word)
     return vocab.isNonEvent(word);
 }
 
+/*  
+ * Update the ranking statistics
+ */
+void
+LM::updateRanks(LogP logp, const VocabIndex *context,
+			FloatCount &r1, FloatCount &r5, FloatCount &r10,
+			FloatCount weight)
+{
+    unsigned rank = 0;
+    unsigned eq = 0;
+
+    Prob prob = LogPtoProb(logp);
+    
+    /*
+     * prob summing interrupts sequential processing mode
+     */
+    Boolean wasRunning = running(false);
+
+    VocabIter iter(vocab);
+    VocabIndex wid;
+    Boolean first = true;
+
+    while (iter.next(wid)) {
+	if (!isNonWord(wid)) {
+	    Prob p = LogPtoProb(first ?
+				  wordProb(wid, context) :
+				  wordProbRecompute(wid, context));
+
+	    if (fabs(p - prob) < Prob_Epsilon) {
+		eq ++;
+	    } else if (p > prob) {
+		rank ++;
+	    }
+
+	    first = false;
+
+	    if (rank+eq/2 > 10) // NOTE: this depends on max rank being counted
+		break;
+	}
+    }
+
+    rank = rank+eq/2;
+    
+    if (rank < 10) {
+	r10 += weight;
+        if (rank < 5) {
+	    r5 += weight;
+	    if (rank < 1) {
+		r1 += weight;
+	    }
+	}
+    }
+
+    running(wasRunning);
+}
+
 /*
  * Total probabilites
  *	For debugging purposes, compute the sum of all word probs
@@ -147,7 +247,7 @@ LM::isNonWord(VocabIndex word)
 Prob
 LM::wordProbSum(const VocabIndex *context)
 {
-    double total = 0.0;
+    Prob total = 0.0;
     VocabIter iter(vocab);
     VocabIndex wid;
     Boolean first = true;
@@ -265,6 +365,8 @@ LM::removeNoise(VocabIndex *words)
 LogP
 LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 {
+    TextStats myStats;
+
     unsigned int len = vocab.length(sentence);
     makeArray(VocabIndex, reversed, len + 2 + 1);
     unsigned int i;
@@ -282,9 +384,32 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
      */
     len = prepareSentence(sentence, reversed, len);
 
-    LogP totalProb = 0.0;
-    unsigned totalOOVs = 0;
-    unsigned totalZeros = 0;
+    /*
+     * Prefetch ngrams if desired
+     */
+    unsigned prefetching = prefetchingNgrams();
+    if (prefetching > 0) {
+	NgramStats ngrams(vocab, prefetching);
+
+        Vocab::reverse(reversed);
+
+	/*	
+	 * Extract ngrams corresponding to maximal word contexts
+	 */
+	for (unsigned i = 0; reversed[i] != Vocab_None; i++) {
+	    unsigned minNgramLen;
+
+	    if (i == 0) minNgramLen = 1;
+	    else if (len - i < prefetching) minNgramLen = len - i;
+	    else minNgramLen = prefetching;
+
+	    ngrams.incrementCounts(reversed + i, minNgramLen);
+	}
+
+	prefetchNgrams(ngrams);
+
+        Vocab::reverse(reversed);
+    }
 
     for (i = len; (int)i >= 0; i--) {
 	LogP probSum;
@@ -295,7 +420,9 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 		   		vocab.getWord(reversed[i+1]) : "")
 		   << (i < len ? " ..." : " ") << ") \t= " ;
 
-	    if (debug(DEBUG_PRINT_PROB_SUMS)) {
+	    if (debug(DEBUG_PRINT_PROB_SUMS) &&
+	  	!debug(DEBUG_PRINT_PROB_RANKS))
+	    {
 		/*
 		 * XXX: because wordProb can change the state of the LM
 		 * we need to compute wordProbSum first.
@@ -305,10 +432,23 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	}
 
 	LogP prob = wordProb(reversed[i], &reversed[i + 1]);
+        
+	if (debug(DEBUG_PRINT_PROB_RANKS)) {
+	    if (reversed[i] != vocab.seIndex()) {
+		// exclude end of sentence marker
+		updateRanks(prob, &reversed[i + 1],
+			    myStats.r1, myStats.r5, myStats.r10);
+	    } else {
+		updateRanks(prob, &reversed[i + 1],
+			    myStats.r1se, myStats.r5se, myStats.r10se);
+	    }
+
+	    myStats.rTotal += 1;
+	}
 
 	if (debug(DEBUG_PRINT_WORD_PROBS)) {
 	    dout() << " " << LogPtoProb(prob) << " [ " << prob << " ]";
-	    if (debug(DEBUG_PRINT_PROB_SUMS)) {
+	    if (debug(DEBUG_PRINT_PROB_SUMS) && !debug(DEBUG_PRINT_PROB_RANKS)) {
 		dout() << " / " << probSum;
 		if (fabs(probSum - 1.0) > 0.0001) {
 		    cerr << "\nwarning: word probs for this context sum to "
@@ -331,12 +471,20 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
 	 */
 	if (prob == LogP_Zero) {
 	    if (reversed[i] == vocab.unkIndex()) {
-		totalOOVs ++;
+		myStats.numOOVs ++;
 	    } else {
-		totalZeros ++;
+		myStats.zeroProbs ++;
+
+                myStats.posQuadLoss += 1.0;
+                myStats.posAbsLoss += 1.0;
 	    }
 	} else {
-	    totalProb += prob;
+	    myStats.prob += prob;
+
+	    Prob loss = 1.0 - LogPtoProb(prob);
+	    if (loss < 0.0) loss = 0.0;
+	    myStats.posQuadLoss += loss*loss;
+	    myStats.posAbsLoss += loss;
 	}
     }
 
@@ -346,16 +494,15 @@ LM::sentenceProb(const VocabIndex *sentence, TextStats &stats)
      * Update stats with this sentence
      */
     if (reversed[0] == vocab.seIndex()) {
-	stats.numSentences ++;
-	stats.numWords += len;
+	myStats.numSentences = 1;
+	myStats.numWords += len;
     } else {
-	stats.numWords += len + 1;
+	myStats.numWords += len + 1;
     }
-    stats.numOOVs += totalOOVs;
-    stats.zeroProbs += totalZeros;
-    stats.prob += totalProb;
 
-    return totalProb;
+    stats.increment(myStats);
+
+    return myStats.prob;
 }
 
 /*
@@ -426,6 +573,11 @@ LogP
 LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
 					unsigned countorder, Boolean entropy)
 {
+    unsigned prefetching = prefetchingNgrams();
+    if (prefetching > 0) {
+	prefetchNgrams(counts);
+    }
+    
     makeArray(VocabIndex, ngram, countorder + 1);
 
     LogP totalProb = 0.0;
@@ -493,7 +645,20 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
 		}
 		dout() << " ]";
 
-		if (debug(DEBUG_PRINT_PROB_SUMS)) {
+		if (debug(DEBUG_PRINT_PROB_RANKS)) {
+		    if (ngram[0] != vocab.seIndex()) {
+			// exclude end of sentence marker
+			updateRanks(prob, &ngram[1],
+				    ngramStats.r1, ngramStats.r5, ngramStats.r10, *count);
+		    } else {
+			updateRanks(prob, &ngram[1],
+				    ngramStats.r1se, ngramStats.r5se, ngramStats.r10se, *count);
+		    }
+
+		    ngramStats.rTotal = *count;
+		}
+
+		if (debug(DEBUG_PRINT_PROB_SUMS) && !debug(DEBUG_PRINT_PROB_RANKS)) {
 		    Prob probSum = wordProbSum(&ngram[1]);
 		    dout() << " / " << probSum;
 		    if (fabs(probSum - 1.0) > 0.0001) {
@@ -531,10 +696,18 @@ LM::countsProb(NgramCounts<CountT> &counts, TextStats &stats,
 		    ngramStats.numOOVs = *count;
 		} else {
 		    ngramStats.zeroProbs = *count;
+
+                    ngramStats.posQuadLoss = 1.0 * *count;
+                    ngramStats.posAbsLoss = 1.0 * *count;
 		}
 	    } else {
 		totalProb +=
 		    (ngramStats.prob = weight * prob);
+
+		Prob loss = 1.0 - LogPtoProb(prob);
+	        if (loss < 0.0) loss = 0.0;
+	        ngramStats.posQuadLoss = loss*loss * *count;
+	        ngramStats.posAbsLoss = loss * *count;
 	    }
 
 	    stats.increment(ngramStats);
@@ -861,9 +1034,21 @@ unsigned
 LM::probServer(unsigned port, unsigned maxClients)
 {
 #ifdef SOCK_STREAM
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd < 0) {
-	cerr << "could not create socket: " << strerror(errno) << endl;
+
+#if defined(_MSC_VER) || defined(WIN32)
+    if (!wsaInitialized) {
+	int result = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (result != 0) {
+	    cerr << "could not initialize winsocket: " << SOCKET_ERROR_STRING << endl;
+	    return 0;
+	}
+	wsaInitialized = 1;
+    }
+#endif /* _MSC_VER || WIN32 */
+
+    SOCKET sockfd = socket(AF_INET, SOCK_STREAM, 0); 
+    if (sockfd == INVALID_SOCKET) {
+	cerr << "could not create socket: " << SOCKET_ERROR_STRING << endl;
 	return 0;
     }
 
@@ -873,13 +1058,15 @@ LM::probServer(unsigned port, unsigned maxClients)
     myAddr.sin_port = htons(port);
     myAddr.sin_addr.s_addr = INADDR_ANY; // auto-fill with my IP
 
-    if (bind(sockfd, (struct sockaddr *)&myAddr, sizeof(myAddr)) < 0) {
-	cerr << "could not bind socket: " << strerror(errno) << endl;
+    if (::bind(sockfd, (struct sockaddr *)&myAddr, sizeof(myAddr)) == SOCKET_ERROR) {
+	cerr << "could not bind socket: " << SOCKET_ERROR_STRING << endl;
+	closesocket(sockfd);
 	return 0;
     }
 
-    if (listen(sockfd, maxClients ? maxClients * 10 : 1000) < 0) {
-	cerr << "could not bind socket: " << strerror(errno) << endl;
+    if (listen(sockfd, maxClients ? maxClients * 10 : 1000) == SOCKET_ERROR) {
+	cerr << "could not bind socket: " << SOCKET_ERROR_STRING << endl;
+	closesocket(sockfd);
 	return 0;
     }
 
@@ -889,8 +1076,9 @@ LM::probServer(unsigned port, unsigned maxClients)
 	/*
 	 * Reap children until number of clients is below max
 	 */
+#if !defined(_MSC_VER) && !defined(WIN32)
 	do {
-	    while (waitpid(-1, NULL, WNOHANG) > 0) {
+	    while (waitpid(-1, (int *)NULL, WNOHANG) > 0) {
 		numClients -= 1;
 	    }
 
@@ -898,12 +1086,13 @@ LM::probServer(unsigned port, unsigned maxClients)
 		sleep(5);
 	    }
 	} while (maxClients > 0 && numClients >= maxClients);
+#endif
 
 	struct sockaddr_in theirAddr; // connector's address information
 	socklen_t sin_size = sizeof(theirAddr);
 	int client = accept(sockfd, (struct sockaddr *)&theirAddr, &sin_size);
-	if (client < 0) {
-	    cerr << "could not accept connection: " << strerror(errno) << endl;
+	if (client == SOCKET_ERROR) {
+	    cerr << "could not accept connection: " << SOCKET_ERROR_STRING << endl;
 	    return 0;
 	}
 
@@ -916,18 +1105,23 @@ LM::probServer(unsigned port, unsigned maxClients)
 	if (maxClients == 1) {
 	    serverPID = 0;	// simulate child of fork()
 	} else {
+#if defined(_MSC_VER) || defined(WIN32)
+	    cerr << "LM server supports only one client at a time\n";
+	    return 0;
+#else
 	    serverPID = fork();
+#endif
 	}
 
 	if (serverPID < 0) {
-	    cerr << "fork failed: " << strerror(errno) << endl;
+	    cerr << "fork failed: " << srilm_ts_strerror(errno) << endl;
 	    return 0;
 	} else if (serverPID > 0) {
 	    /*
 	     * Parent of server process --
 	     * close client socket and accept next connection
 	     */
-	    close(client);
+	    closesocket(client);
 	    numClients += 1;
 	} else {
 	    /*
@@ -948,22 +1142,21 @@ LM::probServer(unsigned port, unsigned maxClients)
 	    unsigned numProcessed = 0;
 
 	    const char *msg = "probserver ready\n";
-	    send(client, msg, strlen(msg), 0); 
-
-	    FILE *clientFILE = fdopen(client, "r");
-	    if (!clientFILE) {
-		cerr << "client " << clientPort << "@" << clientName 
-		     << ": fdopen: "  << strerror(errno) << endl;
+	    if (send(client, msg, strlen(msg), 0) == SOCKET_ERROR) {
+		cerr << "client " << clientPort << "@" << clientName
+		     << ": send: " << SOCKET_ERROR_STRING << endl;
 		exit(-1);
 	    }
 
-	    File clientFile(clientFILE);
-	    clientFile.skipComments = false;	// disable ## handling
-
-	    char *line;
+	    char line[REMOTELM_MAXREQUESTLEN + 1];
+	    int msgLen;
 	    unsigned protocolVersion = 1;
 
-	    while ((line = clientFile.getline())) {
+	    while ((msgLen = recv(client, line, sizeof(line)-1, 0)) != SOCKET_ERROR) {
+		if (msgLen == 0) break;
+
+		line[msgLen] = '\0';
+
 		if (debug(DEBUG_PRINT_WORD_PROBS)) {
 		    dout() << "client " << clientPort << "@" << clientName 
 			   << ": " << line;
@@ -1022,8 +1215,8 @@ LM::probServer(unsigned port, unsigned maxClients)
 			unsigned clen;
 			void *cid = contextID(wids, clen);
 
-			sprintf(outbuf, "%s %lu %u\n", REMOTELM_OK,
-						    (long unsigned)cid, clen);
+			sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
+					    (long long unsigned)(size_t)cid, clen);
 		    } else if (strcmp(words[0], REMOTELM_CONTEXTID2) == 0) {
 			VocabIndex wids[maxWordsPerLine + 1];
 
@@ -1038,8 +1231,8 @@ LM::probServer(unsigned port, unsigned maxClients)
 			unsigned clen;
 			void *cid = contextID(last, wids, clen);
 
-			sprintf(outbuf, "%s %lu %u\n", REMOTELM_OK,
-						    (long unsigned)cid, clen);
+			sprintf(outbuf, "%s %llu %u\n", REMOTELM_OK,
+					    (long long unsigned)(size_t)cid, clen);
 		    } else if (strcmp(words[0], REMOTELM_CONTEXTBOW) == 0) {
 			unsigned clen;
 			sscanf(words[len - 1], "%u", &clen);
@@ -1059,7 +1252,11 @@ LM::probServer(unsigned port, unsigned maxClients)
 			sprintf(outbuf, "%s command unknown\n", REMOTELM_ERROR);
 		    }
 
-		    send(client, outbuf, strlen(outbuf) + 1, 0); 
+		    if (send(client, outbuf, strlen(outbuf), 0) == SOCKET_ERROR) {
+			cerr << "client " << clientPort << "@" << clientName
+			     << ": send: " << SOCKET_ERROR_STRING << endl;
+			exit(-1);
+		    }
 
 		    if (debug(DEBUG_PRINT_WORD_PROBS)) {
 			dout() << outbuf;
@@ -1067,8 +1264,7 @@ LM::probServer(unsigned port, unsigned maxClients)
 		}
 	    }
 
-	    clientFile.close();       // this will fclose(client),
-				      // which in turn will close(sockfd)
+	    closesocket(client);
 
 	    running(wasRunning);
 
@@ -1093,6 +1289,12 @@ LM::probServer(unsigned port, unsigned maxClients)
 
 /*
  * Random sample generation
+ *
+ * generateSentence and generateWord are non-deterministic when used by multiple
+ * threads because of the drand call in generateWord. This could be addressed by 
+ * having the caller provide a seed or introducing a TLS seed. The former 
+ * approach would provide isolation from other drand calls that may be 
+ * introduced. 
  */
 VocabIndex
 LM::generateWord(const VocabIndex *context)
@@ -1116,21 +1318,31 @@ LM::generateWord(const VocabIndex *context)
     return wid;
 }
 
+static TLSW(unsigned, viDefaultResultSize);
+static TLSW(VocabIndex*, viDefaultResult);
+
+/*
+ * generateSentence and generateWord are non-deterministic when used by multiple
+ * threads because of the drand call in generateWord. This could be addressed by 
+ * having the caller provide a seed or introducing a TLS seed. The former 
+ * approach would provide isolation from other drand calls that may be 
+ * introduced. 
+ */
 VocabIndex *
 LM::generateSentence(unsigned maxWords, VocabIndex *sentence,
 						VocabIndex *prefix)
 {
-    static unsigned defaultResultSize = 0;
-    static VocabIndex *defaultResult = 0;
-
     /*
      * If no result buffer is supplied use our own.
      */
+    unsigned &defaultResultSize = TLSW_GET(viDefaultResultSize);
+    VocabIndex* &defaultResult  = TLSW_GET(viDefaultResult);
+
     if (sentence == 0) {
 	if (maxWords + 1 > defaultResultSize) {
 	    defaultResultSize = maxWords + 1;
 	    if (defaultResult) {
-		delete defaultResult;
+		delete [] defaultResult;
 	    }
 	    defaultResult = new VocabIndex[defaultResultSize];
 	    assert(defaultResult != 0);
@@ -1193,13 +1405,22 @@ LM::generateSentence(unsigned maxWords, VocabIndex *sentence,
     return sentence;
 }
 
+static TLSW(unsigned, vsDefaultResultSize);
+static TLSW(VocabString*, vsDefaultResult);
+
+/*
+ * generateSentence and generateWord are non-deterministic when used by multiple
+ * threads because of the drand call in generateWord. This could be addressed by 
+ * having the caller provide a seed or introducing a TLS seed. The former 
+ * approach would provide isolation from other drand calls that may be 
+ * introduced. 
+ */
 VocabString *
 LM::generateSentence(unsigned maxWords, VocabString *sentence,
 					VocabString *prefix)
 {
-    static unsigned defaultResultSize = 0;
-    static VocabString *defaultResult = 0;
-
+    unsigned &defaultResultSize = TLSW_GET(vsDefaultResultSize);
+    VocabString* &defaultResult  = TLSW_GET(vsDefaultResult);
     /*
      * If no result buffer is supplied use our own.
      */
@@ -1207,7 +1428,7 @@ LM::generateSentence(unsigned maxWords, VocabString *sentence,
 	if (maxWords + 1 > defaultResultSize) {
 	    defaultResultSize = maxWords + 1;
 	    if (defaultResult) {
-		delete defaultResult;
+		delete [] defaultResult;
 	    }
 	    defaultResult = new VocabString[defaultResultSize];
 	    assert(defaultResult != 0);
@@ -1236,6 +1457,20 @@ LM::generateSentence(unsigned maxWords, VocabString *sentence,
      */
     vocab.getWords(resultIds, sentence, maxWords + 1);
     return sentence;
+}
+
+void
+LM::freeThread() {
+    VocabIndex *vi = TLSW_GET(viDefaultResult);
+    VocabString *vs = TLSW_GET(vsDefaultResult);
+
+    delete [] vi;
+    delete [] vs;
+ 
+    TLSW_FREE(viDefaultResultSize);
+    TLSW_FREE(viDefaultResult);
+    TLSW_FREE(vsDefaultResultSize);
+    TLSW_FREE(vsDefaultResult);
 }
 
 /*

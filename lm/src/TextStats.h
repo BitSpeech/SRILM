@@ -7,7 +7,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.6 2009/09/25 23:22:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.8 2012/07/09 10:10:58 stolcke Exp $
  *
  */
 
@@ -28,10 +28,15 @@ class TextStats
 {
 public:
     TextStats() : prob(0.0), zeroProbs(0.0),
-	numSentences(0.0), numWords(0.0), numOOVs(0.0) {};
+	numSentences(0.0), numWords(0.0), numOOVs(0.0),
+	r1(0), r5(0), r10(0), r1se(0), r5se(0), r10se(0),
+	rTotal(0), posQuadLoss(0), posAbsLoss(0)
+	{};
 
     void reset() { prob = 0.0, zeroProbs = 0.0,
-	numSentences = numWords = numOOVs = 0.0; };
+	numSentences = numWords = numOOVs = 0.0;
+	r1 = r5 = r10 = r1se = r5se = r10se = rTotal = 0;
+	posQuadLoss = posAbsLoss = 0.0; };
     TextStats &increment(const TextStats &stats);
 
     LogP2 prob;
@@ -39,6 +44,21 @@ public:
     FloatCount numSentences;
     FloatCount numWords;
     FloatCount numOOVs;
+
+    /*
+     * Ranking and loss metrics
+     */
+    FloatCount r1;	// rank <= 1
+    FloatCount r5;	// rank <= 5
+    FloatCount r10;	// rank <= 10
+    
+    FloatCount r1se;	// same, but for </s>
+    FloatCount r5se;
+    FloatCount r10se;
+    FloatCount rTotal;	// total tokens ranked
+
+    double posQuadLoss;	// quadratic loss
+    double posAbsLoss;  // absolute loss
 };
 
 ostream &operator<<(ostream &, const TextStats &stats);

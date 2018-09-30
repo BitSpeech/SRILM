@@ -1832,5 +1832,113 @@ Version History
 	* Added doc/asru2011-srilm.pdf, a paper describing SRILM updates since
 	2002.  Old ICSLP paper renamed to doc/icslp2002-srilm.pdf .
 
-$Date: 2011/12/08 19:32:49 $
+1.7.0	23 December 2012
+
+	Functionality:
+
+	* ngram -codebook option for reading of Ngram LMs with quantized parameters
+	(contributed by Microsoft).
+	* ngram -msweb-lm option for obtaining LM probabilities from the Microsoft
+	Web N-gram service (web-ngram.research.microsoft.com). You need to obtain
+	a user ID to use this service, see man ngram for details (contributed by
+	Microsoft).
+	* Added support for dictionary-induced word distance metrics to
+	nbest-optimize (-dictionary option).
+	* Added support for matrix-defined word distance metrics to
+	nbest-optimize (-distances option).
+	* ngram -debug 4 -ppl outputs ranking statistics (number of times correct 
+	word was in top 1, 5, 10), as well as quadratic and absolute loss averages
+	(based on code from Omid Madani).
+	* nbest-optimize accepts n-best list in SRInterp format and generates
+	SRInterp format rover-control file (weights file), when -srinterp-format
+	is specified. 
+	* nbest-optimize accepts SRInterp counts file that contains BLEU and TER
+	counts info.
+	* lattice-tool -read-mesh will try to preserve acoustic information
+	(times, scores, pronunciations) if they are encoded in the input confusion
+	network.
+	* Support reading of text files in UTF-8 and UTF-16 encodings.  All string
+	data is internally represented, and output, as ASCII/UTF-8 (contributed
+	by Microsoft).
+	This feature uses the iconv library.  Support for this feature can be
+	disabled by compiling with "NO_ICONV=anything" on the make command line.
+
+	Portability:
+
+	* Ported LM client/server code to Winsock API (native socket library in
+	Windows), enabling this functionality for mingw and MSVC platforms
+	(contributed by Microsoft).
+	* Let machine-type script return 64bit platform names for Linux and Solaris
+	x86 when appropriate.  This implies that 64bit binaries are built by
+	default on machines that support them.
+	* Array.h tweak for clang compiler (from kutlak.roman@gmail.com).
+	* Work around a namespace problem in C++11 (from kutlak.roman@gmail.com).
+	* Use size_t for hash codes to ensure word width matches pointer type.
+	* Fixes for mingw32 build, using Windows APIs for sockets and UTF
+	conversion (contributed by Microsoft).
+	* Support for 64bit mingw build (MACHINE_TYPE=win64).
+	* Updates for MacOSX (MACHINE_TYPE=macosx, thanks to Chuck Wooters).
+	* Deal with nonportability of isfinite() and isnan().
+	* Changes for thread-safety (by Kyle McIntyre). See doc/README-THREADS
+	for details.
+	- Modified the remove() methods in various container classes to return 
+	Boolean instead of a pointer to the removed element.  The removed element
+	can be gotten with an optional reference argument. This eliminates the 
+	need for a global static variable.
+	- Use STL sort() instead of qsort() in LHash and SArray sorted iterations.
+	- Replaced all static variables with thread-local storage via the TLSWrapper
+	class, requiring the pthread library. This is available on most platforms, 
+	but can be disabled at compile-time with -DNO_TLS.
+
+	Bug fixes:
+
+	* NgramLM backoff computation fixed to avoid spurious insertion of nonzero	
+	unigram probabilities and non-unity backoff weights (resulting from
+	numerator/denominator values below Prob_Epsilon).
+	* lattice-tool does a better job inferring the lattice basename from the 
+	UTTERANCE string embedded in HTK lattices.
+	* Trellis class: use a secondary sorting criterion to make N-best output
+	deterministic.
+	* WordMesh class: use posterior word probability to decide which acoustic
+	information to keep when merging hyps, instead of duration-normalized
+	acoustic stores as before.  This leads to fewer words with out-of-order
+	timestamps when extracting one-best from confusion networks.
+	* fix-ctm script: Check for out-of-order word timestamps and adjust them
+	minimally as needed to produce a monotonic sequence, as required for
+	CTM sorting.
+	* Fixed bug in NgramCountLM estimation procedure reported by ariya@jhu.edu.
+	* Allow ngram -hidden-vocab to read hidden event properties described in
+	man page.
+	* Fixed bug in ngram -hidden-vocab -write-lm output.
+	* Avoid crash when ngram -hidden-not -ppl is used with debug level 2.
+	* Fixed (very rare) bug by which ngram -prune might remove all ngrams
+	sharing a common context.
+	* Improved ngram -prune-lowprobs by also removing backoff weights that
+	have become useless (suggested by Arlo Faria).
+	* Check for successful search for HTK lattice start/end nodes, if not
+	explicitly specified (reported by nshmyrev@yandex.ru).
+	* Handle infinity scores in lattice rescoring, and catch NaN scores when
+	reading HTK lattices.
+	* make-kn-discounts checks for negative discount values and reports
+	error if appropriate.
+	* nbest-optimize accepts combined BLEU and error rate objective via switch
+	-error-bleu-ratio R (R specifies the error rate weight).
+	* lattice-tool -timeout option now uses sigsetjmp/siglongjmp to handle
+	timeout alarms.  This is necessary in Linux-compatible (including cygwin)
+	systems to handle alarms repeatedly.
+	* Fixed a bug reading NBestList2.0 format without phone information (led
+	to malformed confusion network output).
+	* Fixed a bug in Ngram::contextID() that was causing incorrect expansion
+	of lattices with pruned backoff models.
+	* Fixed a bug in the lattice-tool -keep-unk implementation that was
+	sometimes allowing an OOV word label to be output as <unk>.
+	* Removed some pseudo-randomness in ngram-class so that results are more
+	invariant to OPTION setting and platform properties.
+	* Avoid differences due to machine arithmetic in word mesh alignment,
+	making confusion network building and posterior decoding more stable 
+	across platforms.
+	* Exclude metatags when writing out the vocabulary of binary Ngram LMs.
+	* Fixed some missing dependencies in Visual Studio solution file.
+
+$Date: 2012/12/23 07:26:51 $
 

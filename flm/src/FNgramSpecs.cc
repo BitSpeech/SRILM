@@ -1,6 +1,6 @@
 /*
  * FNgramSpecs.cc --
- *	Cross-stream N-gram specification file and paramter structure
+ *	Cross-stream N-gram specification file and parameter structure
  *
  * Jeff Bilmes <bilmes@ee.washington.edu>
  */
@@ -9,8 +9,8 @@
 #define _FNgramSpecs_cc_
 
 #ifndef lint
-static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.18 2010/06/02 06:33:08 stolcke Exp $";
+static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.22 2012/12/13 20:45:08 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -22,8 +22,8 @@ using namespace std;
 #include <string.h>
 #include <ctype.h>
 
-#include "FNgramSpecs.h"
 #include "FNgram.h"
+#include "FNgramSpecs.h"
 
 #include "Trie.cc"
 #include "Array.cc"
@@ -43,6 +43,9 @@ using namespace std;
 // TODO: place all bit routines in separate file.
 extern unsigned int bitGather(unsigned int mask,unsigned int bitv);
 
+// defined externally
+extern long strtolplusb(const char *nptr, char **endptr, int base);
+
 static inline unsigned int
 numBitsSet(register unsigned u) 
 {
@@ -52,44 +55,6 @@ numBitsSet(register unsigned u)
     u >>= 1;
   }
   return count;
-}
-
-// John Henderson's extension to strtol with 0b prefix.
-long strtolplusb(const char *nptr, char **endptr, int base)
-{
-  const char *i;
-  long sign;
-
-  /* We should only try to be clever if the base 2 is specified, or no
-     base is specified, just like in the 0x case. */
-  if (base != 2 && base != 0)
-    return strtol(nptr,endptr,base);
-
-  i = nptr;
-
-  /* skip white space */
-  while (*i && isspace(*i))
-    i++;
-
-  /* decide what the sign should be */
-  sign = 1;
-  if (*i) {
-    if (*i == '+'){
-      i++;
-    } else if (*i == '-'){
-      sign = -1;
-      i++;
-    }
-  }
-
-  /* If we're not at the end, and we're "0b" or "0B", then return the result
-     base 2.  Let strtol do the work for us. */
-  if (*i && *i == '0' && *(i+1) && (*(i+1) == 'b' || *(i+1)=='B') 
-      && *(i+2) && (*(i+2)=='1' || *(i+2)=='0'))
-    return sign*strtol(i+2,endptr,2);
-  else
-    /* otherwise use the given base */
-    return strtol(nptr,endptr,base);
 }
 
 
@@ -1857,7 +1822,10 @@ FNgramSpecs<CountT>::computeCardinalityFunctions(FactoredVocab& vocab)
 
  
 // return pointer to a static buff where
-// we've got the tag of a if any. 
+// we've got the tag of a if any.
+template <class CountT>
+TLSW_DEF_ARRAY(char, FNgramSpecs<CountT>::FNgramSpecsBuff, FNgramSpecs_BUF_SZ);
+
 template <class CountT>
 VocabString
 FNgramSpecs<CountT>::getTag(VocabString a)
@@ -1865,16 +1833,16 @@ FNgramSpecs<CountT>::getTag(VocabString a)
   // TODO: this routine is a quick hack and should be redone properly.
   if (!a)
     return NULL;
-  static char buff[1024];
+  char *buff = TLSW_GET_ARRAY(FNgramSpecsBuff);
   char* sep_p = (char *)strchr(a,FNGRAM_WORD_TAG_SEP);
   if (sep_p == NULL)
     return NULL;
   *sep_p = '\0';
   // make sure we don't overrun buffer and it's terminated
-  strncpy(buff,a,sizeof(buff)-1);
-  buff[sizeof(buff)-1] = '\0';
+  strncpy(buff,a,FNgramSpecs_BUF_SZ - 1);
+  buff[FNgramSpecs_BUF_SZ - 1] = '\0';
   *sep_p = FNGRAM_WORD_TAG_SEP;
-  return &buff[0];
+  return buff;
 }
 
 				       

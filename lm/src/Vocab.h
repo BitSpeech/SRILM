@@ -76,9 +76,9 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995-2011 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.42 2011/11/20 20:03:02 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.48 2012/12/06 17:49:26 stolcke Exp $
  *
  */
 
@@ -98,6 +98,7 @@ using namespace std;
 #include "SArray.h"
 #include "Array.h"
 #include "MemStats.h"
+#include "TLSWrapper.h"
 
 #ifdef USE_SHORT_VOCAB
 typedef unsigned short	VocabIndex;
@@ -230,21 +231,26 @@ public:
     virtual unsigned int read(File &file);
     virtual unsigned int readAliases(File &file);
     virtual void write(File &file, Boolean sorted = true) const;
-    virtual void use() const { outputVocab = (Vocab *)this; }; // discard const
+    virtual void use() const { 
+        Vocab* &outputVocab = TLSW_GET(outputVocabTLS); 
+        outputVocab = (Vocab *)this; 
+    }; // discard const*/
 
     virtual Boolean readIndexMap(File &file, Array<VocabIndex> &map,
 						Boolean limitVocab = false);
-    virtual void writeIndexMap(File &file);
+    virtual void writeIndexMap(File &file, Boolean writingLM = false);
 
     virtual void memStats(MemStats &stats) const;
 
     static VocabString mapToLower(VocabString name);
 
-    static Vocab *outputVocab;  /* implicit parameter to operator<< */
+    static void setOutputVocab(Vocab *v);
+    static void setCompareVocab(Vocab *v);
 
-    static Vocab *compareVocab;	/* implicit parameter to compare() */
+    static void freeThread();
 
-   
+    static TLSW_DECL(Vocab *, outputVocabTLS);  /* implicit parameter to operator<< */
+    static TLSW_DECL(Vocab *, compareVocabTLS); /* implicit parameter to compare() */
 protected:
     LHash<VocabString,VocabIndex> byName;
     Array<VocabString> byIndex;
@@ -286,10 +292,14 @@ private:
  * We sometimes use strings over VocabIndex as keys into maps.
  * Define the necessary support functions (see Map.h, LHash.cc, SArray.cc).
  */
-static inline unsigned
+static inline size_t
 LHash_hashKey(const VocabIndex *key, unsigned maxBits)
 {
     unsigned i = 0;
+
+    if (key == 0) {
+	return 0;
+    }
 
     /*
      * The rationale here is similar to LHash_hashKey(unsigned),
@@ -327,6 +337,12 @@ Map_freeKey(const VocabIndex *key)
 static inline Boolean
 LHash_equalKey(const VocabIndex *key1, const VocabIndex *key2)
 {
+    if (key1 == 0) {
+        return (key2 == 0);
+    } else if (key2 == 0) {
+	return false;
+    }
+
     unsigned i;
     for (i = 0; key1[i] != Vocab_None && key2[i] != Vocab_None; i ++) {
 	if (key1[i] != key2[i]) {
@@ -344,6 +360,16 @@ static inline int
 SArray_compareKey(const VocabIndex *key1, const VocabIndex *key2)
 {
     unsigned int i = 0;
+
+    if (key1 == 0) {
+	if (key2 == 0) {
+	    return 0;
+	} else {
+	    return -1;
+	}
+    } else if (key2 == 0) {
+	return 1;
+    }
 
     for (i = 0; ; i++) {
 	if (key1[i] == Vocab_None) {

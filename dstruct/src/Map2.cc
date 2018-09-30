@@ -9,7 +9,7 @@
 
 #ifndef lint
 static char Map2_Copyright[] = "Copyright (c) 1999-2010 SRI International.  All Rights Reserved.";
-static char Map2_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.cc,v 1.12 2010/06/02 04:52:43 stolcke Exp $";
+static char Map2_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.cc,v 1.14 2012/10/11 20:23:52 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -147,23 +147,23 @@ Map2<Key1T,Key2T,DataT>::insert(Key1T key1, Key2T key2, Boolean &foundP)
 }
 
 template <class Key1T, class Key2T, class DataT>
-DataT *
-Map2<Key1T,Key2T,DataT>::remove(Key1T key1, Key2T key2, Boolean &foundP)
+Boolean
+Map2<Key1T,Key2T,DataT>::remove(Key1T key1, Key2T key2, DataT *removedData)
 {
     MAP2_INDEX_T<Key2T,DataT> *row = sub.find(key1);
 
     if (row == 0) {
-	foundP = false;
-	return 0;
+	return false;
     } else{
-	return row->remove(key2, foundP);
+	return row->remove(key2, removedData);
     }
 }
 
 template <class Key1T, class Key2T, class DataT>
 Boolean
-Map2<Key1T,Key2T,DataT>::remove(Key1T key1, Boolean &foundP)
+Map2<Key1T,Key2T,DataT>::remove(Key1T key1)
 {
+    Boolean foundP;
     MAP2_INDEX_T<Key2T,DataT> *row = sub.find(key1, foundP);
 
     if (row != 0) {

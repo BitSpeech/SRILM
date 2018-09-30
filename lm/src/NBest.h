@@ -2,9 +2,9 @@
  * NBest.h --
  *	N-best lists
  *
- * Copyright (c) 1995-2009, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.40 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.46 2012/10/29 17:25:04 mcintyre Exp $
  *
  */
 
@@ -38,6 +38,8 @@ using namespace std;
 const char nbest1Magic[] = "NBestList1.0";
 const char nbest2Magic[] = "NBestList2.0";
 
+typedef float NBestScore;			/* same as LogP */
+
 typedef float NBestTimestamp;
 
 /*
@@ -60,7 +62,8 @@ public:
     Boolean parse(const char *s);		// parse info from string
     void invalidate();				// invalidate info
     Boolean valid() const;			// check that info is valid
-    void merge(const NBestWordInfo &other);	// combine two pieces of info
+    void merge(const NBestWordInfo &other, Prob otherPosterior = 0.0);
+						// combine two pieces of info
 
     VocabIndex word;
     NBestTimestamp start;
@@ -92,7 +95,7 @@ extern const NBestTimestamp frameLength; // quantization unit of word timemarks
  * Support for maps with (const NBestWordInfo *) as keys
  */
 
-unsigned LHash_hashKey(const NBestWordInfo *key, unsigned maxBits);
+size_t LHash_hashKey(const NBestWordInfo *key, unsigned maxBits);
 const NBestWordInfo *Map_copyKey(const NBestWordInfo *key);
 void Map_freeKey(const NBestWordInfo *key);
 Boolean LHash_equalKey(const NBestWordInfo *key1, const NBestWordInfo *key2);
@@ -115,10 +118,14 @@ public:
     Boolean parse(char *line, Vocab &vocab, unsigned decipherFormat = 0,
 			LogP acousticOffset = 0.0,
 			const char *multiChar = 0, Boolean backtrace = false);
+
+    Boolean parseSRInterpFormat(char *line, Vocab &vocab, LHash<VocabString, NBestScore>& scores);
+
     void write(File &file, Vocab &vocab, Boolean decipherFormat = true,
 						    LogP acousticOffset = 0.0);
 
     Count getNumWords() { return numWords; }
+    static void freeThread();
 
     VocabIndex *words;
     NBestWordInfo *wordInfo;
@@ -142,7 +149,7 @@ public:
 			const char *multiChar, Boolean backtrace = false);
     virtual ~NBestList() {};
 
-    static unsigned initialSize;
+    static const unsigned initialSize;
 
     unsigned numHyps() { return _numHyps; };
     NBestHyp &getHyp(unsigned number) { return hypList[number]; };
@@ -174,6 +181,8 @@ public:
     void acousticDenorm();
 
     Boolean read(File &file);
+    Boolean readSRInterpFormat(File & file, LHash<VocabString,Array<NBestScore>* >& nbestScores);
+
     Boolean write(File &file, Boolean decipherFormat = true,
 						unsigned numHyps = 0);
     void memStats(MemStats &stats);

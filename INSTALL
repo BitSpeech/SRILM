@@ -37,6 +37,8 @@ libraries.
     TCL_INCLUDE, TCL_LIBRARY:  to whatever is needed to find the Tcl header
 		files and library.  If Tcl is not available, set NO_TCL=X
 		and leave the above variables empty.
+    NO_ICONV:   Set this variable to anything to turn off 16-bit unicode support
+                and linking with the iconv library.
 
     It is recommended that you record changes to platform dependent variables
     in common/Makefile.site.<platform> and leave Makefile.machine.<platform>
@@ -158,5 +160,5 @@ libraries.
 
 Andreas Stolcke
 stolcke@speech.sri.com
-$Date: 2011/10/21 21:28:49 $
+$Date: 2012/08/01 00:29:06 $
 

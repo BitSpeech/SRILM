@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2003-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/wmatrix.cc,v 1.9 2010/06/02 05:51:57 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/wmatrix.cc,v 1.10 2012/10/20 00:22:26 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -18,15 +18,14 @@ using namespace std;
 #include <string.h>
 #include <ctype.h>
 
-#include "FNgramSpecs.h"
-
 #include "Trie.cc"
 #include "Array.cc"
+#include "FDiscount.h"
 #include "FactoredVocab.h"
 #include "Debug.h"
-#include "FDiscount.h"
 #include "hexdec.h"
 
+#include "FNgramSpecs.h"
 
 WidMatrix::WidMatrix()
 {

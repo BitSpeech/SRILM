@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1999-2006 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.cygwin,v 1.14 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.cygwin,v 1.19 2012/08/01 18:57:14 victor Exp $
 #
 
    # Use the GNU C compiler.
@@ -51,12 +51,18 @@
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lm 
 
+   # UTF16 conversion needs libiconv but can avoid iconv routines
+   # by building with "make NO_ICONV=anything"
+   ifeq ($(NO_ICONV), )
+      SYS_LIBRARIES = -liconv
+   endif
+
    # run-time linker path flag
    RLD_FLAG = -R
 
    # Tcl support (part of cygwin)
    TCL_INCLUDE = 
-   TCL_LIBRARY = -ltcl84
+   TCL_LIBRARY = -ltcl
 
    # No ranlib
    RANLIB = :

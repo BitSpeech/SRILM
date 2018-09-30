@@ -10,7 +10,7 @@
 #define _IntervalHeap_cc_
 
 #ifndef lint
-static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/IntervalHeap.cc,v 1.6 2010/06/02 06:37:43 stolcke Exp $";
+static char IntervalHeap_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/IntervalHeap.cc,v 1.7 2012/05/17 06:46:36 stolcke Exp $";
 #endif
 
 #include "IntervalHeap.h"
@@ -97,14 +97,13 @@ void IntervalHeap<T, Less, Greater, Equal>::push(const T& x)
 
 template<class T, class Less, class Greater, class Equal>
 void IntervalHeap<T, Less, Greater, Equal>::pop_min()
-{ // Set x to min element and delete
+{ 
   // min element from interval heap.
   // check if interval heap is empty
   if (CurrentSize == 0)
     //throw OutOfBounds(); // empty
     assert(0);
-  T x;
-  x = heap[1].left; // min element
+
   // restructure min heap part
   int LastNode = CurrentSize / 2 + CurrentSize % 2;
   T y; // element removed from last node
@@ -145,13 +144,12 @@ void IntervalHeap<T, Less, Greater, Equal>::pop_min()
 
 template<class T, class Less, class Greater, class Equal>
 void IntervalHeap<T, Less, Greater, Equal>::pop_max()
-{// Set x to max element and delete
+{
   // max element from interval heap.
   if (CurrentSize == 0)
     //throw OutOfBounds(); // empty
     assert(0);
-  T x;
-  x = heap[1].right; // max element
+
   // restructure max heap part
   int LastNode = CurrentSize / 2 + CurrentSize % 2;
   T y; // element removed from last node

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2006-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.cc,v 1.14 2010/06/02 05:49:58 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.cc,v 1.15 2012/02/25 18:30:33 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -56,7 +56,6 @@ NgramCountLM::NgramCountLM(Vocab &vocab, unsigned neworder)
     countsName = 0;
     useGoogle = false;
     writeCounts = true;
-    training = false;
 
     /*
      * create a buffer into which ngrams can be copied in left-to-right order
@@ -188,12 +187,6 @@ NgramCountLM::computeTotals()
 	}
 
 	totalCount = *root;
-
-	if (debug(DEBUG_NGRAM_HITS)) {
-	    dout() << "vocabsize = " << vocabSize
-		   << " totalcount = " << totalCount
-		   << endl;
-	}
     }
 }
 
@@ -329,10 +322,6 @@ NgramCountLM::wordProb(VocabIndex word, const VocabIndex *context)
     	return LogP_Zero;
     }
 
-    if (training) {
-    	return wordProbTrain(word, context);
-    }
-
     VocabIndex *ngram = setupNgram(word, context);
     unsigned nlen = Vocab::length(ngram);
 
@@ -408,7 +397,6 @@ NgramCountLM::contextID(VocabIndex word, const VocabIndex *context,
 
 /*
  * Mixture weight estimation --
- * 	- enable training mode
  *	- clear posterior statistics
  *	- run probability computation over training counts, accumulating
  *	  posterior statistics
@@ -418,8 +406,6 @@ NgramCountLM::contextID(VocabIndex word, const VocabIndex *context,
 Boolean
 NgramCountLM::estimate(NgramStats &counts)
 {
-    training = true;
-
     LogP like;
 
     for (unsigned iter = 0; iter < maxEMiters; iter ++) {
@@ -435,15 +421,8 @@ NgramCountLM::estimate(NgramStats &counts)
 
 	/*
 	 * Compute training set likelihood (collecting counts as a side-effect)
-	 * Disable debugging output while doing this.
 	 */
-	unsigned oldlevel = debuglevel();
-	debugme(0);
-
-	TextStats stats;
-	LogP newLike = countsProb(counts, stats, order);
-
-	debugme(oldlevel);
+	LogP newLike = countsProbTrain(counts);
 
 	if (debug(DEBUG_PRINT_LIKELIHOODS)) {
 	   dout() << "iteration " << iter << ": "
@@ -489,18 +468,69 @@ NgramCountLM::estimate(NgramStats &counts)
 	like = newLike;
     }
 
-    training = false;
-
     return true;
+}
+
+
+/*
+ * Simplified version of LM::countsProb() that collects statistics for training
+ */
+LogP
+NgramCountLM::countsProbTrain(NgramStats &counts)
+{
+    makeArray(VocabIndex, ngram, order + 1);
+
+    LogP totalProb = 0.0;
+
+    /*
+     * Enumerate all counts up to the order indicated
+     */
+    for (unsigned i = 1; i <= order; i++ ) {
+	NgramsIter ngramIter(counts, ngram, i);
+	NgramCount *count;
+
+	/*
+	 * This enumerates all ngrams of the given order
+	 */
+	while ((count = ngramIter.next())) {
+	    /*
+	     * Skip zero counts since they don't contribute anything to
+	     * the probability
+	     */
+	    if (*count == 0) {
+		continue;
+	    }
+
+	    /*
+	     * reverse ngram for lookup
+	     */
+	    Vocab::reverse(ngram);
+
+	    LogP prob = wordProbTrain(ngram[0], &ngram[1], *count);
+
+	    if (prob != LogP_Zero) {
+		totalProb += (*count) * prob;
+	    }
+
+	    Vocab::reverse(ngram);
+	}
+    }
+
+    return totalProb;
 }
 
 /*
  * Variant of wordProb() that computes and accumulates posterior counts
- * for each mixture weight
+ * for each mixture weight.
+ * The count parameter indicates how often this ngram occurs in the data.
  */
 LogP
-NgramCountLM::wordProbTrain(VocabIndex word, const VocabIndex *context)
+NgramCountLM::wordProbTrain(VocabIndex word, const VocabIndex *context, NgramCount count)
 {
+    if (isNonWord(word)) {
+    	return LogP_Zero;
+    }
+
     VocabIndex *ngram = setupNgram(word, context);
     unsigned nlen = Vocab::length(ngram);
 
@@ -567,8 +597,11 @@ NgramCountLM::wordProbTrain(VocabIndex word, const VocabIndex *context)
     for (i -- ; i > 0; i --) {
 	Count contextCount = contextCounts[i-1];
 
-	mixCounts[contextCount][i-1] += backwardCount * posteriors[i-1];
-	mixCountTotals[contextCount][i-1] += backwardCount;
+	/*
+	 * Scale statistics by the ngram's count
+	 */
+	mixCounts[contextCount][i-1] += count * backwardCount * posteriors[i-1];
+	mixCountTotals[contextCount][i-1] += count * backwardCount;
 
 	backwardCount = backwardCount * (1.0 - posteriors[i-1]);
     }

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.46 2011/11/20 20:03:02 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.51 2012/12/06 17:49:26 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -21,7 +21,6 @@ using namespace std;
 
 #include "File.h"
 #include "Vocab.h"
-
 #include "LHash.cc"
 #include "Array.cc"
 #include "MStringTokUtil.h"
@@ -30,6 +29,23 @@ using namespace std;
 INSTANTIATE_LHASH(VocabString,VocabIndex);
 INSTANTIATE_ARRAY(VocabString);
 #endif
+
+/* vocabulary implicitly used by operator<< */
+TLSW_DEF(Vocab*, Vocab::outputVocabTLS);
+/* implicit parameter to compare() */
+TLSW_DEF(Vocab*, Vocab::compareVocabTLS);
+
+void
+Vocab::setOutputVocab(Vocab *v) {
+    Vocab* &output = TLSW_GET(outputVocabTLS);
+    output = v;
+}
+
+void
+Vocab::setCompareVocab(Vocab *v) {
+    Vocab* &compare = TLSW_GET(compareVocabTLS);
+    compare = v;
+}
 
 Vocab::Vocab(VocabIndex start, VocabIndex end)
     : byIndex(start), nextIndex(start), maxIndex(end), _metaTag(0)
@@ -46,6 +62,7 @@ Vocab::Vocab(VocabIndex start, VocabIndex end)
      * Make the last Vocab created be the default one used in
      * ostream output
      */
+    Vocab* &outputVocab = TLSW_GET(outputVocabTLS);
     outputVocab = this;
 
     /*
@@ -84,10 +101,11 @@ Vocab::memStats(MemStats &stats) const
 
 // map word string to lowercase
 // returns a static buffer
+static TLSW_ARRAY(char, lowerTLS, maxWordLength + 1);
 VocabString
 Vocab::mapToLower(VocabString name)
 {
-    static char lower[maxWordLength + 1];
+    char* lower = TLSW_GET_ARRAY(lowerTLS);
 
     unsigned  i;
     for (i = 0; name[i] != 0 && i < maxWordLength; i++) {
@@ -100,6 +118,13 @@ Vocab::mapToLower(VocabString name)
     return lower;
 }
 
+void
+Vocab::freeThread() 
+{
+    TLSW_FREE(outputVocabTLS);
+    TLSW_FREE(compareVocabTLS);
+    TLSW_FREE(lowerTLS);
+}
 // Add word to vocabulary
 VocabIndex
 Vocab::addWord(VocabString name)
@@ -214,7 +239,7 @@ Vocab::removeNonEvent(VocabIndex word)
     if (getWord(word) == 0) {
 	return false;
     } else {
-	return nonEventMap.remove(word) != 0;
+	return nonEventMap.remove(word);
     }
 }
 
@@ -527,7 +552,6 @@ Vocab::reverse(VocabString *words)
 /*
  * Output of Ngrams
  */
-Vocab *Vocab::outputVocab;	/* vocabulary implicitly used by operator<< */
 
 void
 Vocab::write(File &file, const VocabString *words)
@@ -549,8 +573,9 @@ operator<< (ostream &stream, const VocabString *words)
 ostream &
 operator<< (ostream &stream, const VocabIndex *words)
 {
+    Vocab* &outputVocab = TLSW_GET(Vocab::outputVocabTLS);
     for (unsigned int i = 0; words[i] != Vocab_None; i++) {
-	VocabString word = Vocab::outputVocab->getWord(words[i]);
+	VocabString word = outputVocab->getWord(words[i]);
 
 	stream << (i > 0 ? " " : "")
 	       << (word ? word : "UNKNOWN");
@@ -561,8 +586,6 @@ operator<< (ostream &stream, const VocabIndex *words)
 /* 
  * Sorting of words and word sequences
  */
-Vocab *Vocab::compareVocab;	/* implicit parameter to compare() */
-
 // compare to word indices by their associated word strings
 // This should be a non-static member, so we don't have to pass the
 // Vocab in a global variable, but then we couldn't use this function
@@ -571,6 +594,8 @@ Vocab *Vocab::compareVocab;	/* implicit parameter to compare() */
 int
 Vocab::compare(VocabIndex word1, VocabIndex word2)
 {
+    Vocab* &compareVocab = TLSW_GET(compareVocabTLS);
+
     if (compareVocab == 0) {
 	return word2 - word1;
     } else {
@@ -639,6 +664,7 @@ Vocab::compare(const VocabIndex *words1, const VocabIndex *words2)
 VocabIndexComparator
 Vocab::compareIndex() const
 {
+    Vocab* &compareVocab = TLSW_GET(compareVocabTLS);
     compareVocab = (Vocab *)this;	// discard const
     return &Vocab::compare;
 }
@@ -646,6 +672,7 @@ Vocab::compareIndex() const
 VocabIndicesComparator
 Vocab::compareIndices() const
 {
+    Vocab* &compareVocab = TLSW_GET(compareVocabTLS);
     compareVocab = (Vocab *)this;	// discard const
     return &Vocab::compare;
 }
@@ -814,15 +841,16 @@ Vocab::ngramsInRange(VocabString *startRange, VocabString *endRange)
  *	The format is ascii with one word per line:
  *		index	string
  *	The mapping is terminated by EOF or a line consisting only of ".".
+ *	If writingLM is true, omit words that should not appear in LMs.
  */
 void
-Vocab::writeIndexMap(File &file)
+Vocab::writeIndexMap(File &file, Boolean writingLM)
 {
     // Output index map in order of internal vocab indices.
     // This ensures that vocab strings are assigned indices in the same order
     // on reading, and ensures faster insertions into SArray-based tries.
     for (unsigned i = byIndex.base(); i < nextIndex; i ++) {
-	if (byIndex[i]) {
+	if (byIndex[i] && !(writingLM && isMetaTag(i))) {
 	    fprintf(file, "%u %s\n", i, byIndex[i]);
 	}
     }

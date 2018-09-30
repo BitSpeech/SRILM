@@ -6,8 +6,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995,2003 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.cc,v 1.14 2003/03/04 04:58:30 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.cc,v 1.15 2012/07/06 06:31:45 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -17,6 +17,8 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.cc,v 1.14 
 #include <math.h>
 
 #include "Prob.h"
+
+#include "Array.cc"
 
 const LogP LogP_Zero = -HUGE_VAL;		/* log(0) */
 const LogP LogP_Inf = HUGE_VAL;			/* log(Inf) */
@@ -49,6 +51,11 @@ parseLogP(const char *str, LogP &result)
     const char *cp0;
     Boolean minus = false;
 
+    if (*cp == '\0') {
+	/* empty input */
+	return false;
+    }
+
     /*
      * Log probabilties are typically negative values of magnitude > 0.0001,
      * and thus are usually formatted without exponential notation.
@@ -57,7 +64,7 @@ parseLogP(const char *str, LogP &result)
      * We also use scanf() when there are too many digits to handle with
      * integers.
      * Finally, we also parse +/- infinity values as they are printed by 
-     * printf().  These are "[Ii]nf" or "[Ii]nfinity".
+     * printf().  These are "[Ii]nf" or "[Ii]nfinity" or "1.#INF".
      */
 
     /*
@@ -105,13 +112,87 @@ parseLogP(const char *str, LogP &result)
     if (*cp == '\0' && precision <= maxDigits) {
 	result = (minus ? - (LogP)digits : (LogP)digits) / (LogP)decimals;
 	return true;
-    } else if ((*cp0 == 'i' || *cp0 == 'I') &&
-		(strncmp(cp0, "Inf", 3) == 0 || strncmp(cp0, "inf", 3) == 0))
+    } else if ((*cp0 == 'i' || *cp0 == 'I' || 
+	        (cp0[0] == '1' && cp0[1] == '.' && cp0[2] == '#')) &&
+		(strncmp(cp0, "Inf", 3) == 0 || strncmp(cp0, "inf", 3) == 0 ||
+		 strncmp(cp0, "1.#INF", 6) == 0))
     {
 	result = (minus ? LogP_Zero : LogP_Inf);
 	return true;
     } else {
 	return (sscanf(str, "%f", &result) == 1);
+    }
+}
+
+
+/* 
+ * Codebooks for quantized log probs
+ */
+
+Boolean
+PQCodebook::read(File &file)
+{
+    char *line;
+    char buffer[10];
+
+    line = file.getline();
+
+    if (!line || sscanf(line, "VQSize %u", &numBins) != 1) {
+	file.position() << "missing VQSize spec\n";
+	return false;
+    }
+
+    for (unsigned i = 0; i < numBins; i ++) {
+	binMeans[i] = LogP_Inf;
+	binCounts[i] = 0;
+    }
+     
+    line = file.getline();
+    if (!line || sscanf(line, "Codeword Mean %s", buffer) != 1 ||
+ 	strcmp(buffer, "Count") != 0)
+    {
+	file.position() << "malformed Codeword header\n";
+	return false;
+    }
+
+    while ((line = file.getline())) {
+        unsigned bin;
+	double prob;
+	unsigned long count;
+	if (sscanf(line, "%u %lf %lu", &bin, &prob, &count) != 3) {
+	    file.position() << "malformed codeword line\n";
+	    return false;
+	}
+
+	binMeans[bin] = prob;	
+	binCounts[bin] = count;
+     }
+
+     return true;
+}
+
+Boolean
+PQCodebook::write(File &file)
+{
+    fprintf(file, "VQSize %u\n", numBins);
+    fprintf(file, "Codeword        Mean    Count\n");
+
+    for (unsigned i = 0; i < numBins; i ++) {
+	fprintf(file, "%8d %20.16lg %12lu\n", 
+			i, (double)binMeans[i],
+			(unsigned long)binCounts[i]);
+    }
+
+    return true;
+}
+
+LogP2
+PQCodebook::getProb(unsigned bin)
+{
+    if (bin < numBins) {
+	return binMeans[bin];
+    } else {
+	return LogP_Inf;
     }
 }
 

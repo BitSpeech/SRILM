@@ -2,9 +2,9 @@
  * NgramStats.h --
  *	N-gram statistics
  *
- * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.h,v 1.36 2010/06/02 06:22:48 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.h,v 1.41 2012/10/29 17:25:05 mcintyre Exp $
  *
  */
 
@@ -18,11 +18,16 @@
 
 #include "Array.h"
 #include "Trie.h"
+#include "TLSWrapper.h"
 
+const unsigned int      maxLineLength = 10000;
 const unsigned int	maxNgramOrder = 100;	/* Used in allocating various
 						 * data structures.  For all
 						 * practical purposes, this
 						 * should infinite. */
+
+extern TLSW_DECL_ARRAY(VocabIndex, countSentenceWidsTLS, maxWordsPerLine +3);
+extern TLSW_DECL_ARRAY(char, writeBufferTLS, maxLineLength);
 
 #define NgramNode	Trie<VocabIndex,CountT>
 
@@ -52,11 +57,11 @@ public:
     CountT *insertCount(const VocabIndex *words, VocabIndex word1)
 	{ NgramNode *node = counts.insertTrie(words);
 	  return node->insert(word1); };
-    CountT *removeCount(const VocabIndex *words)
-	{ return counts.remove(words); };
-    CountT *removeCount(const VocabIndex *words, VocabIndex word1)
+    Boolean removeCount(const VocabIndex *words, CountT *removedData = 0)
+	{ return counts.remove(words, removedData); };
+    Boolean removeCount(const VocabIndex *words, VocabIndex word1, CountT *removedData = 0)
 	{ NgramNode *node = counts.findTrie(words);
-	  return node ? node->remove(word1) : 0; };
+	  return node->remove(word1, removedData); };
 
     virtual unsigned countSentence(const VocabString *word)
 	{ return countSentence(word, (CountT)1); };
@@ -65,6 +70,9 @@ public:
     virtual unsigned countSentence(const VocabIndex *word)
 	{ return countSentence(word, (CountT)1); };
     virtual unsigned countSentence(const VocabIndex *word, CountT factor);
+
+    void incrementCounts(const VocabIndex *words,
+				unsigned minOrder = 1, CountT factor = 1);
 
     Boolean read(File &file) { return read(file, order); };
     Boolean read(File &file, unsigned int order, Boolean limitVocab = false);
@@ -104,8 +112,6 @@ public:
 protected:
     unsigned int order;
     NgramNode counts;
-    void incrementCounts(const VocabIndex *words,
-				unsigned minOrder = 1, CountT factor = 1);
     void addCounts(const VocabIndex *prefix,
 			const LHash<VocabIndex, CountT> &set);
     void writeNode(NgramNode &node, File &file, char *buffer, char *bptr,

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 2001-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.cc,v 1.7 2011/04/06 23:49:03 victor Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiwordVocab.cc,v 1.8 2012/10/11 19:04:22 mcintyre Exp $";
 #endif
 
 #include <string.h>
@@ -123,10 +123,12 @@ MultiwordVocab::remove(VocabString name)
 void
 MultiwordVocab::remove(VocabIndex index)
 {
-    VocabIndex **expansion = multiwordMap.remove(index);
+    VocabIndex *expansion = 0;
 
-    if (expansion) {
-	delete [] *expansion;
+    if (multiwordMap.remove(index, &expansion)) {
+        if (expansion) {
+	    delete [] expansion;
+        }
     }
 
     Vocab::remove(index);

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2007-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.17 2011/03/11 00:21:37 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2007-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.22 2012/12/04 20:58:45 frandsen Exp $";
 #endif
 
 #include <stdio.h>
@@ -24,11 +24,30 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1
 #include <sys/socket.h>
 #include <errno.h>
 
+#include "tserror.h"
+
+#define SOCKET_ERROR_STRING	srilm_ts_strerror(errno)
+
+#define closesocket(s)	close(s)	// MS compatibility
+#define INVALID_SOCKET	-1
+#define SOCKET_ERROR	-1
+
 #if __INTEL_COMPILER == 700
 // old Intel compiler cannot deal with optimized byteswapping functions
 #undef htons
 #undef ntohs
 #endif
+
+#else /* native MS Windows */
+
+#include <winsock.h>
+
+/* defined in LM.cc */
+extern WSADATA wsaData;
+extern int wsaInitialized;
+extern const char *WSA_strerror(int errCode);
+
+#define SOCKET_ERROR_STRING	WSA_strerror(WSAGetLastError())
 
 #endif  /* !_MSC_VER && !WIN32 */
 
@@ -38,7 +57,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1
 
 LMClient::LMClient(Vocab &vocab, const char *server,
 		   unsigned order, unsigned cacheOrder)
-    : LM(vocab), order(order), serverFile(0),
+    : LM(vocab), order(order), serverSocket(INVALID_SOCKET),
       cacheOrder(cacheOrder), probCache(vocab, cacheOrder)
 {
 #ifdef SOCK_STREAM
@@ -62,6 +81,17 @@ LMClient::LMClient(Vocab &vocab, const char *server,
 	    serverPort = SRILM_DEFAULT_PORT;
 	}
     }
+
+#if defined(_MSC_VER) || defined(WIN32)
+    if (!wsaInitialized) {
+	int result = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (result != 0) {
+	    cerr << "could not initialize winsocket: " << SOCKET_ERROR_STRING << endl;
+	    return;
+	}
+	wsaInitialized = 1;
+    }
+#endif /* _MSC_VER || WIN32 */
 
     struct hostent *host;
     struct in_addr serverAddr;
@@ -93,62 +123,61 @@ LMClient::LMClient(Vocab &vocab, const char *server,
     /*
      * Create, then connect socket to the server
      */
-    int serverSocket = socket(PF_INET, SOCK_STREAM, 0);
+    serverSocket = socket(PF_INET, SOCK_STREAM, 0);
 
-    if (serverSocket < 0) {
-    	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
+    if (serverSocket == INVALID_SOCKET) {
+    	cerr << "socket: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
 	exit(1);
     }
 
-    if (connect(serverSocket, (struct sockaddr *)&sockName, sizeof(sockName)) < 0) {
-    	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
-	close(serverSocket);
-	exit(1);
-    }
-
-    /*
-     * Wrap the socket in a FILE objects
-     */
-    serverFile = fdopen(serverSocket, "r+");
-    if (!serverFile) {
-        cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
-	close(serverSocket);
+    if (connect(serverSocket, (struct sockaddr *)&sockName, sizeof(sockName)) == SOCKET_ERROR) {
+    	cerr << "connect: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
 	exit(1);
     }
 
     /*
      * Read the banner line from the server
      */
-    char msg[REMOTELM_MAXRESULTLEN];
+    char buffer[REMOTELM_MAXRESULTLEN];
 
-    int msglen = recv(fileno(serverFile), msg, sizeof(msg)-1, 0);
-    if (msglen < 0) {
+    int msglen = recv(serverSocket, buffer, sizeof(buffer)-1, 0);
+    if (msglen == SOCKET_ERROR) {
 	cerr << "server " << serverPort << "@" << serverHost
 	     << ": could not read banner\n";
-	fclose(serverFile);
-	serverFile = 0;
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
 	exit(1);
     } else if (debug(1)) {
-	msg[msglen] = '\0';
+	buffer[msglen] = '\0';
 	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << msg;
+	     << ": " << buffer;
     }
 
     /*
      * Switch to version 2 protocol
      */
-    fprintf(serverFile, "%s\n", REMOTELM_VERSION2);
-    fflush(serverFile);
+    
+    char msg[REMOTELM_MAXREQUESTLEN];
+    sprintf(msg, "%s\n", REMOTELM_VERSION2);
 
-    msglen = recv(fileno(serverFile), msg, sizeof(msg)-1, 0);
-    if (msglen < 0 || strncmp(msg, REMOTELM_OK, sizeof(REMOTELM_OK)-1) != 0) {
+    if (send(serverSocket, msg, strlen(msg), 0) == SOCKET_ERROR) {
+	cerr << "send: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
+	exit(1);
+    }
+     
+    msglen = recv(serverSocket, msg, sizeof(msg)-1, 0);
+    if (msglen == SOCKET_ERROR || strncmp(msg, REMOTELM_OK, sizeof(REMOTELM_OK)-1) != 0) {
 	cerr << "server " << serverPort << "@" << serverHost
 	     << ": protocol version 2 not supported\n";
-	fclose(serverFile);
-	serverFile = 0;
+	
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
 	exit(1);
     }
 
@@ -174,8 +203,8 @@ LMClient::LMClient(Vocab &vocab, const char *server,
 
 LMClient::~LMClient()
 {
-    if (serverFile != 0) {
-    	fclose(serverFile);	// this will close(serverSocket)
+    if (serverSocket != INVALID_SOCKET) {
+    	closesocket(serverSocket);
     }
 }
 
@@ -183,7 +212,7 @@ LogP
 LMClient::wordProb(VocabIndex word, const VocabIndex *context)
 {
 #ifdef SOCK_STREAM
-    if (serverFile == 0) {
+    if (serverSocket == INVALID_SOCKET) {
     	exit(1);
     }
 
@@ -210,20 +239,35 @@ LMClient::wordProb(VocabIndex word, const VocabIndex *context)
 	}
     }
 
-    fprintf(serverFile, "%s ", REMOTELM_WORDPROB);
+    char msg[REMOTELM_MAXREQUESTLEN], *msgEnd;
+
+    sprintf(msg, "%s ", REMOTELM_WORDPROB);
+    msgEnd = msg + strlen(msg);
     for (int i = clen - 1; i >= 0; i --) {
-    	fprintf(serverFile, "%s ", vocab.getWord(context[i]));
+    	sprintf(msgEnd, "%s ", vocab.getWord(context[i]));
+	msgEnd += strlen(msgEnd);
     }
-    fprintf(serverFile, "%s\n", vocab.getWord(word));
-    fflush(serverFile);
+    sprintf(msgEnd, "%s\n", vocab.getWord(word));
+    msgEnd += strlen(msgEnd);
+
+    assert(msgEnd - msg < (int)sizeof(msg));
+
+    if (send(serverSocket, msg, msgEnd - msg, 0) == SOCKET_ERROR) {
+	cerr << "send: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
+	exit(1);
+    }
 
     char buffer[REMOTELM_MAXRESULTLEN];
 
-    int msglen = recv(fileno(serverFile), buffer, sizeof(buffer)-1, 0);
+    int msglen = recv(serverSocket, buffer, sizeof(buffer)-1, 0);
 
-    if (msglen < 0) {
-	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
+    if (msglen == SOCKET_ERROR) {
+	cerr << "recv: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
 	exit(1);
     } else {
 	buffer[msglen] = '\0';
@@ -243,6 +287,7 @@ LMClient::wordProb(VocabIndex word, const VocabIndex *context)
 	} else {
 	    cerr << "server " << serverPort << "@" << serverHost
 		 << ": unexpected return: " << buffer;
+	    closesocket(serverSocket);
 	    exit(1);
 	}
     }
@@ -256,7 +301,7 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
 							unsigned &length)
 {
 #ifdef SOCK_STREAM
-    if (serverFile == 0) {
+    if (serverSocket == INVALID_SOCKET) {
     	exit(1);
     }
 
@@ -277,7 +322,7 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
      */
 
     if (clen < cacheOrder) {
-	Vocab::compareVocab = 0;		// force index-based compare
+	Vocab::setCompareVocab(0);		// force index-based compare
 
 	if (word == contextIDCache.word &&
 	    Vocab::compare(usedContext, contextIDCache.context) == 0)
@@ -287,30 +332,41 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
 	}
     }
 
-    if (word == Vocab_None) {
-	fprintf(serverFile, "%s ", REMOTELM_CONTEXTID1);
-    } else {
-	fprintf(serverFile, "%s ", REMOTELM_CONTEXTID2);
-    }
+    char msg[REMOTELM_MAXREQUESTLEN], *msgEnd;
+
+    sprintf(msg, "%s ", word == Vocab_None ? REMOTELM_CONTEXTID1 : REMOTELM_CONTEXTID2);
+    msgEnd = msg + strlen(msg);
 
     for (int i = clen - 1; i >= 0; i --) {
-    	fprintf(serverFile, "%s ", vocab.getWord(context[i]));
+    	sprintf(msgEnd, "%s ", vocab.getWord(context[i]));
+	msgEnd += strlen(msgEnd);
     }
 
     if (word == Vocab_None) {
-	fprintf(serverFile, "\n");
+	sprintf(msgEnd, "\n");
     } else {
-	fprintf(serverFile, "%s\n", vocab.getWord(word));
+	sprintf(msgEnd, "%s\n", vocab.getWord(word));
     }
-    fflush(serverFile);
+    msgEnd += strlen(msgEnd);
+
+    assert(msgEnd - msg < (int)sizeof(msg));
+
+    if (send(serverSocket, msg, msgEnd - msg, 0) == SOCKET_ERROR) {
+	cerr << "send: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
+	exit(1);
+    }
 
     char buffer[REMOTELM_MAXRESULTLEN];
 
-    int msglen = recv(fileno(serverFile), buffer, sizeof(buffer)-1, 0);
+    int msglen = recv(serverSocket, buffer, sizeof(buffer)-1, 0);
 
     if (msglen < 0) {
-	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
+	cerr << "recv: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
 	exit(1);
     } else {
 	buffer[msglen] = '\0';
@@ -332,6 +388,7 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
 	} else {
 	    cerr << "server " << serverPort << "@" << serverHost
 		 << ": unexpected return: " << buffer;
+	    closesocket(serverSocket);
 	    exit(1);
 	}
     }
@@ -344,7 +401,7 @@ LogP
 LMClient::contextBOW(const VocabIndex *context, unsigned length)
 {
 #ifdef SOCK_STREAM
-    if (serverFile == 0) {
+    if (serverSocket == INVALID_SOCKET) {
     	exit(1);
     }
 
@@ -365,7 +422,7 @@ LMClient::contextBOW(const VocabIndex *context, unsigned length)
      */
 
     if (clen < cacheOrder) {
-	Vocab::compareVocab = 0;		// force index-based compare
+	Vocab::setCompareVocab(0);		// force index-based compare
 
 	if (length == contextBOWCache.length &&
 	    Vocab::compare(usedContext, contextBOWCache.context) == 0)
@@ -374,20 +431,36 @@ LMClient::contextBOW(const VocabIndex *context, unsigned length)
 	}
     }
 
-    fprintf(serverFile, "%s ", REMOTELM_CONTEXTBOW);
+    char msg[REMOTELM_MAXREQUESTLEN], *msgEnd;
+
+    sprintf(msg, "%s ", REMOTELM_CONTEXTBOW);
+    msgEnd = msg + strlen(msg);
+
     for (int i = clen - 1; i >= 0; i --) {
-    	fprintf(serverFile, "%s ", vocab.getWord(context[i]));
+    	sprintf(msgEnd, "%s ", vocab.getWord(context[i]));
+	msgEnd += strlen(msgEnd);
     }
-    fprintf(serverFile, "%u\n", length);
-    fflush(serverFile);
+    sprintf(msgEnd, "%u\n", length);
+    msgEnd += strlen(msgEnd);
+    
+    assert(msgEnd - msg < (int)sizeof(msg));
+
+    if (send(serverSocket, msg, msgEnd - msg, 0) == SOCKET_ERROR) {
+	cerr << "server " << serverPort << "@" << serverHost
+	     << ": send " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
+	serverSocket = INVALID_SOCKET;
+	exit(1);
+    }
 
     char buffer[REMOTELM_MAXRESULTLEN];
 
-    int msglen = recv(fileno(serverFile), buffer, sizeof(buffer)-1, 0);
+    int msglen = recv(serverSocket, buffer, sizeof(buffer)-1, 0);
 
     if (msglen < 0) {
-	cerr << "server " << serverPort << "@" << serverHost
-	     << ": " << strerror(errno) << endl;
+	cerr << "recv: server " << serverPort << "@" << serverHost
+	     << ": " << SOCKET_ERROR_STRING << endl;
+	closesocket(serverSocket);
 	exit(1);
     } else {
 	buffer[msglen] = '\0';
@@ -408,6 +481,7 @@ LMClient::contextBOW(const VocabIndex *context, unsigned length)
 	} else {
 	    cerr << "server " << serverPort << "@" << serverHost
 		 << ": unexpected return: " << buffer;
+	    closesocket(serverSocket);
 	    exit(1);
 	}
     }
@@ -415,4 +489,5 @@ LMClient::contextBOW(const VocabIndex *context, unsigned length)
     exit(1);
 #endif /* SOCK_STREAM */
 }
+
 

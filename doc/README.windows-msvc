@@ -38,10 +38,19 @@ Visual C++ 8 that can be downloaded from www.microsoft.com as
 
 	make MACHINE_TYPE=msvc
 
+   or
+
+	make MACHINE_TYPE=msvc64
+
+   to generate 64bit binaries.
+
+   As with MinGW, some functionality is not supported:
+
+    - compressed file I/O
+    - nbest-optimize and lattice-tool -max-time option
+
 4) Run test suite with
 
 	cd test
 	make MACHINE_TYPE=msvc try
-
-  Most tests success; the exception right now are those for nbest-rover.
 

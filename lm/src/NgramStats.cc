@@ -8,8 +8,8 @@
 #define _NgramStats_cc_
 
 #ifndef lint
-static char NgramStats_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.61 2010/06/02 06:22:48 stolcke Exp $";
+static char NgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.67 2012/12/04 20:58:45 frandsen Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -22,7 +22,6 @@ using namespace std;
 #include <stdio.h>
 #include <errno.h>
 
-const unsigned maxLineLength = 10000;
 #ifdef INSTANTIATE_TEMPLATES
 static
 #endif
@@ -30,6 +29,7 @@ const char *NgramStats_BinaryFormatString = "SRILM_BINARY_COUNTS_001\n";
 
 #include "NgramStats.h"
 
+#include "tserror.h"
 #include "Trie.cc"
 #include "LHash.cc"
 #include "Array.cc"
@@ -93,7 +93,7 @@ template <class CountT>
 unsigned int
 NgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 {
-    static VocabIndex wids[maxWordsPerLine + 3];
+    VocabIndex *wids = TLSW_GET_ARRAY(countSentenceWidsTLS);
     unsigned int howmany;
 
     if (openVocab) {
@@ -359,7 +359,7 @@ NgramCounts<CountT>::readBinary(File &file, unsigned order, Boolean limitVocab)
 
     // detect if file is not seekable
     if (offset < 0) {
-	file.position() << strerror(errno) << endl;
+	file.position() << srilm_ts_strerror(errno) << endl;
 	return false;
     }
 
@@ -406,7 +406,7 @@ NgramCounts<CountT>::readBinaryNode(NgramNode &node,
 
 	if (order == 0) {
 	    if (fseeko(file, endOffset, SEEK_SET) < 0) {
-		file.offset() << strerror(errno) << endl;
+		file.offset() << srilm_ts_strerror(errno) << endl;
 		return false;
 	    }
 	    offset = endOffset;
@@ -686,7 +686,7 @@ NgramCounts<CountT>::readMinCounts(File &file, unsigned order,
 	haveCounts[i] = false;
     }
 
-    Vocab::compareVocab = 0;		// do comparison by word index
+    Vocab::setCompareVocab(0);		// do comparison by word index
 
     CountT count;
     unsigned int howmany;
@@ -881,7 +881,7 @@ template <class CountT>
 void
 NgramCounts<CountT>::write(File &file, unsigned int order, Boolean sorted)
 {
-    static char buffer[maxLineLength];
+    char *buffer = TLSW_GET_ARRAY(writeBufferTLS);
     writeNode(counts, file, buffer, buffer, 1, order, sorted);
 }
 
@@ -908,7 +908,7 @@ NgramCounts<CountT>::writeBinary(File &file, unsigned int order)
 
     // detect if file is not seekable
     if (offset < 0) {
-	file.position() << strerror(errno) << endl;
+	file.position() << srilm_ts_strerror(errno) << endl;
 	return false;
     }
 
@@ -979,7 +979,7 @@ retry:
 	long long endOffset = offset;
 
 	if (fseeko(file, startOffset, SEEK_SET) < 0) {
-	    file.offset() << strerror(errno) << endl;
+	    file.offset() << srilm_ts_strerror(errno) << endl;
 	    return false;
 	}
 
@@ -999,7 +999,7 @@ retry:
 	    offsetBytes = nbytes;
 
 	    if (fseeko(file, startOffset, SEEK_SET) < 0) {
-		file.offset() << strerror(errno) << endl;
+		file.offset() << srilm_ts_strerror(errno) << endl;
 		return false;
 	    }
 	    offset = startOffset;
@@ -1008,7 +1008,7 @@ retry:
 	}
 
 	if (fseeko(file, endOffset, SEEK_SET) < 0) {
-	    file.offset() << strerror(errno) << endl;
+	    file.offset() << srilm_ts_strerror(errno) << endl;
 	    return false;
 	}
 

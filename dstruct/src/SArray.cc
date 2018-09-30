@@ -8,8 +8,8 @@
 #define _SArray_cc_
 
 #ifndef lint
-static char SArray_Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.cc,v 1.44 2011/07/20 01:05:07 stolcke Exp $";
+static char SArray_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.cc,v 1.48 2012/10/18 20:55:19 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -21,25 +21,23 @@ static char SArray_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SAr
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <algorithm>
 
-#include "SArray.h"
 #include "BlockMalloc.h"
+#include "SArray.h"
 
 #undef INSTANTIATE_SARRAY
 #define INSTANTIATE_SARRAY(KeyT, DataT) \
-	template <> DataT *SArray< KeyT, DataT >::removedData = 0; \
 	template class SArray< KeyT, DataT >; \
 	template class SArrayIter< KeyT, DataT >
 
-#ifndef __GNUG__
-template <class KeyT, class DataT>
-DataT *SArray<KeyT,DataT>::removedData = 0;
-#endif /* __GNUG__ */
+template <class KeyT, class DataT> KeyT SArray< KeyT, DataT >::zeroKey;
 
 #define BODY(b)	((SArrayBody<KeyT,DataT> *)b)
 
 #define BODY_SIZE(b, n)	\
 		(sizeof(*BODY(b)) + ((n) - 1) * sizeof(BODY(b)->data[0]))
+
 
 const double growSize = 1.1;
 
@@ -320,7 +318,6 @@ KeyT
 SArray<KeyT,DataT>::getInternalKey(KeyT key, Boolean &foundP) const
 {
     unsigned index;
-    static KeyT zeroKey;
 
     if ((foundP = locate(key, index))) {
 	return BODY(body)->data[index].key;
@@ -406,26 +403,18 @@ SArray<KeyT,DataT>::insert(KeyT key, Boolean &foundP)
 }
   
 template <class KeyT, class DataT>
-DataT *
-SArray<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
+Boolean
+SArray<KeyT,DataT>::remove(KeyT key, DataT *removedData)
 {
     unsigned index;
 
-    /*
-     * Allocate pseudo-static memory for removed objects (returned by
-     * remove()). We cannot make this static because otherwise 
-     * the destructor for DataT would be called on it at program exit.
-     */
-    if (removedData == 0) {
-	removedData = (DataT *)malloc(sizeof(DataT));
-	assert(removedData != 0);
-    }
-
-    if ((foundP = locate(key, index))) {
+    if ((locate(key, index))) {
 	unsigned nEntries = numEntries();
 
 	Map_freeKey(BODY(body)->data[index].key);
-	memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));
+
+        if (removedData != 0)
+	    memcpy(removedData, &BODY(body)->data[index].value, sizeof(DataT));
 
 	memmove(&(BODY(body)->data[index]),
 		&(BODY(body)->data[index + 1]),
@@ -441,23 +430,12 @@ SArray<KeyT,DataT>::remove(KeyT key, Boolean &foundP)
 	 */
 	BODY(body)->deleted = 1;
 
-	return removedData;
+	return true;
     } else {
-	return 0;
+	return false;
     }
 }
   
-#ifdef __GNUG__
-static
-#endif
-int (*SArray_thisKeyCompare)();		/* used by SArrayIter() to communicate
-					 * with compareIndex() */
-#ifdef __GNUG__
-static
-#endif
-void *SArray_thisBody;			/* ditto */
-
-
 template <class KeyT, class DataT>
 void
 SArrayIter<KeyT,DataT>::sortKeys()
@@ -470,17 +448,10 @@ SArrayIter<KeyT,DataT>::sortKeys()
 
     unsigned i;
     for (i = 0; i < numEntries; i++) {
-	sortedIndex[i] = i;
+        sortedIndex[i] = i;
     }
 
-    /*
-     * Due to the limitations of the qsort interface we have to 
-     * pass extra information to compareIndex in these global
-     * variables - yuck. 
-     */
-    SArray_thisKeyCompare = (int (*)())sortFunction;
-    SArray_thisBody = mySArrayBody;
-    qsort(sortedIndex, numEntries, sizeof(*sortedIndex), compareIndex);
+    sort(sortedIndex, sortedIndex + numEntries, *this);
 
     /*
      * Save the keys for enumeration.  The reason we save the keys,
@@ -491,17 +462,17 @@ SArrayIter<KeyT,DataT>::sortKeys()
     assert(sortedKeys != 0);
 
     for (i = 0; i < numEntries; i++) {
-	sortedKeys[i] = mySArrayBody->data[sortedIndex[i]].key;
+        sortedKeys[i] = mySArrayBody->data[sortedIndex[i]].key;
     }
 
-    delete [] sortedIndex;
+    delete [] sortedIndex; 
 }
 
 template <class KeyT, class DataT>
 SArrayIter<KeyT,DataT>::SArrayIter(const SArray<KeyT,DataT> &sarray,
 					int (*keyCompare)(KeyT, KeyT))
     : mySArrayBody(BODY(sarray.body)), current(0),
-      numEntries(sarray.numEntries()), sortFunction(keyCompare)
+      numEntries(sarray.numEntries()), sortFunction(keyCompare), sortedKeys(0)
 {
     /*
      * Note: we access the underlying SArray through the body pointer,
@@ -513,8 +484,6 @@ SArrayIter<KeyT,DataT>::SArrayIter(const SArray<KeyT,DataT> &sarray,
      */
     if (sortFunction && mySArrayBody) {
 	sortKeys();
-    } else {
-	sortedKeys = 0;
     }
 
     if (mySArrayBody) {
@@ -523,24 +492,46 @@ SArrayIter<KeyT,DataT>::SArrayIter(const SArray<KeyT,DataT> &sarray,
 }
 
 /*
- * This is the callback function passed to qsort for comparing array
+ * Copy an existing iterator including its current position.
+ * Thus, iteration in the new iterator will start at the position
+ * following the current one in the old iterator.
+ */
+template <class KeyT, class DataT>
+SArrayIter<KeyT,DataT>::SArrayIter(const SArrayIter<KeyT,DataT> &iter)
+    : mySArrayBody(iter.mySArrayBody), current(iter.current),
+      numEntries(iter.numEntries), sortFunction(iter.sortFunction),
+      sortedKeys(0)
+{
+    if (iter.sortedKeys) {
+	sortedKeys = new KeyT[numEntries];
+	assert(sortedKeys != 0);
+
+	for (unsigned i = 0; i < numEntries; i++) {
+	    sortedKeys[i] = iter.sortedKeys[i];
+	}
+    }
+}
+
+/*
+ * This is the callback function passed to sort for comparing array
  * entries. It is passed the indices into the data array, which are
  * compared according to the user-supplied function applied to the 
  * keys found at those locations.
  */
 template <class KeyT, class DataT>
-int
-SArrayIter<KeyT,DataT>::compareIndex(const void *idx1, const void *idx2)
+bool
+SArrayIter<KeyT,DataT>::operator()(const unsigned idx1, const unsigned idx2)
 {
-  return (*(compFnType)SArray_thisKeyCompare)
-		(BODY(SArray_thisBody)->data[*(unsigned *)idx1].key,
-		 BODY(SArray_thisBody)->data[*(unsigned *)idx2].key);
+    return (*(compFnType)sortFunction)
+                  (BODY(mySArrayBody)->data[idx1].key,
+                   BODY(mySArrayBody)->data[idx2].key) < 0;
 }
 
 template <class KeyT, class DataT>
 SArrayIter<KeyT,DataT>::~SArrayIter()
 {
     delete [] sortedKeys;
+    sortedKeys = 0;
 }
 
 template <class KeyT, class DataT>

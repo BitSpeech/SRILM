@@ -12,7 +12,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.targets,v 1.35 2011/07/19 16:37:39 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.targets,v 1.38 2012/07/31 23:58:24 victor Exp $
 #
 
 
@@ -100,13 +100,23 @@ $(patsubst %,$(OBJDIR)/%$(OBJ_SUFFIX),$(NO_OPT_SOURCES)):
 
 # Program linking
 # The heuristic here is that if any C++ source is present at all
-# we use the C++ driver to link the whole thing, otherwise the C driver
+# we use the C++ driver to link the whole thing, otherwise the C driver.
+# The "test -f" at the end is to check for success in creating an
+# output since otherwise failure can be hidden by the DEMANGLE_FILTER.
+#
+# Note that ADDITIONAL_LIBRARIES are sometimes modified in individual
+# library or application Makefiles, and are then included in
+# LIBRARIES; SYS_LIBRARIES are set only in Makefiles in this
+# directory, and is used only in this link rule.  The two are not used
+# consistently.
+#
 $(BINDIR)/%$(EXE_SUFFIX): $(OBJDIR)/%$(OBJ_SUFFIX) $(filter-out -%, $(LIBRARIES))
 ifeq ($(filter %.cc,$(ALL_SOURCES)), )
-	$(LINK.c) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.c) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(SYS_LIBRARIES) $(DEMANGLE_FILTER)
 else
-	$(LINK.cc) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(DEMANGLE_FILTER)
+	$(LINK.cc) $(LD_OPTION_FLAGS) $(LD_OUTPUT_OPTION) $< $(LIBRARIES) $(SYS_LIBRARIES) $(DEMANGLE_FILTER)
 endif
+	test -f $@
 	$(POST_LINK)
 
 # revised release targets and dependencies:

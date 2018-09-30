@@ -11,8 +11,8 @@
 #define _FNgramStats_cc_
 
 #ifndef lint
-static char FNgramStats_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.18 2010/06/02 05:51:57 stolcke Exp $";
+static char FNgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.21 2012/10/29 17:24:59 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -23,8 +23,6 @@ using namespace std;
 #endif
 #include <string.h>
 #include <ctype.h>
-
-const unsigned maxLineLength = 10000;
 
 #include "FNgramStats.h"
 
@@ -135,12 +133,13 @@ FNgramCounts<CountT>::countSentence(const VocabString *words, const char *factor
     return countSentence(words, factorCount);
 }
 
+
 template <class CountT>
 unsigned int
 FNgramCounts<CountT>::countSentence(const VocabString *words, CountT factor)
 {
-    static WordMatrix wordMatrix;
-    static WidMatrix widMatrix;
+    WordMatrix &wordMatrix = TLSW_GET(countSentenceWordMatrix);
+    WidMatrix  &widMatrix  = TLSW_GET(countSentenceWidMatrix);
     unsigned int howmany;
 
     howmany = fnSpecs.loadWordFactors(words,wordMatrix,maxWordsPerLine + 1);
@@ -287,7 +286,6 @@ FNgramCounts<CountT>::incrementCounts(FNgramNode* counts,
   }
 }
 
-
 template <class CountT>
 unsigned int
 FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid token
@@ -295,7 +293,7 @@ FNgramCounts<CountT>::countSentence(const unsigned int start, // first valid tok
 				    WidMatrix& wm,
 				    CountT factor)
 {
-  static VocabIndex wids[maxNumParentsPerChild + 2];  
+  VocabIndex *wids = TLSW_GET_ARRAY(countSentenceWids);  
 
   if (debug(DEBUG_VERY_VERBOSE))  
     fprintf(stderr,"counting sentence\n");
@@ -496,9 +494,9 @@ template <class CountT>
 Boolean
 FNgramCounts<CountT>::read(unsigned int specNum,File &file)
 {
-    static VocabString words[maxNumParentsPerChild+1];
-    static VocabIndex wids[maxNumParentsPerChild+1];
-    static Boolean tagsfound[maxNumParentsPerChild+1];
+    VocabString *words     = TLSW_GET_ARRAY(readWords);
+    VocabIndex  *wids      = TLSW_GET_ARRAY(readWids);
+    Boolean     *tagsfound = TLSW_GET_ARRAY(readTagsFound);
     CountT count;
     unsigned int howmany;
     unsigned int parSpec;
@@ -663,7 +661,7 @@ FNgramCounts<CountT>::writeSpec(File &file,
   if (specNum >= fnSpecs.fnSpecArray.size())
     return;
   
-  static char buffer[maxLineLength];
+  char *buffer = TLSW_GET_ARRAY(writeSpecBuffer);
   const unsigned numSubSets = 1U<<fnSpecs.fnSpecArray[specNum].numParents;
   for (unsigned int i = 0; i < numSubSets; i++) {
     if (fnSpecs.fnSpecArray[specNum].parentSubsets[i].counts != NULL) {

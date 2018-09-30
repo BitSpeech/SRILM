@@ -5,9 +5,9 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995-2011 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.57 2011/01/14 01:01:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.63 2012/10/29 17:25:03 mcintyre Exp $
  *
  */
 
@@ -114,6 +114,13 @@ public:
     virtual Prob wordProbSum(const VocabIndex *context);
 						/* sum of all word probs */
 
+    /*
+     * generateSentence and generateWord are non-deterministic when used by multiple
+     * threads because of the drand call in generateWord. This could be addressed by 
+     * having the caller provide a seed or introducing a TLS seed. The former 
+     * approach would provide isolation from other drand calls that may be 
+     * introduced. 
+     */
     virtual VocabIndex generateWord(const VocabIndex *context);
     virtual VocabIndex *generateSentence(unsigned maxWords = maxWordsPerLine,
 				VocabIndex *sentence = 0,
@@ -141,7 +148,7 @@ public:
     virtual Boolean write(File &file);
     virtual Boolean writeBinary(File &file);
 
-    virtual Boolean running() { return _running; }
+    virtual Boolean running() { return _running; };
     virtual Boolean running(Boolean newstate)
       { Boolean old = _running; _running = newstate; return old; };
 
@@ -149,6 +156,12 @@ public:
 	{ return new _LM_FollowIter(*this, context); };
 
     virtual void memStats(MemStats &stats);
+
+    virtual unsigned prefetchingNgrams() { return 0; };
+					/* no prefetching by default */
+    virtual Boolean prefetchNgrams(NgramCounts<Count> &ngrams) { return true; };
+    virtual Boolean prefetchNgrams(NgramCounts<XCount> &ngrams) { return true; };
+    virtual Boolean prefetchNgrams(NgramCounts<FloatCount> &ngrams) { return true; };
 
     Vocab &vocab;			/* vocabulary */
 
@@ -164,7 +177,7 @@ public:
     Boolean addSentEnd;			/* add </s> tags to sentences */
 
     static unsigned initialDebugLevel;	/* default debug level for LMs */
-
+    static void freeThread();
 protected:
     Boolean _running;	/* indicates the LM is being used for sequential
 			 * word prob computation */
@@ -172,6 +185,10 @@ protected:
 				VocabIndex *reversed, unsigned len);
 			/* reverse sentence for wordProb computation */
     Boolean writeInBinary;
+
+    void updateRanks(LogP logp, const VocabIndex *context,
+			FloatCount &r1, FloatCount &r5, FloatCount &r10,
+			FloatCount weight = 1.0);
 };
 
 /*

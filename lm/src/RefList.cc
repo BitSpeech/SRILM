@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1998-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.cc,v 1.12 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1998-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.cc,v 1.16 2012/10/29 17:25:05 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -18,6 +18,7 @@ using namespace std;
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <TLSWrapper.h>
 
 #include "RefList.h"
 
@@ -36,7 +37,7 @@ INSTANTIATE_ARRAY(VocabIndex *);
  * utterance ids.
  */
 static const char *suffixes[] = {
-    ".Z", ".gz", ".score", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", 0
+  ".Z", ".gz", ".score", ".nbest", ".wav", ".wav_cep", ".wv", ".wv1", ".sph", ".lat", ".plp", 0
 };
 
 /*
@@ -44,10 +45,11 @@ static const char *suffixes[] = {
  *	Result is returned in temporary buffer that is valid until next
  *	call to this function.
  */
+static TLSW(char*, idFromFilenameResult);
 RefString
 idFromFilename(const char *filename)
 {
-    static char *result = 0;
+    char* &result = TLSW_GET(idFromFilenameResult);
 
     const char *root = strrchr(filename, '/');
 
@@ -74,6 +76,17 @@ idFromFilename(const char *filename)
 	}
     }
     return result;
+}
+
+void
+RefList_freeThread() 
+{
+    char* &result = TLSW_GET(idFromFilenameResult);
+
+    if (result != 0)
+        free(result);
+
+    TLSW_FREE(idFromFilenameResult);
 }
 
 RefList::RefList(Vocab &vocab, Boolean haveIDs)

@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.23 2010/06/02 05:49:58 stolcke Exp $";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.24 2012/02/27 22:52:55 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -26,6 +26,7 @@ using namespace std;
 #include "Trellis.h"
 
 #include "LHash.cc"
+#include "SArray.h"
 
 #define INSTANTIATE_TRELLIS(StateT) \
     INSTANTIATE_LHASH(StateT,TrellisNode<StateT>); \
@@ -575,7 +576,9 @@ TrellisNBestList<StateT>::findrank(const Hyp<StateT>& hyp) const
 
     while (low+1 < high) {
 	unsigned m = (high+low)/2;
-	if (nblist[m].score >= hyp.score) {
+	if (nblist[m].score > hyp.score ||
+	    (nblist[m].score == hyp.score && SArray_compareKey(nblist[m].prev, hyp.prev) > 0))
+	{
 	    low = m;
 	} else {
 	    high = m;
@@ -587,7 +590,10 @@ TrellisNBestList<StateT>::findrank(const Hyp<StateT>& hyp) const
      * where n is the correct insertion point, e.g., when inserting
      * 2.5 in (...,3,2,...).
      */
-    while (low < numNbest && nblist[low].score >= hyp.score) {
+    while (low < numNbest &&
+	   (nblist[low].score > hyp.score ||
+	    (nblist[low].score == hyp.score && SArray_compareKey(nblist[low].prev, hyp.prev) > 0)))
+    {
 	low ++;
     }
     return low;

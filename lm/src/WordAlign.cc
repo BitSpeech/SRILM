@@ -5,13 +5,19 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.cc,v 1.11 2010/06/02 05:49:58 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.cc,v 1.13 2012/10/29 17:25:05 mcintyre Exp $";
 #endif
 
 #include <assert.h>
 
+#include "TLSWrapper.h"
 #include "WordAlign.h"
+
+typedef struct {
+    unsigned cost;			// minimal cost of partial alignment
+    WordAlignType error;		// best predecessor
+} ChartEntry;
 
 /*
  * wordError --
@@ -28,6 +34,22 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.cc,v 
  *	words are indicated by DEL_ALIGN.  The alignment is terminated by
  *	END_ALIGN.
  */
+
+static TLSW(unsigned, maxHypLengthTLS);
+static TLSW(unsigned, maxRefLengthTLS);
+static TLSW(ChartEntry**, chartTLS);
+
+void
+freeChart(ChartEntry** chart)
+{
+    unsigned &maxRefLength = TLSW_GET(maxRefLengthTLS);
+
+    for (unsigned i = 0; i <= maxRefLength; i ++) {
+        delete [] chart[i];
+    }
+    delete [] chart;
+}
+
 unsigned
 wordError(const VocabIndex *ref, const VocabIndex *hyp,
 			unsigned &sub, unsigned &ins, unsigned &del,
@@ -36,27 +58,19 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
     unsigned hypLength = Vocab::length(hyp);
     unsigned refLength = Vocab::length(ref);
 
-    typedef struct {
-	unsigned cost;			// minimal cost of partial alignment
-	WordAlignType error;		// best predecessor
-    } ChartEntry;
-
     /* 
      * Allocate chart statically, enlarging on demand
      */
-    static unsigned maxHypLength = 0;
-    static unsigned maxRefLength = 0;
-    static ChartEntry **chart = 0;
+    unsigned &maxHypLength = TLSW_GET(maxHypLengthTLS);
+    unsigned &maxRefLength = TLSW_GET(maxRefLengthTLS);
+    ChartEntry** &chart    = TLSW_GET(chartTLS);
 
     if (chart == 0 || hypLength > maxHypLength || refLength > maxRefLength) {
 	/*
 	 * Free old chart
 	 */
 	if (chart != 0) {
-	    for (unsigned i = 0; i <= maxRefLength; i ++) {
-		delete [] chart[i];
-	    }
-	    delete [] chart;
+            freeChart(chart); 
 	}
 
 	/*
@@ -199,5 +213,18 @@ wordError(const VocabIndex *ref, const VocabIndex *hyp,
     }
 
     return totalErrors;
+}
+
+void
+wordError_freeThread()
+{
+    ChartEntry** &chart = TLSW_GET(chartTLS);
+
+    if (chart != 0)
+        freeChart(chart);
+
+    TLSW_FREE(maxHypLengthTLS);
+    TLSW_FREE(maxRefLengthTLS);
+    TLSW_FREE(chartTLS);
 }
 

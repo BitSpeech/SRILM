@@ -8,7 +8,7 @@
  *
  * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.h,v 1.16 2009/06/11 05:30:47 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.h,v 1.19 2012/10/29 17:24:59 mcintyre Exp $
  *
  */
 
@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 
+#include "TLSWrapper.h"
 #include "LMStats.h"
 #include "XCount.h"
 #include "SubVocab.h"
@@ -34,6 +35,7 @@ typedef unsigned long FNgramCount;
 #include "FactoredVocab.h"
 #include "FNgramSpecs.h"
 #include "wmatrix.h"
+#include "NgramStats.h"		// for maxLineLength
 
 #include "Trie.h"
 #include "Array.h"
@@ -46,6 +48,14 @@ const unsigned int	maxFNgramOrder = 100;	/* Used in allocating various
 class FactoredVocab;				// forward declaration
 template <class CountT> class FNgramSpecs;	// forward declaration
 template <class CountT> class FNgramCountsIter;	// forward declaration
+
+extern TLSW_DECL_ARRAY(VocabIndex, countSentenceWids, maxNumParentsPerChild+2);
+extern TLSW_DECL(WordMatrix, countSentenceWordMatrix); 
+extern TLSW_DECL(WidMatrix, countSentenceWidMatrix); 
+extern TLSW_DECL_ARRAY(VocabString, readWords, maxNumParentsPerChild+1);
+extern TLSW_DECL_ARRAY(VocabIndex, readWids, maxNumParentsPerChild+1);
+extern TLSW_DECL_ARRAY(Boolean, readTagsFound, maxNumParentsPerChild+1);
+extern TLSW_DECL_ARRAY(char, writeSpecBuffer, maxLineLength);
 
 #ifndef FNgramNode
 #define FNgramNode        Trie<VocabIndex,CountT>

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2008 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBestSet.h,v 1.9 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBestSet.h,v 1.11 2012/07/03 21:19:28 zj Exp $
  *
  */
 
@@ -47,6 +47,10 @@ public:
     virtual ~NBestSet();
 
     Boolean read(File &file);
+    Boolean readSRInterpFormat(File & file, LHash<RefString, NBestScore **> & allScores,
+			       unsigned numScores, RefString * feats, double * scales);
+
+    Boolean readSRInterpCountsFile(File & file, unsigned & numRefWords, unsigned & bleuNgrams);
     unsigned numElements() { return lists.numEntries(); };
 
     Vocab &vocab;
@@ -61,6 +65,8 @@ private:
     LHash<RefString,NBestSetElement> lists;
 
     Boolean readList(RefString id, NBestSetElement &elt);
+    Boolean readListSRInterpFormat(RefString id, NBestSetElement & elt, 
+				   LHash<RefString, Array<NBestScore> * > & nbestScores);
     void freeList(NBestSetElement &elt);
 };
 

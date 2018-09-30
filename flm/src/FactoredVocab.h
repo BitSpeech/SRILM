@@ -5,7 +5,7 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  * Kevin Duh <duh@ee.washington.edu>
  *
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.h,v 1.17 2009/05/07 05:27:22 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.h,v 1.18 2012/10/29 17:24:59 mcintyre Exp $
  *
  */
 
@@ -114,6 +114,7 @@ public:
 
   virtual unsigned int read(File &file);
 
+  static void freeThread();
 public:
 
   void loadWordFactor(const VocabString word,

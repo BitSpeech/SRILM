@@ -3,9 +3,9 @@
  *	Word Meshes (a simple type of word lattice with transitions between
  *	any two adjacent words).
  *
- * Copyright (c) 1998-2005 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.h,v 1.22 2005/07/03 22:40:56 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.h,v 1.25 2012/11/04 06:03:36 stolcke Exp $
  *
  */
 
@@ -63,7 +63,12 @@ public:
     Boolean isEmpty();
     unsigned length() { return numAligns; };
     LHash<VocabIndex,Prob> *wordColumn(unsigned columnNumber);
+    LHash<VocabIndex,NBestWordInfo> *wordinfoColumn(unsigned columnNumber);
+
+    static void freeThread();
     
+    Prob totalPosterior;		// accumulated sample scores
+
     VocabIndex deleteIndex;		// pseudo-word representing deletions
 
 private:
@@ -89,8 +94,6 @@ private:
 					// 	(Note: only keys are used)
     unsigned numAligns;			// number of alignment columns
     Array<unsigned> sortedAligns;	// topoligical order of alignment
-
-    Prob totalPosterior;		// accumulated sample scores
 
     VocabDistance *distance;		// word distance (or null)
 };

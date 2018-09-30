@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.11 2011/11/22 06:37:22 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.13 2012/07/06 01:01:44 stolcke Exp $
 #
 
    # Use the MSVC compiler (tested with Visual C++ 2005 Express Edition)
@@ -19,6 +19,9 @@
    #	PATH	should include MSVC_INSTALL_DIR/bin and 
    #		MSVC_INSTALL_DIR/Common7/IDE (for dll search)
    #    MSVCDIR should be set to MSVC_INSTALL_DIR
+   #            NOTE: Only set by default on VC6 and VS2003; we
+   #            now look for MSVCDir (different capitalization)
+   #            and update MSVCDIR if set.
    #	INCLUDE	should be set to MSVC_INSTALL_DIR/include
    #	LIB	should be set to MSVC_INSTALL_DIR/lib
    #
@@ -28,6 +31,14 @@
    # Build with
    #	make MACHINE_TYPE=msvc
    #
+
+   # On 1/24/2012, updated variables based on different casing
+   ifneq ("$(WindowsSdkDir)", "")
+     WINDOWSSDKDIR=$(WindowsSdkDir)
+   endif
+   ifneq ("$(MSVCDir)", "")
+     MSVCDIR=$(MSVCDir)
+   endif
 
    # locate the MSVC tools by absolute path.  This is the default location
    ifeq ("$(MSVCDIR)", "")
@@ -96,7 +107,6 @@
    # Shared linking flags.
    LDFLAGS = $(ADDITIONAL_LDFLAGS) /LIBPATH:$(SRILM_LIBDIR) /STACK:5000000 /FORCE:MULTIPLE /NOLOGO /IGNORE:4006 /IGNORE:4088 /IGNORE:4221
 
-
    # Other useful compilation flags.
    ADDITIONAL_CFLAGS =
    ADDITIONAL_CXXFLAGS =
@@ -109,6 +119,9 @@
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = 
+
+   # Libraries we don't want Make to look for
+   SYS_LIBRARIES = wsock32.lib
 
    # Extra files to remove
    EXTRA_REMOVE_PROGRAMS = $(ALL_PROGRAMS:.exe=.map) \

@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1996,1997 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.h,v 1.4 2000/06/12 06:00:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordAlign.h,v 1.5 2012/10/29 17:25:05 mcintyre Exp $
  *
  */
 
@@ -32,6 +32,6 @@ unsigned wordError(const VocabIndex *hyp, const VocabIndex *ref,
 			unsigned &sub, unsigned &ins, unsigned &del,
 			WordAlignType *alignment = 0);
 					/* computes total word error */
-
+void wordError_freeThread();
 #endif /* _WORD_ALIGN_H_ */
 

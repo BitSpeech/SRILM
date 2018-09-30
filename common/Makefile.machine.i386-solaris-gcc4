@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i386-solaris-gcc4,v 1.2 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i386-solaris-gcc4,v 1.5 2012/10/18 20:55:17 mcintyre Exp $
 #
 
    # Use the GNU C compiler.
@@ -42,12 +42,11 @@
    ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+   SYS_LIBRARIES = -lsocket -lnsl -ldl -lpthread
 
    # Tcl support
-   # includ not needed for gcc
-   TCL_INCLUDE = # -I/usr/local/include
-   TCL_LIBRARY = -L/usr/local/lib -ltcl -R/usr/local/lib
+   TCL_INCLUDE = -I/usr/sfw/include
+   TCL_LIBRARY = -L/usr/sfw/lib -R/usr/sfw/lib -ltcl8.3
 
    # run-time linker path flag
    RLD_FLAG = -R

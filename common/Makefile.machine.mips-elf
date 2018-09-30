@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1995-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.mips-elf,v 1.26 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.mips-elf,v 1.27 2012/08/02 01:57:44 uid1090 Exp $
 #
 
 ifeq ($(USE_CC), )
@@ -56,9 +56,13 @@ endif
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = -lmalloc -lm
 
+   # Not sure if Irix comes with iconv support
+   NO_ICONV = X
+
    # Tcl support
-   TCL_INCLUDE = -I/usr/local/include
-   TCL_LIBRARY = -L/usr/local/lib -ltcl -rpath /usr/local/lib
+   NO_TCL = X
+   TCL_INCLUDE = 
+   TCL_LIBRARY = 
 
    # run-time linker path flag
    RLD_FLAG = -rpath

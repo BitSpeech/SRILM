@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/simpleTrigram.cc,v 1.6 2006/08/12 06:46:11 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/simpleTrigram.cc,v 1.8 2012/10/29 17:25:06 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -26,7 +26,6 @@ extern "C" {
 
 void
 trigram_init(char *filename) {
-
     vocab = new Vocab;
     assert(vocab != 0);
 
@@ -45,7 +44,7 @@ trigram_init(char *filename) {
 
 int
 word_id(char *w) {
-     return vocab->getIndex(w);
+    return vocab->getIndex(w);
 }
 
 double

@@ -8,8 +8,8 @@
 #define _Trie_cc_
 
 #ifndef lint
-static char Trie_Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.20 2010/06/02 04:52:43 stolcke Exp $";
+static char Trie_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.23 2012/10/18 20:55:19 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -82,9 +82,8 @@ Trie<KeyT,DataT>::~Trie()
  */
 template <class KeyT, class DataT>
 void
-Trie<KeyT,DataT>::dump() const
+Trie<KeyT,DataT>::dump(unsigned indent) const
 {
-    static unsigned indent = 0;
     TrieIter<KeyT,DataT> iter(*this);
     KeyT key;
     Trie<KeyT,DataT> *node;
@@ -92,15 +91,13 @@ Trie<KeyT,DataT>::dump() const
 #ifdef DUMP_VALUES
     cerr << "Value = " << data << endl;
 #endif
-    indent += 5;
     while ((node = iter.next(key))) {
 	for (unsigned i = 0; i < indent; i ++) {
 	    cerr << " ";
 	}
 	cerr << "Key = " << key << endl;
-	node->dump();
+	node->dump(indent + 5);
     }
-    indent -= 5;
 }
 
 /*
@@ -171,31 +168,49 @@ Trie<KeyT,DataT>::insertTrie(const KeyT *keys, Boolean &foundP)
 }
 
 template <class KeyT, class DataT>
-Trie<KeyT,DataT> *
-Trie<KeyT,DataT>::removeTrie(const KeyT *keys, Boolean &foundP)
+Boolean
+Trie<KeyT,DataT>::removeTrie(const KeyT *keys, Trie<KeyT,DataT> *removedData)
 {
     if (keys == 0 || Map_noKeyP(keys[0])) {
-	foundP = false;
-	return 0;
+	return false;
     } else if (Map_noKeyP(keys[1])) {
-	Trie<KeyT,DataT> *subtrie = sub.remove(keys[0], foundP);
-
-	if (foundP) {
-	    /*
-	     * XXX: Need to call deallocator explicitly
-	     */
-	    subtrie->~Trie();
-	    return subtrie;
+	if (sub.remove(keys[0], removedData)) {
+            if (removedData != 0) {
+                /*
+                 * XXX: Need to call deallocator explicitly
+                 */
+	        removedData->~Trie();
+            }
+	    return true;
 	} else {
-	    return 0;
+	    return false;
 	}
     } else {
+        Boolean foundP;
+	Trie<KeyT,DataT> *subtrie = sub.find(keys[0], foundP);
+
+        if (!foundP) {
+	    return false;
+	} else {
+	    return subtrie->removeTrie(keys + 1, removedData);
+	}
+    }
+}
+
+template <class KeyT, class DataT>
+unsigned int
+Trie<KeyT,DataT>:: numEntries(const KeyT *keys) const
+{
+    if (keys == 0 || Map_noKeyP(keys[0])) {
+	return sub.numEntries();
+    } else {
+	Boolean foundP;
 	Trie<KeyT,DataT> *subtrie = sub.find(keys[0], foundP);
 
         if (!foundP) {
 	    return 0;
 	} else {
-	    return subtrie->removeTrie(keys + 1, foundP);
+	    return subtrie->numEntries(keys + 1);
 	}
     }
 }

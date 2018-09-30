@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1999-2011 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-ubuntu-32,v 1.1 2011/01/25 21:49:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-ubuntu-32,v 1.4 2012/10/18 20:55:18 mcintyre Exp $
 #
 
    # Use the GNU C compiler.
@@ -44,7 +44,7 @@
    ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm -ldl
+   SYS_LIBRARIES = -lpthread
 
    # run-time linker path flag
    RLD_FLAG = -R

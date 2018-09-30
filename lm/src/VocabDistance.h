@@ -2,9 +2,9 @@
  * VocabDistance.h --
  *	Distance metrics over vocabularies
  *
- * Copyright (c) 2000,2004 SRI International.  All Rights Reserved.
+ * Copyright (c) 2000,2004 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.4 2010/06/02 07:53:34 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.5 2012/07/04 23:47:07 stolcke Exp $
  *
  */
 
@@ -14,6 +14,7 @@
 #include "Vocab.h"
 #include "SubVocab.h"
 #include "VocabMultiMap.h"
+#include "VocabMap.h"
 #include "Map2.h"
 
 class VocabDistance
@@ -93,6 +94,23 @@ private:
     VocabIndex emptyIndex;
     VocabMultiMap &dictionary;
     Map2<VocabIndex,VocabIndex,double> cache;
+};
+
+/*
+ * Word distances defined by a matrix
+ */
+class MatrixDistance: public VocabDistance
+{
+public:
+    MatrixDistance(Vocab &vocab, VocabMap &map);
+    virtual ~MatrixDistance() {};
+
+    double penalty(VocabIndex w1);
+    double distance(VocabIndex w1, VocabIndex w2);
+
+private:
+    VocabIndex deleteIndex;
+    VocabMap &map;
 };
 
 #endif /* _VocabDistance_h_ */

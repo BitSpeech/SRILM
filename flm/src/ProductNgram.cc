@@ -6,11 +6,12 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2004, SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.cc,v 1.10 2007/12/04 18:09:49 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.cc,v 1.14 2012/10/29 17:25:00 mcintyre Exp $";
 #endif
 
 #include "ProductNgram.h"
+#include "TLSWrapper.h"
 
 /*
  * Debug levels used
@@ -109,10 +110,15 @@ ProductNgram::read(File &file, Boolean limitVocab)
  * factored LM and then multiplying (forming the product) of the various
  * factors currently loaded.
  */
+
+static TLSWC(WidMatrix, wordProbBOwidMatrixTLS);
+
 LogP
 ProductNgram::wordProbBO(VocabIndex word, const VocabIndex *context,
 							unsigned int clen)
 {
+    WidMatrix &widMatrix = TLSW_GET(wordProbBOwidMatrixTLS);
+
     assert(fngramLM != 0);
     if (fngramLM == 0) {
 	return LogP_Zero;
@@ -122,8 +128,6 @@ ProductNgram::wordProbBO(VocabIndex word, const VocabIndex *context,
     // context[0] is w[t-1]
     // context[1] is w[t-2]
     // and so on.
-
-    static WidMatrix widMatrix;
     const unsigned childPos = clen;
 
     // load up the word and the context.
@@ -157,9 +161,7 @@ ProductNgram::contextID(VocabIndex word, const VocabIndex *context,
     // truncate context to used length and compute a hash code
     TruncatedContext usedContext(context, length);
 
-    unsigned long hash = LHash_hashKey(usedContext, 30);
-
-    return (void *)hash;
+    return (void *)LHash_hashKey(usedContext, 30);
 }
 
 LogP
@@ -195,3 +197,8 @@ ProductNgram::wordProbSum(const VocabIndex *context)
     return total;
 }
 
+void
+ProductNgram::freeThread()
+{
+    TLSW_FREE(wordProbBOwidMatrixTLS);
+}

@@ -10,9 +10,9 @@
  * SArrayIter<KeyT,DataT> implements iteration over the entries of the
  * Map object.
  *
- * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.h,v 1.31 2007/07/16 23:41:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/SArray.h,v 1.36 2012/10/18 20:55:19 mcintyre Exp $
  *
  */
 
@@ -51,10 +51,16 @@ public:
     SArray(const SArray<KeyT,DataT> &source);
     SArray<KeyT,DataT> &operator= (const SArray<KeyT,DataT> &source);
 
-    DataT *find(KeyT key, Boolean &foundP = _Map::foundP) const;
-    KeyT getInternalKey(KeyT key, Boolean &foundP = _Map::foundP) const;
-    DataT *insert(KeyT key, Boolean &foundP = _Map::foundP);
-    DataT *remove(KeyT key, Boolean &foundP = _Map::foundP);
+    DataT *find(KeyT key, Boolean &foundP) const;
+    inline DataT *find(KeyT key) const
+        { Boolean found; return find(key, found); }
+    KeyT getInternalKey(KeyT key, Boolean &foundP) const;
+    inline KeyT getInternalKey(KeyT key) const
+        { Boolean found; return getInternalKey(key, found); }
+    DataT *insert(KeyT key, Boolean &foundP);
+    inline DataT *insert(KeyT key)
+        { Boolean found; return insert(key, found); }
+    Boolean remove(KeyT key, DataT *removedData = 0);
     void clear(unsigned size = 0);
     void setsize(unsigned size = 0);
     unsigned numEntries() const;
@@ -69,7 +75,8 @@ protected:
     void alloc(unsigned size);		/* allocate data array */
     Boolean locate(KeyT key, unsigned &index) const;
 					/* locate key in data */
-    static DataT *removedData;		/* temporary buffer for removed item */
+private:
+    static KeyT zeroKey;
 };
 
 template <class KeyT, class DataT>
@@ -79,10 +86,13 @@ class SArrayIter
 
 public:
     SArrayIter(const SArray<KeyT,DataT> &sarray, int (*sort)(KeyT, KeyT) = 0);
+    SArrayIter(const SArrayIter<KeyT,DataT> &iter);
     ~SArrayIter();
 
     void init();
     DataT *next(KeyT &key);
+    bool operator()(const unsigned idx1, const unsigned idx2);
+					/* callback function for sort() */
 
 private:
     SArrayBody<KeyT,DataT> *mySArrayBody;
@@ -94,8 +104,6 @@ private:
 					 * or 0 for random order */
     KeyT *sortedKeys;			/* array of sorted keys */
     void sortKeys();			/* initialize sortedKeys */
-    static int compareIndex(const void *idx1, const void *idx2);
-					/* callback function for qsort() */
 };
 
 /*

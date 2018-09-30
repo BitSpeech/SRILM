@@ -16,6 +16,8 @@
  *
  * DataT *find(const KeyT *keys, Boolean &foundP)
  * DataT *find(KeyT key, Boolean &foundP)
+ * DataT *find(const KeyT *keys)
+ * DataT *find(KeyT key)
  *	Returns a pointer to the data item found under key, or null if
  *	the key is not in the trie.
  *	With this and the other functions, the foundP argument is optional
@@ -23,22 +25,29 @@
  *
  * DataT *insert(const KeyT *keys, Boolean &foundP)
  * DataT *insert(KeyT key, Boolean &foundP)
+ * DataT *insert(const KeyT *keys)
+ * DataT *insert(KeyT key)
  *	Returns a pointer to the data item for key, creating a new
  *	entry if necessary (indicated by foundP == false).
  *	New data items are zero-initialized.
  *
- * DataT *remove(const KeyT *keys, Boolean &foundP)
- * DataT *remove(KeyT key, Boolean &foundP)
- *	Deletes the entry associated with key from the trie, returning
- *	a pointer to the previously stored value, if any.
+ * Boolean remove(const KeyT *keys, DataT *removedData = 0)
+ * Boolean remove(KeyT key, DataT *removedData = 0)
+ *	Deletes the entry associated with key from the trie.
+ *      If removedData is not null it will be populated with 
+ *      the previously stored value, if any. 
  *
  * Trie *findTrie(const KeyT *keys, Boolean &foundP)
  * Trie *findTrie(KeyT key, Boolean &foundP)
+ * Trie *findTrie(const KeyT *keys)
+ * Trie *findTrie(KeyT key)
  *	Returns a pointer to the trie node found under key, or null if
  *	the key is no in the trie.
  *
  * Trie *insertTrie(const KeyT *keys, Boolean &foundP)
  * Trie *insertTrie(KeyT key, Boolean &foundP)
+ * Trie *insertTrie(const KeyT *keys)
+ * Trie *insertTrie(KeyT key, Boolean)
  *	Returns a pointer to the trie node found for key, creating a new
  *	node if necessary (indicated by foundP == false).
  *	The data for the new node is zero-initialized, and has no
@@ -47,13 +56,14 @@
  * voild clear()
  *	Removes all entries.
  *
- * unsigned int numEntries()
- *	Returns the current number of keys (i.e., entries) in the trie.
+ * unsigned int numEntries(const KeyT *keys)
+ *	Returns the current number of keys (i.e., entries) in a subtrie,
+ *	or at the current level (if keys = 0).
  *
  * DataT &value()
  *	Return the current data item (by reference, not pointer!).
  *
- * The DataT * pointers returned by find(), insert() and remove() are
+ * The DataT * pointers returned by find() and insert() are
  * valid only until the next operation on the Trie object.  It is left
  * to the user to assign actual values by dereferencing the pointers 
  * returned.  The main benefit is that only one key lookup is needed
@@ -76,9 +86,9 @@
  * Note that the iterator returns pointers to the Trie nodes, not the
  * stored data items.  Those can be accessed with value(), see above.
  *
- * Copyright (c) 1995, SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.20 2009/08/31 20:10:10 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.24 2012/10/18 20:55:19 mcintyre Exp $
  *
  */
 
@@ -124,48 +134,70 @@ public:
 
     DataT &value() { return data; };
 
-    DataT *find(const KeyT *keys = 0, Boolean &foundP = _Map::foundP) const
+    DataT *find(const KeyT *keys, Boolean &foundP) const
 	{ Trie<KeyT,DataT> *node = findTrie(keys, foundP);
 	  return node ? &(node->data) : 0; };
-    DataT *find(KeyT key, Boolean &foundP = _Map::foundP) const
+    DataT *find(KeyT key, Boolean &foundP) const
 	{ Trie<KeyT,DataT> *node = findTrie(key, foundP);
 	  return node ? &(node->data) : 0; };
+    DataT *find(const KeyT *keys) const
+	{ Boolean found; return find(keys, found); } 
+    DataT *find(KeyT key) const
+	{ Boolean found; return find(key, found); } 
 
-    DataT *insert(const KeyT *keys = 0, Boolean &foundP = _Map::foundP)
+    DataT *insert(const KeyT *keys, Boolean &foundP)
 	{ return &(insertTrie(keys, foundP)->data); };
-    DataT *insert(KeyT key, Boolean &foundP = _Map::foundP)
+    DataT *insert(KeyT key, Boolean &foundP)
 	{ return &(insertTrie(key, foundP)->data); };
+    DataT *insert(const KeyT *keys)
+	{ Boolean found; return insert(keys, found); };
+    DataT *insert(KeyT key)
+	{ Boolean found; return insert(key, found); };
 
-    DataT *remove(const KeyT *keys = 0, Boolean &foundP = _Map::foundP)
-	{ Trie<KeyT,DataT> *node = removeTrie(keys, foundP);
-	  return node ? &(node->data) : 0; };
-    DataT *remove(KeyT key, Boolean &foundP = _Map::foundP)
-	{ Trie<KeyT,DataT> *node = removeTrie(key, foundP);
-	  return node ? &(node->data) : 0; };
-
-    Trie<KeyT,DataT> *findTrie(const KeyT *keys = 0,
-				Boolean &foundP = _Map::foundP) const;
-    Trie<KeyT,DataT> *findTrie(KeyT key, Boolean &foundP = _Map::foundP) const
+    Boolean remove(const KeyT *keys = 0, DataT *removedData = 0)
+	{ Trie<KeyT,DataT> node;
+          Boolean ret = removeTrie(keys, &node);
+          if (removedData != 0)
+              memcpy(removedData, &(node.data), sizeof(DataT));
+          return ret;
+        };
+    Boolean remove(KeyT key, DataT *removedData = 0)
+	{ Trie<KeyT,DataT> node;
+          Boolean ret = removeTrie(key, &node);
+          if (removedData != 0)
+              memcpy(removedData, &(node.data), sizeof(DataT));
+          return ret;
+        };
+    Trie<KeyT,DataT> *findTrie(const KeyT *keys,
+				Boolean &foundP) const;
+    Trie<KeyT,DataT> *findTrie(KeyT key, Boolean &foundP) const
 	{ return sub.find(key, foundP); };
+    Trie<KeyT,DataT> *findTrie(const KeyT *keys) const
+	{ Boolean found; return findTrie(keys, found); };
+    Trie<KeyT,DataT> *findTrie(const KeyT key) const
+	{ Boolean found; return findTrie(key, found); };
 
-    Trie<KeyT,DataT> *insertTrie(const KeyT *keys = 0,
-				Boolean &foundP = _Map::foundP);
-    Trie<KeyT,DataT> *insertTrie(KeyT key, Boolean &foundP = _Map::foundP)
+    Trie<KeyT,DataT> *insertTrie(const KeyT *keys,
+				Boolean &foundP);
+    Trie<KeyT,DataT> *insertTrie(KeyT key, Boolean &foundP)
 	{ Trie<KeyT,DataT> *subtrie = sub.insert(key, foundP);
           if (!foundP) new (&subtrie->sub) KeyT(0);
 	  return subtrie; }
-
-    Trie<KeyT,DataT> *removeTrie(const KeyT *keys = 0,
-				Boolean &foundP = _Map::foundP);
-    Trie<KeyT,DataT> *removeTrie(KeyT key, Boolean &foundP = _Map::foundP)
+    Trie<KeyT,DataT> *insertTrie(const KeyT *keys)
+	{ Boolean found; return insertTrie(keys, found); };
+    Trie<KeyT,DataT> *insertTrie(KeyT key)
+	{ Boolean found; return insertTrie(key,found); };
+    
+    Boolean removeTrie(const KeyT *keys = 0, Trie<KeyT, DataT> *removedData = 0);
+    Boolean removeTrie(KeyT key, Trie<KeyT, DataT> *removedData = 0)
 	{ KeyT keys[2]; keys[0] = key, Map_noKey(keys[1]);
-	  return removeTrie(keys, foundP); };
-
+	  return removeTrie(keys, removedData); };
+    
     void clear() { sub.clear(0); };
 
-    unsigned int numEntries() const { return sub.numEntries(); };
+    unsigned int numEntries(const KeyT *keys = 0) const;
 
-    void dump() const;				/* debugging: dump contents */
+    void dump(unsigned indent = 0) const;	/* debugging: dump contents */
     void memStats(MemStats &stats) const;	/* compute memory stats */
 
 private:

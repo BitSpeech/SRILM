@@ -14,9 +14,9 @@
  * LHashIter<KeyT,DataT> performs iterations (in random key order) over
  * the entries in a hash table.
  *
- * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.h,v 1.35 2010/06/02 04:52:43 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.h,v 1.41 2012/10/18 20:55:19 mcintyre Exp $
  *
  */
 
@@ -71,10 +71,16 @@ public:
     LHash(const LHash<KeyT,DataT> &source);
     LHash<KeyT,DataT> &operator= (const LHash<KeyT,DataT> &source);
 
-    DataT *find(KeyT key, Boolean &foundP = _Map::foundP) const;
-    KeyT getInternalKey(KeyT key, Boolean &foundP = _Map::foundP) const;
-    DataT *insert(KeyT key, Boolean &foundP = _Map::foundP);
-    DataT *remove(KeyT key, Boolean &foundP = _Map::foundP);
+    DataT *find(KeyT key, Boolean &foundP) const;
+    inline DataT *find(KeyT key) const
+        { Boolean found; return find(key, found); }
+    KeyT getInternalKey(KeyT key, Boolean &foundP) const;
+    inline KeyT getInternalKey(KeyT key) const
+        { Boolean found; return getInternalKey(key, found); }
+    DataT *insert(KeyT key, Boolean &foundP);
+    inline DataT *insert(KeyT key) 
+        { Boolean found; return insert(key, found); }
+    Boolean remove(KeyT key, DataT *removedData = 0);
     void clear(unsigned size = 0);
     void setsize(unsigned size = 0);
     unsigned numEntries() const
@@ -88,13 +94,13 @@ public:
 #endif
 
 private:
+    static KeyT zeroKey;
     void *body;				/* handle to the above -- this keeps
 					 * the size of an empty table to
 					 * one word */
     Boolean locate(KeyT key, unsigned &index) const;
 					/* locate key in *data */
     void alloc(unsigned size);		/* initialization */
-    static DataT *removedData;		/* temporary buffer for removed item */
 };
 
 template <class KeyT, class DataT>
@@ -104,10 +110,13 @@ class LHashIter
 
 public:
     LHashIter(const LHash<KeyT,DataT> &lhash, int (*sort)(KeyT, KeyT) = 0);
+    LHashIter(const LHashIter<KeyT,DataT> &iter);
     ~LHashIter();
 
     void init();
     DataT *next(KeyT &key);
+    bool operator()(const unsigned idx1, const unsigned idx2);
+					/* callback function for sort() */
 
 private:
     LHashBody<KeyT,DataT> *myLHashBody;	/* data being iterated over */
@@ -119,15 +128,13 @@ private:
     KeyT *sortedKeys;			/* array of sorted keys,
 					   or 0 for random order */
     void sortKeys();			/* initialize sortedKeys */
-    static int compareIndex(const void *idx1, const void *idx2);
-					/* callback function for qsort() */
 };
 
 /*
  * Key Comparison functions
  */
 #define hashSize(nbits) (1U<<(nbits))	/* allocated size of data array */
-#define hashMask(nbits) (~((~0L)<<(nbits)))
+#define hashMask(nbits) (~((~(size_t)0L)<<(nbits)))
 					/* bitmask used to compute hash
 					 * code modulo maxEntries */
 
@@ -149,13 +156,13 @@ LHash_equalKey(const char *key1, const char *key2)
  * (We provide versions for integral types and char strings;
  * user has to add more specialized definitions.)
  */
-inline unsigned long
+inline size_t
 LHash_hashKey(unsigned long key, unsigned maxBits)
 {
     return (((key * 1103515245 + 12345) >> (30-maxBits)) & hashMask(maxBits));
 }
 
-inline unsigned long
+inline size_t
 LHash_hashKey(const char *key, unsigned maxBits)
 {
     /*

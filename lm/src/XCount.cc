@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.cc,v 1.7 2006/07/31 17:36:55 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.cc,v 1.9 2012/10/29 17:25:06 mcintyre Exp $";
 #endif
 
 #include <stdio.h>
@@ -14,15 +14,29 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/XCount.cc,v 1.7
 #include <assert.h>
 
 #include "XCount.h"
+#include "TLSWrapper.h"
 
-XCountValue XCount::xcountTable[XCount_TableSize];
-unsigned XCount::refCounts[XCount_TableSize];
-XCountIndex XCount::freeList = XCount_Maxinline;
+static TLSW_ARRAY(XCountValue, xcountTableTLS, XCount_TableSize);
+static TLSW_ARRAY(unsigned, refCountsTLS, XCount_TableSize);
+static TLSW(XCountIndex, freeListTLS);
+static TLSW(Boolean, initializedTLS);
+
+void
+XCount::freeThread()
+{
+    TLSW_FREE(xcountTableTLS);
+    TLSW_FREE(refCountsTLS);
+    TLSW_FREE(freeListTLS);
+    TLSW_FREE(initializedTLS);
+}
 
 XCountIndex
 XCount::getXCountTableIndex()
 {
-    static Boolean initialized = false;
+    Boolean      &initialized = TLSW_GET(initializedTLS);
+    XCountIndex  &freeList    = TLSW_GET(freeListTLS);
+    XCountValue*  xcountTable = TLSW_GET_ARRAY(xcountTableTLS);
+    unsigned*     refCounts   = TLSW_GET_ARRAY(refCountsTLS);
 
     if (!initialized) {
     	// populate xcountTable free list
@@ -47,6 +61,10 @@ XCount::getXCountTableIndex()
 void 
 XCount::freeXCountTableIndex(XCountIndex idx)
 {
+    XCountIndex  &freeList    = TLSW_GET(freeListTLS);
+    XCountValue*  xcountTable = TLSW_GET_ARRAY(xcountTableTLS);
+    unsigned*     refCounts   = TLSW_GET_ARRAY(refCountsTLS);
+
     refCounts[idx] --;
     if (refCounts[idx] == 0) {
 	xcountTable[idx] = freeList;
@@ -57,6 +75,8 @@ XCount::freeXCountTableIndex(XCountIndex idx)
 XCount::XCount(XCountValue value)
     : indirect(false)
 {
+    XCountValue* xcountTable = TLSW_GET_ARRAY(xcountTableTLS);
+
     if (value <= XCount_Maxinline) {
     	indirect = false;
 	count = value;
@@ -70,10 +90,11 @@ XCount::XCount(XCountValue value)
 
 XCount::XCount(const XCount &other)
 {
+    unsigned* refCounts = TLSW_GET_ARRAY(refCountsTLS);
     indirect = other.indirect;
     count = other.count;
     if (indirect) {
-	refCounts[count] ++;
+	refCounts[count]++;
     }
 }
 
@@ -86,6 +107,7 @@ XCount::~XCount()
 
 XCount::operator XCountValue() const
 {
+    XCountValue* xcountTable = TLSW_GET_ARRAY(xcountTableTLS);
     if (!indirect) {
 	return count;
     } else {
@@ -96,6 +118,7 @@ XCount::operator XCountValue() const
 XCount &
 XCount::operator= (const XCount &other)
 {
+    unsigned* refCounts = TLSW_GET_ARRAY(refCountsTLS);
     if (&other != this) {
     	if (indirect) {
 	    freeXCountTableIndex(count);
@@ -105,7 +128,7 @@ XCount::operator= (const XCount &other)
 	indirect = other.indirect;
 
 	if (other.indirect) {
-	    refCounts[other.count] ++;
+	    refCounts[other.count]++;
 	}
     }
     return *this;
@@ -115,6 +138,7 @@ void
 XCount::write(ostream &str) const
 {
 #ifdef DEBUG
+    XCountValue* xcountTable = TLSW_GET_ARRAY(xcountTableTLS);
     if (indirect) {
     	str << "X" << xcountTable[count]
 	        << "[" << count << "]";

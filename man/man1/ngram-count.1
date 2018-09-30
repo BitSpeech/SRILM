@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.44 2009/08/04 17:19:53 stolcke Exp $
-.TH ngram-count 1 "$Date: 2009/08/04 17:19:53 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.45 2012/04/12 20:01:16 stolcke Exp $
+.TH ngram-count 1 "$Date: 2012/04/12 20:01:16 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -510,7 +510,22 @@ Therefore, discounting parameters should always be estimated from full
 counts (e.g., using the helper 
 .BR training-scripts (1)),
 and then read from files.
+.br
+Smoothing with 
+.B \-kndiscount 
+or 
+.B \-ukndiscount
+has a side-effect on the N-gram counts, since
+the lower-order counts are destructively modified according to the KN smoothing approach
+(Kneser & Ney, 1995).
+The
+.BR \-write
+option will output these modified counts, and count cutoffs specified by
+.BI \-gt N min
+operate on the modified counts, potentially leading to a different set of N-grams
+being retained than with other discounting methods.
+This can be considered either a feature or a bug.
 .SH AUTHOR
 Andreas Stolcke <stolcke@speech.sri.com>.
 .br
-Copyright 1995\-2009 SRI International
+Copyright 1995\-2011 SRI International

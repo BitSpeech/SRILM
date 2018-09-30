@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/dstruct/src/Makefile,v 1.34 2011/07/19 16:43:14 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/dstruct/src/Makefile,v 1.39 2012/10/29 17:24:57 mcintyre Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -57,6 +57,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/Trie.h		\
 	$(SRCDIR)/CachedMem.h		\
 	$(SRCDIR)/BlockMalloc.h		\
+	$(SRCDIR)/DStructThreads.h	\
 	$(TEMPLATE_SOURCES)
 
 INTERNAL_LIB_HEADERS = 
@@ -67,7 +68,8 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/MemStats.cc \
 	$(SRCDIR)/LHashTrie.cc \
 	$(SRCDIR)/SArrayTrie.cc \
-	$(SRCDIR)/BlockMalloc.c \
+	$(SRCDIR)/BlockMalloc.cc \
+	$(SRCDIR)/DStructThreads.cc \
 	$(TEMPLATE_SOURCES)
 
 # Example Library object files.

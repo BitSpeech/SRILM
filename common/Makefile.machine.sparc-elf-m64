@@ -9,14 +9,15 @@
 #
 #    Copyright (c) 2009 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.sparc-elf-m64,v 1.1 2009/07/29 18:36:33 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.sparc-elf-m64,v 1.5 2012-07-06 23:05:08 stolcke Exp $
 #
 
 ifeq ($(USE_CC), )
    # Use the GNU C compiler.
    # XXX: Since most of our fast machines are UltraSPARC based, optimize
    # the code for that platform.
-   GCC_FLAGS = -m64 -mtune=ultrasparc -Wreturn-type -Wimplicit
+   # XXX: WordMesh.cc won't wompile if we specify ultarsparc
+   GCC_FLAGS = -m64 -mtune=supersparc -Wreturn-type -Wimplicit
    CC = $(GCC_PATH)gcc $(GCC_FLAGS)
    CXX = $(GCC_PATH)g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
@@ -62,7 +63,7 @@ endif
    ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm -lsocket -lnsl -ldl
+   SYS_LIBRARIES = -lsocket -lnsl -ldl
 
    # Tcl support not available for 64bit Solaris
    TCL_INCLUDE =
@@ -71,6 +72,7 @@ endif
 
    # run-time linker path flag
    RLD_FLAG = -R
+   RLD_FLAG =
 
    # several tools are in nonstandard place
    AR = /usr/ccs/bin/ar

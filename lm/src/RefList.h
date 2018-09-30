@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.h,v 1.6 2006/08/12 06:46:11 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RefList.h,v 1.7 2012/10/29 17:25:05 mcintyre Exp $
  *
  */
 
@@ -27,6 +27,7 @@ using namespace std;
 typedef const char *RefString;
 
 RefString idFromFilename(const char *filename);
+void RefList_freeThread();
 
 class RefList 
 {

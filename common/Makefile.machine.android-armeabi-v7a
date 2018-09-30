@@ -9,96 +9,13 @@
 #
 #    Copyright (c) 1999-2010 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.android-armeabi-v7a,v 1.4 2011/04/05 16:57:05 frandsen Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.android-armeabi-v7a,v 1.8 2012/08/10 08:29:15 frandsen Exp $
 #
-   # Need to set ndk directory; assume >= NDK r5b which bundles STL.
-   # Use ?= so environment variables will override.
-   ANDROID_NDK ?= ~/android-ndk-r5b
-   ANDROID_VERSION ?= android-4
 
    # Now disallow env override to maintain compatibility.
    # NOTE: For more neon optimizations, use machine variant
    # with -neon (uses -mfpu=neon versus vfp).
-   ANDROID_CUST_CFLAGS_armv7a := -march=armv7-a -mfloat-abi=softfp -mfpu=vfp
-   ANDROID_CUST_CFLAGS := $(ANDROID_CUST_CFLAGS_armv7a)
+   ANDROID_CUST_CFLAGS := -march=armv7-a -mfloat-abi=softfp -mfpu=vfp
    ANDROID_CUST_DIR := armeabi-v7a
 
-   SYSROOT := $(ANDROID_NDK)/platforms/$(ANDROID_VERSION)/arch-arm
-
-   ANDROID_SRILM_BIN := $(ANDROID_NDK)/toolchains/arm-eabi-4.4.0/prebuilt/linux-x86/bin
-
-   GCC := $(ANDROID_SRILM_BIN)/arm-eabi-gcc
-   GPP := $(ANDROID_SRILM_BIN)/arm-eabi-g++
-   AR := $(ANDROID_SRILM_BIN)/arm-eabi-ar
-   ARCHIVE = $(AR) crsuv
-
-   ARCH_FLAGS = -nostdlib -fno-exceptions -fno-rtti -mtune=xscale $(ANDROID_CUST_CFLAGS) -mthumb-interwork -mthumb -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -DANDROID  -DNO_EXCEPTIONS
-
-   # Use the GNU C compiler.
-   WARNING_FLAGS := -Wreturn-type  -Wimplicit  -Wuninitialized -Wdeprecated  -Wpointer-arith -Wstrict-overflow -Woverlength-strings -Wunused-variable
-   GCC_FLAGS = $(ARCH_FLAGS) $(WARNING_FLAGS) -DNO_ZIO
-   CC = $(GCC) $(GCC_FLAGS) --sysroot=$(SYSROOT) 
-   CXX = $(GPP) $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES --sysroot=$(SYSROOT) 
-
-   # avoid gcc warning that all code is PIC
-   PIC_FLAG = -fpic
-
-   # suffix used for executable files
-   EXE_SUFFIX = 
-
-   # Optional compilation flags.
-   OPTIMIZE_FLAGS = -g -O2 -Os -DNDEBUG -ffunction-sections -funwind-tables -fno-short-enums 
-   DEBUG_FLAGS = -g -DDEBUG
-   PROFILE_FLAGS = -g -pg -O2
-
-   # Optional linking flags.
-   EXPORT_LDFLAGS = -s
-
-   # Shared compilation flags.
-   CFLAGS = $(ADDITIONAL_CFLAGS) $(INCLUDES)
-   CXXFLAGS = $(ADDITIONAL_CXXFLAGS) $(INCLUDES)
-
-   # Shared linking flags.
-   LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
-
-   # Other useful compilation flags.
-   ADDITIONAL_CFLAGS = -DNEED_RAND48
-   ADDITIONAL_CXXFLAGS = -DNEED_RAND48
-
-   # Other useful include directories.
-   ADDITIONAL_INCLUDES = -I$(SYSROOT)/usr/include -I$(ANDROID_NDK)/sources/cxx-stl/gnu-libstdc++/include -I$(ANDROID_NDK)/sources/cxx-stl/gnu-libstdc++/libs/$(ANDROID_CUST_DIR)/include
-
-   # Other useful linking flags.
-   ADDITIONAL_LDFLAGS = 
-
-   # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm -lstdc++ -lgcc
-
-   # run-time linker path flag
-   RLD_FLAG = -R
-
-   # Tcl support (part of cygwin)
-   TCL_INCLUDE = 
-   TCL_LIBRARY = 
-   NO_TCL = X
-
-   # No ranlib
-   RANLIB = :
-
-   # Not needed
-   DEMANGLE_FILTER =
-
-   # Generate dependencies from source files.
-   GEN_DEP = gcc $(CFLAGS) -MM
-
-   GEN_DEP.cc = g++ $(CXXFLAGS) -MM
-
-   # Run lint.
-   LINT = lint
-   LINT_FLAGS = -DDEBUG $(CFLAGS)
-
-   # Location of gawk binary
-   GAWK = /usr/bin/gawk
-
-   # Location of perl binary
-   PERL = /usr/bin/perl
+   include $(SRILM)/common/Makefile.core.android-arm

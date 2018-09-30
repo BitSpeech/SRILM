@@ -2,9 +2,9 @@
  * File.h
  *	File I/O utilities for LM
  *
- * Copyright (c) 1995,2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.18 2011/05/04 01:33:26 victor Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.23 2012/08/07 22:44:47 stolcke Exp $
  *
  */
 
@@ -94,6 +94,7 @@ public:
     // functions should perform the same as their namesakes, but will
     // not set errno.
     char *fgets(char *str, int n);
+    char *fgetsUTF8(char *str, int n);	// also converts to UTF8
     int fgetc();
     int fputc(int c);
     int fputs(const char *str);
@@ -113,6 +114,9 @@ private:
     char *buffer;
     unsigned bufLen;
     Boolean reuseBuffer;
+    Boolean atFirstLine;	// we haven't read the first line yet
+    enum { ASCII, UTF8, UTF16LE, UTF16BE } encoding;	// char encoding scheme
+    void *iconvID;		
 
     // read/write from/to string instead of file
     std::string strFile;

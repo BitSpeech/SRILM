@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1995-2007 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.h,v 1.9 2007/01/24 19:25:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/ProductNgram.h,v 1.10 2012/10/29 17:25:00 mcintyre Exp $
  *
  */
 
@@ -76,6 +76,7 @@ public:
     void removeBOW(const VocabIndex *context) { return; };
     void removeProb(VocabIndex word, const VocabIndex *context) { return; };
 
+    static void freeThread();
 protected:
     virtual LogP wordProbBO(VocabIndex word, const VocabIndex *context,
 			    unsigned int clen);

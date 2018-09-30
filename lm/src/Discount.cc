@@ -6,14 +6,12 @@
 
 #ifndef lint
 static char Copyright[] = "Copyright (c) 1995-2011 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.cc,v 1.27 2011/05/04 08:01:06 stolcke Exp $";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.cc,v 1.28 2012/12/18 01:14:04 stolcke Exp $";
 #endif
 
 #include <math.h>
-#if defined(sun) || defined(sgi)
-#include <ieeefp.h>
-#endif
 
+#include "Prob.h"
 #include "Discount.h"
 
 #include "Array.cc"
@@ -226,7 +224,7 @@ GoodTuring::estimate(NgramStats &counts, unsigned order)
 		double coeff0 = (i + 1) * (double)countOfCounts[i+1] /
 					    (i * (double)countOfCounts[i]);
 		coeff = (coeff0 - commonTerm) / (1.0 - commonTerm);
-		if (!finite(coeff) || coeff <= Prob_Epsilon || coeff0 > 1.0) {
+		if (!isfinite(coeff) || coeff <= Prob_Epsilon || coeff0 > 1.0) {
 		    cerr << "warning: discount coeff " << i
 			 << " is out of range: " << coeff << "\n";
 		    coeff = 1.0;

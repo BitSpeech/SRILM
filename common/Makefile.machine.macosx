@@ -32,8 +32,8 @@
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
 
    # Other useful compilation flags.
-   ADDITIONAL_CFLAGS = -DHAVE_ZOPEN
-   ADDITIONAL_CXXFLAGS = -DHAVE_ZOPEN
+   ADDITIONAL_CFLAGS =
+   ADDITIONAL_CXXFLAGS =
 
    # Other useful include directories.
    ADDITIONAL_INCLUDES = 
@@ -43,6 +43,12 @@
 
    # Other useful libraries.
    ADDITIONAL_LIBRARIES = 
+
+   # UTF16 conversion needs libiconv but can avoid iconv routines
+   # by building with "make NO_ICONV=anything"
+   ifeq ($(NO_ICONV), )
+      SYS_LIBRARIES = -liconv
+   endif
 
    # Tcl support (as per Chuck Wooters):
    # As of OS X 10.4, MacOS includes Tcl and you can use 
@@ -66,6 +72,6 @@
    LINT = lint
    LINT_FLAGS = -DDEBUG $(CFLAGS)
 
-   # Location of gawk binary
-   GAWK = /sw/bin/gawk
+   # Location of gawk binary varies, let's assume it's in the PATH
+   GAWK = $(shell which gawk)
 

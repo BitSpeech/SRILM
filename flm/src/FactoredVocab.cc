@@ -9,8 +9,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.cc,v 1.18 2011/04/06 23:48:59 victor Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FactoredVocab.cc,v 1.20 2012/10/29 17:24:59 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -28,6 +28,7 @@ using namespace std;
 #include "FNgramSpecs.h"
 #include "FactoredVocab.h"
 #include "MStringTokUtil.h"
+#include "TLSWrapper.h"
 
 #include "LHash.cc"
 #include "Array.cc"
@@ -309,6 +310,8 @@ FactoredVocab::getIndex(VocabString name,VocabIndex unkIndex)
   return wid;
 }
 
+#define word_copy_sz 2048
+static TLSW_ARRAY(char, loadWordFactor_word_copy, word_copy_sz);
 void
 FactoredVocab::loadWordFactor(const VocabString word,
 			      VocabString* word_factors)
@@ -323,9 +326,9 @@ FactoredVocab::loadWordFactor(const VocabString word,
   Boolean tag_assigned = false;
   // make a copy of word for the work
   // use static buffer so pointers into buffer can be returned in word_factors
-  static char word_copy[2048];
-  strncpy(word_copy,word,sizeof(word_copy)-1);
-  word_copy[sizeof(word_copy)-1] = '\0';
+  char *word_copy = TLSW_GET_ARRAY(loadWordFactor_word_copy);
+  strncpy(word_copy,word,word_copy_sz-1);
+  word_copy[word_copy_sz-1] = '\0';
   VocabString word_p = word_copy;
   Boolean last_factor = false;
   while (!last_factor) {
@@ -415,3 +418,8 @@ FactoredVocab::read(File &file)
     return howmany;
 }
 
+void
+FactoredVocab::freeThread()
+{
+    TLSW_FREE(loadWordFactor_word_copy);
+}

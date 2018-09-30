@@ -2,9 +2,9 @@
  * Prob.h --
  *	Probabilities and stuff
  *
- * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.26 2010/08/03 04:57:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.28 2012/12/18 01:14:04 stolcke Exp $
  *
  */
 
@@ -17,6 +17,9 @@
 #include <assert.h>
 
 #include "Boolean.h"
+#include "Counts.h"
+#include "File.h"
+#include "Array.h"
 
 #ifndef M_E
 #define M_E	2.7182818284590452354
@@ -38,14 +41,22 @@ inline double rint(double x)
 	}
 }
 
-inline int finite (double x) 
-{
-	if (x < 1.e+300 && x > -1.e+300)
-		return 1;
-	else 
-		return 0;
-}
+#define isfinite(x)	_finite(x)
+#define isnan(x)	_isnan(x)
+
 #endif /* _MSC_VER */
+
+#if defined(sun)
+#include <ieeefp.h>
+#define isfinite(x)	finite(x)
+#endif
+
+#if defined(sgi)
+#include <ieeefp.h>
+#define isnan(x)	isnand(x)
+#define isfinite(x)	finite(x)
+#endif
+
 
 /*
  * Types
@@ -223,6 +234,30 @@ inline Intlog BytelogToIntlog(Bytelog bytelog)
 {
     return bytelog << BytelogShift;
 }
+
+
+/*
+ * Codebooks for quantized log probs
+ */
+
+class PQCodebook
+{
+public:
+    PQCodebook() : numBins(0) {};
+
+    Boolean read(File &file);
+    Boolean write(File &file);
+
+    Boolean valid(unsigned bin)
+	{ return bin < numBins; };
+
+    LogP2 getProb(unsigned bin);
+
+private:
+    unsigned numBins;
+    Array<LogP2> binMeans;
+    Array<Count> binCounts;
+};
 
 #endif /* _Prob_h_ */
 

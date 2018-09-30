@@ -10,7 +10,7 @@
 #
 #    Copyright (c) 2003 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-icc,v 1.10 2009/09/30 03:51:03 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-icc,v 1.12 2012-07-06 23:05:08 stolcke Exp $
 #
 
 include $(SRILM)/common/Makefile.machine.i686
@@ -18,7 +18,7 @@ include $(SRILM)/common/Makefile.machine.i686
    # Use the Intel C++ compiler.
    # Note: -march=pentiumii disables vectorization, which is actually worse
    ICC_DIR = /usr/local/lang/intel_cc_80
-   ICC_FLAGS = -wd654 -wd1125 -wd1224 -tpp7 -march=pentiumpro -Wl,-rpath,$(ICC_DIR)/lib -Wl,-z,muldefs -I/usr/local/include
+   ICC_FLAGS = -wd654 -wd1125 -wd1224 -tpp7 -march=pentiumpro -Wl,-rpath,$(ICC_DIR)/lib -Wl,-z,muldefs
 
 # For Intel c++ 9.x the following seem to be required
 #  ICC_DIR = /usr/local/lang/intel_cc_91

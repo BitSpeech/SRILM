@@ -27,11 +27,24 @@ using
 
     make MACHINE_TYPE=win32
 
+For 64bit binaries use 
+
+    make MACHINE_TYPE=win64
+
+Of course the corresponding versions of the MinGW development environment
+(C, C++, binutils) have to be installed in Cygwin.  Make sure the Cygwin
+installation is generally up-to-date.
+
+It may be necessary to include the following directories in the PATH
+environment variable for the runtime dynamic libraries to be found:
+
+	/usr/i686-pc-mingw32/sys-root/mingw/bin	(win32)
+	/usr/x86_64-w64-mingw32/sys-root/mingw/bin (win64)
+
 Some functionality is not supported under MinGW:
 
     - compressed file I/O
     - nbest-optimize and lattice-tool -max-time option
-    - running the test suite
 
 A. Stolcke
-$Id: README.windows-cygwin,v 1.8 2011/10/21 21:28:47 stolcke Exp $
+$Id: README.windows-cygwin,v 1.9 2012/07/07 06:19:28 stolcke Exp $

@@ -14,9 +14,9 @@
  * mixtures of bigram models, the p(context | M_i) would simply be the unigram 
  * probability of the last word according to M_i.
  *
- * Copyright (c) 1995-2002 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.9 2007/12/05 00:31:49 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.11 2012/08/17 18:14:04 stolcke Exp $
  *
  */
 
@@ -64,6 +64,20 @@ public:
     ostream &dout() { return Debug::dout(); };
     ostream &dout(ostream &stream)  /* propagate dout changes to sub-lms */
 	{ lm1.dout(stream); lm2.dout(stream); return Debug::dout(stream); };
+
+    /*
+     * Propagate prefetching protocol to component models
+     */
+    unsigned prefetchingNgrams()
+	{ unsigned pf1 = lm1.prefetchingNgrams();
+ 	  unsigned pf2 = lm2.prefetchingNgrams();
+	  return pf1 > pf2 ? pf1 : pf2; };
+    Boolean prefetchNgrams(NgramCounts<Count> &ngrams)
+	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
+    Boolean prefetchNgrams(NgramCounts<XCount> &ngrams)
+	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
+    Boolean prefetchNgrams(NgramCounts<FloatCount> &ngrams)
+	{ return lm1.prefetchNgrams(ngrams) && lm2.prefetchNgrams(ngrams); };
 
 protected:
     LM &lm1, &lm2;				/* component models */

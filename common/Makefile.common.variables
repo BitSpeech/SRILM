@@ -11,7 +11,7 @@
 #
 #    Copyright (c) 1992-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.variables,v 1.32 2011/02/03 21:25:32 victor Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.common.variables,v 1.33 2012/01/23 20:38:57 frandsen Exp $
 #
 
 
@@ -100,6 +100,12 @@ include $(SRILM)/common/Makefile.machine.$(MACHINE_TYPE)
 
 # Optionally include site dependent variables
 -include $(SRILM)/common/Makefile.site.$(MACHINE_TYPE)
+
+# Don't link to TCL Library if NO_TCL is set to anything non-empty
+ifneq ($(NO_TCL), )
+	TCL_INCLUDE =
+	TCL_LIBRARY =
+endif 
 
 # Search in the SRILM library directories for things of the form "-l<LibName>".
 ifeq ($(EXTRA_LIBDIR), )

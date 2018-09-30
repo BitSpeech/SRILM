@@ -2,9 +2,9 @@
  * RemoteLM.h
  *	Protocol for network-based LM
  *
- * Copyright (c) 2007, SRI International.  All Rights Reserved.
+ * Copyright (c) 2007 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RemoteLM.h,v 1.1 2007/12/04 00:13:59 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RemoteLM.h,v 1.2 2012/07/06 01:02:21 stolcke Exp $
  *
  */
 
@@ -30,6 +30,7 @@
 #define REMOTELM_OK		"OK"		// followed by return values
 #define REMOTELM_ERROR		"ERROR"		// followed by error string
 
+#define REMOTELM_MAXREQUESTLEN	5000		// maximum length of msg to server
 #define REMOTELM_MAXRESULTLEN	256
 
 #endif /* _RemoteLM_h_ */

@@ -17,7 +17,7 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/flm/src/Makefile,v 1.11 2006/07/31 17:38:29 stolcke Exp $
+#    $Header: /home/srilm/lite/flm/src/RCS/Makefile,v 1.2 2012/12/25 13:55:55 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
@@ -48,6 +48,7 @@ EXTERNAL_LIB_HEADERS = \
 	$(SRCDIR)/FNgramStats.h \
 	$(SRCDIR)/FNgramSpecs.h \
 	$(SRCDIR)/FactoredVocab.h \
+	$(SRCDIR)/FLMThreads.h \
 	$(SRCDIR)/FNgram.h \
 	$(SRCDIR)/ProductVocab.h \
 	$(SRCDIR)/ProductNgram.h \
@@ -61,9 +62,11 @@ LIB_SOURCES = 				\
 	$(SRCDIR)/FNgramSpecs.cc \
 	$(SRCDIR)/FNgramSpecsInt.cc \
 	$(SRCDIR)/FactoredVocab.cc \
+	$(SRCDIR)/FLMThreads.cc \
 	$(SRCDIR)/FNgramLM.cc \
 	$(SRCDIR)/ProductVocab.cc \
 	$(SRCDIR)/ProductNgram.cc \
+	$(SRCDIR)/strtolplusb.cc \
 	$(SRCDIR)/wmatrix.cc
 
 # Example Library object files.
@@ -89,12 +92,10 @@ ADDITIONAL_LIBRARIES += \
 # Example programs.
 
 # compile a version of ngram here for convenient testing only
-TEST_PROGRAM_NAMES = \
-	pngram
+TEST_PROGRAM_NAMES =
 
 REAL_PROGRAM_NAMES = \
-	fngram-count \
-	fngram 
+	fngram-count
 
 PROGRAM_NAMES = \
 	$(TEST_PROGRAM_NAMES) \

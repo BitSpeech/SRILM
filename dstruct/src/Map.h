@@ -46,7 +46,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.23 2009/07/02 17:48:35 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.24 2012/10/11 20:23:52 mcintyre Exp $
  *
  */
 
@@ -78,8 +78,6 @@ public:
     static unsigned int initialSize;	/* default initial size */
     static float growSize;		/* factor used in enlarging
 					 * a Map on demand */
-    static Boolean foundP;		/* default result argument for
-					 * the "foundP" argument below */
 };
 
 template <class KeyT, class DataT>

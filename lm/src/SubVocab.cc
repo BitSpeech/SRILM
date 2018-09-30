@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1996-2006 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.cc,v 1.8 2006/08/12 06:46:11 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1996-2012 SRI International.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/SubVocab.cc,v 1.9 2012/10/18 20:55:22 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -30,7 +30,7 @@ SubVocab::SubVocab(Vocab &baseVocab)
     /*
      * These defaults are inherited from the base vocab.
      */
-    outputVocab = &baseVocab;
+    setOutputVocab(&baseVocab);
 
     /*
      * sub-vocabularies don't have any special tokens by default

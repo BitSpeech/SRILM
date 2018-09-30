@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <sys/types.h>
 #include <Trie.cc>
 #include <Counts.h>
 #include <XCount.h>
@@ -35,8 +36,9 @@ int main()
 {
 	bar b;
 
-	printf("sizeof(void *) = %lu, sizeof(long) = %lu\n",
-		(unsigned long)sizeof(void *), (unsigned long)sizeof(long));
+	printf("sizeof(void *) = %lu, sizeof(long) = %lu sizeof(size_t) = %lu\n",
+		(unsigned long)sizeof(void *), (unsigned long)sizeof(long),
+		(unsigned long)sizeof(size_t));
 	printf("sizeof class foo = %lu, bar = %lu\n",
 		(unsigned long)sizeof(foo), (unsigned long)sizeof(bar));
 
@@ -50,6 +52,6 @@ int main()
 	printf("sizeof NgramCount = %lu\n", (unsigned long)sizeof(NgramCount));
 	printf("sizeof Trie<VocabIndex,NgramCount> = %lu\n", (unsigned long)sizeof(Trie<VocabIndex,NgramCount>));
 
-	b.x.x = 1;
-	b.y = 2;
+	//b.x.x = 1;
+	//b.y = 2;
 }

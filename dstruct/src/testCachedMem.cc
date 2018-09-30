@@ -14,9 +14,6 @@ public:
   }  
 };
 
-INSTANTIATE_CACHEDMEM(A<int>);
-INSTANTIATE_CACHEDMEM(A<char>);
-
 int main()
 {
   A<int> * a = new A<int>;

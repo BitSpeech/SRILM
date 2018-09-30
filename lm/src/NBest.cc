@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.75 2010/06/02 06:22:48 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.87 2012/10/29 17:25:04 mcintyre Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -24,6 +24,7 @@ using namespace std;
 #include "WordAlign.h"
 #include "Bleu.h"
 #include "MultiwordVocab.h"	// for MultiwordSeparator
+#include "TLSWrapper.h"
 
 #include "Array.cc"
 #ifdef INSTANTIATE_TEMPLATES
@@ -94,7 +95,7 @@ NBestWordInfo::operator= (const NBestWordInfo &other)
 void
 NBestWordInfo::write(File &file)
 {
-    fprintf(file, "%lg %lg %lg %lg %s %s",
+    file.fprintf("%lg %lg %lg %lg %s %s",
 			(double)start, (double)duration,
 			(double)acousticScore, (double)languageScore,
 			phones ? phones : phoneSeparator,
@@ -148,15 +149,23 @@ NBestWordInfo::valid() const
 }
 
 void
-NBestWordInfo::merge(const NBestWordInfo &other)
+NBestWordInfo::merge(const NBestWordInfo &other, Prob otherPosterior)
 {
+    /* 
+     * Optional argument lets caller override word posterior
+     */
+    if (otherPosterior == 0.0) {
+	otherPosterior = other.wordPosterior;
+    }
+
     /*
      * let the "other" word information supercede our own if it has
-     * higher duration-normalized acoustic likelihood
+     * higher word-level posterior probability.
      */
-    if (other.acousticScore/other.duration > acousticScore/duration)
+    if (otherPosterior > wordPosterior)
     {
 	*this = other;
+	wordPosterior = otherPosterior;
     }
 }
 
@@ -201,7 +210,7 @@ NBestWordInfo::copy(VocabIndex *to, const NBestWordInfo *from)
     return to;
 }
 
-unsigned
+size_t
 LHash_hashKey(const NBestWordInfo *key, unsigned maxBits)
 {
     unsigned i = 0;
@@ -465,15 +474,18 @@ addPhones(char *old, const char *ph, Boolean reversed = false)
     return true;
 }
 
+/* NBestList2.0 format uses 11 fields per word */
+static const unsigned maxFieldsPerLine = 11 * maxWordsPerLine + 4;
+static TLSW_ARRAY(VocabString, wstringsTLS, maxFieldsPerLine);
+static TLSW_ARRAY(VocabString, justWordsTLS, maxFieldsPerLine + 1);
+
 Boolean
 NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		LogP acousticOffset, const char *multiChar, Boolean backtrace)
 {
-    const unsigned maxFieldsPerLine = 11 * maxWordsPerLine + 4;
-			    /* NBestList2.0 format uses 11 fields per word */
+    VocabString *wstrings  = TLSW_GET_ARRAY(wstringsTLS);
+    VocabString *justWords = TLSW_GET_ARRAY(justWordsTLS);
 
-    static VocabString wstrings[maxFieldsPerLine];
-    static VocabString justWords[maxFieldsPerLine + 1];
     Array<NBestWordInfo> backtraceInfo;
 
     unsigned actualNumWords =
@@ -612,7 +624,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 		    /*
 		     * save pronunciation info for previous word
 		     */
-		    if (prevWordInfo) {
+		    if (prevWordInfo && phones[0] != '\0') {
 			prevWordInfo->phones = strdup(phones);
 			assert(prevWordInfo->phones != 0);
 
@@ -658,7 +670,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 
 		/*
 		 * A Decipher phone token: if we're extracting backtrace
-		 * information, * get phone identity and duration and store
+		 * information, get phone identity and duration and store
 		 * in word Info.
 		 * The format of Decipher context-dep phone token is:
 		 *    leftcontext '[' phonelabel '_' diacritic ']' rightcontext
@@ -687,7 +699,7 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	    /*
 	     * save pronunciation info for last word
 	     */
-	    if (prevWordInfo) {
+	    if (prevWordInfo && phones[0] != '\0') {
 		prevWordInfo->phones = strdup(phones);
 		assert(prevWordInfo->phones != 0);
 
@@ -856,6 +868,93 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
     fprintf(file, "\n");
 }
 
+// SRInterp format has scores and words in the same line. Scores are in the form of 
+// key=val. The first field is always "pr=xxx". Some scores might have non-digit values. 
+// This function extracts pre-registered scores and put it in the hash table.
+static TLSW(Boolean, firstTimeSentStartFlagTLS);
+Boolean
+NBestHyp::parseSRInterpFormat(char * line, Vocab &vocab, LHash<VocabString, LogP>& scores)
+{
+  const char * location = "NBestHyp::parseSRInterpFormat";
+  
+  bool &firstTimeSentStartFlag = TLSW_GET(firstTimeSentStartFlagTLS);
+
+  const unsigned maxFieldLength = 1024;
+  const unsigned maxNameLength = 10;
+  const unsigned minNameLength = 1;
+
+  unsigned numScores = 0;
+
+  char field[maxFieldLength];
+  char *p;
+  unsigned pos = 0, newPos;
+  while(sscanf(line + pos, "%s%n", field, &newPos) == 1) {
+    char * eqSign = strchr(field, '=');
+    if (!eqSign) {
+      
+        if (strcmp(field, Vocab_SentStart) == 0) {
+	    if (firstTimeSentStartFlag) {
+	        firstTimeSentStartFlag = false;
+		cerr << location << ": will strip <s> and </s> from hyps" << endl;
+	    }
+	
+	    pos += newPos;
+	    p = strstr(line + pos, Vocab_SentEnd);
+	    if (p) {
+	        *p = '\0';
+	    } else {
+	        cerr << location << ": has <s> but not </s> in hyp" << endl;
+	    }
+	}
+	
+	break;
+    }
+    
+    if (eqSign > field + maxNameLength || // key is too long
+	eqSign < field + minNameLength || // key is too short
+	isspace(eqSign[1])) { // val is empty
+      
+      cerr << location << ": warning: \"" << field << "\" is treated as word instead of field" << endl;
+      break;
+    } 
+
+    *eqSign = '\0';
+    Boolean foundP;
+    LogP *pScore = scores.find(field, foundP);
+    if (foundP) {
+      *pScore = (LogP) atof(eqSign + 1);
+      numScores++;
+    }
+
+    pos += newPos;
+  }
+  
+  if (numScores < scores.numEntries()) {
+
+    cerr << "read " << numScores << " scores ; fewer than expected (" 
+	 << scores.numEntries() << ")" << endl;
+
+    return false;
+  }
+
+  assert(isspace(line[pos]) && pos > 3);
+  
+  // use fake decipher format   
+  line[pos - 3] = '(';
+  line[pos - 2] = '0';
+  line[pos - 1] = ')';
+
+  return parse(line + pos - 3, vocab, 1); 
+  
+}
+
+void 
+NBestHyp::freeThread() {
+    TLSW_FREE(wstringsTLS);
+    TLSW_FREE(justWordsTLS);
+    TLSW_FREE(firstTimeSentStartFlagTLS);  
+}
+
 void
 NBestHyp::rescore(LM &lm, double lmScale, double wtScale)
 {
@@ -940,7 +1039,7 @@ NBestHyp::decipherFix(LM &lm, double lmScale, double wtScale)
  * N-Best lists
  */
 
-unsigned NBestList::initialSize = 100;
+const unsigned NBestList::initialSize = 100;
 
 NBestList::NBestList(Vocab &vocab, unsigned maxSize,
 				    Boolean multiwords, Boolean backtrace)
@@ -1001,10 +1100,6 @@ NBestList::sortHyps()
      */
     qsort(hypList.data(), _numHyps, sizeof(NBestHyp), compareHyps);
 }
-
-extern double 
-computeBleu(unsigned n, unsigned correct[], unsigned total[],
-            unsigned length, unsigned rlength);
 
 void
 NBestList::sortHypsBySentenceBleu(unsigned order)
@@ -1086,6 +1181,59 @@ NBestList::read(File &file)
 
     return true;
 }
+
+Boolean
+NBestList::readSRInterpFormat(File &file, LHash<VocabString, Array<LogP>* > & nbestScores)
+{
+  
+    unsigned int howmany = 0;
+    const char * start = "pr=";
+    char * line;
+    
+    // first strip the possible headers
+    while ((line = file.getline()) != NULL) {
+        if (strncmp(line, start, strlen(start)) == 0) 
+	  break;
+    }
+
+    if (!line) {
+        file.position() << "empty n-best list" << endl;
+        return false;
+    }
+
+    LHashIter<VocabString, Array<NBestScore>* > iter(nbestScores);
+    VocabString key;
+    LHash<VocabString, NBestScore> scores;
+    while(iter.next(key)) {
+        *scores.insert(key) = 0;
+    }    
+
+    while (line && (maxSize == 0 || howmany < maxSize)) {
+        if (! hypList[howmany].parseSRInterpFormat(line, vocab, scores))
+	{
+	    file.position() << "bad n-best hyp\n";
+	    return false;
+	}
+
+	// copy scores
+	iter.init();
+	while(Array<NBestScore> ** ppa = iter.next(key)) {
+	    Array<NBestScore> & array = **ppa;
+	    array[howmany] = *scores.find(key);
+	}
+
+	hypList[howmany].rank = howmany;
+
+	howmany ++;
+
+	line = file.getline();
+    }
+
+    _numHyps = howmany;
+
+    return true;
+}
+
 
 Boolean
 NBestList::write(File &file, Boolean decipherFormat, unsigned numHyps)

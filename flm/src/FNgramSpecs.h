@@ -7,7 +7,7 @@
  * 
  * Copyright (c) 1995-2010 SRI International.  All Rights Reserved.
 
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.h,v 1.13 2010/06/02 05:51:57 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.h,v 1.15 2012/10/20 00:22:26 mcintyre Exp $
  *
  */
 
@@ -27,6 +27,7 @@ using namespace std;
 #include "Array.cc"
 
 #include "LMStats.h"
+#include "TLSWrapper.h"
 
 
 /*
@@ -251,11 +252,11 @@ public:
       CountT *insertCount(const VocabIndex *words, VocabIndex word1)
           { FNgramNode *node = counts->insertTrie(words);
 	    return node->insert(word1); };
-      CountT *removeCount(const VocabIndex *words)
-          { return counts->remove(words); };
-      CountT *removeCount(const VocabIndex *words, VocabIndex word1)
+      Boolean removeCount(const VocabIndex *words, CountT *removedData)
+          { return counts->remove(words, removedData); };
+      Boolean removeCount(const VocabIndex *words, VocabIndex word1, CountT *removedData)
           { FNgramNode *node = counts->findTrie(words);
-	    return node ? node->remove(word1) : 0; };
+	    return node ? node->remove(word1, removedData) : false; };
 
       CountT accumulateCounts(FNgramNode* counts);
       CountT accumulateCounts()
@@ -599,6 +600,9 @@ public:
 
   static VocabString getTag(VocabString a);
   static VocabString wordTag();
+private:
+#define FNgramSpecs_BUF_SZ 1024
+  static TLSW_DECL_ARRAY(char, FNgramSpecsBuff, FNgramSpecs_BUF_SZ);
 };
 
 #endif /* _FNgramSpecs_h_ */

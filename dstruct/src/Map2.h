@@ -57,7 +57,7 @@
  *
  * Copyright (c) 1999,2002 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.h,v 1.6 2002/07/18 20:59:22 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map2.h,v 1.8 2012/10/11 20:23:52 mcintyre Exp $
  *
  */
 
@@ -94,14 +94,19 @@ public:
     Map2();
     ~Map2();
 
-    DataT *find(Key1T key1, Key2T key2, Boolean &foundP = _Map::foundP) const;
-    DataT *insert(Key1T key1, Key2T key2, Boolean &foundP = _Map::foundP);
-    DataT *remove(Key1T key1, Key2T key2, Boolean &foundP = _Map::foundP);
-    Boolean remove(Key1T key1, Boolean &foundP = _Map::foundP);
+    DataT *find(Key1T key1, Key2T key2, Boolean &foundP) const;
+    DataT *find(Key1T key1, Key2T key2) const
+	{ Boolean found; return find(key1, key2, found); };
+    DataT *insert(Key1T key1, Key2T key2, Boolean &foundP);
+    DataT *insert(Key1T key1, Key2T key2)
+	{ Boolean found; return insert(key1, key2, found); };
+    Boolean remove(Key1T key1, Key2T key2, DataT *removedData = 0);
+    Boolean remove(Key1T key1);
 
-    MAP2_INDEX_T<Key2T,DataT> *find1(Key1T key1,
-					Boolean &foundP = _Map::foundP) const
+    MAP2_INDEX_T<Key2T,DataT> *find1(Key1T key1, Boolean &foundP) const
       { return sub.find(key1, foundP); };
+    MAP2_INDEX_T<Key2T,DataT> *find1(Key1T key) const
+      { Boolean found; return find1(key, found); };
     unsigned numEntries(Key1T key1) const
       { MAP2_INDEX_T<Key2T,DataT> *value = sub.find(key1);
 	return value ? value->numEntries() : 0; };

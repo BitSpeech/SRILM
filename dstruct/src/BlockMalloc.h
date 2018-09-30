@@ -22,8 +22,21 @@ extern "C" {
 
 #include <sys/types.h>
 
+#ifdef NO_BLOCK_MALLOC
+
+#include <stdlib.h>
+
+#define BM_malloc(size)	malloc(size)
+#define BM_free(p, size) free(p)
+
+#else /* NO_BLOCK_MALLOC */
+
 void *BM_malloc(size_t size);
 void BM_free(void *chunk, size_t size);		/* Note: must supply chunk size */
+void BM_freeThread();
+
+#endif /* NO_BLOCK_MALLOC */
+
 void BM_printstats();
 
 #ifdef __cplusplus

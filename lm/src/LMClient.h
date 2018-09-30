@@ -2,9 +2,9 @@
  * LMClient.h
  *	Client-side for network-based LM
  *
- * Copyright (c) 2007, SRI International.  All Rights Reserved.
+ * Copyright (c) 2007 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.h,v 1.7 2008/01/21 23:03:51 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.h,v 1.8 2012/07/06 01:02:11 stolcke Exp $
  *
  */
 
@@ -12,6 +12,12 @@
 #define _LMClient_h_
 
 #include <stdio.h>
+
+#if defined(_MSC_VER) || defined(WIN32)
+#include <winsock.h>
+#else
+typedef int	SOCKET;		// for MS compatibility
+#endif
 
 #include "LM.h"
 #include "Ngram.h"
@@ -37,7 +43,7 @@ protected:
     unsigned order;		/* maximum N-gram length */
     char serverHost[256];
     unsigned serverPort;
-    FILE *serverFile;
+    SOCKET serverSocket;
 
     unsigned cacheOrder;	/* max N-gram length to cache */
     Ngram probCache;		/* cache for wordProb() results  */

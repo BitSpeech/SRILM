@@ -7,15 +7,15 @@
 #	Machine dependent compilation options and variable definitions
 #	for i686/win32 platform
 #
-#    Copyright (c) 2005 SRI International.  All Rights Reserved.
+#    Copyright (c) 2005 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.win32,v 1.7 2010/06/02 14:44:52 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.win32,v 1.9 2012/07/07 05:56:43 stolcke Exp $
 #
 
    # Use the GNU C compiler.
-   GCC_FLAGS = -mno-cygwin -DNEED_RAND48 -Wall -Wno-unused-variable -Wno-uninitialized
-   CC = gcc $(GCC_FLAGS) -Wimplicit-int
-   CXX = g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
+   GCC_FLAGS = -DNEED_RAND48 -Wall -Wno-unused-variable -Wno-uninitialized -Wno-format
+   CC = i686-pc-mingw32-gcc $(GCC_FLAGS) -Wimplicit-int
+   CXX = i686-pc-mingw32-g++ $(GCC_FLAGS) -DINSTANTIATE_TEMPLATES
 
    # avoid gcc warning that all code is PIC
    PIC_FLAG =
@@ -49,7 +49,9 @@
    ADDITIONAL_LDFLAGS = 
 
    # Other useful libraries.
-   ADDITIONAL_LIBRARIES = -lm 
+   ADDITIONAL_LIBRARIES = 
+
+   SYS_LIBRARIES = -lwsock32
 
    # run-time linker path flag
    RLD_FLAG = -R
@@ -62,8 +64,8 @@
    # No ranlib
    RANLIB = :
 
-   # prefix of matherr symbol
-   SYMBOL_PREFIX = _
+   # not using matherr()
+   MATHERR_LINK =
 
    # Not needed
    DEMANGLE_FILTER =
