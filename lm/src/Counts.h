@@ -2,9 +2,9 @@
  * Counts.h --
  *	Utility functions for counts
  *
- * Copyright (c) 2006 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2006 SRI International, 2013-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.h,v 1.7 2016/04/08 23:34:42 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Counts.h,v 1.8 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 

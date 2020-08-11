@@ -1,7 +1,7 @@
 #
 # Top-level Makefile for SRILM
 #
-# $Header: /home/srilm/CVS/srilm/Makefile,v 1.70 2014-05-26 03:30:23 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/Makefile,v 1.73 2019/09/10 17:48:09 stolcke Exp $
 #
 
 # SRILM = /home/speech/stolcke/project/srilm/devel
@@ -127,10 +127,11 @@ WWW_DOCS = CHANGES License INSTALL RELEASE
 WWW_DIR = /home/spftp/www/DocumentRoot/projects/srilm
 
 www:	$(WWW_DOCS)
-	ginstall -m 444 $(WWW_DOCS) $(WWW_DIR)/docs
-	ginstall -m 444 man/html/*.[1-9].html $(WWW_DIR)/manpages
+	$(INSTALL) -m 444 $(WWW_DOCS) $(WWW_DIR)/docs
+	$(INSTALL) -m 444 man/html/*.[1-9].html $(WWW_DIR)/manpages
 
-TAR = /usr/local/gnu/bin/tar
+TAR = tar
+INSTALL = install
 PACKAGE_FILE = srilm-$(RELEASE).tar.gz
 PACKAGE_FILE_NOTEST = srilm-$(RELEASE)-notest.tar.gz
 PACKAGE_FILE_BIN = srilm-$(RELEASE)-$(MACHINE_TYPE).tar.gz
@@ -158,6 +159,7 @@ package_x:
 $(PACKAGE_DIR)/EXCLUDE:	force
 	rm -f DONE
 	(find bin/* lib/* */bin/* */obj/* */src/test */test/output */test/logs -type d -print -prune ; \
+	ls build* go.build-*; \
 	find $(EXCLUDE) include bin -print; \
 	find . \( -name Makefile.site.\* -o -name "*.~[0-9]*" -o -name ".#*" -o -name Dependencies.\* -o -name core -o -name "core.[0-9]*" -o -name \*.3rdparty -o -name .gdb_history -o -name out.\* -o -name "*[._]pure[._]*" -o -type l -o -name RCS -o -name CVS -o -name .cvsignore -o -name GZ.files \) -print) | \
 	sed 's,^\./,,' > $@

@@ -3,7 +3,7 @@
 # wlat-stats --
 #	Compute statistics of word posterior lattices
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/wlat-stats.gawk,v 1.5 2005/02/10 23:34:50 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/wlat-stats.gawk,v 1.6 2019/07/24 16:16:55 stolcke Exp $
 #
 BEGIN {
 	name = "";
@@ -18,10 +18,17 @@ BEGIN {
 	M_LN10 = 2.30258509299404568402;
 
 	empty_hyp = "*DELETE*";
+
+	total_posterior = 1;
 }
 
 $1 == "name" {
 	name = $2;
+	next;
+}
+
+$1 == "posterior" {
+	total_posterior = $2;
 	next;
 }
 
@@ -70,11 +77,11 @@ $1 == "align" {
 
 	    prob = $(i + 1);
 	    if (prob > 0) {
-		entropy -= prob * log(prob);
+		entropy -= prob/total_posterior * log(prob/total_posterior);
 		all_hyps[word] = 1;
 
 		if (word != "*DELETE*") {
-		    ewords += prob;
+		    ewords += prob/total_posterior;
 		}
 	    }
 

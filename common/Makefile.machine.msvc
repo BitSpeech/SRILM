@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 2005 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.17 2015-06-16 22:44:21 frandsen Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.msvc,v 1.20 2019/08/14 17:33:05 victor Exp $
 #
 
    # Use the MSVC compiler (tested with Visual C++ 2005 Express Edition)
@@ -52,6 +52,14 @@
    endif
    MSVC_BIN := "$(shell cygpath '$(MSVCDIR)/bin')"
    MSVC_LIB := "$(shell cygpath '$(MSVCDIR)/lib')"
+
+   # MWF Added 3/14/2017 since VS2017 doesn't use same convention
+   ifeq ($(strip $(wildcard "$MSVC_BIN")),)
+     # Else, base on cl found in path
+     CL_IN_PATH := $(shell which cl)
+     CL_DIR := $(shell dirname '$(CL_IN_PATH)')
+     MSVC_BIN := "$(shell cygpath '$(CL_DIR)')"
+   endif
 
    MSC_FLAGS =  /DNEED_RAND48 /EHsc /W2 /nologo /wd4996
    CC = $(MSVC_BIN)/CL.exe $(MSC_FLAGS) 
@@ -111,10 +119,9 @@
    # Other useful compilation flags.
    # Hack to find out if system supports /openmp 
    OPENMP_FLAG := $(shell [ -f $(MSVC_LIB)/vcomp.lib ] && echo /openmp)
+   # For DynaSpeak, prefer to use -DNO_BLOCK_MALLOC instead of -fopenmp
    ADDITIONAL_CFLAGS = $(OPENMP_FLAG)
    ADDITIONAL_CXXFLAGS = $(OPENMP_FLAG)
-   #ADDITIONAL_CFLAGS += -DNO_BLOCK_MALLOC
-   #ADDITIONAL_CXXFLAGS += -DNO_BLOCK_MALLOC
 
    # Other useful include directories.
    ADDITIONAL_INCLUDES = 

@@ -15,7 +15,7 @@
 # (This is useful to combine multiple nbest lists in a weighted fashion).
 # The input should be in SRILM nbest-format.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/nbest-posteriors.gawk,v 1.12 2004/11/02 02:00:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-posteriors.gawk,v 1.14 2019/02/08 14:13:35 stolcke Exp $
 #
 
 BEGIN {
@@ -171,7 +171,7 @@ END {
 	    logpost = log10(weight) + unweighted_logpost;
 
 	    if (nbestformat > 0) {
-		print "(" (logpost / bytelogscale) ")", hyps[i];
+		printf "(%f) %s\n", logpost / bytelogscale, hyps[i];
 	    } else {
 		print logpost, 0, num_words[i], hyps[i];
 	    }

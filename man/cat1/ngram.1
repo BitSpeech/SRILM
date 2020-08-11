@@ -1,4 +1,4 @@
-ngram(1)                                                              ngram(1)
+ngram(1)                    General Commands Manual                   ngram(1)
 
 
 
@@ -332,6 +332,15 @@ OOPPTTIIOONNSS
               bilities  when processing input with an LM that is mismatched in
               vocabulary.
 
+       --uunnkk--pprroobb _p
+              Overrides the log probability of unknown words with the value _p,
+              effectively  imposing  a  fixed, context-independent penalty for
+              out-of-vocabulary words.  This can be useful for rescoring  with
+              LMs  in  which  this probability is missing or incorrectly esti-
+              mated.  Specifying a value of -99 will result in an  OOV  proba-
+              bility  of  zero,  the  same  as if the model did not contain an
+              unknown word token.
+
        --mmiixx--llmm _f_i_l_e
               Read a second N-gram model for interpolation purposes.  The sec-
               ond  and any additional interpolated models can also be class N-
@@ -487,50 +496,58 @@ OOPPTTIIOONNSS
               Renormalize the main model by recomputing  backoff  weights  for
               the given probabilities.
 
+       --mmiinnbbaacckkooffff _p
+              In  conjunction  with  --rreennoorrmm,  adjusts N-gram probabilities so
+              that the total backoff probability mass in each  context  is  at
+              least  _p.  For _p=0, this ensures that the total probabilities do
+              not exceed 1.  For _p>0, this ensure that the  model  is  smooth.
+              The  default, or when _p is negative, is that no probabilties are
+              modified.
+
        --pprruunnee _t_h_r_e_s_h_o_l_d
-              Prune  N-gram  probabilities  if  their removal causes (training
-              set) perplexity of the model to increase by less than  _t_h_r_e_s_h_o_l_d
+              Prune N-gram probabilities if  their  removal  causes  (training
+              set)  perplexity of the model to increase by less than _t_h_r_e_s_h_o_l_d
               relative.
 
        --pprruunnee--hhiissttoorryy--llmm _L
-              Read  a separate LM from file _L and use it to obtain the history
-              marginal probabilities required for computing the  entropy  loss
-              incurred  by  pruning  an N-gram.  The LM needs to only be of an
-              order one less than the LM being pruned.  If this option is  not
-              used  the  LM being pruned is used to compute history marginals.
-              This option is useful because, as pointed out by Chelba  et  al.
+              Read a separate LM from file _L and use it to obtain the  history
+              marginal  probabilities  required for computing the entropy loss
+              incurred by pruning an N-gram.  The LM needs to only  be  of  an
+              order  one less than the LM being pruned.  If this option is not
+              used the LM being pruned is used to compute  history  marginals.
+              This  option  is useful because, as pointed out by Chelba et al.
               (2010),  the  lower-order  N-gram  probabilities  in  Kneser-Ney
               smoothed LMs are unsuitable for this purpose.
 
        --pprruunnee--lloowwpprroobbss
               Prune N-gram probabilities that are lower than the corresponding
-              backed-off  estimates.  This generates N-gram models that can be
+              backed-off estimates.  This generates N-gram models that can  be
               correctly converted into probabilistic finite-state networks.
 
        --mmiinnpprruunnee _n
               Only prune N-grams of length at least _n.  The default (and mini-
-              mum  allowed  value) is 2, i.e., only unigrams are excluded from
-              pruning.  This option applies to  both  --pprruunnee  and  --pprruunnee--llooww--
+              mum allowed value) is 2, i.e., only unigrams are  excluded  from
+              pruning.   This  option  applies  to both --pprruunnee and --pprruunnee--llooww--
               pprroobbss.
 
        --rreessccoorree--nnggrraamm _f_i_l_e
-              Read  an N-gram LM from _f_i_l_e and recompute its N-gram probabili-
+              Read an N-gram LM from _f_i_l_e and recompute its N-gram  probabili-
               ties using the LM specified by the other options; then renormal-
               ize and evaluate the resulting new N-gram LM.
 
        --wwrriittee--llmm _f_i_l_e
               Write a model back to _f_i_l_e.  The output will be in the same for-
-              mat as read by --llmm, except if  operations  such  as  --mmiixx--llmm  or
+              mat  as  read  by  --llmm,  except if operations such as --mmiixx--llmm or
               --eexxppaanndd--ccllaasssseess were applied, in which case the output will con-
-              tain the generated single N-gram backoff model  in  ARPA  nnggrraamm--
+              tain  the  generated  single N-gram backoff model in ARPA nnggrraamm--
               ffoorrmmaatt(5).
 
        --wwrriittee--bbiinn--llmm _f_i_l_e
-              Write  a model to _f_i_l_e using a binary data format.  This is only
-              supported by certain model types, specifically, those  based  on
+              Write a model to _f_i_l_e using a binary data format.  This is  only
+              supported  by  certain model types, specifically, those based on
               N-gram backoff models and N-gram counts.  Binary model files are
-              recognized automatically by the --rreeaadd function.  If an LM  class
-              does  not provide a binary format the default (text) format will
+              recognized  automatically by the --rreeaadd function.  If an LM class
+              does not provide a binary format the default (text) format  will
               be output instead.
 
        --wwrriittee--vvooccaabb _f_i_l_e
@@ -540,9 +557,9 @@ OOPPTTIIOONNSS
               Generate _n_u_m_b_e_r random sentences from the LM.
 
        --ggeenn--pprreeffiixxeess _f_i_l_e
-              Read a list of sentence prefixes from _f_i_l_e and  generate  random
-              word  strings  conditioned  on  them,  one per line.  (Note: The
-              start-of-sentence tag <<ss>> is not automatically  added  to  these
+              Read  a  list of sentence prefixes from _f_i_l_e and generate random
+              word strings conditioned on them,  one  per  line.   (Note:  The
+              start-of-sentence  tag  <<ss>>  is not automatically added to these
               prefixes.)
 
        --sseeeedd _v_a_l_u_e
@@ -551,20 +568,20 @@ OOPPTTIIOONNSS
               be close to unique for each invocation of the program.
 
        --ppppll _t_e_x_t_f_i_l_e
-              Compute  sentence  scores  (log  probabilities) and perplexities
-              from the sentences in _t_e_x_t_f_i_l_e, which should  contain  one  sen-
-              tence  per line.  The --ddeebbuugg option controls the level of detail
+              Compute sentence scores  (log  probabilities)  and  perplexities
+              from  the  sentences  in _t_e_x_t_f_i_l_e, which should contain one sen-
+              tence per line.  The --ddeebbuugg option controls the level of  detail
               printed, even though output is to stdout (not stderr).
 
-              --ddeebbuugg 00  Only summary statistics  for  the  entire  corpus  are
-                        printed,  as well as partial statistics for each input
-                        portion delimited  by  escaped  lines  (see  --eessccaappee).
-                        These  statistics  include  the  number  of sentences,
-                        words, out-of-vocabulary  words  and  zero-probability
-                        tokens  in  the input, as well as its total log proba-
-                        bility and perplexity.  Perplexity is given  with  two
-                        different  normalizations:  counting  all input tokens
-                        (``ppl'')   and   excluding    end-of-sentence    tags
+              --ddeebbuugg 00  Only  summary  statistics  for  the  entire corpus are
+                        printed, as well as partial statistics for each  input
+                        portion  delimited  by  escaped  lines  (see --eessccaappee).
+                        These statistics  include  the  number  of  sentences,
+                        words,  out-of-vocabulary  words  and zero-probability
+                        tokens in the input, as well as its total  log  proba-
+                        bility  and  perplexity.  Perplexity is given with two
+                        different normalizations: counting  all  input  tokens
+                        (``ppl'')    and    excluding   end-of-sentence   tags
                         (``ppl1'').
 
               --ddeebbuugg 11  Statistics for individual sentences are printed.
@@ -572,14 +589,14 @@ OOPPTTIIOONNSS
               --ddeebbuugg 22  Probabilities for each word, plus LM-dependent details
                         about backoff used etc., are printed.
 
-              --ddeebbuugg 33  Probabilities for all words are summed  in  each  con-
+              --ddeebbuugg 33  Probabilities  for  all  words are summed in each con-
                         text, and the sum is printed.  If this differs signif-
-                        icantly from 1, a warning message to  stderr  will  be
+                        icantly  from  1,  a warning message to stderr will be
                         issued.
 
               --ddeebbuugg 44  Outputs ranking statistics (number of times the actual
-                        word's probability was ranked in top 1,  5,  10  among
-                        all  possible words, both excluding and including end-
+                        word's  probability  was  ranked in top 1, 5, 10 among
+                        all possible words, both excluding and including  end-
                         of-sentence tokens), as well as quadratic and absolute
                         loss averages (based on how much actual word probabil-
                         ity differs from 1).
@@ -591,18 +608,18 @@ OOPPTTIIOONNSS
        --nnbbeesstt _f_i_l_e
               Read an N-best list in nnbbeesstt--ffoorrmmaatt(5) and rerank the hypotheses
               using the specified LM.  The reordered N-best list is written to
-              stdout.   If the N-best list is given in ``NBestList1.0'' format
-              and contains  composite  acoustic/language  model  scores,  then
-              --ddeecciipphheerr--llmm  and the recognizer language model and word transi-
-              tion weights (see below) need to be specified  so  the  original
+              stdout.  If the N-best list is given in ``NBestList1.0''  format
+              and  contains  composite  acoustic/language  model  scores, then
+              --ddeecciipphheerr--llmm and the recognizer language model and word  transi-
+              tion  weights  (see  below) need to be specified so the original
               acoustic scores can be recovered.
 
        --nnbbeesstt--ffiilleess _f_i_l_e_l_i_s_t
-              Process  multiple  N-best  lists  whose  filenames are listed in
+              Process multiple N-best lists  whose  filenames  are  listed  in
               _f_i_l_e_l_i_s_t.
 
        --wwrriittee--nnbbeesstt--ddiirr _d_i_r
-              Deposit rescored N-best lists into directory  _d_i_r,  using  file-
+              Deposit  rescored  N-best  lists into directory _d_i_r, using file-
               names derived from the input ones.
 
        --ddeecciipphheerr--nnbbeesstt
@@ -610,92 +627,92 @@ OOPPTTIIOONNSS
               SRILM format.
 
        --nnoo--rreeoorrddeerr
-              Output rescored N-best lists without sorting the  hypotheses  by
+              Output  rescored  N-best lists without sorting the hypotheses by
               their new combined scores.
 
        --sspplliitt--mmuullttiiwwoorrddss
-              Split  multiwords  into  their  components  when  reading N-best
-              lists; the rescored N-best lists thus no longer  contain  multi-
-              words.   (Note  this  is  different from the --mmuullttiiwwoorrddss option,
-              which leaves the input word stream unchanged and  splits  multi-
+              Split multiwords  into  their  components  when  reading  N-best
+              lists;  the  rescored N-best lists thus no longer contain multi-
+              words.  (Note this is different  from  the  --mmuullttiiwwoorrddss  option,
+              which  leaves  the input word stream unchanged and splits multi-
               words only for the purpose of LM probability computation.)
 
        --mmaaxx--nnbbeesstt _n
-              Limits  the number of hypotheses read from an N-best list.  Only
+              Limits the number of hypotheses read from an N-best list.   Only
               the first _n hypotheses are processed.
 
        --rreessccoorree _f_i_l_e
-              Similar to --nnbbeesstt, but the input is processed as a stream of  N-
-              best  hypotheses  (without  header).  The output consists of the
-              rescored hypotheses in SRILM format (the third  of  the  formats
+              Similar  to --nnbbeesstt, but the input is processed as a stream of N-
+              best hypotheses (without header).  The output  consists  of  the
+              rescored  hypotheses  in  SRILM format (the third of the formats
               described in nnbbeesstt--ffoorrmmaatt(5)).
 
        --ddeecciipphheerr--llmm _m_o_d_e_l_-_f_i_l_e
-              Designates  the  N-gram  backoff model (typically a bigram) that
-              was used by the Decipher(TM) recognizer in  computing  composite
-              scores  for  the  hypotheses fed to --rreessccoorree or --nnbbeesstt.  Used to
+              Designates the N-gram backoff model (typically  a  bigram)  that
+              was  used  by the Decipher(TM) recognizer in computing composite
+              scores for the hypotheses fed to --rreessccoorree or  --nnbbeesstt.   Used  to
               compute acoustic scores from the composite scores.
 
        --ddeecciipphheerr--oorrddeerr _N
-              Specifies the order of the Decipher N-gram model  used  (default
+              Specifies  the  order of the Decipher N-gram model used (default
               is 2).
 
        --ddeecciipphheerr--nnoobbaacckkooffff
-              Indicates  that the Decipher N-gram model does not contain back-
-              off nodes, i.e., all recognizer LM  scores  are  correct  up  to
+              Indicates that the Decipher N-gram model does not contain  back-
+              off  nodes,  i.e.,  all  recognizer  LM scores are correct up to
               rounding.
 
        --ddeecciipphheerr--llmmww _w_e_i_g_h_t
-              Specifies  the  language  model  weight  used by the recognizer.
+              Specifies the language model  weight  used  by  the  recognizer.
               Used to compute acoustic scores from the composite scores.
 
        --ddeecciipphheerr--wwttww _w_e_i_g_h_t
-              Specifies the word transition weight  used  by  the  recognizer.
+              Specifies  the  word  transition  weight used by the recognizer.
               Used to compute acoustic scores from the composite scores.
 
        --eessccaappee _s_t_r_i_n_g
-              Set  an  ``escape  string''  for the --ppppll, --ccoouunnttss, and --rreessccoorree
-              computations.  Input lines starting with  _s_t_r_i_n_g  are  not  pro-
-              cessed  as  sentences  and  passed  unchanged to stdout instead.
-              This allows associated  information  to  be  passed  to  scoring
+              Set an ``escape string'' for the  --ppppll,  --ccoouunnttss,  and  --rreessccoorree
+              computations.   Input  lines  starting  with _s_t_r_i_n_g are not pro-
+              cessed as sentences and  passed  unchanged  to  stdout  instead.
+              This  allows  associated  information  to  be  passed to scoring
               scripts etc.
 
        --ccoouunnttss _c_o_u_n_t_s_f_i_l_e
-              Perform  a computation similar to --ppppll, but based only on the N-
+              Perform a computation similar to --ppppll, but based only on the  N-
               gram counts found in _c_o_u_n_t_s_f_i_l_e.  Probabilities are computed for
               the last word of each N-gram, using the other words as contexts,
-              and scaling by the associated N-gram count.  Summary  statistics
+              and  scaling by the associated N-gram count.  Summary statistics
               are output at the end, as well as before each escaped input line
               if --ddeebbuugg level 1 or higher is set.
 
        --ccoouunntt--oorrddeerr _n
-              Use only counts up to order _n in the --ccoouunnttss  computation.   The
-              default  value  is  the  order of the LM (the value specified by
+              Use  only  counts up to order _n in the --ccoouunnttss computation.  The
+              default value is the order of the LM  (the  value  specified  by
               --oorrddeerr).
 
        --ffllooaatt--ccoouunnttss
               Allow processing of fractional counts with --ccoouunnttss.
 
        --ccoouunnttss--eennttrrooppyy
-              Weight the log probabilities for --ccoouunnttss processing by the  join
+              Weight  the log probabilities for --ccoouunnttss processing by the join
               probabilities of the N-grams.  This effectively computes the sum
-              over p(w,h) log p(w|h), i.e., the  entropy  of  the  model.   In
-              debugging  mode,  both the conditional log probabilities and the
+              over  p(w,h)  log  p(w|h),  i.e.,  the entropy of the model.  In
+              debugging mode, both the conditional log probabilities  and  the
               corresponding joint probabilities are output.
 
        --sseerrvveerr--ppoorrtt _P
               Start a network server that listens on port _P and returns N-gram
               probabilities.  The server will write a one-line "ready" message
-              and then read N-grams, one per line.  For each N-gram, a  condi-
+              and  then read N-grams, one per line.  For each N-gram, a condi-
               tional  log  probability  is  computed  as  specified  by  other
-              options, and written back to the client (in text  format).   The
-              server  will  continue  accepting connections until killed by an
+              options,  and  written back to the client (in text format).  The
+              server will continue accepting connections until  killed  by  an
               external signal.
 
        --sseerrvveerr--mmaaxxcclliieennttss _M
-              Limits the number of simultaneous connections  accepted  by  the
-              network  LM  server to _M.  Once the limit is reached, additional
-              connection requests (e.g.,  via  nnggrraamm  --uussee--sseerrvveerr)  will  hang
+              Limits  the  number  of simultaneous connections accepted by the
+              network LM server to _M.  Once the limit is  reached,  additional
+              connection  requests  (e.g.,  via  nnggrraamm  --uussee--sseerrvveerr) will hang
               until another client terminates its connection.
 
        --sskkiippoooovvss
@@ -703,106 +720,105 @@ OOPPTTIIOONNSS
               ulary words, instead of using a backoff strategy in these cases.
 
        --nnooiissee _n_o_i_s_e_-_t_a_g
-              Designate _n_o_i_s_e_-_t_a_g as a vocabulary item that is to  be  ignored
+              Designate  _n_o_i_s_e_-_t_a_g  as a vocabulary item that is to be ignored
               by the LM.  (This is typically used to identify a noise marker.)
-              Note that the LM specified by --ddeecciipphheerr--llmm does NOT ignore  this
-              _n_o_i_s_e_-_t_a_g  since the DECIPHER recognizer treats noise as a regu-
+              Note  that the LM specified by --ddeecciipphheerr--llmm does NOT ignore this
+              _n_o_i_s_e_-_t_a_g since the DECIPHER recognizer treats noise as a  regu-
               lar word.
 
        --nnooiissee--vvooccaabb _f_i_l_e
-              Read several noise tags from _f_i_l_e, instead of,  or  in  addition
+              Read  several  noise  tags from _f_i_l_e, instead of, or in addition
               to, the single noise tag specified by --nnooiissee.
 
        --rreevveerrssee
-              Reverse  the words in a sentence for LM scoring purposes.  (This
-              assumes the LM used is a ``right-to-left''  model.)   Note  that
+              Reverse the words in a sentence for LM scoring purposes.   (This
+              assumes  the  LM  used is a ``right-to-left'' model.)  Note that
               the LM specified by --ddeecciipphheerr--llmm is always applied to the origi-
               nal, left-to-right word sequence.
 
        --nnoo--ssooss
-              Disable the automatic insertion of start-of-sentence tokens  for
-              sentence  probability  computation.  The probability of the ini-
+              Disable  the automatic insertion of start-of-sentence tokens for
+              sentence probability computation.  The probability of  the  ini-
               tial word is thus computed with an empty context.
 
        --nnoo--eeooss
-              Disable the automatic insertion of  end-of-sentence  tokens  for
-              sentence   probability  computation.   End-of-sentence  is  thus
+              Disable  the  automatic  insertion of end-of-sentence tokens for
+              sentence  probability  computation.   End-of-sentence  is   thus
               excluded from the total probability.
 
 SSEEEE AALLSSOO
-       ngram-count(1), ngram-class(1),  lm-scripts(1),  ppl-scripts(1),  pfsg-
-       scripts(1),    nbest-scripts(1),    ngram-format(5),   nbest-format(5),
+       ngram-count(1),  ngram-class(1),  lm-scripts(1),  ppl-scripts(1), pfsg-
+       scripts(1),   nbest-scripts(1),    ngram-format(5),    nbest-format(5),
        classes-format(5).
-       J. A. Bilmes and K. Kirchhoff, ``Factored Language Models and  General-
-       ized  Parallel  Backoff,'' _P_r_o_c_. _H_L_T_-_N_A_A_C_L, pp. 4-6, Edmonton, Alberta,
+       J.  A. Bilmes and K. Kirchhoff, ``Factored Language Models and General-
+       ized Parallel Backoff,'' _P_r_o_c_. _H_L_T_-_N_A_A_C_L, pp. 4-6,  Edmonton,  Alberta,
        2003.
-       C. Chelba,  T. Brants, W. Neveitt, and P. Xu,  ``Study  on  Interaction
-       Between  Entropy Pruning and Kneser-Ney Smoothing,'' _P_r_o_c_. _I_n_t_e_r_s_p_e_e_c_h,
+       C.  Chelba,   T.  Brants, W. Neveitt, and P. Xu, ``Study on Interaction
+       Between Entropy Pruning and Kneser-Ney Smoothing,'' _P_r_o_c_.  _I_n_t_e_r_s_p_e_e_c_h,
        pp. 2422-2425, Makuhari, Japan, 2010.
        S. F. Chen and J. Goodman, ``An Empirical Study of Smoothing Techniques
-       for  Language  Modeling,''  TR-10-98,  Computer  Science Group, Harvard
+       for Language Modeling,''  TR-10-98,  Computer  Science  Group,  Harvard
        Univ., 1998.
        J. Gao, P. Nguyen, X. Li, C. Thrasher, M. Li, and K. Wang, ``A Compara-
-       tive  Study of Bing Web N-gram Language Models for Web Search and Natu-
+       tive Study of Bing Web N-gram Language Models for Web Search and  Natu-
        ral Language Processing,'' Proc. SIGIR, July 2010.
-       K. Kirchhoff et al., ``Novel Speech Recognition  Models  for  Arabic,''
+       K.  Kirchhoff  et  al., ``Novel Speech Recognition Models for Arabic,''
        Johns Hopkins University Summer Research Workshop 2002, Final Report.
-       R.  Kneser,  J. Peters and D. Klakow, ``Language Model Adaptation Using
+       R. Kneser, J. Peters and D. Klakow, ``Language Model  Adaptation  Using
        Dynamic Marginals'', _P_r_o_c_. _E_u_r_o_s_p_e_e_c_h, pp. 1971-1974, Rhodes, 1997.
-       A. Stolcke and E. Shriberg, ``Statistical language modeling for  speech
+       A.  Stolcke and E. Shriberg, ``Statistical language modeling for speech
        disfluencies,'' Proc. IEEE ICASSP, pp. 405-409, Atlanta, GA, 1996.
        A. Stolcke,`` Entropy-based Pruning of Backoff Language Models,'' _P_r_o_c_.
-       _D_A_R_P_A _B_r_o_a_d_c_a_s_t _N_e_w_s  _T_r_a_n_s_c_r_i_p_t_i_o_n  _a_n_d  _U_n_d_e_r_s_t_a_n_d_i_n_g  _W_o_r_k_s_h_o_p,  pp.
+       _D_A_R_P_A  _B_r_o_a_d_c_a_s_t  _N_e_w_s  _T_r_a_n_s_c_r_i_p_t_i_o_n  _a_n_d  _U_n_d_e_r_s_t_a_n_d_i_n_g _W_o_r_k_s_h_o_p, pp.
        270-274, Lansdowne, VA, 1998.
-       A.  Stolcke  et  al.,  ``Automatic Detection of Sentence Boundaries and
-       Disfluencies based on Recognized Words,'' _P_r_o_c_. _I_C_S_L_P,  pp.  2247-2250,
+       A. Stolcke et al., ``Automatic Detection  of  Sentence  Boundaries  and
+       Disfluencies  based  on Recognized Words,'' _P_r_o_c_. _I_C_S_L_P, pp. 2247-2250,
        Sydney, 1998.
-       M.  Weintraub  et  al.,  ``Fast Training and Portability,'' in Research
-       Note No. 1, Center for Language and Speech  Processing,  Johns  Hopkins
+       M. Weintraub et al., ``Fast Training  and  Portability,''  in  Research
+       Note  No.  1,  Center for Language and Speech Processing, Johns Hopkins
        University, Baltimore, Feb. 1996.
        J. Wu (2002), ``Maximum Entropy Language Modeling with Non-Local Depen-
        dencies,'' doctoral dissertation, Johns Hopkins University, 2002.
 
 BBUUGGSS
-       Some LM types (such as Bayes-interpolated and factored  LMs)  currently
+       Some  LM  types (such as Bayes-interpolated and factored LMs) currently
        do not support the --wwrriittee--llmm function.
 
-       For  the  --lliimmiitt--vvooccaabb  option  to work correctly with hidden event and
-       class N-gram LMs, the event/class vocabularies have to be specified  by
-       options   (--hhiiddddeenn--vvooccaabb   and   --ccllaasssseess,   respectively).   Embedding
+       For the --lliimmiitt--vvooccaabb option to work correctly  with  hidden  event  and
+       class  N-gram LMs, the event/class vocabularies have to be specified by
+       options  (--hhiiddddeenn--vvooccaabb   and   --ccllaasssseess,   respectively).    Embedding
        event/class definitions in the LM file only will not work correctly.
 
-       Sentence generation is slow and takes time proportional to the  vocabu-
+       Sentence  generation is slow and takes time proportional to the vocabu-
        lary size.
 
        The file given by --ccllaasssseess is read multiple times if --lliimmiitt--vvooccaabb is in
-       effect or if a mixture of LMs is specified.  This will lead  to  incor-
+       effect  or  if a mixture of LMs is specified.  This will lead to incor-
        rect behavior if the argument of --ccllaasssseess is stdin (``-'').
 
-       Also,  --lliimmiitt--vvooccaabb  will  not  work  correctly with LM operations that
-       require the  entire  vocabulary  to  be  enumerated,  such  as  --aaddaapptt--
+       Also, --lliimmiitt--vvooccaabb will not work  correctly  with  LM  operations  that
+       require  the  entire  vocabulary  to  be  enumerated,  such  as --aaddaapptt--
        mmaarrggiinnaallss or perplexity computation with --ddeebbuugg 33.
 
-       The  --mmuullttiiwwoorrdd  option implicitly adds all word strings to the vocabu-
+       The --mmuullttiiwwoorrdd option implicitly adds all word strings to  the  vocabu-
        lary.  Therefore, no OOVs are reported, only zero probability words.
 
-       Operations that require enumeration of the entire  LM  vocabulary  will
-       not  currently  work  with  --uussee--sseerrvveerr, since the client side only has
+       Operations  that  require  enumeration of the entire LM vocabulary will
+       not currently work with --uussee--sseerrvveerr, since the  client  side  only  has
        knowledge of words it has already processed.  This affects the --ggeenn and
-       --aaddaapptt--mmaarrggiinnaallss  options, as well as --ppppll with --ddeebbuugg 33.  A workaround
+       --aaddaapptt--mmaarrggiinnaallss options, as well as --ppppll with --ddeebbuugg 33.  A  workaround
        is to specify the complete vocabulary with --vvooccaabb on the client side.
 
-       The reading of quantized LM parameters with  the  --ccooddeebbooookk  option  is
+       The  reading  of  quantized  LM parameters with the --ccooddeebbooookk option is
        currently only supported for N-gram LMs in nnggrraamm--ffoorrmmaatt(5).
 
 AAUUTTHHOORRSS
-       Andreas Stolcke <andreas.stolcke@microsoft.com>
-       Jing Zheng <zj@speech.sri.com>
-       Tanel Alumae <tanel.alumae@phon.ioc.ee>
+       Andreas     Stolcke     <stolcke@icsi.berkeley.edu>,     Jing     Zheng
+       <zj@speech.sri.com>, Tanel Alumae <tanel.alumae@phon.ioc.ee>
        Copyright (c) 1995-2012 SRI International
        Copyright (c) 2009-2013 Tanel Alumae
-       Copyright (c) 2012-2015 Microsoft Corp.
+       Copyright (c) 2012-2017 Microsoft Corp.
 
 
 
-SRILM Tools              $Date: 2015-10-13 21:08:30 $                 ngram(1)
+SRILM Tools              $Date: 2019/09/09 22:35:37 $                 ngram(1)

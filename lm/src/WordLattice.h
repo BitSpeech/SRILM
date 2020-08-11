@@ -2,9 +2,9 @@
  * WordLattice.h --
  *	Word lattices
  *
- * Copyright (c) 1995-1998 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-1998 SRI International, 2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordLattice.h,v 1.14 2003/11/01 07:07:21 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/WordLattice.h,v 1.16 2019/09/09 23:13:14 stolcke Exp $
  *
  */
 
@@ -61,7 +61,8 @@ public:
 
     double minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags = 0, double delBias = 1.0);
+				unsigned flags = 0, double delBias = 1.0,
+				SubVocab *suppressVocab = 0);
 #define WORDLATTICE_NOVITERBI	0x01		/* flag value */
     
     Boolean isEmpty();

@@ -17,13 +17,22 @@
 #
 #    Copyright (c) 1993, SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.38 2016/05/25 16:26:15 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/misc/src/Makefile,v 1.41 2017/02/02 06:25:10 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.
 include $(SRILM)/common/Makefile.common.variables
 
 # Define variables.
+
+# Flags for generating "compact" data structures
+COMPACT_FLAGS += -DUSE_SARRAY -DUSE_SARRAY_TRIE -DUSE_SARRAY_MAP2
+
+# Flags for generating "short" data structures
+SHORT_FLAGS = $(COMPACT_FLAGS) -DUSE_SHORT_VOCAB -DUSE_XCOUNTS
+
+# Flags for generating "long long" data structures
+LLONG_FLAGS = $(COMPACT_FLAGS) -DUSE_LONGLONG_COUNTS -DUSE_XCOUNTS
 
 # Example Library declarations files.
 
@@ -80,6 +89,7 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.cc,$(OBJDIR)/%$(OBJ_SUFFIX),\
 LIBRARY = $(OBJDIR)/$(LIB_PREFIX)misc$(LIB_SUFFIX)
 
 ADDITIONAL_INCLUDES += \
+	-I$(OBJDIR) \
 	$(TCL_INCLUDE)
 
 ADDITIONAL_LIBRARIES += \
@@ -143,6 +153,13 @@ SRILMversion.h:	$(SRILM)/RELEASE $(SRILM)/Copyright
 	read version < $(SRILM)/RELEASE; echo "#define SRILM_RELEASE \"$$version\"" > $@
 	sed -f $(SRILM)/sbin/stringify-copyright $(SRILM)/Copyright >> $@
 
+$(OBJDIR)/SRILMoptions.h:	
+	echo "#define BUILD_OPTIONS \"$(OPTION_FLAGS)\"" > $@
+
+# make sure SRILMoptions.h gets generated for each $(OPTION)
+$(OBJDIR)/version$(OBJ_SUFFIX):	$(OBJDIR)/SRILMoptions.h
+
+
 # Variables and Targets for released system
 
 EXPORTED_HEADERS   = $(EXTERNAL_LIB_HEADERS)
@@ -151,10 +168,10 @@ EXPORTED_PROGRAMS  =
 
 release:	release-headers release-libraries release-programs
 
-depend:	SRILMversion.h
+depend:	SRILMversion.h $(OBJDIR)/SRILMoptions.h
 
 cleaner:
-	rm -f SRILMversion.h
+	rm -f SRILMversion.h $(OBJDIR)/SRILMoptions.h
 
 # Include common SRILM target definitions.
 include $(SRILM)/common/Makefile.common.targets

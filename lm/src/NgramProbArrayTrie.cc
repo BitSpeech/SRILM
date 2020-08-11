@@ -8,8 +8,8 @@
 #define _NgramProbArrayTrie_cc_
 
 #ifndef lint
-static char NgramProbArrayTrie_Copyright[] = "Copyright (c) 2013-2016 Microsoft Corp.  All Rights Reserved.";
-static char NgramProbArrayTrie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramProbArrayTrie.cc,v 1.9 2016/04/09 06:53:01 stolcke Exp $";
+static char NgramProbArrayTrie_Copyright[] = "Copyright (c) 2013-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char NgramProbArrayTrie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramProbArrayTrie.cc,v 1.11 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -168,14 +168,7 @@ NgramProbArrayTrie::writeNgram(File &file,
 			       const VocabString *words,
 			       ZeroArray<Prob> &pr)
 {
-    unsigned i = 0;
-
-    if (words[0]) {
-	file.fprintf("%s", words[0]);
-	for (i = 1; words[i]; i++) {
-	    file.fprintf(" %s", words[i]);
-	}
-    }
+    unsigned len = Vocab::write(file, words);
 
     for (unsigned i = 0; i < dimension; i++) {
 	file.fprintf("%c%.*lg", (i == 0 ? '\t' : ' '),
@@ -183,7 +176,7 @@ NgramProbArrayTrie::writeNgram(File &file,
     }
     file.fprintf("\n");
 
-    return i;
+    return len;
 }
 
 /*
@@ -197,8 +190,7 @@ void
 NgramProbArrayTrie::writeNode(
     NgramProbArrayTrieNode &node, /* the trie node we're at */
     File &file,			/* output file */
-    char *buffer,		/* output buffer */
-    char *bptr,			/* pointer into output buffer */
+    VocabString *words,		/* array of words strings */
     unsigned level,		/* current trie level */
     unsigned maxOrder,		/* target trie level */
     Boolean sorted)		/* produce sorted output */
@@ -220,16 +212,7 @@ NgramProbArrayTrie::writeNode(
 	   continue;
 	}
 
-	unsigned wordLen = strlen(word);
-
-	if (bptr + wordLen + 1 > buffer + maxLineLength) {
-	   *bptr = '0';
-	   cerr << "ngram ["<< buffer << word
-		<< "] exceeds write buffer\n";
-	   continue;
-	}
-        
-	strcpy(bptr, word);
+	words[level-1] = word;
 
 	/*
 	 * If this is the final level, print out the ngram and the prob vector.
@@ -238,7 +221,8 @@ NgramProbArrayTrie::writeNode(
 	if (maxOrder == 0 || level == maxOrder) {
            ZeroArray<Prob> &pr = child->value();
 
-	   file.fprintf("%s", buffer);
+	   words[level] = 0;
+	   Vocab::write(file, words);
 	   for (unsigned i = 0; i < dimension; i ++) {
 	        file.fprintf("%c%.*lg", (i == 0 ? '\t' : ' '),
 					Prob_Precision, (double)pr[i]);
@@ -247,9 +231,7 @@ NgramProbArrayTrie::writeNode(
 	}
 	
 	if (maxOrder == 0 || level < maxOrder) {
-	   *(bptr + wordLen) = ' ';
-	   writeNode(*child, file, buffer, bptr + wordLen + 1, level + 1,
-			maxOrder, sorted);
+	   writeNode(*child, file, words, level + 1, maxOrder, sorted);
 	}
     }
 }
@@ -261,8 +243,9 @@ NgramProbArrayTrie::write(File &file, unsigned maxOrder, Boolean sorted)
 
     // @kw false positive: ABV.GENERAL (empty)
     writeNgram(file, empty, probs.value());
-    char *buffer = TLSW_GET_ARRAY(writeBufferTLS);
-    writeNode(probs, file, buffer, buffer, 1, maxOrder, sorted);
+
+    VocabString *buffer = TLSW_GET_ARRAY(writeBufferTLS);
+    writeNode(probs, file, buffer, 1, maxOrder, sorted);
 }
 
 #endif /* _NgramProbArrayTrie_cc_ */

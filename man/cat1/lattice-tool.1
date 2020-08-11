@@ -1,4 +1,4 @@
-lattice-tool(1)                                                lattice-tool(1)
+lattice-tool(1)             General Commands Manual            lattice-tool(1)
 
 
 
@@ -558,6 +558,13 @@ OOPPTTIIOONNSS
               bilities  when processing lattices with an LM that is mismatched
               in vocabulary.
 
+       --uunnkk--pprroobb _p
+              Overrides the log probability of unknown words with the value _p,
+              effectively  imposing  a  fixed, context-independent penalty for
+              out-of-vocabulary words.  This can be useful for rescoring  with
+              LMs  in  which  this probability is missing or incorrectly esti-
+              mated.
+
        --ccllaasssseess _f_i_l_e
               Interpret the LM as an N-gram over word classes.  The expansions
               of  the  classes are given in _f_i_l_e in ccllaasssseess--ffoorrmmaatt(5).  Tokens
@@ -919,14 +926,13 @@ BBUUGGSS
        program a second time.
 
 AAUUTTHHOORRSS
-       Fuliang Weng <fuliang@speech.sri.com>
-       Andreas Stolcke <andreas.stolcke@microsoft.com>
-       Dustin Hillard <hillard@ssli.ee.washington.edu>
-       Jing Zheng <zj@speech.sri.com>
-       Copyright 1997-2011 SRI International
-       Copyright 2012-2013 Microsoft Corp.
+       Fuliang   Weng   <fuliang@speech.sri.com>,   Andreas   Stolcke   <stol-
+       cke@icsi.berkeley.edu>,   Dustin   Hillard    <hillard@ssli.ee.washing-
+       ton.edu>, Jing Zheng <zj@speech.sri.com>
+       Copyright (c) 1997-2011 SRI International
+       Copyright (c) 2011-2017 Andreas Stolcke
+       Copyright (c) 2012-2017 Microsoft Corp.
 
 
 
-
-SRILM Tools              $Date: 2014-01-30 00:31:34 $          lattice-tool(1)
+SRILM Tools              $Date: 2019/09/09 22:35:36 $          lattice-tool(1)

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramLM.cc,v 1.146 2016/06/19 04:36:59 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramLM.cc,v 1.149 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -780,7 +780,7 @@ Ngram::writeWithOrder(File &file, unsigned order)
     unsigned i;
     Count howmanyNgrams[maxNgramOrder + 1];
     VocabIndex context[maxNgramOrder + 2];
-    VocabString scontext[maxNgramOrder + 1];
+    VocabString ngramWords[maxNgramOrder + 2];
 
     if (order > maxNgramOrder) {
 	order = maxNgramOrder;
@@ -806,8 +806,8 @@ Ngram::writeWithOrder(File &file, unsigned order)
 
 	while ((node = iter.next())) {
 
-	    vocab.getWords(context + 1, scontext, maxNgramOrder + 1);
-	    Vocab::reverse(scontext);
+	    vocab.getWords(context + 1, ngramWords, maxNgramOrder + 2);
+	    Vocab::reverse(ngramWords);
 
 	    NgramProbsIter piter(*node, vocab.compareIndex());
 	    VocabIndex pword;
@@ -825,8 +825,13 @@ Ngram::writeWithOrder(File &file, unsigned order)
 				    (double)(*prob == LogP_Zero ?
 						    LogP_PseudoZero : *prob));
 		}
-		Vocab::write(file, scontext);
-		file.fprintf("%s%s", (i > 1 ? " " : ""), vocab.getWord(pword));
+
+		/*
+		 * Append the final word to the ngram, then output it
+		 */
+		ngramWords[i - 1] = vocab.getWord(pword);
+		ngramWords[i] =  0;
+		Vocab::write(file, ngramWords);
 
 		if (i < order) {
 		    context[0] = pword;
@@ -2117,7 +2122,7 @@ Ngram::mixProbs(NgramBayesMix &mixLMs)
  */
 Boolean
 Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
-				Prob &numerator, Prob &denominator)
+		  Prob &numerator, Prob &denominator, Prob minBackoffMass)
 {
     NgramProbsIter piter(*node);
     VocabIndex word;
@@ -2141,6 +2146,30 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 	    denominator -=
 		LogPtoProb(wordProbBO(word, context, clen - 1));
 	}
+    }
+
+    /*
+     * If a minimum backoff mass is to be enforced, do it now:
+     * Scale all probabilities in this context if the BOW numerator
+     * is not large enough.
+     */
+    if (minBackoffMass >= 0.0 && minBackoffMass <= 1.0 &&
+	minBackoffMass - numerator > Prob_Epsilon)
+    {
+	cerr << "insufficient backoff mass " << numerator
+	     << " for context \"" << (vocab.use(), context)
+	     << "\"; scaling probabilities to mass " << (1.0 - minBackoffMass)
+	     << "\n";
+
+	LogP scale = ProbToLogP(1 - minBackoffMass)
+			- ProbToLogP(1 - numerator);
+
+	piter.init();
+	while ((prob = piter.next(word))) {
+	    *prob += scale;
+	}
+
+	numerator = minBackoffMass;
     }
 
     /*
@@ -2196,10 +2225,12 @@ Ngram::computeBOW(BOnode *node, const VocabIndex *context, unsigned clen,
 }
 
 /*
- * Recompute backoff weight for all contexts of a given order
+ * Recompute backoff weight for all contexts of a given order.
+ * if minBackoffMass is nonnegative, it specifies the minimum amount
+ * of total probability mass to reserve for backoff.
  */
 Boolean
-Ngram::computeBOWs(unsigned order)
+Ngram::computeBOWs(unsigned order, Prob minBackoffMass)
 {
     Boolean result = true;
 
@@ -2218,7 +2249,7 @@ Ngram::computeBOWs(unsigned order)
 
 	double numerator, denominator;
 
-	if (computeBOW(node, context, order, numerator, denominator)) {
+	if (computeBOW(node, context, order, numerator, denominator, minBackoffMass)) {
 	    /*
 	     * If unigram probs leave a non-zero probability mass
 	     * then we should give that mass to the zero-order (uniform)
@@ -2268,7 +2299,7 @@ Ngram::computeBOWs(unsigned order)
  * Renormalize language model by recomputing backoff weights.
  */
 void
-Ngram::recomputeBOWs()
+Ngram::recomputeBOWs(Prob minBackoffMass)
 {
     /*
      * Here it is important that we compute the backoff weights in
@@ -2279,7 +2310,14 @@ Ngram::recomputeBOWs()
      * this is precisely as it should be.
      */
     for (unsigned i = 0; i < order; i++) {
-	computeBOWs(i);
+	/*
+	 * We only enforce non-zero backoff mass for non-empty histories
+	 */
+	if (i == 0 && minBackoffMass > 0.0) {
+	    computeBOWs(i, 0.0);
+	} else {
+	    computeBOWs(i, minBackoffMass);
+	}
     }
 }
 

@@ -1,4 +1,4 @@
-<! $Id: training-scripts.1,v 1.26 2013/12/11 08:43:38 stolcke Exp $>
+<! $Id: training-scripts.1,v 1.29 2019/09/09 22:35:37 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>training-scripts</TITLE>
@@ -106,6 +106,9 @@ computes the discounting constants used by the modified Kneser-Ney
 smoothing method.
 Input is one of the files produced by 
 <B>get-gt-counts</B>.<B></B><B></B><B></B>
+This script also implements a method for extrapolating missing
+counts of counts as described in 
+Wang et al. (2007).
 <P>
 <B> make-batch-counts </B>
 performs the first stage in the construction of very large N-gram count 
@@ -230,6 +233,10 @@ use
 	ngram-count -read - -recompute -write - | \
 <BR>
 	reverse-ngram-counts &gt; <I>new-counts</I>
+<BR>
+Also, start-sentence tags are replaced with end-sentence tags, and vice-versa,
+so that reverse-direction LMs can be trained from forward-direction N-gram 
+counts.
 <P>
 <B> reverse-text </B>
 reverses the word order in text files, line-by-line.
@@ -377,6 +384,9 @@ and a target vocabulary list in
 <I>vocab</I>.<I></I><I></I><I></I>
 <H2> SEE ALSO </H2>
 <A HREF="ngram-count.1.html">ngram-count(1)</A>, <A HREF="ngram.1.html">ngram(1)</A>, <A HREF="classes-format.5.html">classes-format(5)</A>, <A HREF="disambig.1.html">disambig(1)</A>, <A HREF="select-vocab.1.html">select-vocab(1)</A>.
+<BR>
+W. Wang, A. Stolcke, J. Zheng, ``Reranking machine translation hypotheses with structured
+and web-based language models'', <I>Proc. IEEE ASRU Workshop</I>, pp. 159-164, 2007.
 <H2> BUGS </H2>
 Some of the tools could be generalized and/or made more robust to
 misuse.
@@ -384,10 +394,12 @@ misuse.
 Several of these tools are gawk scripts and depending on prevailing locale
 settings might require an LC_NUMERIC=C environment variable.
 <H2> AUTHOR </H2>
-Andreas Stolcke &lt;anstolck@microsoft.com&gt;
+Andreas Stolcke &lt;stolcke@icsi.berkeley.edu&gt;
 <BR>
-Copyright 1995-2008 SRI International
+Copyright (c) 1995-2008 SRI International
 <BR>
-Copyright 2013 Microsoft Corp.
+Copyright (c) 2013-2017 Andreas Stolcke
+<BR>
+Copyright (c) 2013-2017 Microsoft Corp.
 </BODY>
 </HTML>

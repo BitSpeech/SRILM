@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2004-2015 SRI International, 2013-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/LatticeNBest.cc,v 1.36 2016/04/09 06:53:01 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2004-2015 SRI International, 2013-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/LatticeNBest.cc,v 1.38 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -1207,7 +1207,7 @@ LatticeNBestHyp::writeHyp(int hypNum, Lattice &lat, NBestOptions &nbestOut)
       channel = ptr2[0];
       session = strdup(speaker);
       char *ptr4 = strrchr(session, '_');
-      if (ptr4 != NULL); {
+      if (ptr4 != NULL) {
 	ptr4[0] = '\0'; // end string so that new string is 'corpus'_'ses'
       }
     }

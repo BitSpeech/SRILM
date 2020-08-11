@@ -7,7 +7,7 @@
 #	Note: this script makes assumptions about the structure of sentence
 #	ID, specifically, how they encode speakers and timemarks.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/sentid-to-ctm.gawk,v 1.10 2009/11/19 00:10:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/sentid-to-ctm.gawk,v 1.11 2019/02/09 07:31:37 stolcke Exp $
 #
 
 BEGIN {
@@ -64,12 +64,12 @@ function is_nonspeech(w) {
 	# derive channel and time information from sentids
 	# look for a pattern that encodes channel and 
 	# start/end times
-	} else if (match(sentid, "_[12]_[-0-9][0-9]*_[0-9][0-9]*$")) {
-	   # waveforms with [12] channel id, timemarks 1/1000s
+	} else if (match(sentid, "_[0-9]_[-0-9][0-9]*_[0-9][0-9]*$")) {
+	   # waveforms with [012] channel id, timemarks 1/1000s
 	   # NOTE: this form is used by the segmenter
 	   conv = substr(sentid, 1, RSTART-1);
 	   split(substr(sentid, RSTART+1), sentid_parts, "_");
-	   channel = sprintf("%c", sentid_parts[1] + 64);
+	   channel = sentid_parts[1];
 	   start_offset = sentid_parts[2] / 1000;
 	   end_offset = sentid_parts[3] / 1000;
 	} else if (match(sentid, "_[AB]_[-0-9][0-9]*_[0-9][0-9]*$")) {

@@ -1,4 +1,4 @@
-<! $Id: srilm-faq.7,v 1.11 2014-01-07 00:10:10 stolcke Exp $>
+<! $Id: srilm-faq.7,v 1.13 2019/09/09 22:35:37 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>SRILM-FAQ</TITLE>
@@ -555,6 +555,13 @@ In either case all unigram probabilty probabilities will sum to 1.
 An informational message from
 <B> ngram-count </B>
 will tell which case applies.
+<DT><B> C5) Why do I get a different number of trigrams when building a 4gram model compared to just a trigram model? </B>
+<DD>
+This can happen when Kneser-Ney smoothing is used and the trigram cut-off
+(<B>-gt3min</B>)<B></B><B></B>
+is greater than 1 (as with the default, 2).
+The count cutoffs are applied against the modified counts generated as part of KN smoothing,
+so in the case of a 4gram model the trigrams are modified and the set of ngrams above the cutoff will change.
 </DD>
 </DL>
 <H3> Out-of-vocabulary, zeroprob, and `unknown' words </H3>
@@ -814,12 +821,14 @@ Reranking Machine Translation Hypotheses With Structured and Web-based Language 
 <H2> BUGS </H2>
 This document is work in progress.
 <H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
-<BR>
-Deniz Yuret &lt;dyuret@ku.edu.tr&gt;
-<BR>
+Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;,
+Deniz Yuret &lt;dyuret@ku.edu.tr&gt;,
 Nitin Madnani &lt;nmadnani@umiacs.umd.edu&gt;
 <BR>
-Copyright 2007-2010 SRI International
+Copyright (c) 2007-2010 SRI International
+<BR>
+Copyright (c) 2011-2017 Andreas Stolcke
+<BR>
+Copyright (c) 2011-2017 Microsoft Corp.
 </BODY>
 </HTML>

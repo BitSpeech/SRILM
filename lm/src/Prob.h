@@ -2,9 +2,9 @@
  * Prob.h --
  *	Probabilities and stuff
  *
- * Copyright (c) 1995-2011 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.39 2016/04/09 06:53:01 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Prob.h,v 1.42 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -132,9 +132,9 @@ inline Prob LogPtoPPL(LogP2 prob)
     return exp(- prob * M_LN10);
 }
 
-inline LogP ProbToLogP(Prob prob)
+inline LogP2 ProbToLogP(Prob prob)
 {
-    return (LogP)log10(prob);
+    return log10(prob);
 }
 
 inline LogP2 MixLogP(LogP2 prob1, LogP2 prob2, double lambda)
@@ -221,6 +221,11 @@ inline Bytelog LogPtoBytelog(LogP prob)
     } else {
 	return bytelog;
     }
+}
+
+inline double LogPtoBytelogFloat(LogP prob)
+{
+    return prob * (M_LN10 * 10000.5 / 1024.0);
 }
 
 inline Intlog LogPtoIntlog(LogP prob)

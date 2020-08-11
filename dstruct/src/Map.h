@@ -46,7 +46,7 @@
  *
  * Copyright (c) 1995-2006 SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.25 2014-05-27 03:04:56 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Map.h,v 1.27 2017/01/19 20:49:30 victor Exp $
  *
  */
 
@@ -177,6 +177,7 @@ inline Boolean Map_noKeyP(long int key) { return key == LongNokeyValue; }
 const short unsigned UShortNokeyValue = ~(short unsigned)0;
 const unsigned UIntNokeyValue = ~(unsigned)0;
 const long unsigned ULongNokeyValue = ~(long unsigned)0;
+const long long unsigned ULongLongNokeyValue = ~(long long unsigned)0;
 
 inline void Map_noKey(unsigned &key) { key = UIntNokeyValue; }
 inline Boolean Map_noKeyP(unsigned key) { return key == UIntNokeyValue; }
@@ -184,6 +185,8 @@ inline void Map_noKey(short unsigned &key) { key = UShortNokeyValue; }
 inline Boolean Map_noKeyP(short unsigned key) { return key == UShortNokeyValue; }
 inline void Map_noKey(long unsigned &key) { key = ULongNokeyValue; }
 inline Boolean Map_noKeyP(long unsigned key) { return key == ULongNokeyValue; }
+inline void Map_noKey(long long unsigned &key) { key = ULongLongNokeyValue; }
+inline Boolean Map_noKeyP(long long unsigned key) { return key == ULongLongNokeyValue; }
 
 /*
  * Floats use HUGE_VAL as the non-key

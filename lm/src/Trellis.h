@@ -2,9 +2,9 @@
  * Trellis.h --
  *	Trellises for dynamic programming finite state models
  *
- * Copyright (c) 1995-2010 SRI International, 2013-2015 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International, 2013-2015 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.h,v 1.24 2015-09-25 00:09:41 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.h,v 1.25 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

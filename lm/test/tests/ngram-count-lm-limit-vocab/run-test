@@ -60,7 +60,7 @@ echo "counts $counts" >> swbd.3countlm
 # (gawk converts MSDOS newlines if needed) 
 #
 ngram-count -text $dir/eval97.text -write-vocab - | \
-${GAWK-gawk} '{ print $1 }' | \
+${GAWK-gawk} 'BEGIN { RS = "\r?\n" } { print $1 }' | \
 join - $dir/eval2001.vocab > eval97.vocab
 
 #

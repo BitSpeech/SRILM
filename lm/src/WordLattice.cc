@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordLattice.cc,v 1.42 2016/04/09 06:53:01 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2012-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordLattice.cc,v 1.44 2019/09/09 23:13:14 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -823,8 +823,9 @@ typedef struct {
 double
 WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 				    double &sub, double &ins, double &del,
-				    unsigned flags, double delBias)
-				// delBias is ignored, unimplemented
+				    unsigned flags, double delBias,
+				    // delBias is ignored, unimplemented
+				    SubVocab *suppressVocab)
 {
     const unsigned NO_PRED = (unsigned)(-1);	// default for pred link
     double expectedError;
@@ -927,7 +928,9 @@ WordLattice::minimizeWordError(VocabIndex *words, unsigned length,
 	for (unsigned k = i; k < endOfAlign; k ++) {
 	    unsigned currNode = sortedNodes[k];
 
-	    if (nodes[currNode].score > bestPosterior) {
+	    if (suppressVocab != 0 && suppressVocab->getWord(nodes[currNode].word)) {
+		;
+	    } else if (nodes[currNode].score > bestPosterior) {
 		bestWord = nodes[currNode].word;
 		bestPosterior = nodes[currNode].score;
 	    }

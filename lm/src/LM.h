@@ -5,9 +5,9 @@
  * The LM class defines an abstract languge model interface which all
  * other classes refine and inherit from.
  *
- * Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2015 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.65 2015-10-13 21:04:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.h,v 1.66 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 

@@ -97,9 +97,9 @@
  * Note that the iterator returns pointers to the Trie nodes, not the
  * stored data items.  Those can be accessed with value(), see above.
  *
- * Copyright (c) 1995-2012 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.25 2013/03/08 14:31:00 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.h,v 1.26 2019/09/09 23:13:11 stolcke Exp $
  *
  */
 

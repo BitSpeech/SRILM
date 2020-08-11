@@ -21,5 +21,16 @@ ngram -debug 0 \
 	-lm swbd.3bo$gz \
 	-ppl $dir/eval97.text
 
-rm -f swbd.3bo$gz
+ngram -lm swbd.3bo$gz \
+	-renorm \
+	-ppl $dir/eval97.text
+
+ngram -lm swbd.3bo$gz \
+	-renorm -minbackoff 1e-5 \
+	-ppl $dir/eval97.text \
+	2> ngram.stderr
+
+grep -c 'insufficient backoff mass' ngram.stderr
+
+rm -f swbd.3bo$gz ngram.stderr
 

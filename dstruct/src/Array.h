@@ -2,9 +2,9 @@
  * Array.h --
  *	Extensible array class
  *
- * Copyright (c) 1995-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.h,v 1.30 2014-04-07 18:19:24 frandsen Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.h,v 1.31 2019/09/09 23:13:11 stolcke Exp $
  *
  */
 

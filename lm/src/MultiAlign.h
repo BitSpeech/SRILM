@@ -2,9 +2,9 @@
  * MultiAlign.h --
  *	Multiple Word alignments
  *
- * Copyright (c) 1998-2006 SRI International.  All Rights Reserved.
+ * Copyright (c) 1998-2006 SRI International, 2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiAlign.h,v 1.16 2007/10/18 05:07:11 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MultiAlign.h,v 1.20 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -13,6 +13,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <vector>
 
 #include "NBest.h"
 #include "Boolean.h"
@@ -84,10 +85,21 @@ public:
 	{ HypID id = refID;
 	  alignWords(words, 0.0, 0, &id); };
 
-    virtual void alignAlignment(MultiAlign &alignment, Prob score,
+    /*
+     * align one lattice to another
+     */
+    virtual double alignAlignment(MultiAlign &alignment, Prob score,
 						    Prob *alignScores = 0)
 	{ cerr << "MultiAlign::alignAlignment not implemented (yet)\n";
 	  assert(0);
+	  return 0;
+	};
+
+    virtual double alignAlignment(MultiAlign &other_alignment,
+				     std::vector<int>& src2other_col_map)
+	{ cerr << "MultiAlign::alignAlignment not implemented (yet)\n";
+	  assert(0);
+	  return 0;
 	};
 
     /*
@@ -101,18 +113,21 @@ public:
      */
     virtual double minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags = 0, double delBias = 1.0) = 0;
+				unsigned flags = 0, double delBias = 1.0,
+				SubVocab *suppressVocab = 0) = 0;
 
     /*
      * default for retrieving NBestWordInfo array is to get just the words
      */
     virtual double minimizeWordError(NBestWordInfo *winfo, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags = 0, double delBias = 1.0)
+				unsigned flags = 0, double delBias = 1.0,
+				SubVocab *suppressVocab = 0)
 	{
 	    makeArray(VocabIndex, words, length);
 	    double result = 
-		minimizeWordError(words, length, sub, ins, del, flags, delBias);
+		minimizeWordError(words, length, sub, ins, del,
+				    flags, delBias, suppressVocab);
 	    for (unsigned i = 0; i < length; i ++) {
 		winfo[i].invalidate();
 		winfo[i].word = words[i];

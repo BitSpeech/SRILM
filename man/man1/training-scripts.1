@@ -1,5 +1,5 @@
-.\" $Id: training-scripts.1,v 1.26 2013/12/11 08:43:38 stolcke Exp $
-.TH training-scripts 1 "$Date: 2013/12/11 08:43:38 $" "SRILM Tools"
+.\" $Id: training-scripts.1,v 1.29 2019/09/09 22:35:37 stolcke Exp $
+.TH training-scripts 1 "$Date: 2019/09/09 22:35:37 $" "SRILM Tools"
 .SH NAME
 training-scripts, compute-oov-rate, continuous-ngram-count, get-gt-counts, make-abs-discount, make-batch-counts, make-big-lm, make-diacritic-map,  make-google-ngrams, make-gt-discounts, make-kn-counts, make-kn-discounts, merge-batch-counts, replace-unk-words, replace-words-with-classes, reverse-ngram-counts, split-tagged-ngrams, reverse-text, tolower-ngram-counts, uniform-classes, uniq-ngram-counts, vp2text \- miscellaneous conveniences for language model training
 .SH SYNOPSIS
@@ -101,7 +101,10 @@ Input is one of the files produced by
 computes the discounting constants used by the modified Kneser-Ney
 smoothing method.
 Input is one of the files produced by 
-.BR get-gt-counts . 
+.BR get-gt-counts .
+This script also implements a method for extrapolating missing
+counts of counts as described in 
+Wang et al. (2007).
 .PP
 .B make-batch-counts
 performs the first stage in the construction of very large N-gram count 
@@ -226,6 +229,10 @@ use
 	ngram-count -read - -recompute -write - | \\
 .br
 	reverse-ngram-counts > \fInew-counts\fP
+.br
+Also, start-sentence tags are replaced with end-sentence tags, and vice-versa,
+so that reverse-direction LMs can be trained from forward-direction N-gram 
+counts.
 .PP
 .B reverse-text
 reverses the word order in text files, line-by-line.
@@ -373,6 +380,9 @@ and a target vocabulary list in
 .IR vocab .
 .SH "SEE ALSO"
 ngram-count(1), ngram(1), classes-format(5), disambig(1), select-vocab(1).
+.br
+W. Wang, A. Stolcke, J. Zheng, ``Reranking machine translation hypotheses with structured
+and web-based language models'', \fIProc. IEEE ASRU Workshop\fP, pp. 159\-164, 2007.
 .SH BUGS
 Some of the tools could be generalized and/or made more robust to
 misuse.
@@ -380,8 +390,10 @@ misuse.
 Several of these tools are gawk scripts and depending on prevailing locale
 settings might require an LC_NUMERIC=C environment variable.
 .SH AUTHOR
-Andreas Stolcke <anstolck@microsoft.com>
+Andreas Stolcke <stolcke@icsi.berkeley.edu>
 .br
-Copyright 1995-2008 SRI International
+Copyright (c) 1995\-2008 SRI International
 .br
-Copyright 2013 Microsoft Corp.
+Copyright (c) 2013\-2017 Andreas Stolcke
+.br
+Copyright (c) 2013\-2017 Microsoft Corp.

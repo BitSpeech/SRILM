@@ -3,7 +3,7 @@
 # compare-sclite --
 #	compare sclite word error sentence-by-sentence
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/compare-sclite,v 1.25 2016/04/29 01:43:35 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compare-sclite,v 1.26 2017/08/12 05:48:34 stolcke Exp $
 #
 
 # enforce proper sorting order
@@ -122,8 +122,10 @@ END {
 		    total_errsB, werB, total_wordsB, total_sentsB;
         printf "less %d, greater %d, equal %d, different %d (%+.2f%%)\n", \
                  less, greater, equal, less + greater, werB - werA;
-	printf "significance:\n"
-	system("cumbin " (less+greater) " " (less>greater ? less : greater));
+	if (less + greater > 0) {
+	    printf "significance:\n"
+	    system("cumbin " (less+greater) " " (less>greater ? less : greater));
+	}
 }
 ' $tmpdir/$pralignA.pra $tmpdir/$pralignB.pra
 

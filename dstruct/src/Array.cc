@@ -8,8 +8,8 @@
 #define _Array_cc_
 
 #ifndef lint
-static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
-static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.cc,v 1.15 2013/05/24 04:50:05 frandsen Exp $";
+static char Array_Copyright[] = "Copyright (c) 1995-2005 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char Array_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Array.cc,v 1.16 2019/09/09 23:13:11 stolcke Exp $";
 #endif
 
 #include <assert.h>

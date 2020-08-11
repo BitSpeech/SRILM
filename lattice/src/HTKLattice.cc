@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2003-2011 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/HTKLattice.cc,v 1.69 2016/04/09 06:53:00 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2003-2011 SRI International, 2012-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lattice/src/HTKLattice.cc,v 1.71 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -335,7 +335,7 @@ getHTKField(char *&line, char *&value, Boolean useQuotes)
 	default:
 		key = cp;
 
-		while (*cp != '\0' && !isspace(*cp) && *cp != '=') cp++;
+		while (*cp != '\0' && !isspace((unsigned char)*cp) && *cp != '=') cp++;
 
 		if (*cp == '=') {
 		    *(cp++) = '\0';	// terminate key string
@@ -385,7 +385,7 @@ getHTKField(char *&line, char *&value, Boolean useQuotes)
 				 */
 				*(cpv++) = *(cp++);
 			    }
-			} else if (!inquote && isspace(*cp)) {
+			} else if (!inquote && isspace((unsigned char)*cp)) {
 			    /*
 			     * String delimited by white-space
 			     */
@@ -471,7 +471,7 @@ printQuoted(File &file, const char *name, Boolean useQuotes)
 		file.fputc(HTK_escape_quote);
 		file.fputc(*cp);
 		octalPrinted = false;
-	    } else if (!isprint(*cp) || isspace(*cp)) {
+	    } else if (!isprint(*cp) || isspace((unsigned char)*cp)) {
 		/*
 		 * Print as octal char code
 		 */
@@ -2407,7 +2407,7 @@ Lattice::readMultiwordDict(File &file,
 	// first read in the phone name
 	Array<char> tmp;
 	unsigned tmpIndex = 0;
-	while (*index != '\0' && !isspace(*index)) {
+	while (*index != '\0' && !isspace((unsigned char)*index)) {
 	    tmp[tmpIndex++] = *index;
 	    index++;
 	}
@@ -2425,12 +2425,12 @@ Lattice::readMultiwordDict(File &file,
 	    (*thisWordProns)[0] = thisWordPtr;
 	}
 
-	while (isspace(*index)) index++; // skip spaces
+	while (isspace((unsigned char)*index)) index++; // skip spaces
 
 	// read in the following pronunciation data
 	while (*index != '\0') {
 	    tmpIndex = 0;
-	    while (*index != '\0' && !isspace(*index)) {
+	    while (*index != '\0' && !isspace((unsigned char)*index)) {
 		tmp[tmpIndex++] = *index;
 		index++;
 	    }
@@ -2440,7 +2440,7 @@ Lattice::readMultiwordDict(File &file,
 
 	    (*thisWordPtr)[thisWordPtr->size()] = phone;
 
-	    while (isspace(*index)) index++; // skip spaces
+	    while (isspace((unsigned char)*index)) index++; // skip spaces
 	}
     }
 

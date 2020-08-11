@@ -1,4 +1,4 @@
-<! $Id: lattice-tool.1,v 1.83 2014-01-30 00:31:34 wilson Exp $>
+<! $Id: lattice-tool.1,v 1.85 2019/09/09 22:35:36 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>lattice-tool</TITLE>
@@ -751,6 +751,14 @@ look up the word
 instead.
 This is useful to avoid zero probabilities when processing lattices
 with an LM that is mismatched in vocabulary.
+<DT><B>-unk-prob</B><I> p</I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+Overrides the log probability of unknown words with the value
+<I>p</I>,<I></I><I></I><I></I>
+effectively imposing a fixed, context-independent penalty for
+out-of-vocabulary words.
+This can be useful for rescoring with LMs in which this 
+probability is missing or incorrectly estimated.
 <DT><B>-classes</B><I> file</I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Interpret the LM as an N-gram over word classes.
@@ -1216,17 +1224,15 @@ account in subsequent operations based on word posterior probabilities
 To work around this write the rescored lattices to files and invoke 
 the program a second time.
 <H2> AUTHORS </H2>
-Fuliang Weng &lt;fuliang@speech.sri.com&gt;
-<BR>
-Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;
-<BR>
-Dustin Hillard &lt;hillard@ssli.ee.washington.edu&gt;
-<BR>
+Fuliang Weng &lt;fuliang@speech.sri.com&gt;,
+Andreas Stolcke &lt;stolcke@icsi.berkeley.edu&gt;,
+Dustin Hillard &lt;hillard@ssli.ee.washington.edu&gt;,
 Jing Zheng &lt;zj@speech.sri.com&gt;
 <BR>
-Copyright 1997-2011 SRI International
+Copyright (c) 1997-2011 SRI International
 <BR>
-Copyright 2012-2013 Microsoft Corp.
-
+Copyright (c) 2011-2017 Andreas Stolcke
+<BR>
+Copyright (c) 2012-2017 Microsoft Corp.
 </BODY>
 </HTML>

@@ -1,4 +1,4 @@
-#define SRILM_RELEASE "1.7.2"
+#define SRILM_RELEASE "1.7.3"
 #define SRILM_COPYRIGHT "\n\
 This software is subject to the SRILM Community Research License Version\n\
 1.0 (the \"License\"); you may not use this software except in compliance\n\
@@ -8,13 +8,14 @@ is distributed on an \"AS IS\" basis, WITHOUT WARRANTY OF ANY KIND, either\n\
 express or implied.  See the License for the specific language governing\n\
 rights and limitations under the License.\n\
 \n\
-This software is Copyright (c) 1995-2016 SRI International.  All rights\n\
+This software is Copyright (c) 1995-2019 SRI International.  All rights\n\
 reserved.\n\
 \n\
 Portions of this software are\n\
 Copyright (c) 2002-2005 Jeff Bilmes\n\
 Copyright (c) 2009-2013 Tanel Alumae\n\
-Copyright (c) 2012-2016 Microsoft Corp.\n\
+Copyright (c) 2011-2019 Andreas Stolcke\n\
+Copyright (c) 2012-2019 Microsoft Corp.\n\
 \n\
 SRILM also includes open-source software as listed in the\n\
 ACKNOWLEDGEMENTS file in the SRILM root directory.\n\

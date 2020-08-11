@@ -5,9 +5,9 @@
    
     Description: Portability for the iconv function
 
-    Copyright (c) 2012, Microsoft Corp.  All Rights Reserved.
+    Copyright (c) 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
 
-    RCS ID: $Id: srilm_iconv.h,v 1.5 2012/08/02 01:09:52 stolcke Exp $
+    RCS ID: $Id: srilm_iconv.h,v 1.6 2019/09/09 23:13:15 stolcke Exp $
 */
 
 

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.79 2015-10-13 07:08:49 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram-count.cc,v 1.81 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -46,6 +46,7 @@ static unsigned order = 3;
 static unsigned debug = 0;
 static char *textFile = 0;
 static int textFileHasWeights = 0;
+static int textFileHasWeightsLast = 0;
 static int noSOS = 0;
 static int noEOS = 0;
 static char *readFile = 0;
@@ -123,6 +124,7 @@ static Option options[] = {
     { OPT_STRING, "tag", &filetag, "file tag to use in messages" },
     { OPT_STRING, "text", &textFile, "text file to read" },
     { OPT_TRUE, "text-has-weights", &textFileHasWeights, "text file contains count weights" },
+    { OPT_TRUE, "text-has-weights-last", &textFileHasWeightsLast, "text file contains count weights at ends of lines" },
     { OPT_TRUE, "no-sos", &noSOS, "don't insert start-of-sentence tokens" },
     { OPT_TRUE, "no-eos", &noEOS, "don't insert end-of-sentence tokens" },
     { OPT_STRING, "read", &readFile, "counts file to read" },
@@ -480,7 +482,7 @@ main(int argc, char **argv)
 	    File outFile(writeTextFile, "w");
 	    copyFile(file, outFile);
 	} else {
-	    USE_STATS(countFile(file, textFileHasWeights));
+	    USE_STATS(countFile(file, textFileHasWeightsLast ? 2 : (textFileHasWeights ? 1 : 0)));
 	}
     }
 

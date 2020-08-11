@@ -2,9 +2,9 @@
  * NgramStats.h --
  *	N-gram statistics
  *
- * Copyright (c) 1995-2012 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.h,v 1.41 2012/10/29 17:25:05 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.h,v 1.43 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -20,14 +20,14 @@
 #include "Trie.h"
 #include "TLSWrapper.h"
 
-const unsigned int      maxLineLength = 10000;
+const unsigned int      maxLineLength = 10000;	/* XXX: no longer used */
 const unsigned int	maxNgramOrder = 100;	/* Used in allocating various
 						 * data structures.  For all
 						 * practical purposes, this
 						 * should infinite. */
 
 extern TLSW_DECL_ARRAY(VocabIndex, countSentenceWidsTLS, maxWordsPerLine +3);
-extern TLSW_DECL_ARRAY(char, writeBufferTLS, maxLineLength);
+extern TLSW_DECL_ARRAY(VocabString, writeBufferTLS, maxWordsPerLine + 1);
 
 #define NgramNode	Trie<VocabIndex,CountT>
 
@@ -114,7 +114,7 @@ protected:
     NgramNode counts;
     void addCounts(const VocabIndex *prefix,
 			const LHash<VocabIndex, CountT> &set);
-    void writeNode(NgramNode &node, File &file, char *buffer, char *bptr,
+    void writeNode(NgramNode &node, File &file, VocabString *words,
 	    unsigned int level, unsigned int order, Boolean sorted);
     CountT sumNode(NgramNode &node, unsigned level, unsigned order);
 

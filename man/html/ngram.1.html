@@ -1,4 +1,4 @@
-<! $Id: ngram.1,v 1.84 2015-10-13 21:08:30 stolcke Exp $>
+<! $Id: ngram.1,v 1.88 2019/09/09 22:35:37 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>ngram</TITLE>
@@ -506,6 +506,16 @@ look up the word
 instead.
 This is useful to avoid zero probabilities when processing input
 with an LM that is mismatched in vocabulary.
+<DT><B>-unk-prob</B><I> p</I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+Overrides the log probability of unknown words with the value
+<I>p</I>,<I></I><I></I><I></I>
+effectively imposing a fixed, context-independent penalty for
+out-of-vocabulary words.
+This can be useful for rescoring with LMs in which this 
+probability is missing or incorrectly estimated.
+Specifying a value of -99 will result in an OOV probability of zero,
+the same as if the model did not contain an unknown word token.
 <DT><B>-mix-lm</B><I> file</I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Read a second N-gram model for interpolation purposes.
@@ -740,6 +750,22 @@ constructed as per the options above.
 <DD>
 Renormalize the main model by recomputing backoff weights for the given
 probabilities.
+<DT><B>-minbackoff</B><I> p</I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+In conjunction with 
+<B>-renorm</B>,<B></B><B></B><B></B>
+adjusts N-gram probabilities so that the total backoff probability mass
+in each context is at least 
+<I>p</I>.<I></I><I></I><I></I>
+For 
+<I>p</I>=0,<I></I><I></I><I></I>
+this ensures that the total probabilities do not exceed 1.
+For
+<I>p</I>&gt;0,<I></I><I></I><I></I>
+this ensure that the model is smooth.
+The default, or when 
+<I> p </I>
+is negative, is that no probabilties are modified.
 <DT><B>-prune</B><I> threshold</I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Prune N-gram probabilities if their removal causes (training set)
@@ -1164,16 +1190,14 @@ The reading of quantized LM parameters with the
 option is currently only supported for N-gram LMs in
 <A HREF="ngram-format.5.html">ngram-format(5)</A>.
 <H2> AUTHORS </H2>
-Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;
-<BR>
-Jing Zheng &lt;zj@speech.sri.com&gt;
-<BR>
+Andreas Stolcke &lt;stolcke@icsi.berkeley.edu&gt;, 
+Jing Zheng &lt;zj@speech.sri.com&gt;,
 Tanel Alumae &lt;tanel.alumae@phon.ioc.ee&gt;
 <BR>
 Copyright (c) 1995-2012 SRI International
 <BR>
 Copyright (c) 2009-2013 Tanel Alumae
 <BR>
-Copyright (c) 2012-2015 Microsoft Corp.
+Copyright (c) 2012-2017 Microsoft Corp.
 </BODY>
 </HTML>

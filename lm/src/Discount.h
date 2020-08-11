@@ -2,9 +2,9 @@
  * Discount.h --
  *	Discounting schemes
  *
- * Copyright (c) 1995-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2010 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.h,v 1.23 2013/06/21 05:46:13 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Discount.h,v 1.24 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 

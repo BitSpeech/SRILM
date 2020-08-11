@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.95 2016/06/17 00:11:06 victor Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.cc,v 1.101 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -184,7 +184,7 @@ NBestWordInfo::valid() const
 }
 
 void
-NBestWordInfo::merge(const NBestWordInfo &other, Prob otherPosterior)
+NBestWordInfo::merge(const NBestWordInfo &other, Prob otherPosterior, Boolean averageTimes)
 {
     /* 
      * Optional argument lets caller override word posterior
@@ -193,6 +193,25 @@ NBestWordInfo::merge(const NBestWordInfo &other, Prob otherPosterior)
 	otherPosterior = other.wordPosterior;
     }
 
+    NBestTimestamp avgStart, avgDuration;
+
+    /*
+     * Average time stamps of the two word hypotheses being merged
+     */
+    if (averageTimes) {
+	Prob totalPosterior = wordPosterior + otherPosterior;
+
+	if (totalPosterior != 0.0 && valid() && other.valid()) {
+	    avgStart = (wordPosterior * start + otherPosterior * other.start)/totalPosterior;
+	    avgDuration = (wordPosterior * duration + otherPosterior * other.duration)/totalPosterior;
+cerr << "merge " << wordPosterior << " " << otherPosterior << endl;
+cerr << "averaging times " << start << " " << duration << "+" << other.start <<  " " << other.duration << " -> " << avgStart << " " << avgDuration << "\n";
+	} else {
+	    averageTimes = false;
+	}
+
+    }
+	
     /*
      * let the "other" word information supercede our own if it has
      * higher word-level posterior probability.
@@ -201,6 +220,11 @@ NBestWordInfo::merge(const NBestWordInfo &other, Prob otherPosterior)
     {
 	*this = other;
 	wordPosterior = otherPosterior;
+    }
+
+    if (averageTimes) {
+	start = avgStart;
+	duration = avgDuration;
     }
 }
 
@@ -621,8 +645,8 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 	 *	identified by noting that their times are contained within
 	 *	the word duration.
 	 */
-	Bytelog acScore = 0;
-	Bytelog lmScore = 0;
+	double acScore = 0.0;
+	double lmScore = 0.0;
 
 	NBestTimestamp prevEndTime = -1.0;	/* end time of last token */
 	NBestTimestamp prevPhoneStart = 0.0;
@@ -650,8 +674,8 @@ NBestHyp::parse(char *line, Vocab &vocab, unsigned decipherFormat,
 				hyphen[2] == '\0';
 
 	    if (startTime > prevEndTime && !isStateToken) {
-		int acWordScore = atol(wstrings[1 + 11 * i + 9]);
-		int lmWordScore = atol(wstrings[1 + 11 * i + 7]);
+		double acWordScore = atof(wstrings[1 + 11 * i + 9]);
+		double lmWordScore = atof(wstrings[1 + 11 * i + 7]);
 
 		justWords[actualNumWords] = token;
 
@@ -878,7 +902,8 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
 						LogP2 acousticOffset)
 {
     if (decipherFormat) {
-	file.fprintf("(%d)", (int)LogPtoBytelog(totalScore + acousticOffset));
+	double score = LogPtoBytelogFloat(totalScore + acousticOffset);
+	file.fprintf("(%.*lf)", rint(score)==score ? 0 : 6, score);
     } else {
 	file.fprintf("%.15lg %.15lg %lu", (double)(acousticScore + acousticOffset),
 				      (double)languageScore, (unsigned long)numWords);
@@ -889,12 +914,15 @@ NBestHyp::write(File &file, Vocab &vocab, Boolean decipherFormat,
 	 * Write backtrace information if known and Decipher format is desired
 	 */
 	if (decipherFormat && wordInfo) {
-	    file.fprintf(" %s ( st: %.2f et: %.2f g: %d a: %d )", 
+	    double lscore = LogPtoBytelogFloat(wordInfo[i].languageScore);
+	    double ascore = LogPtoBytelogFloat(wordInfo[i].acousticScore);
+
+	    file.fprintf(" %s ( st: %.2f et: %.2f g: %.*lf a: %.*lf )", 
 			   vocab.getWord(wordInfo[i].word),
 			   wordInfo[i].start,
 			   wordInfo[i].start+wordInfo[i].duration - frameLength,
-			   (int)LogPtoBytelog(wordInfo[i].languageScore),
-			   (int)LogPtoBytelog(wordInfo[i].acousticScore));
+			   rint(lscore)==lscore ? 0 : 6, lscore,
+			   rint(ascore)==ascore ? 0 : 6, ascore);
 	} else {
 	    file.fprintf(" %s", vocab.getWord(words[i]));
 	}
@@ -949,7 +977,7 @@ NBestHyp::parseSRInterpFormat(char * line, Vocab &vocab, LHash<VocabString, LogP
     
     if (eqSign > field + maxNameLength || // key is too long
 	eqSign < field + minNameLength || // key is too short
-	isspace(eqSign[1])) { // val is empty
+	isspace((unsigned char)eqSign[1])) { // val is empty
       
       cerr << location << ": warning: \"" << field << "\" is treated as word instead of field" << endl;
       break;
@@ -974,7 +1002,7 @@ NBestHyp::parseSRInterpFormat(char * line, Vocab &vocab, LHash<VocabString, LogP
     return false;
   }
 
-  assert(isspace(line[pos]) && pos > 3);
+  assert(isspace((unsigned char)line[pos]) && pos > 3);
   
   // use fake decipher format   
   line[pos - 3] = '(';
@@ -1314,10 +1342,11 @@ NBestList::reweightHyps(double lmScale, double wtScale, double amScale)
 
 /*
  * Compute posterior probabilities
+ * If computeLogs is true, log posteriors will be computed
  */
 void
-NBestList::computePosteriors(double lmScale, double wtScale,
-					    double postScale, double amScale)
+NBestList::computePosteriors(double lmScale, double wtScale, double postScale,
+			     double amScale, Boolean computeLogs)
 {
     /*
      * First compute the numerators for the posteriors
@@ -1381,7 +1410,11 @@ NBestList::computePosteriors(double lmScale, double wtScale,
     for (h = 0; h < _numHyps; h++) {
 	NBestHyp &hyp = hypList[h];
 
-	hyp.posterior = LogPtoProb(hyp.posterior - totalNumerator);
+	hyp.posterior -= totalNumerator;
+
+	if (!computeLogs) {
+	    hyp.posterior = LogPtoProb(hyp.posterior);
+	}
     }
 }
 

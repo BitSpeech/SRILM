@@ -9,7 +9,7 @@
 # than the nbest list is long, missing values are filled in with the
 # minimal score found in that file.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/combine-acoustic-scores.gawk,v 1.8 2010/08/20 00:17:18 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/combine-acoustic-scores.gawk,v 1.9 2019/02/22 20:55:10 stolcke Exp $
 #
 function get_from_file(i) {
 	if (ARGV[i] ~ /\.gz$/) {
@@ -105,7 +105,7 @@ BEGIN {
 		}
 
 		if (nbestformat > 0) {
-			total_ac = "(" (total_ac / bytelogscale) ")";
+			total_ac = sprintf("(%f)", total_ac / bytelogscale);
 		}
 		print total_ac hyp;
 

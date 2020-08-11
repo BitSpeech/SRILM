@@ -15,9 +15,9 @@
 #       to describe your new module.  Do not forget to use the proper
 #       RCS keywords!
 #
-#    Copyright (c) 1993-2012 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
+#    Copyright (c) 1993-2012 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/lm/src/Makefile,v 1.96 2014-05-26 09:21:12 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/lm/src/Makefile,v 1.97 2019/09/09 23:13:13 stolcke Exp $
 #
 
 # Include common SRILM variable definitions.

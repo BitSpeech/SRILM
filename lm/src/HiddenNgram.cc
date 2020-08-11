@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1999-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/HiddenNgram.cc,v 1.31 2014-08-30 02:25:18 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1999-2012 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/HiddenNgram.cc,v 1.32 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

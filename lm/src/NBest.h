@@ -2,9 +2,9 @@
  * NBest.h --
  *	N-best lists
  *
- * Copyright (c) 1995-2012 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.49 2016/06/17 00:11:06 victor Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NBest.h,v 1.52 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -62,7 +62,8 @@ public:
     Boolean parse(const char *s);		// parse info from string
     void invalidate();				// invalidate info
     Boolean valid() const;			// check that info is valid
-    void merge(const NBestWordInfo &other, Prob otherPosterior = 0.0);
+    void merge(const NBestWordInfo &other,
+		Prob otherPosterior = 0.0, Boolean averageTimes = false);
 						// combine two pieces of info
 
     VocabIndex word;
@@ -168,8 +169,8 @@ public:
     void rescoreHyps(LM &lm, double lmScale, double wtScale);
     void decipherFix(LM &lm, double lmScale, double wtScale);
     void reweightHyps(double lmScale, double wtScale, double amScale = 1.0);
-    void computePosteriors(double lmScale, double wtScale,
-					double postScale, double amScale = 1.0);
+    void computePosteriors(double lmScale, double wtScale, double postScale,
+			   double amScale = 1.0, Boolean computeLogs = false);
     void removeNoise(LM &lm);
 
     unsigned wordError(const VocabIndex *words,

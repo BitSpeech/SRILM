@@ -1,5 +1,5 @@
-.\" $Id: lattice-tool.1,v 1.83 2014-01-30 00:31:34 wilson Exp $
-.TH lattice-tool 1 "$Date: 2014-01-30 00:31:34 $" "SRILM Tools"
+.\" $Id: lattice-tool.1,v 1.85 2019/09/09 22:35:36 stolcke Exp $
+.TH lattice-tool 1 "$Date: 2019/09/09 22:35:36 $" "SRILM Tools"
 .SH NAME
 lattice-tool \- manipulate word lattices
 .SH SYNOPSIS
@@ -738,6 +738,14 @@ instead.
 This is useful to avoid zero probabilities when processing lattices
 with an LM that is mismatched in vocabulary.
 .TP
+.BI \-unk-prob " p"
+Overrides the log probability of unknown words with the value
+.IR p ,
+effectively imposing a fixed, context-independent penalty for
+out-of-vocabulary words.
+This can be useful for rescoring with LMs in which this 
+probability is missing or incorrectly estimated.
+.TP
 .BI \-classes " file"
 Interpret the LM as an N-gram over word classes.
 The expansions of the classes are given in
@@ -1191,15 +1199,13 @@ account in subsequent operations based on word posterior probabilities
 To work around this write the rescored lattices to files and invoke 
 the program a second time.
 .SH AUTHORS
-Fuliang Weng <fuliang@speech.sri.com>
-.br
-Andreas Stolcke <andreas.stolcke@microsoft.com>
-.br
-Dustin Hillard <hillard@ssli.ee.washington.edu>
-.br
+Fuliang Weng <fuliang@speech.sri.com>,
+Andreas Stolcke <stolcke@icsi.berkeley.edu>,
+Dustin Hillard <hillard@ssli.ee.washington.edu>,
 Jing Zheng <zj@speech.sri.com>
 .br
-Copyright 1997\-2011 SRI International
+Copyright (c) 1997\-2011 SRI International
 .br
-Copyright 2012\-2013 Microsoft Corp.
-
+Copyright (c) 2011\-2017 Andreas Stolcke
+.br
+Copyright (c) 2012\-2017 Microsoft Corp.

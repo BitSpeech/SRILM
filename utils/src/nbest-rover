@@ -24,7 +24,7 @@
 # the respective list. Ni are optional limits on the number N-best hyps used.
 # Si are optional posterior scaling parameters.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/nbest-rover,v 1.33 2013/03/09 07:37:59 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/nbest-rover,v 1.43 2019/02/28 04:48:21 stolcke Exp $
 #
 
 if [ $# -lt 2 ]; then
@@ -61,10 +61,16 @@ posteriors_dir=
 nbest_dir=
 ref_posteriors=
 filter_script=cat
+missing_nbest=
+use_nbest_scripts=
+debug_level=0
+null_nbest=${TMPDIR-/tmp}/$$null.nbest
 
 # collect remaining options (mostly to pass them to nbest-lattice)
 while [ $# -gt 0 ]; do
     case "$1" in
+    -debug)	debug_level=$2
+		shift; shift ;;
     -amw)	amw=$2;
 		shift; shift ;;
     -write-dir)	lattice_dir=$2
@@ -87,6 +93,23 @@ while [ $# -gt 0 ]; do
 		mesh_option= ;
 		options="$options $1"
 		shift ;;
+    -missing-nbest)
+		echo "0 0 0" > $null_nbest
+		missing_nbest=1
+		use_nbest_scripts=1
+		shift ;;
+    -nbest-backtrace)
+		# Decipher2 format with backtrace info
+		# -- need to use old nbest helper scripts
+		options="$options $1"
+		use_nbest_scripts=1
+		shift ;;
+    -nbest-backtrace-times-only)
+		# Decipher 2 format - but only timing
+		# information is needed
+		helper_options="-nbest-backtrace -decipher-nbest"
+		options="$options -nbest-backtrace"
+		shift ;;
     -filter)	filter_script="$2";
 		shift; shift ;;
     *)		options="$options $1"
@@ -103,7 +126,7 @@ tmp_nbest_dir=$tmpdir/nbest.dir$$
 tmp_post_dir=$tmpdir/post.dir$$
 tmp_lat_dir=$tmpdir/lat.dir$$
 
-trap "rm -rf $tmp_post $tmp_sentids $tmp_nbest_dir $tmp_post_dir $tmp_lat_dir; exit" 0 1 2 15
+trap "rm -rf $tmp_post $tmp_sentids $tmp_nbest_dir $tmp_post_dir $tmp_lat_dir $null_nbest; exit" 0 1 2 15
 
 mkdir -p $tmp_nbest_dir $tmp_post_dir $tmp_lat_dir
 
@@ -145,8 +168,10 @@ while read sentid refwords
 do
 	extra_weights=
 	extra_scores=
+	extra_wts_and_scores=
 
 	noheader=0
+
 	nbest_tag=1
 
 	if [ -n "$posteriors_dir" ]; then
@@ -156,14 +181,18 @@ do
 		posteriors_file=
 	fi
 
-	cat $control | \
-	while read dir lmw wtw weight max_nbest scale rest 
-	do
+	if [ -n "$use_nbest_scripts" ]; then
+	    # handle DOS EOL, comment and empty lines
+	    sed -e 's,$,,' -e '/^##/d' -e '/^[ 	]*$/d' $control | \
+	    while read dir lmw wtw weight max_nbest scale rest 
+	    do
 		if [ "$wtw" = "+" ]; then
 		    if [ -f $dir/$sentid.gz ]; then
 			    extra_scores="$extra_scores $dir/$sentid.gz"
+			    extra_wts_and_scores="$extra_wts_and_scores $lmw $dir/$sentid.gz"
 		    elif [ -f $dir/$sentid ]; then
 			    extra_scores="$extra_scores $dir/$sentid"
+			    extra_wts_and_scores="$extra_wts_and_scores $lmw $dir/$sentid"
 		    else
 			    echo "$dir/$sentid" is missing >&2
 			    continue
@@ -181,10 +210,24 @@ do
 		    elif [ -f $dir/$sentid.score ]; then
 			    nbest_file=$dir/$sentid.score
 		    else
-			    echo "$dir/$sentid.score.gz is missing" >&2
+			    echo -n "$dir/$sentid.score.gz is missing" >&2
 			    extra_weights=
 			    extra_scores=
-			    continue
+			    extra_wts_and_scores=
+
+			    if [ -n "$missing_nbest" ]; then
+				echo " - using empty hyp" >&2
+				nbest_file=$null_nbest
+			    else
+				echo "" >&2
+				continue
+			    fi
+		    fi
+
+		    if [ "$weight" = "=" ]; then
+			    weight=$last_weight
+		    else
+			    last_weight=$weight
 		    fi
 
 		    if [ -n "$extra_weights" -o "$amw" != 1 ]; then
@@ -196,20 +239,34 @@ do
 			    gzip -dcf $nbest_file
 		    fi | \
 		    nbest-posteriors noheader=$noheader \
-				    lmw=${lmw:-$default_lmw} \
-				    wtw=${wtw:-$default_wtw} \
-				    weight=${weight:-$default_weight} \
-				    max_nbest=${max_nbest:-$default_max_nbest} \
-				    postscale=${scale:-$default_scale} \
-				    nbest_tag=$nbest_tag \
-				    output_posteriors=$posteriors_file
-		    
+				lmw=${lmw:-$default_lmw} \
+				wtw=${wtw:-$default_wtw} \
+				weight=${weight:-$default_weight} \
+				max_nbest=${max_nbest:-$default_max_nbest} \
+				postscale=${scale:-$default_scale} \
+				nbest_tag=$nbest_tag \
+				output_posteriors=$posteriors_file
+
 		    extra_weights=
 		    extra_scores=
+		    extra_wts_and_scores=
 		    noheader=1
 		    nbest_tag=`expr $nbest_tag + 1`
 		fi
-	done | \
+	    done
+	else # use helper tool
+	    nbest-rover-helper -debug $debug_level \
+				-sentid $sentid \
+				-rover-control $control \
+				-max-nbest $default_max_nbest \
+				-rescore-amw $amw \
+				-rescore-lmw $default_lmw \
+				-rescore-wtw $default_wtw \
+				-posterior-weight $default_weight \
+				-posterior-scale $default_scale \
+				-write-posteriors "$posteriors_file" \
+				$helper_options
+	fi | \
 	eval "$filter_script" \
 		> $tmp_nbest_dir/$sentid
 
@@ -224,9 +281,14 @@ nbest-lattice -nbest-files - \
 	-rescore-lmw 0 -rescore-wtw 0 \
 	-posterior-amw 0 -posterior-lmw 0 -posterior-wtw 0 \
 	-debug 2 $options 2>$tmp_post | \
-while read sentid hyp; do
+while read sentid hyp
+do
 	# delete tmp nbest lists to avoid huge data accumulation
-	rm -f $tmp_nbest_dir/$sentid
+	if [ "$sentid" != "$last_sentid" ]; then
+	    rm -f $tmp_nbest_dir/$sentid
+	    last_sentid=$sentid
+	fi
+
 	echo "$sentid $hyp"
 done
 

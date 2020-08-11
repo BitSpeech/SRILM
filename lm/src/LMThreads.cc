@@ -45,4 +45,4 @@ LMThreads::freeThread() {
    number of template instantiations, thus allowing us to know them by name 
    and free them. */
 TLSW_DEF_ARRAY(VocabIndex, countSentenceWidsTLS, maxWordsPerLine+3);
-TLSW_DEF_ARRAY(char, writeBufferTLS, maxLineLength);
+TLSW_DEF_ARRAY(VocabString, writeBufferTLS, maxWordsPerLine+1);

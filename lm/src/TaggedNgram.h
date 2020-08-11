@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1995, SRI International.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedNgram.h,v 1.1 1995/08/23 03:19:35 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TaggedNgram.h,v 1.2 2017/06/10 21:08:00 stolcke Exp $
  *
  */
 
@@ -24,7 +24,6 @@ public:
 protected:
     virtual LogP wordProbBO(VocabIndex word, const VocabIndex *context,
 							unsigned int clen);
-    virtual void recomputeBOWs();
 };
 
 #endif /* _TaggedNgram_h_ */

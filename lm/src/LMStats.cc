@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char LMStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.cc,v 1.17 2012/10/29 17:25:04 mcintyre Exp $";
+static char LMStats_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2008-2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char LMStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.cc,v 1.19 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -47,9 +47,10 @@ LMStats::~LMStats()
 
 static TLSW_ARRAY(VocabString, countStringWords, maxWordsPerLine + 1);
 // parse strings into words and update stats
-// (weighted == true indicates each line begins with a count weight)
+// weighted == 1 indicates each line begins with a count weight
+// weighted == 2 indicates each line end with a count weight
 unsigned int
-LMStats::countString(char *sentence, Boolean weighted)
+LMStats::countString(char *sentence, unsigned weighted)
 {
     unsigned int howmany;
     VocabString *words = TLSW_GET_ARRAY(countStringWords);
@@ -59,8 +60,12 @@ LMStats::countString(char *sentence, Boolean weighted)
     if (howmany == maxWordsPerLine + 1) {
 	return 0;
     } else {
-	if (weighted) {
+	if (weighted == 1) {
 	    return countSentence(words + 1, words[0]);
+	} else if (weighted >= 2) {
+	    VocabString weightString = words[howmany - 1];
+	    words[howmany - 1] = 0;
+	    return countSentence(words, weightString);
 	} else {
 	    return countSentence(words);
 	}
@@ -75,7 +80,7 @@ LMStats::freeThread()
 
 // parse file into sentences and update stats
 unsigned int
-LMStats::countFile(File &file, Boolean weighted)
+LMStats::countFile(File &file, unsigned weighted)
 {
     unsigned numWords = 0;
     char *line;

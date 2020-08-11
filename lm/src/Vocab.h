@@ -76,9 +76,9 @@
  * VocabIter objects retain the current "position" in an iteration.  This
  * allows nested iterations that enumerate all pairs of distinct elements.
  *
- * Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.50 2013/04/03 19:44:29 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.h,v 1.53 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -106,8 +106,6 @@ typedef unsigned short	VocabIndex;
 typedef unsigned int	VocabIndex;
 #endif
 typedef const char	*VocabString;
-
-const unsigned int	maxWordLength = 1024;
 
 const VocabIndex	Vocab_None = (VocabIndex)-1;
 
@@ -208,7 +206,7 @@ public:
     static VocabIndex *reverse(VocabIndex *words);
     static Boolean contains(const VocabIndex *words, VocabIndex word);
     static VocabString *reverse(VocabString *words);
-    static void write(File &file, const VocabString *words);
+    static unsigned int write(File &file, const VocabString *words);
 
     /*
      *  Comparison of Vocabs and their sequences

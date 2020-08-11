@@ -1,5 +1,5 @@
-.\" $Id: nbest-lattice.1,v 1.42 2010/07/11 17:29:36 stolcke Exp $
-.TH nbest-lattice 1 "$Date: 2010/07/11 17:29:36 $" "SRILM Tools"
+.\" $Id: nbest-lattice.1,v 1.49 2019/09/09 22:35:36 stolcke Exp $
+.TH nbest-lattice 1 "$Date: 2019/09/09 22:35:36 $" "SRILM Tools"
 .SH NAME
 nbest-lattice \- rescore N-best lists and lattices
 .SH SYNOPSIS
@@ -65,6 +65,16 @@ Causes the probabilities of deletions to be biased by a factor
 in doing mesh-based word error minimization.
 This controls the trade-off between insertion and deletion errors.
 The default is 1 (no bias).
+.TP
+.B \-random-tie-break
+Break ties between words with equal probability pseudo-randomly
+when doing mesh-based word error minimization.
+The default is to decide for the word with the lowest internal
+index (which reflects the order in the vocab file, or in
+which they are encountered in the input data).
+.TP
+.B \-no-tie-break
+Disable all explicit tie breaking, for backward compatibility.
 .TP
 .BI \-rescore " file"
 Reads the N-best list from
@@ -329,6 +339,15 @@ Each line of
 .I file
 must contain a lattice filename, optionally followed by a weight.
 .TP
+.BI \-dump-lattice-alignments
+Causes 
+.B \-lattice-files
+to write out the position alignments between the
+.B \-read 
+input lattice and each of the lattices in 
+.IR file ,
+as well as their alignment costs.
+.TP
 .BI \-write " file"
 Writes the resulting word posterior lattice or mesh to
 .IR file ,
@@ -395,6 +414,38 @@ in or outside the subvocabulary.
 This may be used to keep ``hidden event'' tags from aligning with
 regular words.
 .TP
+.BR \-suppress-vocab " file"
+Read a subvocabulary from
+.I file 
+and disallow its words when decoding the best word string from a lattice or mesh.
+If such a word has the highest posterior probability at a given position, the word with
+next highest posterior is chosen instead, or a null word if no other word choice is
+available.
+This is useful when special tokens are included in the nbest inputs to
+mediate alignments, but are not meant to be included in the output.
+.TP
+.BI \-time-penalty " p"
+Apply soft time constraints during word alignment (in word mesh mode only).
+In addition to the expected word error, a penalty term is added to the 
+cost function minimized during alignment.
+The penality term is only applied if word meshes or input N-best lists contain
+backtrace information (see 
+.BR \-nbest-backtrace )
+and is scaled by the factor
+.I p 
+(which is zero by default).
+The penality term for 
+aligning two word hypotheses or word mesh columns is the absolute difference in
+their times (the time of a word mesh column is the posterior-averaged
+time of all its component words).
+If two successive words or word columns have time stamps in the wrong temporal order,
+their time difference is added to the penalty term.
+.TP
+.B \-average-times
+When aligning two instances of the same word, average their times (if available)
+instead of adopting the one with the time information associated with the 
+highest poosterior probability.
+.TP
 .B \-record-hyps
 Record the ranks of the hyps contributing to each word hypothesis in the 
 resulting word lattice;
@@ -436,6 +487,10 @@ is the LM weight during recognition.
 This is not an issue if the N-best lists have been rescored with
 .BR rescore-decipher .
 .SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+Andreas Stolcke <stolcke@icsi.berkeley.edu>
 .br
-Copyright 1996\-2010 SRI International
+Copyright (c) 1996\-2010 SRI International
+.br
+Copyright (c) 2011\-2019 Andreas Stolcke
+.br
+Copyright (c) 2011\-2019 Microsoft Corp.

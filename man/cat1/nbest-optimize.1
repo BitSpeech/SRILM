@@ -1,4 +1,4 @@
-nbest-optimize(1)                                            nbest-optimize(1)
+nbest-optimize(1)           General Commands Manual          nbest-optimize(1)
 
 
 
@@ -79,6 +79,13 @@ OOPPTTIIOONNSS
               score,  which  can  be any score used by the machine translation
               system.  A typical example is a score measuring word order  dis-
               tortion between the source and target languages.
+
+       --xxvvaall--ffiilleess _f_i_l_e_-_l_i_s_t
+              Use  the  N-best files listed in _f_i_l_e_-_l_i_s_t for cross-validation.
+              Optimization stops once no improvement is found  on  the  cross-
+              validation  set  (while  the direction of the search is obtained
+              from the training set).  This is only supported with the  gradi-
+              ent-descent and Amoeba optimization methods.
 
        --ssrriinntteerrpp--ffoorrmmaatt
               Parse  n-best  list  in  SRInterp format, which has features and
@@ -425,11 +432,12 @@ BBUUGGSS
        based or BLEU optimization.
 
 AAUUTTHHOORRSS
-       Andreas Stolcke <andreas.stolcke@microsoft.com>
-       Dimitra Vergyri <dverg@speech.sri.com>
-       Jing Zheng <zj@speech.sri.com>
-       Copyright (c) 2000-2012 SRI International, 2012 Microsoft Corp.
+       Andreas  Stolcke   <andreas.stolcke@microsoft.com>,   Dimitra   Vergyri
+       <dverg@speech.sri.com>, Jing Zheng <zj@speech.sri.com>
+       Copyright (c) 2000-2012 SRI International
+       Copyright (c) 2012-2016 Andreas Stolcke
+       Copyright (c) 2012-2016 Microsoft Corp.
 
 
 
-SRILM Tools              $Date: 2012/07/04 23:47:53 $        nbest-optimize(1)
+SRILM Tools              $Date: 2019/09/09 22:35:37 $        nbest-optimize(1)

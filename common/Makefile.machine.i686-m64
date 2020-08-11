@@ -9,7 +9,7 @@
 #
 #    Copyright (c) 1999-2001 SRI International.  All Rights Reserved.
 #
-#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-m64,v 1.9 2013/02/21 20:08:45 stolcke Exp $
+#    $Header: /home/srilm/CVS/srilm/common/Makefile.machine.i686-m64,v 1.11 2019/08/14 17:18:37 victor Exp $
 #
 
    # Use the GNU C compiler.
@@ -33,6 +33,7 @@
    LDFLAGS = $(ADDITIONAL_LDFLAGS) -L$(SRILM_LIBDIR)
 
    # Other useful compilation flags.
+   # For DynaSpeak, prefer to use -DNO_BLOCK_MALLOC instead of -fopenmp
    ADDITIONAL_CFLAGS = -fopenmp
    ADDITIONAL_CXXFLAGS = -fopenmp
 

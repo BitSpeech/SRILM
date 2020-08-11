@@ -3,7 +3,7 @@
 # Set SDK_VERSIONS to ios sdks you have installed and want to build for
 # but Apple defaults to only include latest 8.1.
 #SDK_VERSIONS="7.1 8.0 8.1"
-SDK_VERSIONS="8.1"
+SDK_VERSIONS="11.3"
 
 
 for SDK_VERSION in ${SDK_VERSIONS}; do 

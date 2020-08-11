@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2007-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.23 2016/07/27 06:55:01 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2007-2012 SRI International, 2012-2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LMClient.cc,v 1.25 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -381,10 +381,10 @@ LMClient::contextID(VocabIndex word, const VocabIndex *context,
 		contextIDCache.word = word;
 		contextIDCache.context[clen] = Vocab_None;
 		Vocab::copy(contextIDCache.context, usedContext);
-		contextIDCache.id = (void *)cid;
+		contextIDCache.id = (void *)(size_t)cid;
 		contextIDCache.length = length;
 	    }
-	    return (void *)cid;
+	    return (void *)(size_t)cid;
 	} else {
 	    cerr << "server " << serverPort << "@" << serverHost
 		 << ": unexpected return: " << buffer;

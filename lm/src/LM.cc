@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char LM_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.103 2016/06/19 04:36:59 stolcke Exp $";
+static char LM_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char LM_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/LM.cc,v 1.104 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #include <string.h>

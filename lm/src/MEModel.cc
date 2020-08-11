@@ -7,8 +7,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2009-2013 Tanel Alumae, Microsoft Corp. 2013-2016.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MEModel.cc,v 1.13 2016/04/09 06:53:01 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2009-2013 Tanel Alumae, 2013-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/MEModel.cc,v 1.15 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #include <assert.h>
@@ -59,8 +59,8 @@ reverseTrie(Trie<VocabIndex, NodeIndex> &inputTrie, unsigned order)
  * Inititializes Maximum Entropy LM
  */
 MEModel::MEModel(Vocab & vocab, unsigned order)
-    : LM(vocab), order(order), _skipOOVs(false), reverseContextIndex(), contextIndex(), vocabMap(),
-      maxIterations(1000)
+    : LM(vocab), order(order), _skipOOVs(false), m(0),
+      reverseContextIndex(), contextIndex(), vocabMap(), maxIterations(1000)
 {
     if (order < 1) {
 	order = 1;
@@ -109,6 +109,8 @@ MEModel::wordProb(VocabIndex word, const VocabIndex *context)
 	dout() << "[" << length + 1 << "gram]";
     }
 
+    assert(m != 0);
+
     LogP result = m->log_prob_context(trieNode->value(), *outcomeId) / M_LN10;
     return result;
 }
@@ -116,9 +118,7 @@ MEModel::wordProb(VocabIndex word, const VocabIndex *context)
 void
 MEModel::clear()
 {
-    if (m != 0) {
-	delete(m);
-    }
+    delete m;
     contextIndex.clear();
     reverseContextIndex.clear();
     vocabMap.clear();
@@ -240,6 +240,8 @@ MEModel::read(File & file, Boolean limitVocab)
 		structure->feature_contexts->push_back(fc);
 		context_id++;
 	    }
+
+	    delete m;
 	    m = new model(structure);
 	    valarray<double> *params = m->get_params();
 
@@ -260,6 +262,10 @@ MEModel::read(File & file, Boolean limitVocab)
 Boolean
 MEModel::write(File & file)
 {
+    if (m == 0) {
+	return false;
+    }
+
     LHashIter<VocabIndex, size_t> i(vocabMap);
     size_t *outcomeId;
     VocabIndex wid;
@@ -308,11 +314,17 @@ MEModel::getNgramLM()
 
     *ngramLM->insertProb(vocab.ssIndex(), &Vocab_None) = LogP_Zero;
 
+    
+
     LHashIter<VocabIndex, size_t> i(vocabMap);
     size_t *outcomeId;
     VocabIndex wid;
     while ((outcomeId = i.next(wid))) {
 	*(reverseContextIndex.insert(*outcomeId)) = wid;
+    }
+
+    if (m == 0) {
+	return 0;
     }
 
     valarray<double> param_sums = m->param_sums();
@@ -599,7 +611,7 @@ MEModel::_estimate(NgramCounts<CountT> &stats, double alpha, double sigma2)
 	}
     }
 
-
+    delete m;
     m = new model(structure);
 
     data_t * data = createDataFromCounts(stats);
@@ -623,6 +635,10 @@ template <class CountT>
 Boolean
 MEModel::_adapt(NgramCounts<CountT> &stats, double alpha, double sigma2)
 {
+    if (m == 0) {
+	return false;
+    }
+
     modifyCounts(stats);
     data_t *data = createDataFromCounts(stats);
     m->init_prior_params();

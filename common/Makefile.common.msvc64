@@ -5,6 +5,12 @@ include $(SRILM)/common/Makefile.machine.msvc
 MSVC_BIN := "$(shell cygpath '$(MSVCDIR)/bin/amd64')"
 ifeq ($(strip $(wildcard "$MSVC_BIN")),)
   MSVC_BIN := "$(shell cygpath '$(MSVCDIR)/bin/x86_amd64')"
+  ifeq ($(strip $(wildcard "$MSVC_BIN")),)
+    # Else, base on cl found in path
+    CL_IN_PATH := $(shell which cl)
+    CL_DIR := $(shell dirname '$(CL_IN_PATH)')
+    MSVC_BIN := "$(shell cygpath '$(CL_DIR)')"
+  endif
 endif
 
 # 64bit MSVC keeps sizeof(long) = sizeof(int), so tell it to use long long counts

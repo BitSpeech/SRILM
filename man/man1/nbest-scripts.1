@@ -1,7 +1,7 @@
-.\" $Id: nbest-scripts.1,v 1.45 2016/09/20 18:50:46 stolcke Exp $
-.TH nbest-scripts 1 "$Date: 2016/09/20 18:50:46 $" "SRILM Tools"
+.\" $Id: nbest-scripts.1,v 1.52 2019/09/09 22:35:37 stolcke Exp $
+.TH nbest-scripts 1 "$Date: 2019/09/09 22:35:37 $" "SRILM Tools"
 .SH NAME
-nbest-scripts, combine-rover-controls, compare-sclite, compute-best-rover-mix, compute-sclite-nbest, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest-words, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, search-rover-combo, sentid-to-sclite \- rescore and evaluate N-best lists
+nbest-scripts, combine-rover-controls, compare-sclite, compute-best-rover-mix, compute-sclite-nbest, compute-sclite, fix-ctm, merge-nbest, nbest-error, nbest-posteriors, nbest-rover, nbest-vocab, nbest-words, nbest2-to-nbest1, rescore-acoustic, rescore-decipher, rescore-reweight, rover-control-tying, rover-control-weights, search-rover-combo, sentid-to-sclite \- rescore and evaluate N-best lists
 .SH SYNOPSIS
 .nf
 \fBrescore-decipher\fP [ \fB\-bytelog\fP ] [ \fB\-nodecipherlm\fP ] [ \fB\-multiwords\fP ] \\
@@ -20,8 +20,11 @@ nbest-scripts, combine-rover-controls, compare-sclite, compute-best-rover-mix, c
 	[ \fIposterior-file\fP [ \fInbest-lattice-options\fP ] ]
 \fBcombine-rover-controls\fP [ \fBlambda=\fP\fIweights\fP ] [ \fBpostscale=\fP\fIS\fP ] \\
 	[ \fBkeeppaths=1\fP ] \fIrover-control\fP [ ... ]
+\fBrover-control-weights\fP [ \fBweights=\fP"\fIw1 ... wn\fP" ] \fIcontrol-file\fP
+\fBrover-control-tying\fP \fIcontrol-file\fP
+\fBnbest-optimize-args-from-rover-control\fP [ \fBprint_weights=1\fP ] [ \fBprint_dirs=1\fP ] \fIcontrol-file\fP
 \fBcompute-best-rover-mix\fP [ \fBlambda=\fP\fIweights\fP ] [ \fBaddone=\fP\fIc\fP ] [ \fBprecision=\fP\fIp\fP ] \\
-	[ \fBwrite_weights=\fP\fIfile\fP ] \fIreference-posteriors-output\fP
+	[ \fBtying=\fP"\fIb1 ... bn\fP" ] [ \fBwrite_weights=\fP\fIfile\fP ] \fIreference-posteriors-output\fP
 \fBsearch-rover-combo\fP [ \fB\-scorer\fP \fIscript\fP ] [ \fB\-datadir\fP \fIdir\fP ] \\
 	[ \fB\-weights\fP \fIweights\fP ] [ \fB\-sentids\fP \fIlist\fP ] \\
 	[ \fB\-refs\fP \fIrefs\fP ] [ \fB\-smooth-weight\fP \fIS\fP ] \\
@@ -32,6 +35,7 @@ nbest-scripts, combine-rover-controls, compare-sclite, compute-best-rover-mix, c
 	[ \fBmax_nbest=\fP\fIM\fP ] \fInbest-file\fP ...
 \fBnbest-vocab\fP [ \fInbest-list\fP ... ]
 \fBnbest-words\fP [ \fInbest-list\fP ... ]
+\fBnbest-oov-counts\fP \fBvocab=\fP\fIvocabfile\fP [ \fBvocab_aliases=\fP\fIaliasfile\fP ] \fInbest-list\fP
 \fBnbest-error\fP \fIscore-dir\fP|\fIfile-list\fP \fIrefs\fP [ \fInbest-lattice-option\fP ... ]
 \fBsentid-to-sclite\fP \fIhyps\fP
 \fBsentid-to-ctm\fP \fIhyps\fP
@@ -264,6 +268,8 @@ The format for the latter is
 Each line specifies an N-best directory, the language model and word transition
 weights to be used in score combination, and a weight to be applied to the
 posterior probabilities.
+A weight of "=" denotes a value equal to the previous system and is used to encode
+weight tying.
 An optional next-to-last parameter for each N-best list allows the lists to be 
 truncated to the top \fIn1\fP, \fIn2\fP, etc., hypotheses.
 The final optional parameter sets the posterior distribution scaling factor,
@@ -292,7 +298,14 @@ If
 .I posterior-file
 is specified on the command line, posterior word probability estimates are
 written to that file.
-Any additional arguments are passed as options to the underlying
+.PP
+Additional arguments are treated as options, in particular
+.TP 20
+.B -missing-nbest
+indicates that empty hypotheses are to be used for N-best lists that are missing
+from the directory specified in the control file.
+.PP
+Any other additional arguments are passed to the underlying
 .BR nbest-lattice (1)
 invocation.
 .br
@@ -322,6 +335,14 @@ The
 argument overrides the posterior scaling factor in all input systems with the value
 .IR S .
 .PP
+.B rover-control-weights
+either retrieves or changes the weights in an nbest-rover control file.
+If the 
+.B weights=
+argument is specified, the weights in the input control file are altered to the
+values in the argument and a new control file is written to stdout.
+Otherwise, the list of current weights is output as a single line.
+.PP
 .B compute-best-rover-mix
 estimates the best weighting of a set of nbest system outputs for 
 combination with
@@ -338,14 +359,41 @@ to record the posteriors of the reference word strings on a tuning set:
 .br
 	    \fB\-write-ref-posteriors\f \fIreference-posteriors-output\fP
 .br
-Initial weights are specied with
+Initial weights are specified with
 .BI lambda= weights.
+.br
 An additive constant for Laplace smoothing can be specified with 
 .BI addone= c.
+.br
+The
+.B tying= 
+argument allows the system weights to be tied. 
+It should specify a string of positive integers (the bin numbers) with one value
+for each system weight.
+For example 
+.B "tying='1 1 2 3 3'"
+means that the first two and the last two of five weights are to be tied (put in the same bin).
+.br
 The estimated weight vector can optionally be written to a file using
 .BI write_weights= file.
 The weights can then be inserted into the original
-.IR control-file .
+.IR control-file ,
+e.g., using 
+.BR rover-control-weights .
+.PP
+.B rover-control-tying
+extracts the value for the 
+.B compute-best-rover-mix
+.B tying=
+argument from an existing nbest-rover control file.
+.PP
+.B nbest-optimize-args-from-rover-control
+extracts information from existing nbest-rover control files that can be passed as 
+arguments to 
+.BR nbest-optimize (1)
+for initializing the search.
+Options allow printing only the score weights, 
+or only the list of additional scores directories.
 .PP
 .B search-rover-combo
 searches for a good subset of systems to combine via 
@@ -461,6 +509,19 @@ supplied via stdin.)
 .B nbest-words
 strips any score and alignment information from N-best lists and outputs
 only the words, one hypothesis per line.
+.PP
+.B nbest-oov-counts
+computes the number of out-of-vocabulary words for each hypothesis in an N-best list,
+relative to a vocabulary listed in
+.IR vocabfile .
+Optionally a vocabulary mapping from
+.I aliasfile 
+is applied (as with the 
+.BR ngram (1)
+.B \-vocab-aliases
+option).
+The OOV counts are output on stdout and can be used as a score file for
+N-best rescoring.
 .PP
 .B nbest-error
 computes the overall oracle word error rate of a set of N-best lists
@@ -634,8 +695,10 @@ may not work correctly with the
 option if the word mapping adds to the vocabulary subset used in the N-best
 lists.
 .SH AUTHOR
-Andreas Stolcke <andreas.stolcke@microsoft.com>
+Andreas Stolcke <stolcke@icsi.berkeley.edu>
 .br
-Copyright 1995-2006 SRI International
+Copyright (c) 1995\-2006 SRI International
 .br
-Copyright 2011-2016 Microsoft Corp.
+Copyright (c) 2011\-2019 Andreas Stolcke
+.br
+Copyright (c) 2011\-2018 Microsoft Corp.

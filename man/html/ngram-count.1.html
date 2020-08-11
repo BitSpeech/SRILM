@@ -1,4 +1,4 @@
-<! $Id: ngram-count.1,v 1.47 2013-02-22 17:41:07 stolcke Exp $>
+<! $Id: ngram-count.1,v 1.51 2019/09/09 22:35:37 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>ngram-count</TITLE>
@@ -89,6 +89,11 @@ Empty lines are ignored.
 <DD>
 Treat the first field in each text input line as a weight factor by
 which the N-gram counts for that line are to be multiplied.
+<DT><B> -text-has-weights-last </B>
+<DD>
+Similar to 
+<B> -text-has-weights </B>
+but with weights at the ends of lines.
 <DT><B> -no-sos </B>
 <DD>
 Disable the automatic insertion of start-of-sentence tokens 
@@ -578,14 +583,15 @@ operate on the modified counts, potentially leading to a different set of N-gram
 being retained than with other discounting methods.
 This can be considered either a feature or a bug.
 <H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;
-<BR>
+Andreas Stolcke &lt;stolcke@icsi.berkeley.edu&gt;,
 Tanel Alumäe &lt;tanel.alumae@phon.ioc.ee&gt;
 <BR>
 Copyright (c) 1995-2011 SRI International
 <BR>
 Copyright (c) 2009-2013 Tanel Alumäe
 <BR>
-Copyright (c) 2012-2013 Microsoft Corp.
+Copyright (c) 2011-2017 Andreas Stolcke
+<BR>
+Copyright (c) 2012-2017 Microsoft Corp.
 </BODY>
 </HTML>

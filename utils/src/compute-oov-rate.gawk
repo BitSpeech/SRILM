@@ -7,7 +7,7 @@
 #
 # Assumes unigram counts do not have repeated words.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/compute-oov-rate.gawk,v 1.8 2003/03/08 03:59:39 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-oov-rate.gawk,v 1.10 2018/01/24 03:35:38 stolcke Exp $
 #
 
 BEGIN {
@@ -41,6 +41,10 @@ ARGIND > 1 {
 		oov_count += $2;
 		oov_types ++; 
 
+		if (debug) {
+		    print "OOV: " $1, $2 > "/dev/stderr";
+		}
+
 		if (!is_fragment($1)) {
 		    if (write_oov_words) {
 			    print > write_oov_words;
@@ -65,13 +69,13 @@ ARGIND > 1 {
 }
 END {
 	printf "OOV tokens: %d / %d (%.2f%%) ", \
-			oov_count, total_count, 100 * oov_count/total_count;
+		oov_count, total_count, total_count == 0 ? 0 : 100 * oov_count/total_count;
 	printf "excluding fragments: %d / %d (%.2f%%)\n", \
-			oov_nofrag_count, total_nofrag_count, \
-			100 * oov_nofrag_count/total_nofrag_count;
+		oov_nofrag_count, total_nofrag_count, \
+		total_nofrag_count == 0 ? 0 : 100 * oov_nofrag_count/total_nofrag_count;
 	printf "OOV types: %d / %d (%.2f%%) ", \
-			oov_types, total_types, 100 * oov_types/total_types;
+		oov_types, total_types, total_types == 0 ? 0 : 100 * oov_types/total_types;
 	printf "excluding fragments: %d / %d (%.2f%%)\n", \
-			oov_nofrag_types, total_nofrag_types, \
-			100 * oov_nofrag_types/total_nofrag_types;
+		oov_nofrag_types, total_nofrag_types, \
+		total_nofrag_types == 0 ? 0 : 100 * oov_nofrag_types/total_nofrag_types;
 }

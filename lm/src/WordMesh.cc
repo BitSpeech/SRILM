@@ -4,14 +4,20 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.cc,v 1.56 2016/04/09 06:53:01 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.cc,v 1.64 2019/09/09 23:13:14 stolcke Exp $";
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#ifdef NEED_RAND48
+extern "C" {
+    double drand48();
+}
+#endif
 
 #include "WordMesh.h"
 #include "WordAlign.h"
@@ -23,16 +29,6 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/WordMesh.cc,v 1
 
 // Instantiate template types for external programs linking to the lib 
 INSTANTIATE_LHASH(VocabIndex,NBestWordInfo);
-
-typedef struct {
-  double cost;			// minimal cost of partial alignment
-  WordAlignType error;		// best predecessor
-} ChartEntryDouble;
-
-typedef struct {
-  unsigned cost;		// minimal cost of partial alignment
-  WordAlignType error;		// best predecessor
-} ChartEntryUnsigned;
 
 /*
  * Special token used to represent an empty position in an alignment column
@@ -48,9 +44,10 @@ void freeChart(CT **chart, unsigned maxRefLength)
     delete [] chart;
 }
 
-WordMesh::WordMesh(Vocab &vocab, const char *myname, VocabDistance *distance)
+WordMesh::WordMesh(Vocab &vocab, const char *myname,
+			VocabDistance *distance, double timePenalty, Boolean averageTimes)
     : MultiAlign(vocab, myname), totalPosterior(0.0), numAligns(0),
-      distance(distance)
+      distance(distance), timePenalty(timePenalty), averageTimes(averageTimes)
 {
     deleteIndex = vocab.addWord(deleteWord);
 }
@@ -109,6 +106,10 @@ comparePosteriors(VocabIndex w1, VocabIndex w2)
     if (diff < 0.0) {
 	return 1;
     } else if (diff > 0.0) {
+	return -1;
+    } else if (w1 < w2) {
+	// Force a deterministic ordering on words with same posterior,
+	// according to their word indices
 	return -1;
     } else {
 	return 0;
@@ -213,6 +214,14 @@ WordMesh::write(File &file)
 	    file.fprintf("info %u %s ", i, vocab.getWord(word));
 	    winfo->write(file);
 	    file.fprintf("\n");
+	}
+
+	/*
+	 * Write out average time if defined
+	 */
+	NBestTimestamp avgtime = averageTime(aligns[sortedAligns[i]], wordInfo[sortedAligns[i]]);
+	if (avgtime != (NBestTimestamp)HUGE_VAL) {
+	    file.fprintf("time %u %.2lf\n", i, (double)avgtime);
 	}
     }
 
@@ -349,11 +358,26 @@ WordMesh::read(File &file)
 		file.position() << "invalid word info\n";
 		return false;
 	    }
+	} else if (sscanf(line, "time %u %lf%n", &index, &arg2, &parsed) == 2){
+	    // ignored -- time is only encoded attached to words
+	    // average time information is only output for informational purposes
+	    ;
 	} else {
 	    file.position() << "unknown keyword\n";
 	    return false;
 	}
     }
+
+    /*
+     * Make sure all alignment positions have an entry
+     * Missing data is treated as a null word.
+     */
+    for (unsigned i = 0; i < numAligns; i ++) {
+	if (aligns[i]->numEntries() == 0) {
+	    *aligns[i]->insert(deleteIndex) = totalPosterior;
+	}
+    }
+
     return true;
 }
 
@@ -478,6 +502,78 @@ WordMesh::alignError(const LHash<VocabIndex,Prob>* column1,
     }
 }
 
+NBestTimestamp
+WordMesh::wordTime(const NBestWordInfo &wordInfo)
+{
+    if (wordInfo.valid()) {
+	return wordInfo.start + 0.5 * wordInfo.duration;
+    } else {
+	return (NBestTimestamp)HUGE_VAL;
+    }
+}
+
+/*
+ * Compute posterior-averaged timestamp of alignment column
+ */
+NBestTimestamp
+WordMesh::averageTime(const LHash<VocabIndex,Prob> *column,
+		      const LHash<VocabIndex,NBestWordInfo> *info)
+{
+    Prob totalPosterior = 0.0;
+    double totalTime = 0.0;
+
+    LHashIter<VocabIndex,Prob> iter(*column);
+    Prob *prob;
+    VocabIndex word;
+
+    while ((prob = iter.next(word))) {
+	if (word == deleteIndex) continue;
+
+	NBestWordInfo *wordInfo = info->find(word);
+
+	if (wordInfo && wordInfo->valid()) {
+	    /*
+	     * Replace zero prob with epsilon, so we can average times
+	     */
+	    Prob p = *prob;
+	    if (p <= Prob_Epsilon) p = Prob_Epsilon;
+
+	    totalPosterior += p;
+	    totalTime += p * wordTime(*wordInfo);
+	}
+    }
+
+    if (totalPosterior > 0.0) {
+	return totalTime / totalPosterior;
+    } else {
+	return (NBestTimestamp)HUGE_VAL;
+    }
+}
+
+double
+WordMesh::timeDiffCost(NBestTimestamp t1, NBestTimestamp t2)
+{
+    if (t1 == (NBestTimestamp)HUGE_VAL || t2 == (NBestTimestamp)HUGE_VAL) {
+	return 0.0;
+    } else {
+	return fabs(t1 - t2);
+    }
+}
+
+double
+WordMesh::timeOrderCost(NBestTimestamp t1, NBestTimestamp t2)
+{
+    if (t1 == (NBestTimestamp)HUGE_VAL || t2 == (NBestTimestamp)HUGE_VAL) {
+	return 0.0;
+    } else {
+	if (t1 > t2) {
+	    return t1-t2;
+	} else {
+	    return 0.0;
+	}
+    }
+}
+
 /*
  * Align new words to existing alignment columns, expanding them as required
  * (derived from WordAlign())
@@ -527,7 +623,7 @@ WordMesh::alignWords(const VocabIndex *words, Prob score,
 
 static TLSW(unsigned, alignWordsMaxHypLengthTLS);
 static TLSW(unsigned, alignWordsMaxRefLengthTLS);
-static TLSW(ChartEntryDouble**, alignWordsChartTLS);
+static TLSW(WordMesh::ChartEntryDouble**, alignWordsChartTLS);
 
 Boolean
 WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
@@ -622,6 +718,17 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 				   winfo[j-1].word);
 	    WordAlignType minError = SUB_ALIGN;
 
+	    if (timePenalty > 0.0) {
+		/*
+		 * Compute the time difference between the existing column 
+		 * and the new word, and add it to the substitution cost
+		 */
+		minCost += timePenalty *
+			    timeDiffCost(wordTime(winfo[j-1]),
+					 averageTime(aligns[sortedAligns[fromPos+i-1]],
+					             wordInfo[sortedAligns[fromPos+i-1]]));
+	    }
+
 	    double delCost = chart[i-1][j].cost + deletePenalty;
 	    if (delCost + Prob_Epsilon < minCost) {
 		minCost = delCost;
@@ -632,6 +739,14 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 			alignError(0,
 			           transPosteriors[sortedAligns[fromPos+i-1]],
 				   winfo[j-1].word);
+
+	    if (timePenalty > 0.0 && i < refLength) {
+		insCost += timePenalty *
+			    timeOrderCost(wordTime(winfo[j-1]),
+					  averageTime(aligns[sortedAligns[fromPos+i]],
+					              wordInfo[sortedAligns[fromPos+i]]));
+	    }
+
 	    if (insCost + Prob_Epsilon < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -689,7 +804,7 @@ WordMesh::alignWords(const NBestWordInfo *winfo, Prob score,
 		    		wordInfo[sortedAligns[fromPos+i-1]]->
 						insert(winfo[j-1].word, foundP);
 		    if (foundP) {
-			oldInfo->merge(winfo[j-1], wordPosterior);
+			oldInfo->merge(winfo[j-1], wordPosterior, averageTimes);
 		    } else {
 			*oldInfo = winfo[j-1];
 		    }
@@ -888,13 +1003,11 @@ WordMesh::wordProbFromUnsortedColumn(unsigned unsortedColumnIndex, VocabIndex wo
 
 static TLSW(unsigned, alignAlignmentMaxHypLengthTLS);
 static TLSW(unsigned, alignAlignmentMaxRefLengthTLS);
-static TLSW(ChartEntryDouble**, alignAlignmentChartTLS);
+static TLSW(WordMesh::ChartEntryDouble**, alignAlignmentChartTLS);
 
-void
-WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
+WordMesh::ChartEntryDouble** &
+WordMesh::fillChart(WordMesh &other)
 {
-    WordMesh &other = (WordMesh &)alignment;
-
     unsigned refLength = numAligns;
     unsigned hypLength = other.numAligns;
 
@@ -938,8 +1051,8 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 	chart[0][j].cost = chart[0][j-1].cost +
 		   alignError(0,
 			      totalPosterior,
-			      other.aligns[other.sortedAligns[j-1]],
-			      other.columnPosteriors[other.sortedAligns[j-1]]);
+			      other.aligns[pos],
+			      other.columnPosteriors[pos]);
 	chart[0][j].error = INS_ALIGN;
     }
 
@@ -947,21 +1060,35 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
      * Fill in the rest of the chart, row by row.
      */
     for (unsigned i = 1; i <= refLength; i ++) {
+	unsigned main_pos = sortedAligns[i-1];
 	double deletePenalty =
-			    alignError(aligns[sortedAligns[i-1]],
-				       columnPosteriors[sortedAligns[i-1]],
+			    alignError(aligns[main_pos],
+				       columnPosteriors[main_pos],
 				       deleteIndex);
 
 	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
 	chart[i][0].error = DEL_ALIGN;
 
 	for (unsigned j = 1; j <= hypLength; j ++) {
+	    unsigned other_pos = other.sortedAligns[j-1];
 	    double minCost = chart[i-1][j-1].cost +
-		     alignError(aligns[sortedAligns[i-1]],
-				columnPosteriors[sortedAligns[i-1]],
-				other.aligns[other.sortedAligns[j-1]],
-				other.columnPosteriors[other.sortedAligns[j-1]]);
+		     alignError(aligns[main_pos],
+				columnPosteriors[main_pos],
+				other.aligns[other_pos],
+				other.columnPosteriors[other_pos]);
 	    WordAlignType minError = SUB_ALIGN;
+
+	    if (timePenalty > 0.0) {
+		/*
+		 * Compute the time difference between the two columns
+		 * and add it to the substitution cost
+		 */
+		minCost += timePenalty *
+			    timeDiffCost(averageTime(aligns[main_pos],
+						     wordInfo[main_pos]),
+					 averageTime(other.aligns[other_pos],
+						     other.wordInfo[other_pos]));
+	    }
 
 	    double delCost = chart[i-1][j].cost + deletePenalty;
 	    if (delCost + Prob_Epsilon < minCost) {
@@ -971,9 +1098,18 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 
 	    double insCost = chart[i][j-1].cost +
 		     alignError(0,
-				transPosteriors[sortedAligns[i-1]],
-				other.aligns[other.sortedAligns[j-1]],
-				other.columnPosteriors[other.sortedAligns[j-1]]);
+				transPosteriors[main_pos],
+				other.aligns[other_pos],
+				other.columnPosteriors[other_pos]);
+
+	    if (timePenalty > 0.0 && i < refLength) {
+		insCost += timePenalty *
+			    timeOrderCost(averageTime(other.aligns[other_pos],
+						      other.wordInfo[other_pos]),
+					 averageTime(aligns[sortedAligns[i]],
+						     wordInfo[sortedAligns[i]]));
+	    }
+
 	    if (insCost + Prob_Epsilon < minCost) {
 		minCost = insCost;
 		minError = INS_ALIGN;
@@ -983,6 +1119,19 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
 	    chart[i][j].error = minError;
 	}
     }
+
+    return chart;
+}
+
+double
+WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
+{
+    WordMesh &other = (WordMesh &)alignment;
+
+    unsigned refLength = numAligns;
+    unsigned hypLength = other.numAligns;
+
+    ChartEntryDouble** &chart = fillChart(other);
 
     /*
      * Backtrace and add new words to alignment columns.
@@ -1211,6 +1360,58 @@ WordMesh::alignAlignment(MultiAlign &alignment, Prob score, Prob *alignScores)
     }
 
     totalPosterior += score * other.totalPosterior;
+
+    return chart[refLength][hypLength].cost;
+}
+
+/* 
+ * A variant of alignAlignment that does not modify the existing alignments, but 
+ * records the mapping of positions between the two alignments.
+ */
+double
+WordMesh::alignAlignment(MultiAlign &other_alignment, vector<int>& src2other_col_map)
+{
+    WordMesh &other = (WordMesh &)other_alignment;
+
+    unsigned refLength = numAligns;
+    unsigned hypLength = other.numAligns;
+
+    ChartEntryDouble** &chart = fillChart(other);
+
+    /*
+     * Backtrace and record position mapping between alignments
+     */
+    {
+	unsigned i = refLength;
+	unsigned j = hypLength;
+
+        src2other_col_map.resize(i, -1);
+
+	while (i > 0 || j > 0) {
+	    switch (chart[i][j].error) {
+	    case END_ALIGN:
+		assert(0);
+		break;
+	    case CORR_ALIGN:
+	    case SUB_ALIGN:
+		/*
+		 * merge all words in "other" alignment column into our own
+		 */
+                src2other_col_map[i-1] = j-1;
+
+		i --; j --;
+		break;
+	    case DEL_ALIGN:
+		i --;
+		break;
+	    case INS_ALIGN:
+		j --;
+		break;
+	    }
+	}
+    }
+
+    return chart[refLength][hypLength].cost;
 }
 
 /*
@@ -1269,7 +1470,7 @@ WordMesh::normalizeDeletes()
  */
 static TLSW(unsigned, wordErrorMaxHypLengthTLS);
 static TLSW(unsigned, wordErrorMaxRefLengthTLS);
-static TLSW(ChartEntryUnsigned **, wordErrorChartTLS);
+static TLSW(WordMesh::ChartEntryUnsigned **, wordErrorChartTLS);
 
 unsigned
 WordMesh::wordError(const VocabIndex *words,
@@ -1411,13 +1612,14 @@ WordMesh::wordError(const VocabIndex *words,
 double
 WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags, double delBias)
+				unsigned flags, double delBias,
+				SubVocab *suppressVocab)
 {
     NBestWordInfo *winfo = new NBestWordInfo[length];
     assert(winfo != 0);
 
-    double result =
-		minimizeWordError(winfo, length, sub, ins, del, flags, delBias);
+    double result = minimizeWordError(winfo, length, sub, ins, del,
+					flags, delBias, suppressVocab);
 
     for (unsigned i = 0; i < length; i ++) {
 	words[i] = winfo[i].word;
@@ -1432,7 +1634,8 @@ WordMesh::minimizeWordError(VocabIndex *words, unsigned length,
 double
 WordMesh::minimizeWordError(NBestWordInfo *winfo, unsigned length,
 				double &sub, double &ins, double &del,
-				unsigned flags, double delBias)
+				unsigned flags, double delBias,
+				SubVocab *suppressVocab)
 {
     unsigned numWords = 0;
     sub = ins = del = 0.0;
@@ -1454,11 +1657,34 @@ WordMesh::minimizeWordError(NBestWordInfo *winfo, unsigned length,
 		effectiveProb *= delBias;
 		deleteProb = effectiveProb;
 	    }
+
+	    if (suppressVocab != 0 && suppressVocab->getWord(word)) {
+		// We're not allowed to output this word
+		continue;
+	    }
+
 	    if (bestWord == Vocab_None || effectiveProb > bestProb) {
 		bestWord = word;
 		bestProb = effectiveProb;
+	    } else if (effectiveProb == bestProb) {
+		if (flags & WORDMESH_RANDOM_TIEBREAK) {
+		    if (drand48() < 0.5) {
+			// pseudo-random tie breaker
+			bestWord = word;
+		    }
+		} else if (flags & WORDMESH_NO_TIEBREAK) {
+			;
+		} else {
+		    if (word < bestWord) {
+			// an arbitrary way to ensure deterministic output:
+			// break ties in favor of word with lowest word index
+			bestWord = word;
+		    }
+		}
 	    }
 	}
+
+	if (bestWord == Vocab_None) continue;
 
 	if (bestWord != deleteIndex) {
 	    if (numWords < length) {
@@ -1485,8 +1711,9 @@ WordMesh::minimizeWordError(NBestWordInfo *winfo, unsigned length,
 	    del += totalPosterior - deleteProb;
 	}
     }
+
     if (numWords < length) {
-	winfo[numWords].word = Vocab_None;;
+	winfo[numWords].word = Vocab_None;
 	winfo[numWords].invalidate();
     }
 
@@ -1542,148 +1769,5 @@ WordMesh::freeThread()
     TLSW_FREE(wordErrorMaxHypLengthTLS);
     TLSW_FREE(wordErrorMaxRefLengthTLS);
     TLSW_FREE(wordErrorChartTLS);
-}
-
-void WordMesh::alignAlignment(MultiAlign &other_alignment, vector<int>& src2other_col_map)
-{
-    WordMesh &other = (WordMesh &)other_alignment;
-
-    unsigned refLength = this->numAligns;
-    unsigned hypLength = other.numAligns;
-
-    typedef struct {
-	double cost;			// minimal cost of partial alignment
-	WordAlignType error;		// best predecessor
-    } ChartEntry;
-
-    /* 
-     * Allocate chart statically, enlarging on demand
-     */
-    static unsigned maxHypLength = 0;
-    static unsigned maxRefLength = 0;
-    static ChartEntry **chart = 0;
-
-    if (chart == 0 || hypLength > maxHypLength || refLength > maxRefLength) {
-	/*
-	 * Free old chart
-	 */
-	if (chart != 0) {
-	    for (unsigned i = 0; i <= maxRefLength; i ++) {
-		delete [] chart[i];
-	    }
-	    delete [] chart;
-	}
-
-	/*
-	 * Allocate new chart
-	 */
-	maxHypLength = hypLength;
-	maxRefLength = refLength;
-    
-	chart = new ChartEntry*[maxRefLength + 1];
-	assert(chart != 0);
-
-	for (unsigned i = 0; i <= maxRefLength; i ++) {
-	    chart[i] = new ChartEntry[maxHypLength + 1];
-	    assert(chart[i] != 0);
-	}
-    }
-
-    /*
-     * Initialize the 0'th row
-     */
-    chart[0][0].cost = 0.0;
-    chart[0][0].error = CORR_ALIGN;
-
-    for (unsigned j = 1; j <= hypLength; j ++) {
-	unsigned pos = other.sortedAligns[j-1];
-	chart[0][j].cost = chart[0][j-1].cost +
-		   this->alignError(0,
-			      this->totalPosterior,
-			      other.aligns[pos],
-			      other.columnPosteriors[pos]);
-	chart[0][j].error = INS_ALIGN;
-    }
-
-    /*
-     * Fill in the rest of the chart, row by row.
-     */
-    for (unsigned i = 1; i <= refLength; i ++) {
-	unsigned main_pos = this->sortedAligns[i-1];
-	double deletePenalty =
-			    this->alignError(this->aligns[main_pos],
-				       this->columnPosteriors[main_pos],
-				       this->deleteIndex);
-
-	chart[i][0].cost = chart[i-1][0].cost + deletePenalty;
-	chart[i][0].error = DEL_ALIGN;
-
-	for (unsigned j = 1; j <= hypLength; j ++) {
-	    unsigned other_pos = other.sortedAligns[j-1];
-// TODO: save local errors (substitution error)
-	    double minCost = chart[i-1][j-1].cost +
-		     this->alignError(this->aligns[main_pos],
-				this->columnPosteriors[main_pos],
-				other.aligns[other_pos],
-				other.columnPosteriors[other_pos]);
-	    WordAlignType minError = SUB_ALIGN;
-
-	    double delCost = chart[i-1][j].cost + deletePenalty;
-	    if (delCost < minCost) {
-		minCost = delCost;
-		minError = DEL_ALIGN;
-	    }
-
-	    double insCost = chart[i][j-1].cost +
-		     this->alignError(0,
-				this->transPosteriors[main_pos],
-				other.aligns[other_pos],
-				other.columnPosteriors[other_pos]);
-	    if (insCost < minCost) {
-		minCost = insCost;
-		minError = INS_ALIGN;
-	    }
-
-	    chart[i][j].cost = minCost;
-	    chart[i][j].error = minError;
-	}
-    }
-
-    /*
-     * Backtrace and add new words to alignment columns.
-     * Store word posteriors if requested.
-     */
-    {
-	unsigned i = refLength;
-	unsigned j = hypLength;
-
-        src2other_col_map.resize(i, -1);
-
-	while (i > 0 || j > 0) {
-	    switch (chart[i][j].error) {
-	    case END_ALIGN:
-		assert(0);
-		break;
-	    case CORR_ALIGN:
-	    case SUB_ALIGN:
-		/*
-		 * merge all words in "other" alignment column into our own
-		 */
-		{
-// x.sortedAligns[] maps to the actual col in the sausage
-                src2other_col_map[i-1] = j-1;
-		i --; j --;
-                }
-
-		break;
-	    case DEL_ALIGN:
-		i --;
-		break;
-	    case INS_ALIGN:
-		j --;
-		break;
-	    }
-	}
-    }
 }
 

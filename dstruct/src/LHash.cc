@@ -8,8 +8,8 @@
 #define _LHash_cc_
 
 #ifndef lint
-static char LHash_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
-static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.61 2013/10/03 03:35:03 stolcke Exp $";
+static char LHash_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char LHash_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/LHash.cc,v 1.62 2019/09/09 23:13:11 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

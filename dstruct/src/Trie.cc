@@ -8,8 +8,8 @@
 #define _Trie_cc_
 
 #ifndef lint
-static char Trie_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.";
-static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.28 2016-03-05 01:23:28 stolcke Exp $";
+static char Trie_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2015 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char Trie_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/dstruct/src/Trie.cc,v 1.29 2019/09/09 23:13:11 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

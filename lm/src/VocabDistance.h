@@ -2,9 +2,9 @@
  * VocabDistance.h --
  *	Distance metrics over vocabularies
  *
- * Copyright (c) 2000,2004 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2000,2004 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.7 2015-01-28 23:51:10 wwang Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.h,v 1.8 2019/09/09 23:13:14 stolcke Exp $
  *
  */
 

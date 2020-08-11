@@ -1,5 +1,5 @@
-.\" $Id: wlat-format.5,v 1.9 2011/12/25 00:39:37 stolcke Exp $
-.TH wlat-format 5 "$Date: 2011/12/25 00:39:37 $" "SRILM File Formats"
+.\" $Id: wlat-format.5,v 1.10 2019/02/06 09:53:12 stolcke Exp $
+.TH wlat-format 5 "$Date: 2019/02/06 09:53:12 $" "SRILM File Formats"
 .SH NAME
 wlat-format \- File format for SRILM word posterior lattices
 .SH SYNOPSIS
@@ -22,6 +22,7 @@ Word meshes (confusion networks):
 \fBreference\fP \fIa\fP \fIw\fP
 \fBhyps\fP \fIa\fP \fIw\fP \fIh1\fP \fIh2\fP ...
 \fBinfo\fP \fIa\fP \fIw\fP \fIstart\fP \fIdur\fP \fIascore\fP \fIgscore\fP \fIphones\fP \fIphonedurs\fP
+\fBtime\fP \fIa\fP \fIt\fP
 \&...
 .fi
 .SH DESCRIPTION
@@ -146,6 +147,15 @@ The encoded information pertains to the word hypothesis with the highest
 posterior probability among all hypotheses of the same word aligned
 to a given word mesh position.
 .PP
+The
+.B time
+keyword is used for debugging purposes and encodes the estimated timestamp
+.I t
+of an alignment position
+.I a
+when the input contains backtrace information.
+It is ignored when reading in word meshes.
+.PP
 Both formats optionally encode the associated utterance IDs in the
 .B name
 field.
@@ -163,6 +173,8 @@ word error minimization and other applications of confusion networks,''
 Detailed alignment and acoustic information is so far only implemented
 for word meshes, although conceptually it would apply equally to word lattices.
 .SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+Andreas Stolcke <andreas.stolcke@microsoft.com>
 .br
 Copyright 2001-2011 SRI International
+.br
+Copyright 2011-2019 Microsoft Corp.

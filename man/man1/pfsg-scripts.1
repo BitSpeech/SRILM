@@ -1,7 +1,7 @@
-.\" $Id: pfsg-scripts.1,v 1.24 2009/09/08 18:21:54 stolcke Exp $
-.TH pfsg-scripts 1 "$Date: 2009/09/08 18:21:54 $" "SRILM Tools"
+.\" $Id: pfsg-scripts.1,v 1.26 2019/09/09 22:35:37 stolcke Exp $
+.TH pfsg-scripts 1 "$Date: 2019/09/09 22:35:37 $" "SRILM Tools"
 .SH NAME
-pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pfsg, htklat-vocab, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
+pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, concat-sausages, fsm-to-pfsg, htklat-vocab, make-nbest-pfsg, make-ngram-pfsg, pfsg-from-ngram, pfsg-to-dot, pfsg-to-fsm, pfsg-vocab, wlat-stats, wlat-to-dot, wlat-to-pfsg \- create and manipulate finite-state networks
 .SH SYNOPSIS
 .nf
 \fBmake-ngram-pfsg\fP [ \fBmaxorder=\fP\fIN\fP ] [ \fBcheck_bows=0\fP|\fB1\fP ] [ \fBno_empty_bo=1\fP ] \\
@@ -29,6 +29,7 @@ pfsg-scripts, add-classes-to-pfsg, add-pauses-to-pfsg, classes-to-fsm, fsm-to-pf
 \fBwlat-to-dot\fP [ \fBshow_probs=0\fP|\fB1\fP ] [ \fBshow_nums=0\fP|\fB1\fP ] \\
 	[ \fIwlat-file\fP ] \fB>\fP \fIdot-file\fP
 \fBwlat-stats\fP [ \fIwlat-file\fP ]
+\fBconcat-sausages\fP [ \fIsausage-file\fP ... ] \fB>\fP \fInew-sausage\fP
 .fi
 .SH DESCRIPTION
 These scripts create and manipulate various forms of finite-state networks.
@@ -281,6 +282,12 @@ word hypotheses, the entropy (log base 10) of the sentence hypothesis
 set represented, and the posterior expected number of words.
 For word meshes that have been aligned with references, the 1-best and 
 oracle lattice error rates are also computed.
+.PP
+.B concat-sausages
+takes several word sausages (word mesh lattices) and concatenates them into a single new sausage.
+The word timing information that is optionally included is not modified;
+only the alignment sequence numbers are modified, and alignment positions containing only
+sentence start/end tags are removed at the junctures.
 .SH "NUANCE COMPATIBILITY"
 .PP
 The Nuance recognizer (as of version 6.2) understands a variant of the 
@@ -336,6 +343,10 @@ nbest-format(5), classes-format(5), fsm(5), dot(1).
 should be reimplemented in C++ for speed and some size optimizations that
 require more global operations on the PFSG.
 .SH AUTHOR
-Andreas Stolcke <stolcke@speech.sri.com>.
+Andreas Stolcke <stolcke@icsi.berkeley.edu>
 .br
-Copyright 1995-2005 SRI International
+Copyright (c) 1995\-2005 SRI International
+.br
+Copyright (c) 2011\-2019 Andreas Stolcke
+.br
+Copyright (c) 2011\-2019 Microsoft Corp.

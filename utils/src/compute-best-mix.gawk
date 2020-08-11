@@ -10,7 +10,7 @@
 # models.  li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/compute-best-mix.gawk,v 1.12 2016/07/13 18:40:14 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-best-mix.gawk,v 1.13 2017/12/22 01:34:49 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;
@@ -20,6 +20,8 @@ BEGIN {
 	M_LN10 = 2.30258509299404568402;	# from <math.h>
 
 	logINF = -320;
+
+	unk = "<unk>";
 }
 function abs(x) {
 	return (x < 0) ? -x : x;
@@ -87,7 +89,7 @@ $1 == "p(" {
 	counts[sample_no] = count;
 
 	if (sample_no in words) {
-	    if (word != words[sample_no]) {
+	    if (word != words[sample_no] && word != unk && words[sample_no] != unk) {
 		print "warning: word mismatch in file " FILENAME ", token " sample_no \
 			": " word " != " words[sample_no] > "/dev/stderr";
 	    }

@@ -9,7 +9,7 @@
 # li are initial guesses at the mixture weights, and p is the
 # precision with which the best lambda vector is to be found.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/compute-best-rover-mix.gawk,v 1.4 2016/09/20 00:31:14 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/compute-best-rover-mix.gawk,v 1.6 2016-12-10 07:06:41 stolcke Exp $
 #
 BEGIN {
 	verbose = 0;
@@ -52,14 +52,14 @@ function print_vector(x, n) {
 }
 
 {
-	nfiles = NF - 4;
+	nsystems = NF - 4;
 
 	if ($4 == 0) {
 		zero_probs ++;
 	} else {
 		sample_no ++;
 
-		for (i = 1; i <= nfiles; i++) {
+		for (i = 1; i <= nsystems; i++) {
 			samples[i " " sample_no] = $(i + 4);
 		}
 	}
@@ -76,9 +76,34 @@ END {
 		lambda_sum += lambdas[i];
 	}
 	# fill in the missing lambdas
-	for (i = nlambdas + 1; i <= nfiles; i ++) {
-		priors[i] = (1 - lambda_sum)/(nfiles - nlambdas);
+	for (i = nlambdas + 1; i <= nsystems; i ++) {
+		priors[i] = (1 - lambda_sum)/(nsystems - nlambdas);
 	}
+
+	# set up weight tying - assign input systems (weights) to tying bins
+	if (tying) {
+		ntying = split(tying, tying_bins);
+		for (i = 1; i <= ntying && i <= nsystems; i ++) {
+		    this_bin = int(tying_bins[i]);
+		    if (this_bin <= 0) {
+			print "invalid tying bin: " tying_bins[i];
+			exit(1);
+		    }
+		    binfor[i] = this_bin;
+		    weights_in_bin[this_bin] += 1;
+
+		    if (this_bin > nbins) nbins = this_bin;
+		}
+	} else {
+		i = 1;
+		nbins = 0;
+	}
+	# assign unique bins for weights not covered in tying argument string
+	for ( ; i <= nsystems; i ++) {
+	    binfor[i] = ++nbins;
+	    weights_in_bin[nbins] = 1;
+	}
+		
 
 	iter = 0;
 	have_converged = 0;
@@ -92,7 +117,7 @@ END {
 	    for (j = 1; j <= sample_no; j ++) {
 
 		all_inf = 1;
-		for (i = 1; i <= nfiles; i ++) {
+		for (i = 1; i <= nsystems; i ++) {
 			sample = log10(samples[i " " j]);
 			logpost[i] = log10(priors[i]) + sample;
 			all_inf = all_inf && (sample == logINF);
@@ -111,20 +136,21 @@ END {
 		num_words ++;
 		log_like += logsum;
 
-		for (i = 1; i <= nfiles; i ++) {
-			post_totals[i] += exp10(logpost[i] - logsum);
+		# total up the posteriors for each weight bin
+		for (i = 1; i <= nsystems; i ++) {
+			post_totals[binfor[i]] += exp10(logpost[i] - logsum);
 		}
 	    }
 	    printf "iteration %d, lambda = %s, ppl = %g\n", \
-		    iter, print_vector(priors, nfiles), \
+		    iter, print_vector(priors, nsystems), \
 		    exp10(-log_like/num_words) >> "/dev/stderr";
 	    fflush();
 
 	
 	    have_converged = 1;
-	    for (i = 1; i <= nfiles; i ++) {
+	    for (i = 1; i <= nsystems; i ++) {
 		last_prior = priors[i];
-		priors[i] = (post_totals[i] + addone)/(num_words + nfiles * addone);
+		priors[i] = (post_totals[binfor[i]]/weights_in_bin[binfor[i]] + addone)/(num_words + nsystems * addone);
 
 		if (abs(last_prior - priors[i]) > precision) {
 			have_converged = 0;
@@ -132,7 +158,7 @@ END {
 	    }
 	}
 
-	weights = print_vector(priors, nfiles);
+	weights = print_vector(priors, nsystems);
 	printf "%d alignment positions, best lambda (%s)\n", num_words, weights;
 	if (write_weights) {
 		print weights > write_weights;

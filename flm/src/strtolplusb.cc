@@ -22,7 +22,7 @@ strtolplusb(const char *nptr, char **endptr, int base)
   i = nptr;
 
   /* skip white space */
-  while (*i && isspace(*i))
+  while (*i && isspace((unsigned char)*i))
     i++;
 
   /* decide what the sign should be */

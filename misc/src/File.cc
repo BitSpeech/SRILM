@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/File.cc,v 1.34 2014-08-29 21:35:49 frandsen Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/File.cc,v 1.37 2019/09/09 23:13:15 stolcke Exp $";
 #endif
 
 #include <string.h>
@@ -469,7 +469,7 @@ File::getline()
 	 * skip entirely blank lines
 	 */
 	register const char *p = buffer;
-	while (*p && isspace(*p)) p++;
+	while (*p && isspace((unsigned char)*p)) p++;
 	if (*p == '\0') {
 	    continue;
 	}

@@ -9,8 +9,8 @@
 #define _Trellis_cc_
 
 #ifndef lint
-static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.";
-static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.26 2015-03-05 07:45:01 stolcke Exp $";
+static char Trellis_Copyright[] = "Copyright (c) 1995-2010 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char Trellis_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Trellis.cc,v 1.27 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX

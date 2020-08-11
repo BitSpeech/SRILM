@@ -1,4 +1,4 @@
-<! $Id: nbest-optimize.1,v 1.29 2012/07/04 23:47:53 stolcke Exp $>
+<! $Id: nbest-optimize.1,v 1.31 2019/09/09 22:35:37 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-optimize</TITLE>
@@ -111,6 +111,15 @@ of the first score is taken by the "ac-replacement" score, which can be
 any score used by the machine translation system.
 A typical example is a score measuring
 word order distortion between the source and target languages.
+<DT><B>-xval-files</B><I> file-list</I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+Use the N-best files listed in 
+<I> file-list </I>
+for cross-validation.
+Optimization stops once no improvement is found on the cross-validation set
+(while the direction of the search is obtained from the training set).
+This is only supported with the gradient-descent and Amoeba optimization
+methods.
 <DT><B>-srinterp-format</B><I></I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Parse n-best list in SRInterp format, which has 
@@ -593,12 +602,14 @@ and
 <B> -anti-ref-weight </B>
 options do not work for sausage-based or BLEU optimization.
 <H2> AUTHORS </H2>
-Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;
-<BR>
-Dimitra Vergyri &lt;dverg@speech.sri.com&gt;
-<BR>
+Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;,
+Dimitra Vergyri &lt;dverg@speech.sri.com&gt;,
 Jing Zheng &lt;zj@speech.sri.com&gt;
 <BR>
-Copyright (c) 2000-2012 SRI International, 2012 Microsoft Corp.
+Copyright (c) 2000-2012 SRI International
+<BR>
+Copyright (c) 2012-2016 Andreas Stolcke
+<BR>
+Copyright (c) 2012-2016 Microsoft Corp.
 </BODY>
 </HTML>

@@ -4,7 +4,7 @@
 #	combined several rover control files for system combination
 #	(may be used recursively)
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/combine-rover-controls.gawk,v 1.5 2016/09/20 05:52:23 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/combine-rover-controls.gawk,v 1.7 2017/08/16 06:34:16 stolcke Exp $
 #
 
 function process_rover_control(file, weight, pscale) {
@@ -18,6 +18,9 @@ function process_rover_control(file, weight, pscale) {
 	while ((status = (getline < file)) > 0) {
 
 		if (NF == 0) continue;
+
+		# skip comment line
+		if (/^##/) continue;
 
 		if (!keep_paths) {
 		    # deal with relatve directories in rover-control file:
@@ -47,19 +50,33 @@ function process_rover_control(file, weight, pscale) {
 
 		    system_id = system_id $1 " " $2 " " $3;
 
-		    # divide system weight by total number of input files
-		    system_weight[nsystems] = $4 * weight;
-
 		    # see if this system has appeared before
 		    if (system_id in system_index) {
 			# merge system weights
-			system_weight[system_index[system_id]] += $4 * weight;
+			# ensuring weight tying spec is compatible
+			if ($4 == "=") {
+			    if (system_weight[system_index[system_id]] != "=") {
+				print "cannot combine weight tying" > "/dev/stderr";
+				exit(1);
+			    }
+			} else {
+			    if (system_weight[system_index[system_id]] == "=") {
+				print "cannot combine weight tying" > "/dev/stderr";
+				exit(1);
+			    }
+			    system_weight[system_index[system_id]] += $4 * weight;
+			}
 
 			# skip the duplicate system
 			nsystems -= 1;
 		    } else {
 			# divide system weight by total number of input files
-			system_weight[nsystems] = $4 * weight;
+			# but preserve weight tying info
+			if ($4 == "=") {
+			    system_weight[nsystems] = $4;
+			} else {
+			    system_weight[nsystems] = $4 * weight;
+			}
 
 			system_dirs_weights[nsystems] = system_id;
 

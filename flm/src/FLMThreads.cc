@@ -45,4 +45,4 @@ TLSW_DEF_ARRAY(VocabIndex, countSentenceWids, maxNumParentsPerChild + 2);
 TLSW_DEF_ARRAY(VocabString, readWords, maxNumParentsPerChild+1);
 TLSW_DEF_ARRAY(VocabIndex, readWids,  maxNumParentsPerChild+1);
 TLSW_DEF_ARRAY(Boolean, readTagsFound, maxNumParentsPerChild+1);
-TLSW_DEF_ARRAY(char, writeSpecBuffer, maxLineLength);
+TLSW_DEF_ARRAY(VocabString, writeSpecBuffer,  maxNumParentsPerChild+1);

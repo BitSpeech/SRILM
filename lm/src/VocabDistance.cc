@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2010 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.6 2015-01-28 23:52:00 wwang Exp $";
+static char Copyright[] = "Copyright (c) 2000-2010 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/VocabDistance.cc,v 1.7 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #include "VocabDistance.h"

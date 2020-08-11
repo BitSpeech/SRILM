@@ -3,7 +3,7 @@
 # search-rover-combo --
 #	search for best rover combination from a list of systems
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/search-rover-combo,v 1.13 2016/09/20 18:18:15 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/search-rover-combo,v 1.14 2016-12-10 18:20:33 stolcke Exp $
 #
 
 
@@ -59,12 +59,12 @@ elif [ -n "$run_rover_optimize" ]; then
 	nbest-rover $1 $2 /dev/null > $3-0 2>&1 \
 		-refs $4 -write-ref-posteriors $3.ref-posteriors
 	rm $3-0
-	compute-best-rover-mix $3.ref-posteriors > $3.optimize 2>&1
+	tying=`rover-control-tying $2`
+	compute-best-rover-mix tying="$tying" $3.ref-posteriors > $3.optimize 2>&1
+
 	weights=`${GAWK-gawk} '/best lambda/ { sub(".*[(]", "", $0); sub("[)]", "", $0); print }' $3.optimize `
 
-	${GAWK-gawk} -v "weights=$weights" 'BEGIN { split(weights, w) }
-			NF == 6 { $4 = w[++sysno] }
-			{ print }' $2 > $2.optimized1
+	rover-control-weights weights="$weights" $2 > $2.optimized1
 
 	if [ -n "$smooth_weight" -a -n "$smooth_control" ]; then
 	    combine-rover-controls keeppaths=1 lambda=$smooth_weight $smooth_control $2.optimized1 > $2.optimized

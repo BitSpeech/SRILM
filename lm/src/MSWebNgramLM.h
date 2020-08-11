@@ -3,9 +3,9 @@
  *	Client-side for Microsoft Web Ngram LM
  *	(see http://web-ngram.research.microsoft.com/info/ for details)
  *
- * Copyright (c) 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MSWebNgramLM.h,v 1.5 2012/08/17 18:14:05 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/MSWebNgramLM.h,v 1.6 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

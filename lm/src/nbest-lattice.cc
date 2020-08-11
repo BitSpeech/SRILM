@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2010 SRI International.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.93 2014-08-29 21:35:48 frandsen Exp $";
+static char Copyright[] = "Copyright (c) 1995-2010 SRI International, 2011-2019 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.101 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -14,6 +14,12 @@ static char RcsId[] = "@(#)$Id: nbest-lattice.cc,v 1.93 2014-08-29 21:35:48 fran
 #include <locale.h>
 #include <assert.h>
 #include <math.h>
+
+#ifdef NEED_RAND48
+extern "C" {
+    void srand48(long);
+}
+#endif
 
 #include "option.h"
 #include "version.h"
@@ -45,6 +51,11 @@ const Prob primePosterior = 100.0;
  */
 const double undefinedWeight = HUGE_VAL;
 
+/*
+ * Penalty for aligning a regular word and a hidden vocab item
+ */
+const double hiddenVocabAlignPenalty = 1e10;
+
 static int version = 0;
 static unsigned debug = 0;
 static int werRescore = 0;
@@ -63,6 +74,7 @@ static int computeNbestError = 0;
 static int computeLatticeError = 0;
 static char *nbestFiles = 0;
 static char *latticeFiles = 0;
+static int dumpLatticeAlignments = 0;
 static char *writeNbestFile = 0;
 static char *writeNbestDir = 0;
 static int writeDecipherNbest = 0;
@@ -86,7 +98,12 @@ static int noViterbi = 0;
 static int useMesh = 0;
 static char *dictFile = 0;
 static char *hiddenVocabFile = 0;
+static char *suppressVocabFile = 0;
 static double deletionBias = 1.0;
+static double timePenalty = 0.0;
+static int averageTimes = 0;
+static int noTieBreak = 0;
+static int randomTieBreak = 0;
 static int dumpPosteriors = 0;
 static char *refString = 0;
 static char *refFile = 0;
@@ -120,6 +137,7 @@ static Option options[] = {
     { OPT_TRUE, "decipher-nbest", &writeDecipherNbest, "output Decipher n-best format" },
     { OPT_STRING, "nbest-files", &nbestFiles, "list of n-best filenames" },
     { OPT_STRING, "lattice-files", &latticeFiles, "list of lattice filenames to merge with main lattice" },
+    { OPT_TRUE, "dump-lattice-alignments", &dumpLatticeAlignments, "dump node alignments between lattices" },
     { OPT_UINT, "max-nbest", &maxNbest, "maximum number of hyps to consider" },
     { OPT_UINT, "max-rescore", &maxRescore, "maximum number of hyps to rescore" },
     { OPT_FLOAT, "posterior-prune", &postPrune, "ignore n-best hyps whose cumulative posterior mass is below threshold" },
@@ -143,7 +161,12 @@ static Option options[] = {
     { OPT_TRUE, "use-mesh", &useMesh, "align using word mesh (not lattice)" },
     { OPT_STRING, "dictionary", &dictFile, "dictionary to use in mesh alignment" },
     { OPT_STRING, "hidden-vocab", &hiddenVocabFile, "subvocabulary to be kept separate in mesh alignment" },
+    { OPT_STRING, "suppress-vocab", &suppressVocabFile, "subvocabulary that should be suppressed when decoding from mesh" },
     { OPT_FLOAT, "deletion-bias", &deletionBias, "bias factor in favor of deletions" },
+    { OPT_FLOAT, "time-penalty", &timePenalty, "penalty factor for time differences during mesh alignment (requires backtrace info)" },
+    { OPT_TRUE, "average-times", &averageTimes, "average word times during mesh alignment (requires backtrace info)" },
+    { OPT_TRUE, "random-tie-break", &randomTieBreak, "break ties randomly in mesh decoding" },
+    { OPT_TRUE, "no-tie-break", &noTieBreak, "disable tie breaking in mesh decoding" },
     { OPT_TRUE, "dump-posteriors", &dumpPosteriors, "output hyp and word posteriors probs" },
     { OPT_TRUE, "dump-errors", &dumpErrors, "output word error labels" },
     { OPT_TRUE, "record-hyps", &recordHypIDs, "record hyp IDs in lattice" },
@@ -172,7 +195,7 @@ printCTM(Vocab &vocab, const NBestWordInfo *winfo, const char *name)
 
 void
 latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
-						const VocabIndex *reference)
+		    const VocabIndex *reference, SubVocab &suppressVocab)
 {
     unsigned totalWords = 0;
     unsigned numHyps = nbestList.numHyps();
@@ -335,6 +358,11 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	if (noViterbi) {
 	    flags |= WORDLATTICE_NOVITERBI;
 	}
+	if (randomTieBreak) {
+	    flags |= WORDMESH_RANDOM_TIEBREAK;
+	} else if (noTieBreak) {
+	    flags |= WORDMESH_NO_TIEBREAK;
+	}
 	 
 	if (outputCTM) {
 	    NBestWordInfo *bestWords = new NBestWordInfo[maxWordsPerLine + 1];
@@ -342,7 +370,8 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	    double subs, inss, dels, errors;
 
 	    errors = lat.minimizeWordError(bestWords, maxWordsPerLine + 1,
-				      subs, inss, dels, flags, deletionBias);
+					   subs, inss, dels, flags, deletionBias,
+					   suppressVocabFile ? &suppressVocab : 0);
 	    bestWords[maxWordsPerLine].word = Vocab_None;
 
 	    printCTM(lat.vocab, bestWords, sentid ? sentid : "???");
@@ -359,7 +388,8 @@ latticeRescore(const char *sentid, MultiAlign &lat, NBestList &nbestList,
 	    double subs, inss, dels, errors;
 
 	    errors = lat.minimizeWordError(bestWords, maxWordsPerLine + 1,
-				      subs, inss, dels, flags, deletionBias);
+					   subs, inss, dels, flags, deletionBias,
+					   suppressVocabFile ? &suppressVocab : 0);
 	    bestWords[maxWordsPerLine] = Vocab_None;
 
 	    if (sentid) cout << sentid << " ";
@@ -504,7 +534,19 @@ alignLattices(MultiAlign &lat, File &file)
 	    continue;
 	}
 
-	lat.alignAlignment(*newLat, weight);
+	if (dumpLatticeAlignments) {
+	    std::vector<int> alignmentMap;
+
+	    double cost = lat.alignAlignment(*newLat, alignmentMap);
+
+	    cout << "lattice " << lname << endl;
+	    cout << "cost " << cost << endl;
+	    for (unsigned i = 0; i < alignmentMap.size(); i ++) {
+		cout << "align " << i << " -> " << alignmentMap[i] << endl;
+	    }
+	} else {
+	    lat.alignAlignment(*newLat, weight);
+	}
 
 	delete newLat;
     }
@@ -516,13 +558,13 @@ alignLattices(MultiAlign &lat, File &file)
 void
 processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 			VocabMultiMap &dictionary, SubVocab &hiddenVocab,
-			const VocabIndex *reference,
+			SubVocab &suppressVocab, const VocabIndex *reference,
 			const char *outLattice, const char *outNbest)
 {
     Vocab &vocab = nullLM.vocab;
     MultiAlign *lat;
     DictionaryAbsDistance dictDistance(vocab, dictionary);
-    SubVocabDistance subvocabDistance(vocab, hiddenVocab);
+    SubVocabDistance subvocabDistance(vocab, hiddenVocab, hiddenVocabAlignPenalty);
 
     const char *latticeName = 0;
 
@@ -534,11 +576,11 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
     
     if (useMesh) {
 	if (dictFile) {
-	    lat = new WordMesh(vocab, latticeName, &dictDistance);
+	    lat = new WordMesh(vocab, latticeName, &dictDistance, timePenalty, averageTimes);
 	} else if (hiddenVocabFile) {
-	    lat = new WordMesh(vocab, latticeName, &subvocabDistance);
+	    lat = new WordMesh(vocab, latticeName, &subvocabDistance, timePenalty, averageTimes);
 	} else {
-	    lat = new WordMesh(vocab, latticeName);
+	    lat = new WordMesh(vocab, latticeName, 0, timePenalty, averageTimes);
 	}
     } else {
 	lat = new WordLattice(vocab, latticeName);
@@ -613,7 +655,7 @@ processNbest(NullLM &nullLM, const char *sentid, const char *nbestFile,
 	    /*
 	     * Lattice building (and rescoring)
 	     */
-	    latticeRescore(sentid, *lat, nbestList, reference);
+	    latticeRescore(sentid, *lat, nbestList, reference, suppressVocab);
 	}
 
 	if (reference && dumpErrors) {
@@ -677,6 +719,21 @@ main (int argc, char *argv[])
 
     Vocab vocab;
     NullLM nullLM(vocab);
+   
+    if (useMesh) {
+	if (randomTieBreak) {
+	    srand48(0);	// for -random-tie-breaker
+	} else if (!noTieBreak) {
+	    /*
+	     * XXX: create a wordmesh object just so *DELETE* is
+	     * added to the vocabulary at a predicable position in
+	     * the index ordering.   This ensures consistent
+	     * output when words are tied by probability
+	     * (see WordMesh.cc).
+	     */
+	    WordMesh dummy(vocab);
+	}
+    }
 
     vocab.toLower() = toLower ? true : false;
 
@@ -746,6 +803,17 @@ main (int argc, char *argv[])
     }
 
     /*
+     * Optionally read a subvocabulary that is to be suppressed when
+     * decoding minimim cost word strings
+     */
+    SubVocab suppressVocab(vocab);
+    if (suppressVocabFile) {
+	File file(suppressVocabFile, "r");
+
+	suppressVocab.read(file);
+    }
+
+    /*
      * Read reference words
      */
     VocabIndex *reference = 0;
@@ -770,19 +838,29 @@ main (int argc, char *argv[])
 	}
     }
 
+    if (timePenalty != 0 || averageTimes) {
+	if ((rescoreFile || nbestFiles) && !nbestBacktrace) {
+	    cerr << "warning: time penalty and averaging requires nbest backtraces\n";
+	}
+
+	if (!useMesh) {
+	    cerr << "warning: time penalties and averaging only supported with -use-mesh\n";
+	}
+    }
+
     /*
      * Process single nbest file
      */
     if (rescoreFile) {
-	processNbest(nullLM, 0, rescoreFile, dictionary, hiddenVocab, reference,
-						writeFile, writeNbestFile);
+	processNbest(nullLM, 0, rescoreFile, dictionary, hiddenVocab, suppressVocab,
+				reference, writeFile, writeNbestFile);
     } else if (!nbestFiles) {
 	/*
 	 * If neither -nbest nor -nbest-files was specified
 	 * do lattice processing only.
 	 */
-	processNbest(nullLM, 0, 0, dictionary, hiddenVocab, reference,
-						writeFile, writeNbestFile);
+	processNbest(nullLM, 0, 0, dictionary, hiddenVocab, suppressVocab,
+				reference, writeFile, writeNbestFile);
     }
 
     /*
@@ -840,7 +918,7 @@ main (int argc, char *argv[])
 								GZIP_SUFFIX);
 	    }
 
-	    processNbest(nullLM, sentid, fname, dictionary, hiddenVocab,
+	    processNbest(nullLM, sentid, fname, dictionary, hiddenVocab, suppressVocab,
 				    reference,
 				    writeDir ? (char *)writeLatticeName : 0,
 				    writeNbestDir ? (char *)writeNbestName : 0);

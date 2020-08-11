@@ -2,9 +2,9 @@
  * File.h
  *	File I/O utilities for LM
  *
- * Copyright (c) 1995-2011 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2011 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.26 2014-08-29 21:35:49 frandsen Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/misc/src/File.h,v 1.27 2019/09/09 23:13:15 stolcke Exp $
  *
  */
 

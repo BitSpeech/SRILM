@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1997-2011 SRI International, 2012-2013 Microsoft Corp. All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: lattice-tool.cc,v 1.169 2015-06-25 07:19:39 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1997-2011 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp. All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: lattice-tool.cc,v 1.171 2019/09/09 23:13:12 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -117,6 +117,7 @@ static int keepUnk = 0;
 static int printSentTags = 0;
 static char *mapUnknown = 0;
 static char *zeroprobWord = 0;
+static double unkProb = LogP_Zero;
 static char *classesFile = 0;
 static int simpleClasses = 0;
 static int factored = 0;
@@ -211,6 +212,7 @@ static Option options[] = {
     { OPT_TRUE, "keep-unk", &keepUnk, "preserve unknown word labels in output" },
     { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
     { OPT_STRING, "zeroprob-word", &zeroprobWord, "word to back off to for zero probs" },
+    { OPT_FLOAT, "unk-prob", &unkProb, "override unknown word log prob" },
     { OPT_TRUE, "print-sent-tags", &printSentTags, "preserve sentence begin/end tags in output" },
     { OPT_STRING, "classes", &classesFile, "class definitions" },
     { OPT_TRUE, "simple-classes", &simpleClasses, "use unique class model" },
@@ -1436,11 +1438,10 @@ main (int argc, char *argv[])
 	assert(useLM != 0);
     } 
 
-    if (zeroprobWord) {
-	useLM = new NonzeroLM(*vocab, *useLM, zeroprobWord);
+    if (zeroprobWord || unkProb != LogP_Zero) {
+	useLM = new NonzeroLM(*vocab, *useLM, zeroprobWord, unkProb);
 	assert(useLM != 0);
     }
-
 
     Lattice *lattice2 = 0;
 

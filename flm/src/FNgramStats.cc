@@ -11,8 +11,8 @@
 #define _FNgramStats_cc_
 
 #ifndef lint
-static char FNgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.22 2013-03-19 06:41:44 stolcke Exp $";
+static char FNgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char FNgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.cc,v 1.24 2019/09/09 23:13:11 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -575,18 +575,17 @@ FNgramCounts<CountT>::writeFNgram(File &file,
 				  CountT count,
 				  unsigned int parSpec)
 {
-    unsigned int i;
+    unsigned len = 0;
+
     if (words[0]) {
       file.fprintf("0x%X\t",parSpec);
-      file.fprintf("%s", words[0]);
-      for (i = 1; words[i]; i++) {
-	file.fprintf(" %s", words[i]);
-      }
+
+      len = Vocab::write(file, words);
     }
     // why could we have a count w/o any words?
     file.fprintf("\t%s\n", countToString(count));
 
-    return i;
+    return len;
 }
 
 /*
@@ -602,8 +601,7 @@ FNgramCounts<CountT>::writeNode(
     FNgramNode *node,		/* the trie node we're at */
     const unsigned int parSpec, /* parent specifier */
     File &file,			/* output file */
-    char *buffer,		/* output buffer */
-    char *bptr,			/* pointer into output buffer */
+    VocabString *words,		/* array of word strings */
     unsigned int level,		/* current trie level */
     unsigned int order,		/* target trie level */
     Boolean sorted)		/* produce sorted output */
@@ -625,29 +623,21 @@ FNgramCounts<CountT>::writeNode(
 	   continue;
 	}
 
-	unsigned wordLen = strlen(word);
-
-	if (bptr + wordLen + 1 > buffer + maxLineLength) {
-	   *bptr = '0';
-	   cerr << "ngram ["<< buffer << word
-		<< "] exceeds write buffer\n";
-	   continue;
-	}
-        
-	strcpy(bptr, word);
+	words[level-1] = word;
 
 	/*
 	 * If this is the final level, print out the ngram and the count.
 	 * Otherwise set up another level of recursion.
 	 */
 	if (order == 0 || level == order) {
-	   file.fprintf("0x%X\t%s\t%s\n",parSpec,buffer, countToString(child->value()));
+	   words[level] = 0;
+	   file.fprintf("0x%X\t", parSpec);
+	   Vocab::write(file, words);
+	   file.fprintf("\t%s\n", countToString(child->value()));
 	} 
 	
 	if (order == 0 || level < order) {
-	   *(bptr + wordLen) = ' ';
-	   writeNode(child, parSpec, file, buffer, bptr + wordLen + 1, level + 1,
-			order, sorted);
+	   writeNode(child, parSpec, file, words, level + 1, order, sorted);
 	}
     }
 }
@@ -661,12 +651,12 @@ FNgramCounts<CountT>::writeSpec(File &file,
   if (specNum >= fnSpecs.fnSpecArray.size())
     return;
   
-  char *buffer = TLSW_GET_ARRAY(writeSpecBuffer);
+  VocabString *buffer = TLSW_GET_ARRAY(writeSpecBuffer);
   const unsigned numSubSets = 1U<<fnSpecs.fnSpecArray[specNum].numParents;
   for (unsigned int i = 0; i < numSubSets; i++) {
     if (fnSpecs.fnSpecArray[specNum].parentSubsets[i].counts != NULL) {
       writeNode(fnSpecs.fnSpecArray[specNum].parentSubsets[i].counts,
-		i,file, buffer, buffer, 1, numBitsSet(i)+1, sorted);
+		i, file, buffer, 1, numBitsSet(i)+1, sorted);
       
     }
     // TODO: also write out individal BG node count file(s) if specified.

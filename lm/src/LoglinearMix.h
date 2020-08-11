@@ -2,9 +2,9 @@
  * LoglinearMix.h --
  *	Log-linear Mixture language model
  *
- * Copyright (c) 2005 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2005 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LoglinearMix.h,v 1.5 2014-04-22 06:57:46 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LoglinearMix.h,v 1.6 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

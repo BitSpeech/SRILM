@@ -2,9 +2,9 @@
  * RemoteLM.h
  *	Protocol for network-based LM
  *
- * Copyright (c) 2007 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2007 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RemoteLM.h,v 1.2 2012/07/06 01:02:21 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/RemoteLM.h,v 1.3 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

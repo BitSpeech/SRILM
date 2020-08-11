@@ -3,7 +3,7 @@
 # rescore-nbest --
 #	generate scores from Decipher(TM) n-best lists
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/rescore-decipher,v 1.39 2015-07-03 03:45:39 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/rescore-decipher,v 1.40 2017/07/20 05:43:59 stolcke Exp $
 #
 
 bytelog=0
@@ -417,9 +417,10 @@ $1 == escape {
 		close(scorefile);
 	}
 	currentfile = $2;
+	sub("$", "", currentfile);
 	if (!lm_only && !count_oovs) {
 	    # backward compatibility
-	    currentfile = $2 ".score";
+	    currentfile = currentfile ".score";
 	}
 	scorefile = "gzip > " scoredir "/" currentfile ".gz";
 	printf "processing hyps for %s\n", currentfile \

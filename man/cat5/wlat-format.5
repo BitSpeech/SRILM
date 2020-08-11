@@ -1,4 +1,4 @@
-wlat-format(5)                                                  wlat-format(5)
+wlat-format(5)                File Formats Manual               wlat-format(5)
 
 
 
@@ -22,6 +22,7 @@ SSYYNNOOPPSSIISS
        rreeffeerreennccee _a _w
        hhyyppss _a _w _h_1 _h_2 ...
        iinnffoo _a _w _s_t_a_r_t _d_u_r _a_s_c_o_r_e _g_s_c_o_r_e _p_h_o_n_e_s _p_h_o_n_e_d_u_r_s
+       ttiimmee _a _t
        ...
 
 DDEESSCCRRIIPPTTIIOONN
@@ -85,6 +86,10 @@ DDEESSCCRRIIPPTTIIOONN
        highest posterior probability among all hypotheses  of  the  same  word
        aligned to a given word mesh position.
 
+       The  ttiimmee  keyword is used for debugging purposes and encodes the esti-
+       mated timestamp _t of an alignment position _a when  the  input  contains
+       backtrace information.  It is ignored when reading in word meshes.
+
        Both formats optionally encode the associated utterance IDs in the nnaammee
        field.  Word lattices and meshes can be converted to PFSG format  using
        the script wwllaatt--ttoo--ppffssgg.
@@ -102,9 +107,10 @@ BBUUGGSS
        lattices.
 
 AAUUTTHHOORR
-       Andreas Stolcke <stolcke@speech.sri.com>.
+       Andreas Stolcke <andreas.stolcke@microsoft.com>
        Copyright 2001-2011 SRI International
+       Copyright 2011-2019 Microsoft Corp.
 
 
 
-SRILM File Formats       $Date: 2011/12/25 00:39:37 $           wlat-format(5)
+SRILM File Formats       $Date: 2019/02/06 09:53:12 $           wlat-format(5)

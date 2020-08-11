@@ -10,7 +10,7 @@
 
 #ifndef lint
 static char FNgramSpecs_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.24 2014-08-29 21:35:47 frandsen Exp $";
+static char FNgramSpecs_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramSpecs.cc,v 1.25 2018/01/23 19:37:46 victor Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -687,7 +687,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
   }
   register char *p = line;
   // skip space to next token
-  while (*p && isspace(*p)) p++;
+  while (*p && isspace((unsigned char)*p)) p++;
 
   //////////////////////////////////////////////////////////////
   // get number of LM specs that are being given here
@@ -720,7 +720,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
       exit(-1);
     }
     // skip blanks
-    p = line; while (*p && isspace(*p)) p++;
+    p = line; while (*p && isspace((unsigned char)*p)) p++;
     if (!isalnum(*p)) {
       f.position() << "Error: expecting child spec in FLM in when reading FLM spec file\n";
       exit(-1);
@@ -765,7 +765,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 	  << maxNumParentsPerChild << "\n"; 
     }
     // skip space to next token
-    while (*p && isspace(*p)) p++;
+    while (*p && isspace((unsigned char)*p)) p++;
 
     fnSpecArray[i].numSubSets = 1<<fnSpecArray[i].numParents;
 
@@ -831,7 +831,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
 
     ////////////////////////////////////
     // get Count file name
-    while (*p && isspace(*p)) p++;
+    while (*p && isspace((unsigned char)*p)) p++;
     if (!(*p)) {
       f.position() << "Error: couldn't get count file name when reading factor spec file\n";
       exit(-1);      
@@ -845,7 +845,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
     ////////////////////////////////////
     // get LM file name
     // skip space to next token
-    while (*p && isspace(*p)) p++;
+    while (*p && isspace((unsigned char)*p)) p++;
     if (!*p) {
       f.position() << "Error: couldn't get LM file name when reading factor spec file\n";
       exit(-1);
@@ -859,7 +859,7 @@ FNgramSpecs<CountT>::FNgramSpecs(File& f,
     ////////////////////////////////////
     // get number of nodes that have node specs
     // skip space to next token
-    while (*p && isspace(*p)) p++;
+    while (*p && isspace((unsigned char)*p)) p++;
     if (!*p) {
       f.position() << "Error: couldn't get num node specs name when reading factor spec file\n";
       exit(-1);      

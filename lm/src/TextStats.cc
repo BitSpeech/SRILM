@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.cc,v 1.10 2016/04/08 23:34:42 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2016 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.cc,v 1.11 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #include "TextStats.h"

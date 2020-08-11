@@ -7,9 +7,9 @@
 # 
 # where CW defines the quantization bins.
 #
-# Copyright (c) 2012 Microsoft Corp.  All Rights Reserved.
+# Copyright (c) 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/de-vq-lm.gawk,v 1.1 2012/07/06 06:47:06 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/de-vq-lm.gawk,v 1.2 2019/09/09 23:13:15 stolcke Exp $
 #
 
 BEGIN {

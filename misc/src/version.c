@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2004 SRI International, 2015 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1.7 2015-07-30 05:06:17 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2004 SRI International, 2015 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1.10 2019/09/09 23:13:15 stolcke Exp $";
 #endif
 
 #include <stdio.h>
@@ -14,6 +14,7 @@ static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/misc/src/version.c,v 1
 #include "zio.h"
 #include "version.h"
 #include "SRILMversion.h"
+#include <SRILMoptions.h>
 
 #if defined(_OPENMP) && defined(_MSC_VER)
 #include <omp.h>
@@ -39,6 +40,10 @@ printVersion(const char *rcsid)
 #ifdef _MSC_VER
 	printf("Built with MSVC %d\n", _MSC_VER);
 #endif
+#ifdef BUILD_OPTIONS
+	printf("and options %s\n", BUILD_OPTIONS);
+#endif
+
 	printf("\nProgram version %s\n", rcsid);
 #ifndef NO_ZIO
 	printf("\nSupport for compressed files is included.\n");

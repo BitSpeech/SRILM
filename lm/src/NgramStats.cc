@@ -8,8 +8,8 @@
 #define _NgramStats_cc_
 
 #ifndef lint
-static char NgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International.  All Rights Reserved.";
-static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.72 2014-08-29 21:35:48 frandsen Exp $";
+static char NgramStats_Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char NgramStats_RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramStats.cc,v 1.74 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -798,33 +798,22 @@ NgramCounts<CountT>::writeNgram(File &file,
 				const VocabString *words,
 				CountT count)
 {
-    unsigned i = 0;
+    unsigned len = Vocab::write(file, words);
 
-    if (words[0]) {
-	file.fprintf("%s", words[0]);
-	for (i = 1; words[i]; i++) {
-	    file.fprintf(" %s", words[i]);
-	}
-    }
     file.fprintf("\t%s\n", countToString(count));
 
-    return i;
+    return len;
 }
 
 /*
- * For reasons of efficiency the write() method doesn't use
- * writeNgram()  (yet).  Instead, it fills up a string buffer 
- * as it descends the tree recursively.  this avoid having to
- * lookup shared prefix words and buffer the corresponding strings
- * repeatedly.
+ * Outputs a count trie starting at a given node
  */
 template <class CountT>
 void
 NgramCounts<CountT>::writeNode(
     NgramNode &node,		/* the trie node we're at */
     File &file,			/* output file */
-    char *buffer,		/* output buffer */
-    char *bptr,			/* pointer into output buffer */
+    VocabString *words,		/* array of word strings */
     unsigned int level,		/* current trie level */
     unsigned int order,		/* target trie level */
     Boolean sorted)		/* produce sorted output */
@@ -846,28 +835,20 @@ NgramCounts<CountT>::writeNode(
 	   continue;
 	}
 
-	unsigned wordLen = strlen(word);
-
-	if (bptr + wordLen + 1 > buffer + maxLineLength) {
-	   *bptr = '0';
-	   cerr << "ngram ["<< buffer << word
-		<< "] exceeds write buffer\n";
-	   continue;
-	}
-        
-	strcpy(bptr, word);
+	words[level-1] = word;
 
 	/*
 	 * If this is the final level, print out the ngram and the count.
 	 * Otherwise set up another level of recursion.
 	 */
 	if (order == 0 || level == order) {
-	   file.fprintf("%s\t%s\n", buffer, countToString(child->value()));
+	   words[level] = 0;
+	   Vocab::write(file, words);
+	   file.fprintf("\t%s\n", countToString(child->value()));
 	} 
 	
 	if (order == 0 || level < order) {
-	   *(bptr + wordLen) = ' ';
-	   writeNode(*child, file, buffer, bptr + wordLen + 1, level + 1,
+	   writeNode(*child, file, words, level + 1,
 			order, sorted);
 	}
     }
@@ -877,8 +858,8 @@ template <class CountT>
 void
 NgramCounts<CountT>::write(File &file, unsigned int order, Boolean sorted)
 {
-    char *buffer = TLSW_GET_ARRAY(writeBufferTLS);
-    writeNode(counts, file, buffer, buffer, 1, order, sorted);
+    VocabString *buffer = TLSW_GET_ARRAY(writeBufferTLS);
+    writeNode(counts, file, buffer, 1, order, sorted);
 }
 
 template <class CountT>

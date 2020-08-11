@@ -2,9 +2,9 @@
  * NgramCountLM.h --
  *	LM based on interpolated N-gram counts
  *
- * Copyright (c) 2006-2007 SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2006-2007 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.h,v 1.8 2014-04-22 06:57:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramCountLM.h,v 1.9 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

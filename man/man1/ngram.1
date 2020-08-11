@@ -1,5 +1,5 @@
-.\" $Id: ngram.1,v 1.84 2015-10-13 21:08:30 stolcke Exp $
-.TH ngram 1 "$Date: 2015-10-13 21:08:30 $" "SRILM Tools"
+.\" $Id: ngram.1,v 1.88 2019/09/09 22:35:37 stolcke Exp $
+.TH ngram 1 "$Date: 2019/09/09 22:35:37 $" "SRILM Tools"
 .SH NAME
 ngram \- apply N-gram language models
 .SH SYNOPSIS
@@ -502,6 +502,16 @@ instead.
 This is useful to avoid zero probabilities when processing input
 with an LM that is mismatched in vocabulary.
 .TP
+.BI \-unk-prob " p"
+Overrides the log probability of unknown words with the value
+.IR p ,
+effectively imposing a fixed, context-independent penalty for
+out-of-vocabulary words.
+This can be useful for rescoring with LMs in which this 
+probability is missing or incorrectly estimated.
+Specifying a value of -99 will result in an OOV probability of zero,
+the same as if the model did not contain an unknown word token.
+.TP
 .BI \-mix-lm " file"
 Read a second N-gram model for interpolation purposes.
 The second and any additional interpolated models can also be class N-grams
@@ -729,6 +739,22 @@ constructed as per the options above.
 .B \-renorm
 Renormalize the main model by recomputing backoff weights for the given
 probabilities.
+.TP
+.BI \-minbackoff " p"
+In conjunction with 
+.BR \-renorm ,
+adjusts N-gram probabilities so that the total backoff probability mass
+in each context is at least 
+.IR p .
+For 
+.IR p =0,
+this ensures that the total probabilities do not exceed 1.
+For
+.IR p >0,
+this ensure that the model is smooth.
+The default, or when 
+.I p
+is negative, is that no probabilties are modified.
 .TP
 .BI \-prune " threshold"
 Prune N-gram probabilities if their removal causes (training set)
@@ -1151,14 +1177,12 @@ The reading of quantized LM parameters with the
 option is currently only supported for N-gram LMs in
 .BR ngram-format (5).
 .SH AUTHORS
-Andreas Stolcke <andreas.stolcke@microsoft.com>
-.br
-Jing Zheng <zj@speech.sri.com>
-.br
+Andreas Stolcke <stolcke@icsi.berkeley.edu>, 
+Jing Zheng <zj@speech.sri.com>,
 Tanel Alumae <tanel.alumae@phon.ioc.ee>
 .br
 Copyright (c) 1995\-2012 SRI International
 .br
 Copyright (c) 2009\-2013 Tanel Alumae
 .br
-Copyright (c) 2012\-2015 Microsoft Corp.
+Copyright (c) 2012\-2017 Microsoft Corp.

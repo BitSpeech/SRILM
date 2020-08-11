@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 2000-2012 SRI International, 2012-2016 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: nbest-optimize.cc,v 1.78 2016/05/03 05:50:25 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 2000-2012 SRI International, 2012-2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: nbest-optimize.cc,v 1.81 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -263,7 +263,7 @@ static Option options[] = {
     { OPT_STRING, "init-amoeba-simplex", &initSimplex, "initial amoeba simplex points" },
     { OPT_STRING, "init-powell-range", &initPowell, "initial powell weight range" },
     { OPT_UINT, "num-powell-runs", &numPowellRuns, "number of random runs for quick powell grid search (default: 20)" },
-    { OPT_TRUE, "-dynamic-random-series", &useDynamicRandomSeries, "use dynamic random series for powell search (result not repeatable)" },
+    { OPT_TRUE, "dynamic-random-series", &useDynamicRandomSeries, "use dynamic random series for powell search (result not repeatable)" },
     { OPT_TRUE, "compute-oracle", &computeOracle, "find best possible hyps in n-best list"},
     { OPT_UINT, "oracle-bleu-iters", &oracleBleuIters, "number of iterations to compute oracle Bleu value (default: 1)" },
     { OPT_STRING, "print-oracle-hyps", &printOracleHyps, "output file for oracle hyps"},
@@ -1274,10 +1274,11 @@ amoeba(NBestSet &nbest, NBestSet &xval, double **p, double *y, unsigned ndim, do
 		    cerr << "scale " << p[ilo][0] << endl;
 		    for (unsigned j = 1, k = 0; k < numScores && j < ndim; k++)
 		    {
-			if (!fixLambdas[k])
+			if (!fixLambdas[k]) {
 			    cerr << "lambda_" << j - 1
 				 << " " << p[ilo][j] << endl;
 			    j ++;
+			}
 		    }
 		}
 	    }
@@ -1549,8 +1550,7 @@ trainAmoeba(NBestSet &nbestSet, NBestSet &xvalSet)
 	}
 	prevPoints[0] = points[0][0];
 
-	unsigned j = 1;
-	for (unsigned i = 0; i < numScores; i++) {
+	for (unsigned i = 0, j = 1; i < numScores; i++) {
 	    if (!fixLambdas[i]) {
 		lambdas[i] = points[0][j];
 		if (loop == 1) {
@@ -1566,7 +1566,7 @@ trainAmoeba(NBestSet &nbestSet, NBestSet &xvalSet)
 
 		if (debug >= DEBUG_TRAIN) {
 		    cerr << "lambda_" << i << " " << points[0][j]
-			  << " " << simplex[j] << endl;
+			 << " " << simplex[j] << endl;
 		}
 
 		j++;

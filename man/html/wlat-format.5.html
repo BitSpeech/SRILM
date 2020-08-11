@@ -1,4 +1,4 @@
-<! $Id: wlat-format.5,v 1.9 2011/12/25 00:39:37 stolcke Exp $>
+<! $Id: wlat-format.5,v 1.10 2019/02/06 09:53:12 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>wlat-format</TITLE>
@@ -26,6 +26,7 @@ Word meshes (confusion networks):
 <B>reference</B> <I>a</I> <I>w</I>
 <B>hyps</B> <I>a</I> <I>w</I> <I>h1</I> <I>h2</I> ...
 <B>info</B> <I>a</I> <I>w</I> <I>start</I> <I>dur</I> <I>ascore</I> <I>gscore</I> <I>phones</I> <I>phonedurs</I>
+<B>time</B> <I>a</I> <I>t</I>
 ...
 </PRE>
 <H2> DESCRIPTION </H2>
@@ -150,6 +151,15 @@ The encoded information pertains to the word hypothesis with the highest
 posterior probability among all hypotheses of the same word aligned
 to a given word mesh position.
 <P>
+The
+<B> time </B>
+keyword is used for debugging purposes and encodes the estimated timestamp
+<I> t </I>
+of an alignment position
+<I> a </I>
+when the input contains backtrace information.
+It is ignored when reading in word meshes.
+<P>
 Both formats optionally encode the associated utterance IDs in the
 <B> name </B>
 field.
@@ -167,8 +177,10 @@ word error minimization and other applications of confusion networks,''
 Detailed alignment and acoustic information is so far only implemented
 for word meshes, although conceptually it would apply equally to word lattices.
 <H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+Andreas Stolcke &lt;andreas.stolcke@microsoft.com&gt;
 <BR>
 Copyright 2001-2011 SRI International
+<BR>
+Copyright 2011-2019 Microsoft Corp.
 </BODY>
 </HTML>

@@ -1,4 +1,4 @@
-nbest-lattice(1)                                              nbest-lattice(1)
+nbest-lattice(1)            General Commands Manual           nbest-lattice(1)
 
 
 
@@ -54,6 +54,16 @@ OOPPTTIIOONNSS
               in  doing mesh-based word error minimization.  This controls the
               trade-off between insertion and deletion errors.  The default is
               1 (no bias).
+
+       --rraannddoomm--ttiiee--bbrreeaakk
+              Break  ties between words with equal probability pseudo-randomly
+              when doing mesh-based word error minimization.  The  default  is
+              to  decide  for  the  word with the lowest internal index (which
+              reflects the order in the vocab  file,  or  in  which  they  are
+              encountered in the input data).
+
+       --nnoo--ttiiee--bbrreeaakk
+              Disable all explicit tie breaking, for backward compatibility.
 
        --rreessccoorree _f_i_l_e
               Reads  the N-best list from _f_i_l_e.  The N-best list can be in any
@@ -252,6 +262,11 @@ OOPPTTIIOONNSS
               _f_i_l_e must contain a lattice filename, optionally followed  by  a
               weight.
 
+       --dduummpp--llaattttiiccee--aalliiggnnmmeennttss
+              Causes  --llaattttiiccee--ffiilleess  to  write  out  the  position alignments
+              between the --rreeaadd input lattice and  each  of  the  lattices  in
+              _f_i_l_e, as well as their alignment costs.
+
        --wwrriittee _f_i_l_e
               Writes  the resulting word posterior lattice or mesh to _f_i_l_e, in
               wwllaatt--ffoorrmmaatt(5).
@@ -301,24 +316,52 @@ OOPPTTIIOONNSS
               cabulary.  This may be used to keep ``hidden event''  tags  from
               aligning with regular words.
 
+       --ssuupppprreessss--vvooccaabb file
+              Read  a  subvocabulary  from  _f_i_l_e  and  disallow its words when
+              decoding the best word string from a lattice or mesh.  If such a
+              word  has the highest posterior probability at a given position,
+              the word with next highest posterior is  chosen  instead,  or  a
+              null  word if no other word choice is available.  This is useful
+              when special tokens are included in the nbest inputs to  mediate
+              alignments, but are not meant to be included in the output.
+
+       --ttiimmee--ppeennaallttyy _p
+              Apply  soft time constraints during word alignment (in word mesh
+              mode only).  In addition to the expected word error,  a  penalty
+              term  is  added to the cost function minimized during alignment.
+              The penality term is only applied if word meshes or input N-best
+              lists  contain  backtrace information (see --nnbbeesstt--bbaacckkttrraaccee) and
+              is scaled by the factor _p  (which  is  zero  by  default).   The
+              penality term for aligning two word hypotheses or word mesh col-
+              umns is the absolute difference in their times (the  time  of  a
+              word  mesh column is the posterior-averaged time of all its com-
+              ponent words).  If two successive words  or  word  columns  have
+              time  stamps  in the wrong temporal order, their time difference
+              is added to the penalty term.
+
+       --aavveerraaggee--ttiimmeess
+              When aligning two instances of  the  same  word,  average  their
+              times  (if  available) instead of adopting the one with the time
+              information associated with the highest poosterior probability.
+
        --rreeccoorrdd--hhyyppss
-              Record  the ranks of the hyps contributing to each word hypothe-
-              sis in the resulting word lattice; the information  is  included
+              Record the ranks of the hyps contributing to each word  hypothe-
+              sis  in  the resulting word lattice; the information is included
               in --wwrriittee output.
 
 SSEEEE AALLSSOO
-       ngram(1),  nbest-optimize(1),  nbest-scripts(1), nbest-format(5), wlat-
+       ngram(1), nbest-optimize(1), nbest-scripts(1),  nbest-format(5),  wlat-
        format(5).
        A. Stolcke, Y. Konig, and M. Weintraub, ``Explicit Word Error Minimiza-
        tion in N-best List Rescoring,'' _P_r_o_c_. _E_u_r_o_s_p_e_e_c_h, 163-166, 1997.
-       The  ``word  meshes''  used here are equivalent to the ``confusion net-
-       works'' described in: L. Mangu, E. Brill,  and  A.  Stolcke,  ``Finding
-       Consensus  Among  Words: Lattice-based Word Error Minimization.'' _P_r_o_c_.
+       The ``word meshes'' used here are equivalent to  the  ``confusion  net-
+       works''  described  in:  L.  Mangu, E. Brill, and A. Stolcke, ``Finding
+       Consensus Among Words: Lattice-based Word Error  Minimization.''  _P_r_o_c_.
        _E_u_r_o_s_p_e_e_c_h, vol. 1, 495-498, 1999.
 
 BBUUGGSS
        Several functions are not uniformly implemented for all rescoring modes
-       (e.g.,  --llaattttiiccee--ffiilleess, --ddiiccttiioonnaarryy, --rreeccoorrdd--hhyyppss, and --nnbbeesstt--bbaacckkttrraaccee
+       (e.g., --llaattttiiccee--ffiilleess, --ddiiccttiioonnaarryy, --rreeccoorrdd--hhyyppss, and  --nnbbeesstt--bbaacckkttrraaccee
        are currently effective only in mesh-lattice mode).
        It is a common mistake (not a bug) to use the default LM weight with N-
        best lists directly from Decipher.  Decipher N-best lists have the rec-
@@ -328,9 +371,11 @@ BBUUGGSS
        the N-best lists have been rescored with rreessccoorree--ddeecciipphheerr.
 
 AAUUTTHHOORR
-       Andreas Stolcke <stolcke@speech.sri.com>.
-       Copyright 1996-2010 SRI International
+       Andreas Stolcke <stolcke@icsi.berkeley.edu>
+       Copyright (c) 1996-2010 SRI International
+       Copyright (c) 2011-2019 Andreas Stolcke
+       Copyright (c) 2011-2019 Microsoft Corp.
 
 
 
-SRILM Tools              $Date: 2010/07/11 17:29:36 $         nbest-lattice(1)
+SRILM Tools              $Date: 2019/09/09 22:35:36 $         nbest-lattice(1)

@@ -2,9 +2,9 @@
  * NgramProbArrayTrie.h --
  *	Trie indexing Prob vectors with Ngrams
  *
- * Copyright (c) 2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 2013-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramProbArrayTrie.h,v 1.5 2014-05-26 03:00:28 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NgramProbArrayTrie.h,v 1.7 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -67,8 +67,8 @@ protected:
     unsigned order;
     unsigned dimension;
     NgramProbArrayTrieNode probs;
-    void writeNode(NgramProbArrayTrieNode &node, File &file, char *buffer,
-	    char *bptr, unsigned level, unsigned order, Boolean sorted);
+    void writeNode(NgramProbArrayTrieNode &node, File &file, VocabString *words,
+	    	   unsigned level, unsigned order, Boolean sorted);
 };
 
 /*

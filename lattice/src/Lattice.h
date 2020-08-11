@@ -2,9 +2,9 @@
  * Lattice.h --
  *	Word lattices
  *
- * Copyright (c) 1997-2010 SRI International, 2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1997-2010 SRI International, 2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lattice/src/Lattice.h,v 1.108 2015-06-25 07:19:39 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lattice/src/Lattice.h,v 1.109 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 

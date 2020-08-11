@@ -2,9 +2,9 @@
  * Ngram.h --
  *	N-gram backoff language models
  *
- * Copyright (c) 1995-2012 SRI International, 2012-2014 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2012 SRI International, 2012-2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.57 2014-05-28 00:04:02 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/Ngram.h,v 1.59 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -92,7 +92,7 @@ public:
     virtual void mixProbs(Ngram &lm2, double lambda);
     virtual void mixProbs(Ngram &lm1, Ngram &lm2, double lambda);
     virtual void mixProbs(NgramBayesMix &mixLMs);
-    virtual void recomputeBOWs();
+    virtual void recomputeBOWs(Prob minBackoffMass = -1.0);
     virtual void pruneProbs(double threshold, unsigned minorder = 2,
 							LM *historyLM = 0);
     virtual void pruneLowProbs(unsigned minorder = 2);
@@ -137,8 +137,9 @@ protected:
     virtual void fixupProbs();
     virtual void distributeProb(Prob mass, VocabIndex *context);
     virtual Boolean computeBOW(BOnode *node, const VocabIndex *context, 
-			    unsigned clen, Prob &numerator, Prob &denominator);
-    virtual Boolean computeBOWs(unsigned order);
+			       unsigned clen, Prob &numerator, Prob &denominator,
+			       Prob minBackoffMass = -1.0);
+    virtual Boolean computeBOWs(unsigned order, Prob minBackoffMass = -1.0);
 
     /*
      * Binary format support 

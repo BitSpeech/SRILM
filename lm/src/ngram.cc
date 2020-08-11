@@ -4,8 +4,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2015 Microsoft.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Id: ngram.cc,v 1.138 2015-10-13 21:04:27 stolcke Exp $";
+static char Copyright[] = "Copyright (c) 1995-2011 SRI International, 2012-2017 Andreas Stolcke, Microsoft.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Id: ngram.cc,v 1.141 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -116,6 +116,7 @@ static char *writeBinV1LM = 0;
 static char *writeVocab  = 0;
 static int memuse = 0;
 static int renormalize = 0;
+static double minBackoff = -1.0;
 static double prune = 0.0;
 static int pruneLowProbs = 0;
 static char *pruneHistoryLM = 0;
@@ -148,6 +149,7 @@ static int keepunk = 0;
 static int keepnull = 1;
 static char *mapUnknown = 0;
 static char *zeroprobWord = 0;
+static double unkProb = LogP_Zero;
 static int null = 0;
 static unsigned cache = 0;
 static double cacheLambda = 0.05;
@@ -213,6 +215,7 @@ static Option options[] = {
     { OPT_FALSE, "nonull", &keepnull, "remove <NULL> in LM" },
     { OPT_STRING, "map-unk", &mapUnknown, "word to map unknown words to" },
     { OPT_STRING, "zeroprob-word", &zeroprobWord, "word to back off to for zero probs" },
+    { OPT_FLOAT, "unk-prob", &unkProb, "override unknown word log prob" },
     { OPT_TRUE, "tolower", &toLower, "map vocabulary to lowercase" },
     { OPT_TRUE, "multiwords", &multiwords, "split multiwords for LM evaluation" },
     { OPT_STRING, "ppl", &pplFile, "text file to compute perplexity from" },
@@ -288,6 +291,7 @@ static Option options[] = {
     { OPT_STRING, "write-oldbin-lm", &writeBinV1LM, "write LM to file in old binary format" },
     { OPT_STRING, "write-vocab", &writeVocab, "write LM vocab to file" },
     { OPT_TRUE, "renorm", &renormalize, "renormalize backoff weights" },
+    { OPT_FLOAT, "minbackoff", &minBackoff, "minimum backoff mass to enforce when renormalizing" },
     { OPT_FLOAT, "prune", &prune, "prune redundant probs" },
     { OPT_UINT, "minprune", &minprune, "prune only ngrams at least this long" },
     { OPT_TRUE, "prune-lowprobs", &pruneLowProbs, "low probability N-grams" },
@@ -971,7 +975,7 @@ main(int argc, char **argv)
 	     * include normalization.
 	     */
 	    if (renormalize) {
-		ngramLM->recomputeBOWs();
+		ngramLM->recomputeBOWs(minBackoff);
 	    }
 
 	    /*
@@ -1165,8 +1169,8 @@ main(int argc, char **argv)
 	assert(useLM != 0);
     }
 
-    if (zeroprobWord) {
-	useLM = new NonzeroLM(*vocab, *useLM, zeroprobWord);
+    if (zeroprobWord || unkProb != LogP_Zero) {
+	useLM = new NonzeroLM(*vocab, *useLM, zeroprobWord, unkProb);
 	assert(useLM != 0);
     }
 

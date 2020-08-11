@@ -2,9 +2,9 @@
  * LMStats.h --
  *	Generic LM statistics interface
  *
- * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International, 2008-2011 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.h,v 1.11 2012/10/29 17:25:04 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/LMStats.h,v 1.13 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -29,8 +29,8 @@ public:
 							const char *weight) = 0;
     virtual unsigned int countSentence(const VocabIndex *words) = 0;
 
-    virtual unsigned int countString(char *sentence, Boolean weighted = false);
-    virtual unsigned int countFile(File &file, Boolean weighted = false);
+    virtual unsigned int countString(char *sentence, unsigned weighted = 0);
+    virtual unsigned int countFile(File &file, unsigned weighted = 0);
 
     virtual Boolean read(File &file) = 0;
     virtual void write(File &file) = 0;

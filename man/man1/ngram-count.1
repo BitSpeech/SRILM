@@ -1,5 +1,5 @@
-.\" $Id: ngram-count.1,v 1.48 2016/06/02 23:43:28 stolcke Exp $
-.TH ngram-count 1 "$Date: 2016/06/02 23:43:28 $" "SRILM Tools"
+.\" $Id: ngram-count.1,v 1.51 2019/09/09 22:35:37 stolcke Exp $
+.TH ngram-count 1 "$Date: 2019/09/09 22:35:37 $" "SRILM Tools"
 .SH NAME
 ngram-count \- count N-grams and estimate language models
 .SH SYNOPSIS
@@ -81,6 +81,11 @@ Empty lines are ignored.
 .B \-text-has-weights
 Treat the first field in each text input line as a weight factor by
 which the N-gram counts for that line are to be multiplied.
+.TP
+.B \-text-has-weights-last
+Similar to 
+.B \-text-has-weights
+but with weights at the ends of lines.
 .TP
 .B \-no-sos
 Disable the automatic insertion of start-of-sentence tokens 
@@ -562,12 +567,13 @@ operate on the modified counts, potentially leading to a different set of N-gram
 being retained than with other discounting methods.
 This can be considered either a feature or a bug.
 .SH AUTHOR
-Andreas Stolcke <andreas.stolcke@microsoft.com>
-.br
+Andreas Stolcke <stolcke@icsi.berkeley.edu>,
 Tanel Alumäe <tanel.alumae@phon.ioc.ee>
 .br
 Copyright (c) 1995\-2011 SRI International
 .br
 Copyright (c) 2009\-2013 Tanel Alumäe
 .br
-Copyright (c) 2012\-2013 Microsoft Corp.
+Copyright (c) 2011\-2017 Andreas Stolcke
+.br
+Copyright (c) 2012\-2017 Microsoft Corp.

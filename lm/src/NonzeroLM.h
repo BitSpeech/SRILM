@@ -2,11 +2,12 @@
  * NonzeroLM.h --
  *	Wrapper language model to ensure nonzero probabilities
  *
- * The LM looks up a different word if a given word gives a zero probability
+ * The LM looks up a different word if a given word gives a zero probability.
+ * Also, it allows overriding the probability of the unknown word.
  *
- * Copyright (c) 2011 SRI International.  All Rights Reserved.
+ * Copyright (c) 2011 SRI International, 2017 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NonzeroLM.h,v 1.2 2014-04-22 06:57:46 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/NonzeroLM.h,v 1.4 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 
@@ -18,7 +19,7 @@
 class NonzeroLM: public LM
 {
 public:
-    NonzeroLM(Vocab &vocab, LM &lm, VocabString zerowordString);
+    NonzeroLM(Vocab &vocab, LM &lm, VocabString zerowordString, LogP unkProb = LogP_Zero);
 
     /*
      * LM interface
@@ -53,6 +54,7 @@ public:
 protected:
     LM &lm;				/* wrapped model */
     VocabIndex zeroword;		/* word to back off to */
+    LogP unkProb;			/* log prob for <unk> */
 };
 
 

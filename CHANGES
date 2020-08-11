@@ -2093,5 +2093,76 @@ Version History
 	could end up with zero size (instead of a legal gzipped file that results in a 
 	zero-length file when decompressed).
 
-$Date: 2016/11/09 07:26:14 $
+1.7.3.	9 September 2019
+
+	Functionality:
+
+	* Added nbest-oov-counts script to generate OOV counts for nbest hypotheses.
+	* Added a simple mechanism for weight tying in nbest-rover control files.  A 
+	system weight of = indicates that it should be tied to the previously listed
+	system.  This is useful for reducing the number of free parameters when 
+	searching for good system combinations (search-rover-combo).
+	* Add Map_noKey() and Map_noKeyP() for unsigned long long type, to enable use
+	with size_t on Windows MSVC.
+	* Output from -version now includes compile-time options.
+	* Added option ngram -minbackoff to fix up models that have unnormalized 
+	probabilities or that are not smoothed.
+	* Added option ngram -unk-probs to override unknown word probabilities.
+	* Added nbest-optimize-args-from-rover-control script, convenient for 
+	extracting initialization parameters for nbest-optimize from existing
+	nbest-rover control file.
+	* Added ngram-count -text-has-weights-last option to allow text input with 
+	count values at ends of lines.
+	 * Added nbest-rover -missing-nbest option to treat missing nbest lists as if
+        an empty hypothesis (no words) had been output, rather than simply skipping
+        that nbest list.
+	* Added nbest-lattice -time-penalty option, implementing a soft constraint
+	on time stamps (when present) during confusion network building and alignment.
+	* Added nbest-lattice -average-times option, to average word times instead
+	of picking the timing of the highest posterior hypothesis.
+	* Added nbest-lattice -suppress-vocab option to disallow certain words in 
+	posterior decoding.
+	* New scripts concat-sausages for chaining word confusion networks together.
+	* Added nbest-lattice -dump-lattice-alignments option to output mappings
+	between sausage positions and alignment costs.
+	* Updated Android build for 64-bit development for armv8 using NDK r20 and clang.  
+	This almost certainly breaks the 32-bit build for armv7.  The last known good 32-bit
+	build is in common/Makefile.core.android.r11c, last built using NDK r11c.  To use this,
+	copy Makefile.core.android.r11c to Makefile.core.android.  See doc/README.android.
+
+	Bug fixes:
+
+	* Added a new tool nbest-rover-helper that combines the functions of the
+	combine-acoustic-scores and nbest-posteriors scripts, doing these computations
+	in double precision and faster. nbest-rover now uses this tool (except when
+	certain options like -nbest-backtrace are used).
+	* nbest-rover strips DOS end-of-line CR characters from the control file, so
+	they no longer mess up the parsing of the file.
+	* Rationalize the way ties are broken when decoding word confusion networks.
+	The word with the lowest internal index is now preferred (and the *DELETE* token
+	always comes before all other words), unless the new nbest-lattice option
+	-random-tie-break is given.  The output order of alternative word hypotheses
+	to sausage files is always by probability rank first, then by internal index.
+	* The reverse-ngram-counts script now replaces <s> with </s> and vice-versa,
+	as required for training reverse-direction LMs, and consistent with reverse-text.
+	* Handle comment lines starting with '##' and empty lines in nbest-rover control
+	files the same way as in File::getline(), i.e., ignore them.
+	* Fixed the syntax for the nbest-optimize -dynamic-random-series options (now 
+	starts with single dash, as described in man page).
+	* Don't let compute-best-mix complain about word mismatches if <unk> is involved.
+	* Cast input to isspace() to (unsigned char) to guarantee input is non-negative.
+	* Fixed memory management problems in MEModel.
+	* Work around a bug in zlib's gzprintf() printing of very long %s arguments; was
+	causing long word strings not to be output into .gz files.
+	* Removed word string length limit.
+	* Removed limit on total line length in outputting ngram count files.
+	* Zlib updated to version 1.2.11.
+	* nbest-posteriors ensures that bytelog scores are output in fixed-point format.
+	* Allow floating point values when parsing bytelog scores in nbest lists.
+	* Most robustness to word sausages input files that have missing data for some
+	position.
+	* Fixed a performance bug when nbest-rover is invoked with -output-ctm option.
+
+$Date: 2019/09/09 23:09:32 $
+
 

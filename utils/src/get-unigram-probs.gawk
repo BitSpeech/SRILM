@@ -5,7 +5,7 @@
 #
 # usage: get-unigram-probs bo-file
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/get-unigram-probs.gawk,v 1.2 2007/07/13 23:25:02 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/get-unigram-probs.gawk,v 1.3 2018/06/28 07:45:08 stolcke Exp $
 #
 
 BEGIN {
@@ -25,8 +25,10 @@ BEGIN {
 	next;
 }
 
-currorder == 1 && NF > 1 {
-	if (linear) {
+currorder == 1 && NF > 0 {
+	if (NF < 2) {
+	    print "line " NR ": missing word" > "/dev/stderr";
+	} else if (linear) {
 	    print $2, $1 == logzero ? 0 : 10^$1;
 	} else {
 	    print $2, $1 == logzero ? "-infinity" : $1;

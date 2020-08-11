@@ -5,7 +5,7 @@
 # (This requires that the waveform names conform to our standard
 # formats, the same as in sentid-to-ctm.)
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/fix-ctm.gawk,v 1.9 2012/01/04 07:38:34 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/fix-ctm.gawk,v 1.10 2019/02/09 07:30:11 stolcke Exp $
 #
 BEGIN {
         # time to add to word start times (should be about half FE window size)
@@ -38,6 +38,8 @@ BEGIN {
 
 	parse_sentids = 1;
 
+	orig_times = 0;	# DON'T preserve original times
+
 	sort_cmd = "sort -b -k 1,1 -k 2,2 -k 3,3n";
 }
 {
@@ -62,6 +64,10 @@ BEGIN {
 		duration = 0;
 	}
 
+	# exclude sentence start/end tags
+	if (word ~ tag_pat) next;
+	if (tolower(word) ~ htk_tag_pat) next;
+
 	if (sentid == last_sentid) {
 	    if (start_time <= last_start_time) {
 		new_start_time = last_start_time + .01;
@@ -78,8 +84,8 @@ BEGIN {
 	    conv = sentid;
 	    channel = $2;
 	    start_offset = 0;
-        } else if (match(sentid, "_[12]_[-0-9][0-9]*_[0-9][0-9]*$")) {
-           # waveforms with [12] channel id, timemarks 1/1000s
+        } else if (match(sentid, "_[0-9]_[-0-9][0-9]*_[0-9][0-9]*$")) {
+           # waveforms with [012] channel id, timemarks 1/1000s
            # NOTE: this form is used by the segmenter
            conv = substr(sentid, 1, RSTART-1);
            split(substr(sentid, RSTART+1), sentid_parts, "_");
@@ -100,13 +106,13 @@ BEGIN {
            end_offset = 10000;
         }
 
+	if (orig_times) {
+	    start_offset = 0;
+	}
+
 	if (channel_letters && channel ~ /^[0-9]/) {
 		channel = sprintf("%c", 64+channel);
 	}
-
-	# exclude sentence start/end tags
-	if (word ~ tag_pat) next;
-	if (tolower(word) ~ htk_tag_pat) next;
 
 	speaker_id = conv "_" channel;
 
@@ -127,7 +133,8 @@ BEGIN {
 		    word_type = "lex";
 		}
 
-		print conv, channel, \
+		printf "%s %s %.2f %.2f %s %g %s %s\n", \
+			conv, channel, \
 			start_offset + start_time + phase_shift + \
 				(j - 1) * duration/ncomps,\
 			duration/ncomps, \

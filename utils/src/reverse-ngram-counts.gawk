@@ -3,8 +3,12 @@
 # reverse-ngram-counts --
 #	Reverse the word order in N-gram count files
 #
-# $Header: /home/srilm/CVS/srilm/utils/src/reverse-ngram-counts.gawk,v 1.1 2000/06/22 20:38:41 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/utils/src/reverse-ngram-counts.gawk,v 1.2 2017/07/31 18:18:50 stolcke Exp $
 #
+BEGIN {
+	start_tag = "<s>";
+	end_tag = "</s>";
+}
 {
 	i = 1;
 	j = NF - 1;
@@ -13,6 +17,12 @@
 		$i = $j;
 		$j = h; 
 		i ++; j--;
+	}
+
+	# swap <s> and </s> tags
+	for (i = 1; i < NF; i ++) {
+	    if ($i == end_tag) $i = start_tag;
+	    else if ($i == start_tag) $i = end_tag;
 	}
 	print;
 }

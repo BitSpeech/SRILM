@@ -6,9 +6,9 @@
  * on demand.  It can be used to implement simple adaptation schemes.
  * (Currently only ngram models are supported.)
  *
- * Copyright (c) 1995, SRI International, 2012 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995 SRI International, 2012 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/DynamicLM.h,v 1.5 2014-04-22 06:57:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/DynamicLM.h,v 1.7 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 
@@ -31,7 +31,8 @@ public:
     virtual Boolean running() const { return _running; }
     virtual Boolean running(Boolean newstate)
       { Boolean old = _running; _running = newstate; 
-	if (myLM) myLM->running(newstate); return old; };
+	if (myLM) myLM->running(newstate);
+        return old; };
 
     /*
      * Propagate changes to Debug state to component model

@@ -14,9 +14,9 @@
  * mixtures of bigram models, the p(context | M_i) would simply be the unigram 
  * probability of the last word according to M_i.
  *
- * Copyright (c) 1995-2002 SRI International, 2012-2013 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2002 SRI International, 2012-2013 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.19 2014-04-22 06:57:45 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/BayesMix.h,v 1.20 2019/09/09 23:13:12 stolcke Exp $
  *
  */
 

@@ -5,8 +5,8 @@
  */
 
 #ifndef lint
-static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012 Microsoft Corp.  All Rights Reserved.";
-static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.57 2014-08-29 21:35:48 frandsen Exp $";
+static char Copyright[] = "Copyright (c) 1995-2012 SRI International, 2012-2018 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.";
+static char RcsId[] = "@(#)$Header: /home/srilm/CVS/srilm/lm/src/Vocab.cc,v 1.61 2019/09/09 23:13:13 stolcke Exp $";
 #endif
 
 #ifdef PRE_ISO_CXX
@@ -102,19 +102,31 @@ Vocab::memStats(MemStats &stats) const
 
 // map word string to lowercase
 // returns a static buffer
-static TLSW_ARRAY(char, lowerTLS, maxWordLength + 1);
+static TLSW_DEF(char *, lowerTLS);
+static TLSW_DEF(unsigned, lowerSizeTLS);
+
 VocabString
 Vocab::mapToLower(VocabString name)
 {
-    char* lower = TLSW_GET_ARRAY(lowerTLS);
+    char* &lower = TLSW_GET(lowerTLS);
+    unsigned &lowerSize = TLSW_GET(lowerSizeTLS);
+
+    unsigned len = strlen(name);
+
+    if (lower == 0 || len > lowerSize) {
+	if (lower != 0) delete [] lower;
+
+	lowerSize = len + 10;
+
+	lower = new char[lowerSize + 1];
+	assert(lower != 0);
+    }
 
     unsigned  i;
-    for (i = 0; name[i] != 0 && i < maxWordLength; i++) {
+    for (i = 0; name[i] != 0; i++) {
 	lower[i] = tolower((unsigned char)name[i]);
     }
     lower[i] = '\0';
-
-    assert(i < maxWordLength);
 
     return lower;
 }
@@ -125,7 +137,9 @@ Vocab::freeThread()
     TLSW_FREE(outputVocabTLS);
     TLSW_FREE(compareVocabTLS);
     TLSW_FREE(lowerTLS);
+    TLSW_FREE(lowerSizeTLS);
 }
+
 // Add word to vocabulary
 VocabIndex
 Vocab::addWord(VocabString name)
@@ -554,12 +568,17 @@ Vocab::reverse(VocabString *words)
  * Output of Ngrams
  */
 
-void
+unsigned int
 Vocab::write(File &file, const VocabString *words)
 {
-    for (unsigned int i = 0; words[i] != 0; i++) {
-	file.fprintf("%s%s", (i > 0 ? " " : ""), words[i]);
+    unsigned int i;
+
+    for (i = 0; words[i] != 0; i++) {
+	if (i > 0) file.fprintf(" ");
+	file.fwrite(words[i], 1, strlen(words[i]));
     }
+
+    return i;
 }
 
 ostream &
@@ -686,7 +705,8 @@ Vocab::write(File &file, Boolean sorted) const
     VocabString word;
 
     while (!file.error() && (word = iter.next())) {
-	file.fprintf("%s\n", word);
+	file.fwrite(word, 1, strlen(word));
+	file.fprintf("\n");
     }
 }
 
@@ -852,7 +872,9 @@ Vocab::writeIndexMap(File &file, Boolean writingLM)
     // on reading, and ensures faster insertions into SArray-based tries.
     for (unsigned i = byIndex.base(); i < nextIndex; i ++) {
 	if (byIndex[i] && !(writingLM && isMetaTag(i))) {
-	    file.fprintf("%u %s\n", i, byIndex[i]);
+	    file.fprintf("%u ", i);
+	    file.fwrite(byIndex[i], 1, strlen(byIndex[i]));
+	    file.fprintf("\n");
 	}
     }
     file.fprintf(".\n");

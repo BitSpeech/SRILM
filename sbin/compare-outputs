@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2003-2006 SRI International, 2012 Microsoft Corp. All Right Reserved.
 #
-# $Header: /home/srilm/CVS/srilm/sbin/compare-outputs,v 1.4 2013/02/21 06:34:48 stolcke Exp $
+# $Header: /home/srilm/CVS/srilm/sbin/compare-outputs,v 1.5 2017/07/20 03:20:03 stolcke Exp $
 #
 
 BEGIN {
@@ -69,7 +69,10 @@ function same_contents(file1, file2) {
 
 		lineno ++;
 
+		sub("$", "", line1);		# strip MSDOS EOL
 		n1 = split(line1, words1);
+
+		sub("$", "", line2);		# strip MSDOS EOL
 		n2 = split(line2, words2);
 
 		if (n1 != n2) {

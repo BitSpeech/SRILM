@@ -5,9 +5,9 @@
  * TextStats objects are used to pass and accumulate various 
  * statistics of text sources (training or test).
  *
- * Copyright (c) 1995-2009 SRI International, 2012-2015 Microsoft Corp.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International, 2012-2015 Andreas Stolcke, Microsoft Corp.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.9 2015-10-13 21:04:27 stolcke Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/lm/src/TextStats.h,v 1.10 2019/09/09 23:13:13 stolcke Exp $
  *
  */
 

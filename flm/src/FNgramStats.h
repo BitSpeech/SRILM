@@ -6,9 +6,9 @@
  * Jeff Bilmes <bilmes@ee.washington.edu>
  * (based on code from Stolcke@SRI so copyright is preserved)
  *
- * Copyright (c) 1995-2009 SRI International.  All Rights Reserved.
+ * Copyright (c) 1995-2009 SRI International, 2018 Andreas Stolcke, Microsoft.  All Rights Reserved.
  *
- * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.h,v 1.19 2012/10/29 17:24:59 mcintyre Exp $
+ * @(#)$Header: /home/srilm/CVS/srilm/flm/src/FNgramStats.h,v 1.22 2019/09/09 23:13:11 stolcke Exp $
  *
  */
 
@@ -49,13 +49,14 @@ class FactoredVocab;				// forward declaration
 template <class CountT> class FNgramSpecs;	// forward declaration
 template <class CountT> class FNgramCountsIter;	// forward declaration
 
-extern TLSW_DECL_ARRAY(VocabIndex, countSentenceWids, maxNumParentsPerChild+2);
 extern TLSW_DECL(WordMatrix, countSentenceWordMatrix); 
 extern TLSW_DECL(WidMatrix, countSentenceWidMatrix); 
+extern TLSW_DECL_ARRAY(VocabIndex, countSentenceWids, maxNumParentsPerChild+2);
 extern TLSW_DECL_ARRAY(VocabString, readWords, maxNumParentsPerChild+1);
 extern TLSW_DECL_ARRAY(VocabIndex, readWids, maxNumParentsPerChild+1);
 extern TLSW_DECL_ARRAY(Boolean, readTagsFound, maxNumParentsPerChild+1);
-extern TLSW_DECL_ARRAY(char, writeSpecBuffer, maxLineLength);
+// extern TLSW_DECL_ARRAY(VocabString, writeSpecBuffer, maxLineLength);
+extern TLSW_DECL_ARRAY(VocabString, writeSpecBuffer, maxNumParentsPerChild+1);
 
 #ifndef FNgramNode
 #define FNgramNode        Trie<VocabIndex,CountT>
@@ -155,7 +156,7 @@ protected:
 		       const unsigned minOrder = 1, 
 		       const CountT factor = 1);
 
-  void writeNode(FNgramNode *node, unsigned int parSpec, File &file, char *buffer, char *bptr,
+  void writeNode(FNgramNode *node, unsigned int parSpec, File &file, VocabString *buffer,
 		 unsigned int level, unsigned int order, Boolean sorted);
 };
 

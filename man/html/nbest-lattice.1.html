@@ -1,4 +1,4 @@
-<! $Id: nbest-lattice.1,v 1.42 2010/07/11 17:29:36 stolcke Exp $>
+<! $Id: nbest-lattice.1,v 1.49 2019/09/09 22:35:36 stolcke Exp $>
 <HTML>
 <HEADER>
 <TITLE>nbest-lattice</TITLE>
@@ -70,6 +70,16 @@ Causes the probabilities of deletions to be biased by a factor
 in doing mesh-based word error minimization.
 This controls the trade-off between insertion and deletion errors.
 The default is 1 (no bias).
+<DT><B> -random-tie-break </B>
+<DD>
+Break ties between words with equal probability pseudo-randomly
+when doing mesh-based word error minimization.
+The default is to decide for the word with the lowest internal
+index (which reflects the order in the vocab file, or in
+which they are encountered in the input data).
+<DT><B> -no-tie-break </B>
+<DD>
+Disable all explicit tie breaking, for backward compatibility.
 <DT><B>-rescore</B><I> file</I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Reads the N-best list from
@@ -336,6 +346,15 @@ and aligns those lattices with the main lattice being built.
 Each line of 
 <I> file </I>
 must contain a lattice filename, optionally followed by a weight.
+<DT><B>-dump-lattice-alignments</B><I></I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+Causes 
+<B> -lattice-files </B>
+to write out the position alignments between the
+<B> -read </B>
+input lattice and each of the lattices in 
+<I>file</I>,<I></I><I></I><I></I>
+as well as their alignment costs.
 <DT><B>-write</B><I> file</I><B></B><I></I><B></B><I></I><B></B>
 <DD>
 Writes the resulting word posterior lattice or mesh to
@@ -402,6 +421,38 @@ and constrain word meshes to only align those words that are either all
 in or outside the subvocabulary.
 This may be used to keep ``hidden event'' tags from aligning with
 regular words.
+<DT><B>-suppress-vocab</B> file<B></B><B></B><B></B>
+<DD>
+Read a subvocabulary from
+<I> file </I>
+and disallow its words when decoding the best word string from a lattice or mesh.
+If such a word has the highest posterior probability at a given position, the word with
+next highest posterior is chosen instead, or a null word if no other word choice is
+available.
+This is useful when special tokens are included in the nbest inputs to
+mediate alignments, but are not meant to be included in the output.
+<DT><B>-time-penalty</B><I> p</I><B></B><I></I><B></B><I></I><B></B>
+<DD>
+Apply soft time constraints during word alignment (in word mesh mode only).
+In addition to the expected word error, a penalty term is added to the 
+cost function minimized during alignment.
+The penality term is only applied if word meshes or input N-best lists contain
+backtrace information (see 
+<B>-nbest-backtrace</B>)<B></B><B></B><B></B>
+and is scaled by the factor
+<I> p </I>
+(which is zero by default).
+The penality term for 
+aligning two word hypotheses or word mesh columns is the absolute difference in
+their times (the time of a word mesh column is the posterior-averaged
+time of all its component words).
+If two successive words or word columns have time stamps in the wrong temporal order,
+their time difference is added to the penalty term.
+<DT><B> -average-times </B>
+<DD>
+When aligning two instances of the same word, average their times (if available)
+instead of adopting the one with the time information associated with the 
+highest poosterior probability.
 <DT><B> -record-hyps </B>
 <DD>
 Record the ranks of the hyps contributing to each word hypothesis in the 
@@ -446,8 +497,12 @@ is the LM weight during recognition.
 This is not an issue if the N-best lists have been rescored with
 <B>rescore-decipher</B>.<B></B><B></B><B></B>
 <H2> AUTHOR </H2>
-Andreas Stolcke &lt;stolcke@speech.sri.com&gt;.
+Andreas Stolcke &lt;stolcke@icsi.berkeley.edu&gt;
 <BR>
-Copyright 1996-2010 SRI International
+Copyright (c) 1996-2010 SRI International
+<BR>
+Copyright (c) 2011-2019 Andreas Stolcke
+<BR>
+Copyright (c) 2011-2019 Microsoft Corp.
 </BODY>
 </HTML>
